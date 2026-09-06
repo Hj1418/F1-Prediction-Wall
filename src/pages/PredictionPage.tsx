@@ -157,6 +157,14 @@ export const PredictionPage: React.FC = () => {
       }
     }
 
+    // Explicit podium duplicate check
+    const podiumPicks = [formData.p1, formData.p2, formData.p3].filter(Boolean);
+    const uniquePodiumPicks = new Set(podiumPicks);
+    if (podiumPicks.length !== uniquePodiumPicks.size) {
+      showToast('A driver cannot be selected more than once across podium positions (P1, P2, P3).', 'error');
+      return;
+    }
+
     try {
       setSubmitting(true);
       const saved = await api.submitPrediction({
@@ -204,7 +212,7 @@ export const PredictionPage: React.FC = () => {
         <div className="container">
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
             <Link
-              to={weekend ? `/weekends/${weekend.raceWeekendId}` : '/weekends'}
+              to={weekend ? `/races/${weekend.roundNumber || weekend.raceWeekendId}` : '/races'}
               style={{
                 textDecoration: 'none',
                 color: 'var(--text-muted)',
@@ -214,7 +222,7 @@ export const PredictionPage: React.FC = () => {
                 gap: '0.3rem',
               }}
             >
-              <ChevronLeft size={14} /> Back to {weekend ? weekend.raceName : 'Calendar'}
+              <ChevronLeft size={14} /> Back to {weekend ? weekend.raceName : 'Championship Calendar'}
             </Link>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>

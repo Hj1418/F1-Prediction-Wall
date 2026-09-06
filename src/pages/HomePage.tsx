@@ -4,9 +4,13 @@ import { api } from '../services/apiClient';
 import { RaceWeekend, PredictionRound, LeaderboardEntry, Driver, getCircuitName } from '../types';
 import { StatusBadge } from '../components/common/StatusBadge';
 import { CountdownTimer } from '../components/common/CountdownTimer';
+import { CircuitMap } from '../components/common/CircuitMap';
+import { PaddockFacts } from '../components/race/PaddockFacts';
+import { TrackCharacter } from '../components/race/TrackCharacter';
+import { getCircuitMetadata } from '../services/circuits/circuitRegistry';
 import { useApp } from '../context/AppContext';
+import { useAuth } from '../context/AuthContext';
 import {
-  Flag,
   Calendar,
   Zap,
   ArrowRight,
@@ -16,12 +20,14 @@ import {
   CheckCircle2,
   Clock,
   ChevronRight,
-  TrendingUp,
+  Lock,
+  Crown,
   Sparkles,
 } from 'lucide-react';
 
 export const HomePage: React.FC = () => {
   const { dataVersion } = useApp();
+  const { currentUser } = useAuth();
   const [activeWeekend, setActiveWeekend] = useState<RaceWeekend | null>(null);
   const [activeRounds, setActiveRounds] = useState<PredictionRound[]>([]);
   const [currentRound, setCurrentRound] = useState<PredictionRound | null>(null);
@@ -69,27 +75,36 @@ export const HomePage: React.FC = () => {
       <div className="container" style={{ padding: '5rem 0', textAlign: 'center' }}>
         <div className="live-pulse" style={{ width: '14px', height: '14px', backgroundColor: 'var(--f1-red)', marginBottom: '1rem' }} />
         <div style={{ fontFamily: 'var(--font-mono)', letterSpacing: '0.1em', color: 'var(--text-secondary)' }}>
-          ACQUIRING PIT WALL TELEMETRY...
+          LOADING RACE INFORMATION...
         </div>
       </div>
     );
   }
 
   const topThree = seasonLeaderboard.slice(0, 3);
+  const circuitMeta = activeWeekend ? getCircuitMetadata(activeWeekend.circuit) : null;
+
+  // Distinguish Qualifying and Race prediction rounds
+  const qualiRound = activeRounds.find(r => r.roundType.includes('QUALI'));
+  const raceRound = activeRounds.find(r => r.roundType.includes('RACE'));
+
+  const startDateStr = activeWeekend ? new Date(activeWeekend.startDate).toLocaleDateString([], { month: 'short', day: 'numeric' }) : '';
+  const endDateStr = activeWeekend ? new Date(activeWeekend.endDate).toLocaleDateString([], { month: 'short', day: 'numeric' }) : '';
 
   return (
     <div style={{ paddingBottom: '4rem' }}>
-      {/* 1. HERO RACE WEEKEND SECTION */}
+      {/* 1. UPCOMING RACE HERO SECTION */}
       {activeWeekend && (
         <section
           style={{
-            background: 'linear-gradient(180deg, rgba(18, 23, 34, 0.8) 0%, rgba(8, 10, 15, 0.95) 100%)',
+            background: 'linear-gradient(180deg, rgba(18, 23, 34, 0.85) 0%, rgba(8, 10, 15, 0.98) 100%)',
             borderBottom: '1px solid var(--border-subtle)',
-            padding: '3.5rem 0 2.5rem 0',
+            padding: '3rem 0 2.5rem 0',
             position: 'relative',
           }}
         >
           <div className="container">
+            {/* Category Eyebrow */}
             <div
               style={{
                 display: 'flex',
@@ -108,7 +123,7 @@ export const HomePage: React.FC = () => {
                   textTransform: 'uppercase',
                 }}
               >
-                FORMULA 1 COMMUNITY PREDICTION LEAGUE
+                UPCOMING GRAND PRIX
               </span>
               <span style={{ color: 'var(--text-muted)' }}>•</span>
               <span
@@ -118,10 +133,11 @@ export const HomePage: React.FC = () => {
                   color: 'var(--telemetry-green)',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '0.3rem',
+                  gap: '0.35rem',
+                  fontWeight: 800,
                 }}
               >
-                <span className="live-pulse" /> ROUND {activeWeekend.roundNumber || (activeWeekend as any).round || 1} OF {(activeWeekend as any).totalRounds || 24}
+                <span className="live-pulse" /> ROUND {activeWeekend.roundNumber || (activeWeekend as any).round || 13} OF 24
               </span>
             </div>
 
@@ -133,7 +149,7 @@ export const HomePage: React.FC = () => {
                 alignItems: 'center',
               }}
             >
-              {/* Left Column: Weekend details & headline */}
+              {/* Left Column: Weekend details */}
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
                   <span style={{ fontSize: '2.5rem' }}>{activeWeekend.flag}</span>
@@ -174,7 +190,7 @@ export const HomePage: React.FC = () => {
                     }}
                   >
                     <Zap size={13} />
-                    {activeWeekend.weekendType === 'SPRINT' ? 'SPRINT WEEKEND FORMAT' : 'CONVENTIONAL GP FORMAT'}
+                    {activeWeekend.weekendType === 'SPRINT' ? 'SPRINT WEEKEND' : 'CONVENTIONAL GP FORMAT'}
                   </span>
 
                   <span
@@ -191,11 +207,11 @@ export const HomePage: React.FC = () => {
                       gap: '0.35rem',
                     }}
                   >
-                    <Gauge size={13} /> {activeWeekend.circuitLengthKm} km • {activeWeekend.laps} Laps
+                    <Calendar size={13} /> {startDateStr} – {endDateStr}
                   </span>
 
                   <Link
-                    to={`/weekends/${activeWeekend.raceWeekendId}`}
+                    to={`/races/${activeWeekend.roundNumber || activeWeekend.raceWeekendId}`}
                     style={{
                       textDecoration: 'none',
                       color: 'var(--text-secondary)',
@@ -211,137 +227,107 @@ export const HomePage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Right Column: Next Active Prediction Card */}
-              {currentRound && (
-                <div
-                  className="race-card"
-                  style={{
-                    background: 'linear-gradient(135deg, rgba(18, 23, 34, 0.95), rgba(22, 28, 40, 0.95))',
-                    border: currentRound.status === 'OPEN' ? '1px solid rgba(0, 230, 118, 0.4)' : '1px solid var(--border-medium)',
-                    padding: '1.75rem',
-                    boxShadow: currentRound.status === 'OPEN' ? '0 10px 30px -5px rgba(0, 230, 118, 0.15)' : 'none',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
-                    <span style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                      FEATURED PREDICTION ROUND
-                    </span>
-                    <StatusBadge status={currentRound.status} />
-                  </div>
-
-                  <h3 style={{ fontSize: '1.35rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '0.4rem' }}>
-                    {currentRound.title}
-                  </h3>
-                  <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: '1.25rem', lineHeight: 1.4 }}>
-                    {currentRound.description}
-                  </p>
-
-                  {/* Countdown */}
-                  <div style={{ marginBottom: '1.5rem' }}>
-                    {currentRound.status === 'OPEN' ? (
-                      <CountdownTimer targetDate={currentRound.closesAt} prefix="Predictions Close In" />
-                    ) : currentRound.status === 'LOCKED' ? (
-                      <div style={{ color: '#f87171', fontFamily: 'var(--font-mono)', fontSize: '0.9rem', fontWeight: 700 }}>
-                        🔒 PREDICTIONS LOCKED FOR THIS SESSION
-                      </div>
-                    ) : currentRound.status === 'SCORED' ? (
-                      <div style={{ color: 'var(--telemetry-purple)', fontFamily: 'var(--font-mono)', fontSize: '0.9rem', fontWeight: 700 }}>
-                        🏁 OFFICIAL RESULTS SCORED
-                      </div>
-                    ) : (
-                      <div style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: '0.9rem' }}>
-                        Opens: {new Date(currentRound.opensAt).toLocaleString()}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Action Button */}
-                  <div style={{ display: 'flex', gap: '0.75rem' }}>
-                    <Link
-                      to={`/predict/${currentRound.roundId}`}
-                      className="btn btn-primary"
-                      style={{ flex: 1, padding: '0.85rem 1.25rem' }}
-                    >
-                      {currentRound.status === 'OPEN' ? (
-                        <>
-                          <Sparkles size={16} /> MAKE YOUR PREDICTION
-                        </>
-                      ) : (
-                        <>
-                          <ArrowRight size={16} /> VIEW PREDICTIONS & SCORES
-                        </>
-                      )}
-                    </Link>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Visual Race Weekend Timeline Strip */}
-            {activeRounds.length > 0 && (
-              <div style={{ marginTop: '2.5rem', paddingTop: '2rem', borderTop: '1px solid var(--border-subtle)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
-                  <div style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-secondary)' }}>
-                    WEEKEND TIMELINE & PREDICTION STAGES
-                  </div>
-                  <Link
-                    to={`/weekends/${activeWeekend.raceWeekendId}`}
-                    style={{ fontSize: '0.75rem', color: 'var(--f1-red)', textDecoration: 'none', fontWeight: 700 }}
-                  >
-                    View All Sessions →
-                  </Link>
+              {/* Right Column: PREDICTIONS ARE OPEN (Primary CTA Card) */}
+              <div
+                className="race-card"
+                style={{
+                  background: 'linear-gradient(135deg, rgba(18, 23, 34, 0.95), rgba(22, 28, 40, 0.95))',
+                  border: currentRound?.status === 'OPEN' ? '1px solid rgba(0, 230, 118, 0.45)' : '1px solid var(--border-medium)',
+                  padding: '1.75rem',
+                  boxShadow: currentRound?.status === 'OPEN' ? '0 10px 30px -5px rgba(0, 230, 118, 0.15)' : 'none',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                  <span style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--telemetry-green)', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <span className="live-pulse" /> PREDICTIONS ARE OPEN
+                  </span>
+                  <StatusBadge status={currentRound?.status || 'OPEN'} />
                 </div>
 
+                <h3 style={{ fontSize: '1.35rem', fontWeight: 900, textTransform: 'uppercase', marginBottom: '0.35rem' }}>
+                  {activeWeekend.raceName}
+                </h3>
+
+                {/* Session Status Overview Table */}
                 <div
                   style={{
                     display: 'grid',
-                    gridTemplateColumns: `repeat(auto-fit, minmax(200px, 1fr))`,
-                    gap: '0.75rem',
+                    gridTemplateColumns: 'repeat(2, 1fr)',
+                    gap: '0.5rem',
+                    margin: '1rem 0 1.25rem 0',
+                    background: 'var(--bg-input)',
+                    padding: '0.75rem',
+                    borderRadius: 'var(--radius-sm)',
+                    border: '1px solid var(--border-subtle)',
                   }}
                 >
-                  {activeRounds.map(round => {
-                    const isSelected = currentRound?.roundId === round.roundId;
-                    return (
-                      <Link
-                        key={round.roundId}
-                        to={`/predict/${round.roundId}`}
-                        style={{
-                          textDecoration: 'none',
-                          color: 'inherit',
-                          background: isSelected ? 'var(--bg-surface-elevated)' : 'var(--bg-surface-card)',
-                          border: `1px solid ${isSelected ? 'var(--border-medium)' : 'var(--border-subtle)'}`,
-                          borderRadius: 'var(--radius-md)',
-                          padding: '0.85rem 1rem',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          gap: '0.5rem',
-                          transition: 'all 0.15s ease',
-                        }}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
-                            {round.roundType.replace('_', ' ')}
-                          </span>
-                          <StatusBadge status={round.status} size="sm" />
-                        </div>
-                        <div style={{ fontWeight: 800, fontSize: '0.9rem', textTransform: 'uppercase' }}>
-                          {round.title}
-                        </div>
-                        <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                          <Clock size={11} />
-                          {round.status === 'OPEN' ? 'Closes at race start' : round.status}
-                        </div>
-                      </Link>
-                    );
-                  })}
+                  <div>
+                    <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                      QUALIFYING
+                    </div>
+                    <div style={{ fontSize: '0.85rem', fontWeight: 800, marginTop: '0.2rem', color: qualiRound?.status === 'OPEN' ? 'var(--telemetry-green)' : '#f87171' }}>
+                      {qualiRound?.status === 'OPEN' ? '🟢 OPEN' : qualiRound?.status === 'LOCKED' ? '🔴 LOCKED' : 'UPCOMING'}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                      GRAND PRIX RACE
+                    </div>
+                    <div style={{ fontSize: '0.85rem', fontWeight: 800, marginTop: '0.2rem', color: raceRound?.status === 'OPEN' ? 'var(--telemetry-green)' : 'var(--text-secondary)' }}>
+                      {raceRound?.status === 'OPEN' ? '🟢 OPEN' : raceRound?.status === 'LOCKED' ? '🔴 LOCKED' : 'OPENS SOON'}
+                    </div>
+                  </div>
                 </div>
+
+                {/* Countdown */}
+                <div style={{ marginBottom: '1.5rem' }}>
+                  {currentRound && currentRound.status === 'OPEN' ? (
+                    <CountdownTimer targetDate={currentRound.closesAt} prefix="Predictions Close In" />
+                  ) : (
+                    <div style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: '0.85rem' }}>
+                      Predictions open as the race weekend begins
+                    </div>
+                  )}
+                </div>
+
+                {/* Primary Button */}
+                <Link
+                  to={currentRound ? `/predict/${currentRound.roundId}` : `/races/${activeWeekend.roundNumber || activeWeekend.raceWeekendId}`}
+                  className="btn btn-primary"
+                  style={{ width: '100%', padding: '0.85rem 1.25rem', justifyContent: 'center', fontSize: '0.95rem' }}
+                >
+                  <Zap size={16} /> MAKE YOUR PREDICTION
+                </Link>
               </div>
-            )}
+            </div>
+
+            {/* 2. ABOUT THE CIRCUIT SECTION */}
+            <div style={{ marginTop: '3rem' }}>
+              <CircuitMap circuit={activeWeekend.circuit} variant="hero" />
+            </div>
+
+            {/* 3. PADDOCK FACT & TRACK CHARACTER GRID */}
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+                gap: '1.5rem',
+                marginTop: '1.5rem',
+              }}
+            >
+              {circuitMeta && (
+                <>
+                  <PaddockFacts facts={circuitMeta.facts} circuitName={circuitMeta.name} />
+                  <TrackCharacter trackCharacter={circuitMeta.trackCharacter} />
+                </>
+              )}
+            </div>
           </div>
         </section>
       )}
 
-      {/* 2. CHAMPIONSHIP STANDINGS & HIGHLIGHTS GRID */}
+      {/* 4. COMMUNITY LEADERBOARD PREVIEW SECTION */}
       <section className="container" style={{ marginTop: '3.5rem' }}>
         <div
           style={{
@@ -357,7 +343,7 @@ export const HomePage: React.FC = () => {
                 <div style={{ fontSize: '0.72rem', fontWeight: 800, color: 'var(--f1-red)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
                   2026 COMMUNITY CHAMPIONSHIP
                 </div>
-                <h3 style={{ fontSize: '1.25rem', fontWeight: 800, textTransform: 'uppercase', marginTop: '0.2rem' }}>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 900, textTransform: 'uppercase', marginTop: '0.2rem' }}>
                   Season Leaderboard
                 </h3>
               </div>
@@ -426,7 +412,10 @@ export const HomePage: React.FC = () => {
                       />
 
                       <div>
-                        <div style={{ fontWeight: 800, fontSize: '0.92rem' }}>{player.displayName}</div>
+                        <div style={{ fontWeight: 800, fontSize: '0.92rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                          {player.displayName}
+                          {idx === 0 && <Crown size={13} color="#eab308" />}
+                        </div>
                         <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
                           <span>@{player.username}</span>
                           {fav && (
@@ -453,22 +442,22 @@ export const HomePage: React.FC = () => {
             </div>
           </div>
 
-          {/* Scoring Rules Quick Reference Card */}
+          {/* Simple Scoring Guide */}
           <div className="race-card" style={{ padding: '1.75rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem' }}>
               <Medal size={20} color="var(--telemetry-cyan)" />
-              <h3 style={{ fontSize: '1.25rem', fontWeight: 800, textTransform: 'uppercase' }}>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: 900, textTransform: 'uppercase' }}>
                 How Scoring Works
               </h3>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', fontSize: '0.85rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.45rem 0', borderBottom: '1px solid var(--border-subtle)' }}>
-                <span>Exact P1 Position</span>
+                <span>Exact P1 Winner</span>
                 <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, color: 'var(--telemetry-green)' }}>+15 PTS</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.45rem 0', borderBottom: '1px solid var(--border-subtle)' }}>
-                <span>Exact P2 or P3 Position</span>
+                <span>Exact P2 or P3 Podium</span>
                 <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, color: 'var(--telemetry-green)' }}>+10 PTS</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.45rem 0', borderBottom: '1px solid var(--border-subtle)' }}>
@@ -480,18 +469,24 @@ export const HomePage: React.FC = () => {
                 <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, color: 'var(--telemetry-cyan)' }}>+10 PTS each</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.45rem 0', borderBottom: '1px solid var(--border-subtle)' }}>
-                <span>Session Wild Card Question</span>
+                <span>Wildcard Question</span>
                 <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, color: 'var(--telemetry-purple)' }}>+15 PTS</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.45rem 0' }}>
-                <span style={{ fontWeight: 800, color: '#fff' }}>🎯 Perfect 1-2-3 Podium Bonus</span>
+                <span style={{ fontWeight: 800, color: '#fff', display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                  <Trophy size={14} color="var(--f1-red)" /> Perfect 1-2-3 Podium Bonus
+                </span>
                 <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, color: 'var(--f1-red)' }}>+10 BONUS</span>
               </div>
             </div>
 
             <div style={{ marginTop: '1.25rem', paddingTop: '1rem', borderTop: '1px solid var(--border-subtle)', textAlign: 'center' }}>
-              <Link to="/predict/round_chn_gp" className="btn btn-secondary btn-sm" style={{ width: '100%' }}>
-                Make Predictions Now
+              <Link
+                to={currentRound ? `/predict/${currentRound.roundId}` : '/races'}
+                className="btn btn-secondary btn-sm"
+                style={{ width: '100%', textDecoration: 'none', justifyContent: 'center' }}
+              >
+                {currentRound ? `Predict ${currentRound.title}` : 'View Championship Calendar'}
               </Link>
             </div>
           </div>

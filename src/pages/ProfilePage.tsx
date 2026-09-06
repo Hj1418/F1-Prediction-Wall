@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { api } from '../services/apiClient';
-import { User, Achievement, Driver } from '../types';
+import { User, Achievement, Driver, Constructor } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
+import { F1_CONSTRUCTORS_2026 } from '../services/mockData';
 import {
   Trophy,
   Award,
@@ -30,6 +31,10 @@ export const ProfilePage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [isEditingFavDriver, setIsEditingFavDriver] = useState(false);
   const [selectedFavDriver, setSelectedFavDriver] = useState('');
+  const [isEditingFavConstructor, setIsEditingFavConstructor] = useState(false);
+  const [selectedFavConstructor, setSelectedFavConstructor] = useState('');
+  const [isEditingBio, setIsEditingBio] = useState(false);
+  const [selectedBio, setSelectedBio] = useState('');
 
   useEffect(() => {
     async function loadProfile() {
@@ -45,7 +50,9 @@ export const ProfilePage: React.FC = () => {
         setDrivers(dList);
 
         if (u) {
-          setSelectedFavDriver(u.favouriteDriver);
+          setSelectedFavDriver(u.favouriteDriver || '');
+          setSelectedFavConstructor(u.favouriteConstructor || 'ferrari');
+          setSelectedBio(u.bio || '');
           const [achs, userHistory] = await Promise.all([
             api.getUserAchievements(u.userId),
             api.getUserPredictionsHistory(u.userId),
@@ -87,6 +94,9 @@ export const ProfilePage: React.FC = () => {
 
   const isOwner = currentUser.userId === profileUser.userId;
   const favDriver = drivers.find(d => d.id === (isEditingFavDriver ? selectedFavDriver : profileUser.favouriteDriver));
+  const favConstructor = F1_CONSTRUCTORS_2026.find(
+    c => c.id === (isEditingFavConstructor ? selectedFavConstructor : profileUser.favouriteConstructor)
+  );
 
   const handleSaveFavDriver = async () => {
     try {
@@ -96,6 +106,28 @@ export const ProfilePage: React.FC = () => {
       showToast('Favourite driver updated!', 'success');
     } catch (e) {
       showToast('Failed to update favourite driver', 'error');
+    }
+  };
+
+  const handleSaveFavConstructor = async () => {
+    try {
+      await updateProfile({ favouriteConstructor: selectedFavConstructor });
+      setProfileUser(prev => (prev ? { ...prev, favouriteConstructor: selectedFavConstructor } : null));
+      setIsEditingFavConstructor(false);
+      showToast('Favourite constructor updated!', 'success');
+    } catch (e) {
+      showToast('Failed to update constructor', 'error');
+    }
+  };
+
+  const handleSaveBio = async () => {
+    try {
+      await updateProfile({ bio: selectedBio });
+      setProfileUser(prev => (prev ? { ...prev, bio: selectedBio } : null));
+      setIsEditingBio(false);
+      showToast('Strategy bio statement updated!', 'success');
+    } catch (e) {
+      showToast('Failed to update bio', 'error');
     }
   };
 
@@ -240,6 +272,114 @@ export const ProfilePage: React.FC = () => {
                           title="Edit Favourite Driver"
                         >
                           <Edit2 size={12} />
+                        </button>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Favourite Constructor Chip */}
+                  {isEditingFavConstructor ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                      <select
+                        className="form-select"
+                        style={{ padding: '0.3rem 0.6rem', fontSize: '0.78rem' }}
+                        value={selectedFavConstructor}
+                        onChange={e => setSelectedFavConstructor(e.target.value)}
+                      >
+                        {F1_CONSTRUCTORS_2026.map(c => (
+                          <option key={c.id} value={c.id}>
+                            {c.name} ({c.country})
+                          </option>
+                        ))}
+                      </select>
+                      <button onClick={handleSaveFavConstructor} className="btn btn-primary btn-sm" style={{ padding: '0.3rem 0.6rem' }}>
+                        Save
+                      </button>
+                      <button onClick={() => setIsEditingFavConstructor(false)} className="btn btn-outline btn-sm" style={{ padding: '0.3rem 0.6rem' }}>
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
+                    <div
+                      style={{
+                        background: 'var(--bg-input)',
+                        padding: '0.3rem 0.75rem',
+                        borderRadius: 'var(--radius-full)',
+                        border: '1px solid var(--border-subtle)',
+                        fontSize: '0.78rem',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.4rem',
+                      }}
+                    >
+                      <span style={{ color: 'var(--text-muted)' }}>Constructor:</span>
+                      {favConstructor ? (
+                        <span style={{ fontWeight: 800, color: favConstructor.color }}>
+                          {favConstructor.name} {favConstructor.flag}
+                        </span>
+                      ) : (
+                        <span style={{ color: 'var(--text-muted)' }}>Not set</span>
+                      )}
+                      {isOwner && (
+                        <button
+                          onClick={() => setIsEditingFavConstructor(true)}
+                          style={{
+                            background: 'transparent',
+                            border: 'none',
+                            color: 'var(--text-muted)',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            marginLeft: '0.2rem',
+                          }}
+                          title="Edit Favourite Constructor"
+                        >
+                          <Edit2 size={12} />
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Strategy Statement / Bio */}
+                <div style={{ marginTop: '0.85rem' }}>
+                  {isEditingBio ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', maxWidth: '480px' }}>
+                      <input
+                        type="text"
+                        className="form-input"
+                        style={{ padding: '0.3rem 0.6rem', fontSize: '0.82rem', flex: 1 }}
+                        value={selectedBio}
+                        onChange={e => setSelectedBio(e.target.value)}
+                        placeholder="Enter strategy statement..."
+                      />
+                      <button onClick={handleSaveBio} className="btn btn-primary btn-sm" style={{ padding: '0.3rem 0.6rem' }}>
+                        Save
+                      </button>
+                      <button onClick={() => setIsEditingBio(false)} className="btn btn-outline btn-sm" style={{ padding: '0.3rem 0.6rem' }}>
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                      <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', fontStyle: 'italic', margin: 0 }}>
+                        "{profileUser.bio || 'Telemetry enthusiast and precision strategy predictor.'}"
+                      </p>
+                      {isOwner && (
+                        <button
+                          onClick={() => setIsEditingBio(true)}
+                          style={{
+                            background: 'transparent',
+                            border: 'none',
+                            color: 'var(--text-muted)',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            padding: '0.1rem',
+                          }}
+                          title="Edit Strategy Statement"
+                        >
+                          <Edit2 size={11} />
                         </button>
                       )}
                     </div>

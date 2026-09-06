@@ -3,6 +3,7 @@ import { useSearchParams, Link } from 'react-router-dom';
 import { api } from '../services/apiClient';
 import { LeaderboardEntry, RaceWeekend, PredictionRound } from '../types';
 import { useApp } from '../context/AppContext';
+import { useAuth } from '../context/AuthContext';
 import {
   Trophy,
   ArrowUpRight,
@@ -13,11 +14,13 @@ import {
   Layers,
   ChevronRight,
   Award,
+  Crown,
 } from 'lucide-react';
 
 export const LeaderboardPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { dataVersion } = useApp();
+  const { currentUser } = useAuth();
 
   const tab = (searchParams.get('type') as 'season' | 'weekend' | 'round') || 'season';
   const targetId = searchParams.get('id') || '';
@@ -97,6 +100,7 @@ export const LeaderboardPage: React.FC = () => {
   const currentWeekend = weekends.find(w => w.raceWeekendId === selectedWeekendId);
   const currentRound = rounds.find(r => r.roundId === selectedRoundId);
   const weekendRounds = rounds.filter(r => r.raceWeekendId === selectedWeekendId);
+  const userEntry = entries.find(e => e.userId === currentUser?.userId);
 
   return (
     <div className="container" style={{ padding: '3rem 1.25rem 5rem 1.25rem' }}>
@@ -113,13 +117,13 @@ export const LeaderboardPage: React.FC = () => {
       >
         <div>
           <div style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--f1-red)', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
-            FIA PIT WALL TIMING SCREENS
+            COMMUNITY CHAMPIONSHIP
           </div>
           <h1 style={{ fontSize: '2.25rem', fontWeight: 900, textTransform: 'uppercase', marginTop: '0.2rem' }}>
             Leaderboards & Standings
           </h1>
           <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.3rem' }}>
-            Track rank deltas, points accumulation, and weekend supremacy across the championship.
+            Compete with friends and fellow Formula 1 fans across the season.
           </p>
         </div>
 
@@ -142,7 +146,7 @@ export const LeaderboardPage: React.FC = () => {
               border: 'none',
             }}
           >
-            <Trophy size={14} /> Season Championship
+            <Trophy size={14} /> Season Overall
           </button>
           <button
             onClick={() => handleTabChange('weekend')}
@@ -153,7 +157,7 @@ export const LeaderboardPage: React.FC = () => {
               border: 'none',
             }}
           >
-            <Calendar size={14} /> Weekend Standing
+            <Calendar size={14} /> This Weekend
           </button>
           <button
             onClick={() => handleTabChange('round')}
@@ -168,6 +172,63 @@ export const LeaderboardPage: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {/* Prominent YOUR POSITION Banner */}
+      {userEntry && (
+        <div
+          className="race-card"
+          style={{
+            padding: '1.25rem 1.75rem',
+            marginBottom: '2rem',
+            background: 'linear-gradient(135deg, rgba(225, 6, 0, 0.12) 0%, var(--bg-surface-card) 100%)',
+            border: '1px solid rgba(225, 6, 0, 0.35)',
+            display: 'flex',
+            flexWrap: 'wrap',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '1rem',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            <img
+              src={userEntry.avatarUrl}
+              alt={userEntry.displayName}
+              style={{ width: '46px', height: '46px', borderRadius: '50%', border: '2px solid var(--f1-red)', objectFit: 'cover' }}
+            />
+            <div>
+              <div style={{ fontSize: '0.72rem', color: 'var(--f1-red)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                YOUR POSITION
+              </div>
+              <div style={{ fontSize: '1.4rem', fontWeight: 900, textTransform: 'uppercase' }}>
+                {userEntry.displayName}
+              </div>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '2.5rem' }}>
+            <div>
+              <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>YOUR RANK</div>
+              <div style={{ fontSize: '1.5rem', fontWeight: 900, color: '#eab308', fontFamily: 'var(--font-mono)' }}>
+                P{userEntry.rank}
+              </div>
+            </div>
+            <div>
+              <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>TOTAL SCORE</div>
+              <div style={{ fontSize: '1.5rem', fontWeight: 900, color: 'var(--telemetry-green)', fontFamily: 'var(--font-mono)' }}>
+                {userEntry.totalPoints} <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>PTS</span>
+              </div>
+            </div>
+            {userEntry.rankChange !== 0 && (
+              <div>
+                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>MOVEMENT</div>
+                <div style={{ fontSize: '1rem', fontWeight: 800, color: userEntry.rankChange > 0 ? 'var(--telemetry-green)' : '#f87171', fontFamily: 'var(--font-mono)' }}>
+                  {userEntry.rankChange > 0 ? `+${userEntry.rankChange} spots` : `${userEntry.rankChange} spots`}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Selector controls for weekend / round */}
       {tab === 'weekend' && (
@@ -324,8 +385,8 @@ export const LeaderboardPage: React.FC = () => {
                             <div style={{ fontWeight: 800, fontSize: '0.9rem', color: '#fff', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                               {entry.displayName}
                               {isLeader && (
-                                <span title="Championship Leader" style={{ fontSize: '0.85rem' }}>
-                                  👑
+                                <span title="Championship Leader" style={{ display: 'inline-flex', alignItems: 'center' }}>
+                                  <Crown size={14} color="#eab308" />
                                 </span>
                               )}
                             </div>

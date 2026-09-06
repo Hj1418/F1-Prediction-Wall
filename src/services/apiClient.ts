@@ -1,4 +1,5 @@
 import {
+  Constructor,
   RaceWeekend,
   PredictionRound,
   User,
@@ -21,6 +22,10 @@ export const api = {
 
   async getDrivers(): Promise<Driver[]> {
     return mockApi.getDrivers();
+  },
+
+  async getConstructors(): Promise<Constructor[]> {
+    return mockApi.getConstructors();
   },
 
   async getRaceWeekends(season: number = 2026): Promise<RaceWeekend[]> {
@@ -175,6 +180,39 @@ export const api = {
 
   async getAllUsers(): Promise<User[]> {
     return mockApi.getAllUsers();
+  },
+
+  async registerUser(userData: any): Promise<User> {
+    if (!isLiveBackend) return mockApi.registerUser(userData);
+    try {
+      const res = await fetch(API_BASE_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'registerUser', ...userData }),
+      });
+      const json = await res.json();
+      if (json.success && json.data) return json.data;
+      throw new Error(json.message || 'Registration failed');
+    } catch (e: any) {
+      console.warn('Live API registration failed, saving locally via mockApi:', e);
+      return mockApi.registerUser(userData);
+    }
+  },
+
+  async updateUser(userId: string, updates: Partial<User>): Promise<User> {
+    if (!isLiveBackend) return mockApi.updateUser(userId, updates);
+    try {
+      const res = await fetch(API_BASE_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'updateUser', userId, updates }),
+      });
+      const json = await res.json();
+      if (json.success && json.data) return json.data;
+      return mockApi.updateUser(userId, updates);
+    } catch (e) {
+      return mockApi.updateUser(userId, updates);
+    }
   },
 
   // Admin Methods

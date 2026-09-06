@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User } from '../types';
 import { api } from '../services/apiClient';
 import { INITIAL_USERS } from '../services/mockData';
+import { authService, RegisterParams } from '../services/authService';
 
 interface AuthContextType {
   currentUser: User;
@@ -9,6 +10,14 @@ interface AuthContextType {
   isAdmin: boolean;
   isSwitcherOpen: boolean;
   setSwitcherOpen: (open: boolean) => void;
+  isAuthModalOpen: boolean;
+  setAuthModalOpen: (open: boolean) => void;
+  authModalMode: 'login' | 'register';
+  openLoginModal: () => void;
+  openRegisterModal: () => void;
+  login: (identifier: string, password?: string) => Promise<void>;
+  register: (params: RegisterParams) => Promise<User>;
+  logout: () => void;
   switchUser: (userId: string) => Promise<void>;
   updateProfile: (updated: Partial<User>) => Promise<void>;
   refreshUsers: () => Promise<void>;
@@ -22,6 +31,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [allUsers, setAllUsers] = useState<User[]>(INITIAL_USERS);
   const [currentUser, setCurrentUser] = useState<User>(INITIAL_USERS[0]); // default Harsh
   const [isSwitcherOpen, setSwitcherOpen] = useState(false);
+  const [isAuthModalOpen, setAuthModalOpen] = useState(false);
+  const [authModalMode, setAuthModalMode] = useState<'login' | 'register'>('login');
 
   const refreshUsers = async () => {
     try {
@@ -41,6 +52,40 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     refreshUsers();
   }, []);
 
+  const openLoginModal = () => {
+    setAuthModalMode('login');
+    setAuthModalOpen(true);
+  };
+
+  const openRegisterModal = () => {
+    setAuthModalMode('register');
+    setAuthModalOpen(true);
+  };
+
+  const login = async (identifier: string, password?: string) => {
+    const user = await authService.login(identifier, password);
+    setCurrentUser(user);
+    localStorage.setItem(CURRENT_USER_KEY, user.userId);
+    setAuthModalOpen(false);
+    await refreshUsers();
+  };
+
+  const register = async (params: RegisterParams) => {
+    const newUser = await authService.register(params);
+    setCurrentUser(newUser);
+    localStorage.setItem(CURRENT_USER_KEY, newUser.userId);
+    setAuthModalOpen(false);
+    await refreshUsers();
+    return newUser;
+  };
+
+  const logout = () => {
+    // Revert to demo racer if logged out
+    const defaultUser = allUsers[0] || INITIAL_USERS[0];
+    setCurrentUser(defaultUser);
+    localStorage.removeItem(CURRENT_USER_KEY);
+  };
+
   const switchUser = async (userId: string) => {
     const match = allUsers.find(u => u.userId === userId);
     if (match) {
@@ -50,9 +95,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const updateProfile = async (updated: Partial<User>) => {
-    const newUser = { ...currentUser, ...updated };
-    setCurrentUser(newUser);
-    setAllUsers(prev => prev.map(u => (u.userId === newUser.userId ? newUser : u)));
+    const safeUpdates = { ...updated };
+    delete safeUpdates.role;
+    delete safeUpdates.userId;
+
+    const saved = await api.updateUser(currentUser.userId, safeUpdates);
+    setCurrentUser(saved);
+    setAllUsers(prev => prev.map(u => (u.userId === saved.userId ? saved : u)));
   };
 
   const isAdmin = currentUser.role === 'admin';
@@ -65,6 +114,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isAdmin,
         isSwitcherOpen,
         setSwitcherOpen,
+        isAuthModalOpen,
+        setAuthModalOpen,
+        authModalMode,
+        openLoginModal,
+        openRegisterModal,
+        login,
+        register,
+        logout,
         switchUser,
         updateProfile,
         refreshUsers,

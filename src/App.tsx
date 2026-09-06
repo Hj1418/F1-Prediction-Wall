@@ -6,10 +6,12 @@ import { Navbar } from './components/common/Navbar';
 import { Footer } from './components/common/Footer';
 import { ToastContainer } from './components/common/ToastContainer';
 import { UserSwitcherModal } from './components/common/UserSwitcherModal';
+import { AuthModal } from './components/common/AuthModal';
 
 import { HomePage } from './pages/HomePage';
 import { WeekendsPage } from './pages/WeekendsPage';
 import { WeekendDashboardPage } from './pages/WeekendDashboardPage';
+import { PredictionsHubPage } from './pages/PredictionsHubPage';
 import { PredictionPage } from './pages/PredictionPage';
 import { LeaderboardPage } from './pages/LeaderboardPage';
 import { ProfilePage } from './pages/ProfilePage';
@@ -25,8 +27,11 @@ export const App: React.FC = () => {
             <main style={{ flex: 1 }}>
               <Routes>
                 <Route path="/" element={<HomePage />} />
+                <Route path="/races" element={<WeekendsPage />} />
+                <Route path="/races/:round" element={<WeekendDashboardPage />} />
                 <Route path="/weekends" element={<WeekendsPage />} />
                 <Route path="/weekends/:raceWeekendId" element={<WeekendDashboardPage />} />
+                <Route path="/predictions" element={<PredictionsHubPage />} />
                 <Route path="/predict/:roundId" element={<PredictionPage />} />
                 <Route path="/leaderboard" element={<LeaderboardPage />} />
                 <Route path="/profile/:username" element={<ProfilePage />} />
@@ -40,6 +45,7 @@ export const App: React.FC = () => {
             <Footer />
             <ToastContainer />
             <UserSwitcherModal />
+            <AuthModal />
           </div>
         </HashRouter>
       </AuthProvider>

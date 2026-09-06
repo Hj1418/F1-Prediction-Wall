@@ -64,9 +64,18 @@ export const WeekendsPage: React.FC = () => {
                 backgroundColor: filter === f ? 'var(--f1-red)' : 'var(--bg-surface-elevated)',
                 color: filter === f ? '#fff' : 'var(--text-secondary)',
                 borderColor: filter === f ? 'var(--f1-red)' : 'var(--border-subtle)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.35rem',
               }}
             >
-              {f === 'SPRINT' ? '⚡ SPRINT WEEKENDS' : f}
+              {f === 'SPRINT' ? (
+                <>
+                  <Zap size={12} /> SPRINT WEEKENDS
+                </>
+              ) : (
+                f
+              )}
             </button>
           ))}
         </div>
@@ -170,15 +179,23 @@ export const WeekendsPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Action Button */}
-              <Link
-                to={`/weekends/${w.raceWeekendId}`}
-                className="btn btn-secondary btn-sm"
-                style={{ width: '100%', justifyContent: 'space-between' }}
-              >
-                <span>Race Weekend Hub</span>
-                <ChevronRight size={14} />
-              </Link>
+              {/* Action Buttons */}
+              <div style={{ display: 'flex', gap: '0.5rem', marginTop: 'auto' }}>
+                <Link
+                  to={`/races/${w.roundNumber || w.raceWeekendId}`}
+                  className="btn btn-secondary btn-sm"
+                  style={{ flex: 1, justifyContent: 'center' }}
+                >
+                  RACE INFO
+                </Link>
+                <Link
+                  to={`/races/${w.roundNumber || w.raceWeekendId}`}
+                  className="btn btn-primary btn-sm"
+                  style={{ flex: 1, justifyContent: 'center' }}
+                >
+                  PREDICT
+                </Link>
+              </div>
             </div>
           );
         })}

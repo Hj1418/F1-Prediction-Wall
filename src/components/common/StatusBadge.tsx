@@ -3,7 +3,7 @@ import { RoundStatus } from '../../types';
 import { Lock, CheckCircle2, Clock, Flame, Award } from 'lucide-react';
 
 interface StatusBadgeProps {
-  status: RoundStatus;
+  status: RoundStatus | 'SUBMITTED' | 'ACTIVE';
   size?: 'sm' | 'md';
 }
 
@@ -12,10 +12,25 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, size = 'md' })
 
   switch (status) {
     case 'OPEN':
+    case 'ACTIVE':
       return (
         <span className={`status-pill status-open ${isSm ? 'text-[0.65rem] py-0.5 px-1.5' : ''}`}>
           <span className="live-pulse" />
-          OPEN
+          {status === 'ACTIVE' ? 'ACTIVE' : 'OPEN'}
+        </span>
+      );
+    case 'SUBMITTED':
+      return (
+        <span
+          className={`status-pill ${isSm ? 'text-[0.65rem] py-0.5 px-1.5' : ''}`}
+          style={{
+            background: 'rgba(0, 229, 255, 0.12)',
+            color: 'var(--telemetry-cyan)',
+            border: '1px solid rgba(0, 229, 255, 0.3)',
+          }}
+        >
+          <CheckCircle2 size={12} />
+          SUBMITTED
         </span>
       );
     case 'LOCKED':

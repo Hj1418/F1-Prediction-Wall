@@ -144,6 +144,12 @@ function doPost(e) {
       case 'adminCalculateScores':
         responseData = adminCalculateScores(payload.roundId);
         break;
+      case 'registerUser':
+        responseData = registerUser(payload);
+        break;
+      case 'updateUser':
+        responseData = updateUser(payload);
+        break;
       default:
         return createJsonResponse({
           success: false,
@@ -942,6 +948,82 @@ function adminSubmitResult(payload) {
   }
 
   return { success: true, roundId: roundId, publishedAt: nowIso };
+}
+
+function registerUser(payload) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(SHEET_NAMES.USERS);
+  const rows = sheet.getDataRange().getValues();
+
+  const username = (payload.username || '').toLowerCase().trim();
+  const email = (payload.email || '').toLowerCase().trim();
+
+  if (!username || !email) {
+    throw new Error('Username and email are required.');
+  }
+
+  for (let i = 1; i < rows.length; i++) {
+    if (String(rows[i][3]).toLowerCase() === username) {
+      throw new Error('Username @' + username + ' is already registered.');
+    }
+    if (String(rows[i][1]).toLowerCase() === email) {
+      throw new Error('Email ' + email + ' is already registered.');
+    }
+  }
+
+  const userId = payload.userId || ('usr_' + username + '_' + Utilities.getUuid().substring(0, 8));
+  const displayName = payload.displayName || username;
+  const avatarUrl = payload.avatarUrl || '';
+  const favouriteDriver = payload.favouriteDriver || 'verstappen';
+  const role = 'user'; // strictly enforced 'user'
+  const nowIso = new Date().toISOString();
+  const totalPoints = 0;
+  const seasonRank = rows.length;
+
+  sheet.appendRow([
+    userId,
+    email,
+    displayName,
+    username,
+    avatarUrl,
+    favouriteDriver,
+    role,
+    nowIso,
+    totalPoints,
+    seasonRank
+  ]);
+
+  return {
+    userId: userId,
+    email: email,
+    displayName: displayName,
+    username: username,
+    avatarUrl: avatarUrl,
+    favouriteDriver: favouriteDriver,
+    role: role,
+    createdAt: nowIso,
+    totalPoints: 0,
+    seasonRank: seasonRank
+  };
+}
+
+function updateUser(payload) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(SHEET_NAMES.USERS);
+  const rows = sheet.getDataRange().getValues();
+  const userId = payload.userId;
+  const updates = payload.updates || {};
+
+  for (let i = 1; i < rows.length; i++) {
+    if (rows[i][0] === userId) {
+      const rowIdx = i + 1;
+      if (updates.displayName) sheet.getRange(rowIdx, 3).setValue(updates.displayName);
+      if (updates.avatarUrl) sheet.getRange(rowIdx, 5).setValue(updates.avatarUrl);
+      if (updates.favouriteDriver) sheet.getRange(rowIdx, 6).setValue(updates.favouriteDriver);
+      return { success: true, userId: userId };
+    }
+  }
+  throw new Error('User not found');
 }
 
 function createJsonResponse(data) {

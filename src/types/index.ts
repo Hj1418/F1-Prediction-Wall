@@ -16,6 +16,71 @@ export type SessionType =
 
 export type UserRole = 'user' | 'admin';
 
+export interface Constructor {
+  id: string;
+  name: string;
+  color: string;
+  textColor?: string;
+  country: string;
+  flag: string;
+  powerUnit?: string;
+}
+
+export interface TrackCharacteristic {
+  label: string;
+  value: number;
+  max?: number;
+  description?: string;
+}
+
+export interface CircuitInsight {
+  category: 'TRACK CHARACTER' | 'HISTORY' | 'TECHNICAL' | 'RECORD' | 'UNIQUE FEATURE' | 'STATISTIC' | 'SPEED';
+  title: string;
+  description: string;
+}
+
+export interface TrackCharacterSimple {
+  speed: string; // e.g. "Very High"
+  braking: string; // e.g. "Heavy"
+  overtaking: string; // e.g. "High"
+  tyreWear: string; // e.g. "Medium"
+}
+
+export interface CircuitFact {
+  category: 'HISTORY' | 'SPEED' | 'RECORD' | 'CRAZY FACT' | 'TECHNICAL';
+  title: string;
+  description: string;
+}
+
+export interface CircuitMetadata {
+  circuitId: string;
+  id?: string;
+  name: string;
+  locality: string;
+  location?: string;
+  country: string;
+  flag: string;
+  lengthKm: number;
+  length?: number;
+  turns: number;
+  drsZones: number;
+  laps?: number;
+  raceDistance?: string;
+  firstGrandPrix?: number;
+  lapRecord?: {
+    time: string;
+    driver: string;
+    year: number;
+  };
+  trackCharacter?: TrackCharacterSimple;
+  facts?: CircuitFact[];
+  map?: string | { asset: string };
+  characteristics?: TrackCharacteristic[];
+  insights?: CircuitInsight[];
+  svgPath?: string;
+  viewBox?: string;
+}
+
 export interface Driver {
   id: string;
   code: string;
@@ -37,6 +102,9 @@ export interface User {
   username: string;
   avatarUrl: string;
   favouriteDriver: string;
+  favouriteConstructor?: string;
+  bio?: string;
+  passwordHash?: string;
   role: UserRole;
   createdAt: string;
   totalPoints: number;

@@ -1,4 +1,5 @@
 import {
+  Constructor,
   Driver,
   RaceWeekend,
   PredictionRound,
@@ -9,6 +10,19 @@ import {
   Achievement,
   ScoringRules,
 } from '../types';
+
+export const F1_CONSTRUCTORS_2026: Constructor[] = [
+  { id: 'mclaren', name: 'McLaren', color: '#ff8000', country: 'United Kingdom', flag: '🇬🇧', powerUnit: 'Mercedes' },
+  { id: 'ferrari', name: 'Ferrari', color: '#e10600', country: 'Italy', flag: '🇮🇹', powerUnit: 'Ferrari' },
+  { id: 'red_bull', name: 'Red Bull Racing', color: '#1e41ff', country: 'Austria', flag: '🇦🇹', powerUnit: 'Red Bull Ford' },
+  { id: 'mercedes', name: 'Mercedes-AMG', color: '#00d2be', country: 'Germany', flag: '🇩🇪', powerUnit: 'Mercedes' },
+  { id: 'aston_martin', name: 'Aston Martin', color: '#00665e', country: 'United Kingdom', flag: '🇬🇧', powerUnit: 'Honda' },
+  { id: 'williams', name: 'Williams', color: '#005aff', country: 'United Kingdom', flag: '🇬🇧', powerUnit: 'Mercedes' },
+  { id: 'racing_bulls', name: 'Racing Bulls', color: '#6692ff', country: 'Italy', flag: '🇮🇹', powerUnit: 'Red Bull Ford' },
+  { id: 'alpine', name: 'Alpine', color: '#0093cc', country: 'France', flag: '🇫🇷', powerUnit: 'Renault' },
+  { id: 'sauber_audi', name: 'Sauber / Audi', color: '#52e252', country: 'Switzerland', flag: '🇨🇭', powerUnit: 'Audi' },
+  { id: 'haas', name: 'Haas', color: '#b6babd', country: 'United States', flag: '🇺🇸', powerUnit: 'Ferrari' },
+];
 
 export const F1_DRIVERS_2026: Driver[] = [
   {
@@ -248,10 +262,12 @@ export const INITIAL_USERS: User[] = [
   {
     userId: 'user_harsh',
     email: 'harsh@community.f1',
-    displayName: 'Harsh Vardhan',
+    displayName: 'Harsh Jalnekar',
     username: 'harsh_f1',
     avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=250&q=80',
     favouriteDriver: 'leclerc',
+    favouriteConstructor: 'ferrari',
+    bio: 'Formula 1 data enthusiast and Scuderia Ferrari supporter. Chasing the perfect podium prediction.',
     role: 'user',
     createdAt: '2026-01-10T10:00:00Z',
     totalPoints: 0,
@@ -270,6 +286,8 @@ export const INITIAL_USERS: User[] = [
     username: 'alex_apex',
     avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=250&q=80',
     favouriteDriver: 'norris',
+    favouriteConstructor: 'mclaren',
+    bio: 'Telemetry analyst and sim racer. Trust the McLaren race strategy!',
     role: 'user',
     createdAt: '2026-01-12T12:00:00Z',
     totalPoints: 0,
@@ -288,6 +306,8 @@ export const INITIAL_USERS: User[] = [
     username: 'fia_director',
     avatarUrl: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=250&q=80',
     favouriteDriver: 'verstappen',
+    favouriteConstructor: 'red_bull',
+    bio: 'Platform Race Control. Enforcing FIA regulations and scoring sync.',
     role: 'admin',
     createdAt: '2026-01-01T00:00:00Z',
     totalPoints: 0,

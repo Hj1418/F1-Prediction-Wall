@@ -1,4 +1,5 @@
 import {
+  Constructor,
   RaceWeekend,
   PredictionRound,
   User,
@@ -11,6 +12,7 @@ import {
 } from '../types';
 import {
   F1_DRIVERS_2026,
+  F1_CONSTRUCTORS_2026,
   INITIAL_USERS,
   INITIAL_RACE_WEEKENDS,
   INITIAL_PREDICTION_ROUNDS,
@@ -22,7 +24,7 @@ import {
 import { ScoringEngine } from './scoringEngine';
 
 const STORAGE_KEYS = {
-  USERS: 'f1_pred_users_v2',
+  USERS: 'f1_pred_users_v3',
   WEEKENDS: 'f1_pred_weekends_v2',
   ROUNDS: 'f1_pred_rounds_v2',
   PREDICTIONS: 'f1_pred_predictions_v2',
@@ -91,6 +93,10 @@ export class MockApiService {
 
   public async getDrivers(): Promise<Driver[]> {
     return F1_DRIVERS_2026;
+  }
+
+  public async getConstructors(): Promise<Constructor[]> {
+    return F1_CONSTRUCTORS_2026;
   }
 
   public async getRaceWeekends(): Promise<RaceWeekend[]> {
@@ -338,6 +344,64 @@ export class MockApiService {
 
   public async getAllUsers(): Promise<User[]> {
     return [...this.users];
+  }
+
+  public async registerUser(
+    userData: Omit<
+      User,
+      | 'totalPoints'
+      | 'seasonRank'
+      | 'previousRank'
+      | 'racesParticipated'
+      | 'bestWeekendScore'
+      | 'exactP1Count'
+      | 'perfectPodiumCount'
+      | 'wildcardsCorrect'
+    >
+  ): Promise<User> {
+    const existingUsername = this.users.find(
+      u => u.username.toLowerCase() === userData.username.toLowerCase()
+    );
+    if (existingUsername) {
+      throw new Error(`Username @${userData.username} is already taken.`);
+    }
+
+    const existingEmail = this.users.find(
+      u => u.email.toLowerCase() === userData.email.toLowerCase()
+    );
+    if (existingEmail) {
+      throw new Error(`Email ${userData.email} is already registered.`);
+    }
+
+    const newUser: User = {
+      ...userData,
+      role: 'user', // strictly enforce 'user' role on registration
+      totalPoints: 0,
+      seasonRank: this.users.length + 1,
+      previousRank: this.users.length + 1,
+      racesParticipated: 0,
+      bestWeekendScore: 0,
+      exactP1Count: 0,
+      perfectPodiumCount: 0,
+      wildcardsCorrect: 0,
+    };
+
+    this.users.push(newUser);
+    this.persistAll();
+    return { ...newUser };
+  }
+
+  public async updateUser(userId: string, updates: Partial<User>): Promise<User> {
+    const idx = this.users.findIndex(u => u.userId === userId);
+    if (idx < 0) throw new Error('User not found');
+
+    const safeUpdates = { ...updates };
+    delete safeUpdates.role;
+    delete safeUpdates.userId;
+
+    this.users[idx] = { ...this.users[idx], ...safeUpdates };
+    this.persistAll();
+    return { ...this.users[idx] };
   }
 
   // ADMIN METHODS
