@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { F1_DRIVERS_2026, F1_CONSTRUCTORS_2026 } from '../../services/mockData';
-import { MOTORSPORT_AVATARS } from '../../services/authService';
-import { X, AlertCircle, LogIn, UserPlus, CheckCircle2, ShieldCheck } from 'lucide-react';
+import { X, AlertCircle, LogIn, UserPlus } from 'lucide-react';
 
 export const AuthModal: React.FC = () => {
   const {
@@ -27,8 +26,7 @@ export const AuthModal: React.FC = () => {
   const [password, setPassword] = useState('');
   const [favouriteDriver, setFavouriteDriver] = useState(F1_DRIVERS_2026[0].id);
   const [favouriteConstructor, setFavouriteConstructor] = useState(F1_CONSTRUCTORS_2026[0].id);
-  const [avatarUrl, setAvatarUrl] = useState(MOTORSPORT_AVATARS[0].url);
-  const [bio, setBio] = useState('');
+
 
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -64,8 +62,6 @@ export const AuthModal: React.FC = () => {
         password,
         favouriteDriver,
         favouriteConstructor,
-        avatarUrl,
-        bio,
       });
     } catch (err: any) {
       setError(err.message || 'Registration failed.');
@@ -403,50 +399,7 @@ export const AuthModal: React.FC = () => {
                 </div>
               </div>
 
-              {/* Avatar Presets Grid */}
-              <div>
-                <label className="form-label">Select Racer Helmet / Avatar</label>
-                <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(6, 1fr)',
-                    gap: '0.5rem',
-                    marginTop: '0.25rem',
-                  }}
-                >
-                  {MOTORSPORT_AVATARS.map(av => (
-                    <button
-                      key={av.id}
-                      type="button"
-                      onClick={() => setAvatarUrl(av.url)}
-                      style={{
-                        padding: 0,
-                        border: avatarUrl === av.url ? '2px solid var(--f1-red)' : '1px solid var(--border-medium)',
-                        borderRadius: 'var(--radius-sm)',
-                        overflow: 'hidden',
-                        aspectRatio: '1',
-                        cursor: 'pointer',
-                        background: 'transparent',
-                        boxShadow: avatarUrl === av.url ? '0 0 10px var(--f1-red-glow)' : 'none',
-                        transition: 'all 0.15s ease',
-                      }}
-                    >
-                      <img src={av.url} alt={av.label} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    </button>
-                  ))}
-                </div>
-              </div>
 
-              <div>
-                <label className="form-label">Strategy Statement / Bio</label>
-                <input
-                  type="text"
-                  value={bio}
-                  onChange={e => setBio(e.target.value)}
-                  placeholder="e.g. Aiming for 100% podium accuracy in 2026."
-                  className="form-input"
-                />
-              </div>
 
               <button
                 type="submit"
