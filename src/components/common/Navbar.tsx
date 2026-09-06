@@ -219,7 +219,7 @@ export const Navbar: React.FC = () => {
                   fontSize: '0.84rem',
                   letterSpacing: '0.04em',
                   textTransform: 'uppercase',
-                  padding: '0.45rem 0.85rem',
+                  padding: '0.45rem 0.65rem',
                   borderRadius: 'var(--radius-sm)',
                   borderBottom: active ? '2px solid var(--f1-red)' : '2px solid transparent',
                   backgroundColor: 'transparent',
@@ -465,6 +465,10 @@ export const Navbar: React.FC = () => {
                     fontWeight: 700,
                     color: '#f8fafc',
                     whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    maxWidth: '120px',
+                    display: 'block',
                   }}
                 >
                   {userDisplayName}
@@ -912,10 +916,11 @@ export const Navbar: React.FC = () => {
           width: 100%;
           max-width: 1380px;
           margin: 0 auto;
-          padding: 0 1.5rem;
+          padding: 0 2rem;
           display: flex;
           align-items: center;
           height: 70px;
+          box-sizing: border-box;
         }
 
         @media (min-width: 1160px) {
