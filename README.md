@@ -130,7 +130,8 @@ flowchart TD
 - **Icons & Effects**: `lucide-react`, `canvas-confetti`
 - **Backend**: Google Apps Script (Serverless JavaScript executing inside Google Cloud)
 - **Database**: Google Sheets (Relational tables: `Users`, `RaceWeekends`, `Sessions`, `PredictionRounds`, `Predictions`, `Results`, `Scores`, `Achievements`)
-- **Hosting**: GitHub Pages compatible
+- **Hosting**: GitHub Pages with CI/CD (automated via GitHub Actions workflow on `main` push)
+- **Live URL**: [https://hj1418.github.io/F1-Prediction-Wall/](https://hj1418.github.io/F1-Prediction-Wall/)
 
 ---
 
@@ -152,7 +153,7 @@ flowchart TD
 
 The backend uses 9 relational tables:
 
-1. **`Users`**: `userId`, `email`, `displayName`, `username`, `avatarUrl`, `favouriteDriver`, `role`, `createdAt`, `totalPoints`, `seasonRank`
+1. **`Users`**: `userId`, `email`, `displayName`, `username`, `favouriteDriver`, `favouriteConstructor`, `role`, `createdAt`, `totalPoints`, `seasonRank`
 2. **`RaceWeekends`**: `raceWeekendId`, `season`, `raceName`, `country`, `circuit`, `weekendType`, `startDate`, `endDate`, `status`, `circuitLengthKm`, `laps`
 3. **`Sessions`**: `sessionId`, `raceWeekendId`, `sessionType`, `name`, `startTime`, `endTime`, `status`
 4. **`PredictionRounds`**: `roundId`, `raceWeekendId`, `sessionId`, `roundType`, `title`, `description`, `opensAt`, `closesAt`, `status`, `predictionFields`, `scoringRules`
@@ -168,8 +169,8 @@ The backend uses 9 relational tables:
 
 ### 1. Clone & Install Dependencies
 ```bash
-git clone https://github.com/your-username/f1-prediction-league.git
-cd f1-prediction-league
+git clone https://github.com/Hj1418/F1-Prediction-Wall.git
+cd F1-Prediction-Wall
 npm install
 ```
 
@@ -177,7 +178,7 @@ npm install
 ```bash
 npm test
 ```
-*Executes all 37 test suites validating exact P1/P2/P3 points, wrong position podium calculations, wildcard scoring, idempotency, Jolpica format detection, dynamic round synthesis, prediction window status engines, schedule drift change detection, and audit logging.*
+*Executes all 61 test suites validating exact P1/P2/P3 points, wrong position podium calculations, wildcard scoring, idempotency, Jolpica format detection, dynamic round synthesis, prediction window status engines, schedule drift change detection, circuit SVG asset verification, and audit logging.*
 
 ### 3. Start Development Server
 ```bash
@@ -206,16 +207,23 @@ Open [http://localhost:5173](http://localhost:5173) in your browser.
 
 ## 🚢 Deploying to GitHub Pages
 
-The project is pre-configured with relative base paths (`./`) in `vite.config.ts`, `HashRouter` navigation, and a `public/404.html` SPA redirect handler:
+The project uses an automated **GitHub Actions CI/CD pipeline** (`.github/workflows/deploy.yml`) that deploys on every push to `main`:
 
-1. Build the production bundle:
+1. **Automated Deployment**: Every push to `main` triggers:
+   - Dependency installation (`npm ci`)
+   - Full test suite execution (`npm test`)
+   - Production build (`npm run build`)
+   - Deployment to GitHub Pages via `actions/deploy-pages@v4`
+
+2. **Manual Deployment** (alternative):
    ```bash
    npm run build
-   ```
-2. Deploy the `dist/` directory to GitHub Pages:
-   ```bash
    npx gh-pages -d dist
    ```
+
+The project is pre-configured with relative base paths (`./`) in `vite.config.ts`, `HashRouter` navigation, and a `public/404.html` SPA redirect handler.
+
+**Live Site**: [https://hj1418.github.io/F1-Prediction-Wall/](https://hj1418.github.io/F1-Prediction-Wall/)
 
 ---
 

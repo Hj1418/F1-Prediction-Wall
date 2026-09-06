@@ -223,8 +223,8 @@ Stores player and steward credentials, community telemetry, and season totals.
 | `email` | `string` | User email address |
 | `displayName` | `string` | Community screen name |
 | `username` | `string` | URL-safe handle |
-| `avatarUrl` | `string` | URL to profile picture |
 | `favouriteDriver` | `string` | Driver ID (e.g., `leclerc`) |
+| `favouriteConstructor` | `string` | Constructor ID (e.g., `mclaren`) |
 | `role` | `enum` | `'user'` \| `'admin'` |
 | `createdAt` | `ISO8601` | Timestamp of account registration |
 | `totalPoints` | `number` | Aggregated championship points |
@@ -514,7 +514,7 @@ flowchart LR
 | **Serverless API** | Google Apps Script | Zero-cost serverless execution running on Google Cloud |
 | **Cloud Database** | Google Sheets (9 Relational Sheets) | Human-inspectable, tabular cloud database with versioning |
 | **F1 Data Integration** | Jolpica F1 Ergast API Mirror | Real-time season calendar, session timing, circuit metadata |
-| **Automated Testing** | Node.js Test Suite (37 Tests) | Unit & integration tests for scoring, sync, and format detection |
+| **Automated Testing** | Node.js Test Suite (61 Tests) | Unit & integration tests for scoring, sync, format detection, and circuit SVG asset verification |
 
 ### 5.2 Scoring Rules Specification
 The scoring engine implements strict motorsport scoring rules:
@@ -561,11 +561,21 @@ npm run dev
    ```
 
 ### 6.3 GitHub Pages Deployment
-The repository includes automated single-page application routing via `HashRouter` and `public/404.html`:
+The repository includes automated CI/CD via GitHub Actions (`.github/workflows/deploy.yml`). Every push to `main` triggers:
+1. Dependency installation (`npm ci`)
+2. Full test suite execution (`npm test` — 61 tests)
+3. Production build (`npm run build`)
+4. Deployment to GitHub Pages via `actions/deploy-pages@v4`
+
+Alternative manual deployment:
 ```bash
 npm run build
 npx gh-pages -d dist
 ```
+
+The application uses `HashRouter` and `public/404.html` for SPA routing on GitHub Pages.
+
+**Live Site**: [https://hj1418.github.io/F1-Prediction-Wall/](https://hj1418.github.io/F1-Prediction-Wall/)
 
 ---
 *Authored for the F1 Community Prediction League project. MIT License.*
