@@ -25,7 +25,9 @@ const SHEET_NAMES = {
   RESULTS: 'Results',
   SCORES: 'Scores',
   ACHIEVEMENTS: 'Achievements',
-  SYNC_LOGS: 'SyncLogs'
+  SYNC_LOGS: 'SyncLogs',
+  NOTIFICATION_QUEUE: 'NotificationQueue',
+  NOTIFICATION_LOG: 'NotificationLog'
 };
 
 const JOLPICA_BASE_URLS = [
@@ -149,6 +151,9 @@ function doPost(e) {
         break;
       case 'updateUser':
         responseData = updateUser(payload);
+        break;
+      case 'processNotificationQueue':
+        responseData = processNotificationQueue(payload.limit);
         break;
       default:
         return createJsonResponse({
@@ -643,6 +648,24 @@ function submitPrediction(payload) {
     sheet.appendRow([predId, userId, roundId, dataJson, nowIso, nowIso, '']);
   }
 
+  // Enqueue confirmation notification idempotently
+  try {
+    const userProfile = getUserProfile(userId);
+    const recipientEmail = userProfile ? userProfile.email : (payload.email || '');
+    if (recipientEmail) {
+      enqueueNotification(
+        recipientEmail,
+        userProfile ? userProfile.displayName : userId,
+        'PREDICTION_CONFIRMATION',
+        'F1 Community: Prediction Registered for ' + round.title,
+        { roundId: roundId, roundTitle: round.title, predictionData: predictionData },
+        'PREDICTION:' + roundId + ':' + userId
+      );
+    }
+  } catch (err) {
+    Logger.log('Failed to enqueue prediction confirmation: ' + err.toString());
+  }
+
   return { success: true, roundId: roundId, userId: userId, updatedAt: nowIso };
 }
 
@@ -692,6 +715,23 @@ function adminCalculateScores(roundId) {
         scoresSheet.appendRow(['score_' + Utilities.getUuid(), userId, roundId, JSON.stringify(calc.breakdown), calc.totalScore, nowIso]);
       }
       scoredCount++;
+
+      // Enqueue results published email idempotently
+      try {
+        const userProfile = getUserProfile(userId);
+        if (userProfile && userProfile.email) {
+          enqueueNotification(
+            userProfile.email,
+            userProfile.displayName || userId,
+            'RACE_RESULTS',
+            'F1 Community: Results Published for ' + round.title,
+            { roundId: roundId, roundTitle: round.title, score: calc.totalScore, breakdown: calc.breakdown },
+            'RESULT:' + roundId + ':' + userId
+          );
+        }
+      } catch (err) {
+        Logger.log('Failed to enqueue result notification: ' + err.toString());
+      }
     }
   }
 
@@ -1029,4 +1069,137 @@ function updateUser(payload) {
 function createJsonResponse(data) {
   return ContentService.createTextOutput(JSON.stringify(data))
     .setMimeType(ContentService.MimeType.JSON);
+}
+
+/**
+ * =========================================================================
+ * ASYNCHRONOUS NOTIFICATION QUEUE & IDEMPOTENT DELIVERY
+ * =========================================================================
+ */
+
+function enqueueNotification(recipientEmail, recipientName, notificationType, subject, templateData, idempotencyKey) {
+  if (!recipientEmail || !idempotencyKey) return false;
+
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let queueSheet = ss.getSheetByName(SHEET_NAMES.NOTIFICATION_QUEUE);
+  if (!queueSheet) {
+    queueSheet = ss.insertSheet(SHEET_NAMES.NOTIFICATION_QUEUE);
+    queueSheet.getRange(1, 1, 1, 12).setValues([['id', 'recipientEmail', 'recipientName', 'notificationType', 'subject', 'templateDataJson', 'status', 'idempotencyKey', 'attempts', 'queuedAt', 'sentAt', 'errorMessage']]);
+  }
+
+  // Idempotency check in queue
+  const queueRows = queueSheet.getDataRange().getValues();
+  for (let i = 1; i < queueRows.length; i++) {
+    if (queueRows[i][7] === idempotencyKey) {
+      Logger.log('Notification with idempotency key ' + idempotencyKey + ' already enqueued. Skipping.');
+      return false;
+    }
+  }
+
+  // Idempotency check in log
+  const logSheet = ss.getSheetByName(SHEET_NAMES.NOTIFICATION_LOG);
+  if (logSheet) {
+    const logRows = logSheet.getDataRange().getValues();
+    for (let j = 1; j < logRows.length; j++) {
+      if (logRows[j][4] === idempotencyKey) {
+        Logger.log('Notification with idempotency key ' + idempotencyKey + ' already delivered. Skipping.');
+        return false;
+      }
+    }
+  }
+
+  const queueId = 'ntf_' + Utilities.getUuid();
+  const nowIso = new Date().toISOString();
+  queueSheet.appendRow([
+    queueId,
+    recipientEmail,
+    recipientName || '',
+    notificationType,
+    subject,
+    JSON.stringify(templateData || {}),
+    'PENDING',
+    idempotencyKey,
+    0,
+    nowIso,
+    '',
+    ''
+  ]);
+
+  return true;
+}
+
+function processNotificationQueue(batchLimit) {
+  const limit = batchLimit || 25;
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const queueSheet = ss.getSheetByName(SHEET_NAMES.NOTIFICATION_QUEUE);
+  if (!queueSheet) return { processed: 0, sent: 0, failed: 0 };
+
+  let logSheet = ss.getSheetByName(SHEET_NAMES.NOTIFICATION_LOG);
+  if (!logSheet) {
+    logSheet = ss.insertSheet(SHEET_NAMES.NOTIFICATION_LOG);
+    logSheet.getRange(1, 1, 1, 8).setValues([['id', 'queueId', 'recipientEmail', 'notificationType', 'idempotencyKey', 'sentAt', 'status', 'deliveryMetadata']]);
+  }
+
+  const rows = queueSheet.getDataRange().getValues();
+  let processed = 0;
+  let sent = 0;
+  let failed = 0;
+
+  for (let i = 1; i < rows.length && processed < limit; i++) {
+    const status = rows[i][6];
+    if (status === 'PENDING' || status === 'RETRY') {
+      processed++;
+      const rowIdx = i + 1;
+      const queueId = rows[i][0];
+      const email = rows[i][1];
+      const name = rows[i][2];
+      const type = rows[i][3];
+      const subject = rows[i][4];
+      const data = JSON.parse(rows[i][5] || '{}');
+      const idempotencyKey = rows[i][7];
+      const attempts = Number(rows[i][8] || 0) + 1;
+      const nowIso = new Date().toISOString();
+
+      try {
+        let body = 'Hello ' + (name || 'Racer') + ',\n\n' + subject + '\n\n';
+        if (type === 'PREDICTION_CONFIRMATION') {
+          body += 'Your predictions for ' + (data.roundTitle || 'this round') + ' have been registered and locked.\n';
+        } else if (type === 'RACE_RESULTS') {
+          body += 'Official race results are published. You scored ' + (data.score || 0) + ' points.\n';
+        } else if (type === 'WELCOME') {
+          body += 'Welcome to the 2026 F1 Community Platform!\n';
+        }
+        body += '\nTrack standings and race weekends: https://f1community.local\n— F1 Community Platform';
+
+        MailApp.sendEmail({
+          to: email,
+          subject: subject,
+          body: body
+        });
+
+        queueSheet.getRange(rowIdx, 7).setValue('SENT');
+        queueSheet.getRange(rowIdx, 9).setValue(attempts);
+        queueSheet.getRange(rowIdx, 11).setValue(nowIso);
+
+        logSheet.appendRow([
+          'log_' + Utilities.getUuid(),
+          queueId,
+          email,
+          type,
+          idempotencyKey,
+          nowIso,
+          'DELIVERED',
+          JSON.stringify({ attempts: attempts })
+        ]);
+        sent++;
+      } catch (err) {
+        failed++;
+        queueSheet.getRange(rowIdx, 7).setValue(attempts >= 3 ? 'FAILED' : 'RETRY');
+        queueSheet.getRange(rowIdx, 9).setValue(attempts);
+        queueSheet.getRange(rowIdx, 12).setValue(err.toString());
+      }
+    }
+  }
+
+  return { processed: processed, sent: sent, failed: failed };
 }

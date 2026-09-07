@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 
 export const PredictionsHubPage: React.FC = () => {
-  const { currentUser, openLoginModal } = useAuth();
+  const { currentUser, isAuthenticated, openLoginModal } = useAuth();
   const { dataVersion } = useApp();
 
   const [currentWeekend, setCurrentWeekend] = useState<RaceWeekend | null>(null);
@@ -166,6 +166,12 @@ export const PredictionsHubPage: React.FC = () => {
                     {/* Action Button */}
                     <Link
                       to={`/predict/${round.roundId}`}
+                      onClick={e => {
+                        if (!isAuthenticated && isOpen) {
+                          e.preventDefault();
+                          openLoginModal(`/predict/${round.roundId}`);
+                        }
+                      }}
                       className={`btn ${isOpen ? 'btn-primary' : 'btn-secondary'} btn-sm`}
                       style={{ width: '100%', justifyContent: 'center', gap: '0.4rem', fontSize: '0.85rem' }}
                     >

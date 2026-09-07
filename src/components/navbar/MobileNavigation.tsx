@@ -1,8 +1,10 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
   Home,
+  BookOpen,
   CalendarDays,
+  MapPin,
   CircleDot,
   Trophy,
   User as UserIcon,
@@ -12,9 +14,10 @@ import {
   LogIn,
   UserPlus,
   Zap,
+  Flag,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { getInitials } from '../../utils/getInitials';
+import { UserInitialsAvatar } from '../common/UserInitialsAvatar';
 
 interface MobileNavigationProps {
   isOpen: boolean;
@@ -27,17 +30,18 @@ export const MobileNavigation: React.FC<MobileNavigationProps> = ({
   onClose,
   activeRoundLink = '/predictions',
 }) => {
-  const { currentUser, isAdmin, setSwitcherOpen, openLoginModal, openRegisterModal, logout } = useAuth();
+  const { currentUser, isAuthenticated, isAdmin, logout } = useAuth();
   const location = useLocation();
 
   if (!isOpen) return null;
 
-  const userInitials = getInitials(currentUser.displayName || currentUser.username || 'User');
-  const userDisplayName = currentUser.displayName || currentUser.username || 'Racer';
+  const userDisplayName = currentUser?.displayName || currentUser?.username || 'Racer';
 
   const navItems = [
     { label: 'Home', path: '/', icon: Home, matchPrefix: '/' },
+    { label: 'Learn F1', path: '/learn', icon: BookOpen, matchPrefix: '/learn' },
     { label: 'Race Weekends', path: '/races', icon: CalendarDays, matchPrefix: '/races' },
+    { label: 'Circuits', path: '/circuits', icon: MapPin, matchPrefix: '/circuits' },
     { label: 'Predictions', path: '/predictions', icon: CircleDot, matchPrefix: '/predictions' },
     { label: 'Leaderboard', path: '/leaderboard', icon: Trophy, matchPrefix: '/leaderboard' },
   ];
@@ -49,29 +53,47 @@ export const MobileNavigation: React.FC<MobileNavigationProps> = ({
 
   return (
     <div className="mobile-nav-drawer" style={{ maxHeight: 'calc(100vh - 94px)', overflowY: 'auto' }}>
-      {/* 1. User Profile Strip */}
-      <div className="mobile-nav-drawer__profile">
-        <div className="mobile-nav-drawer__avatar">
-          {userInitials}
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-          <span style={{ fontSize: '0.9rem', fontWeight: 800, color: '#fff', lineHeight: 1.2 }}>
-            {userDisplayName}
-          </span>
-          <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-            @{currentUser.username}
-          </span>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.25rem' }}>
-            <span style={{ fontSize: '0.74rem', fontFamily: 'var(--font-mono)', color: 'var(--telemetry-yellow)', fontWeight: 700 }}>
-              {currentUser.totalPoints ?? 0} PTS
+      {/* 1. Header Area: Logged In vs Logged Out */}
+      {isAuthenticated ? (
+        <div className="mobile-nav-drawer__profile">
+          <UserInitialsAvatar name={userDisplayName} size="md" />
+          <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+            <span style={{ fontSize: '0.9rem', fontWeight: 800, color: '#fff', lineHeight: 1.2 }}>
+              {userDisplayName}
             </span>
-            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>•</span>
-            <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
-              Rank P{currentUser.seasonRank || 1}
+            <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+              @{currentUser?.username}
             </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.25rem' }}>
+              <span style={{ fontSize: '0.74rem', fontFamily: 'var(--font-mono)', color: 'var(--telemetry-yellow)', fontWeight: 700 }}>
+                {currentUser?.totalPoints ?? 0} PTS
+              </span>
+              <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>•</span>
+              <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
+                Rank P{currentUser?.seasonRank || 1}
+              </span>
+            </div>
           </div>
         </div>
-      </div>
+      ) : (
+        <div
+          style={{
+            padding: '1rem',
+            background: 'linear-gradient(135deg, rgba(225, 6, 0, 0.12) 0%, rgba(13, 15, 18, 0.6) 100%)',
+            border: '1px solid rgba(225, 6, 0, 0.25)',
+            borderRadius: '10px',
+            marginBottom: '0.75rem',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#ff4d4d', fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+            <Flag size={14} />
+            <span>2026 F1 Prediction League</span>
+          </div>
+          <p style={{ margin: '0.35rem 0 0', fontSize: '0.8rem', color: '#94a3b8', lineHeight: 1.35 }}>
+            Sign in or register to lock in your picks and join the global leaderboard.
+          </p>
+        </div>
+      )}
 
       {/* 2. Predict Now CTA */}
       <Link
@@ -102,88 +124,76 @@ export const MobileNavigation: React.FC<MobileNavigationProps> = ({
 
       <div className="mobile-nav-drawer__divider" />
 
-      {/* 4. Secondary Actions */}
-      <Link
-        to={`/profile/${currentUser.username}`}
-        onClick={onClose}
-        className="mobile-nav-drawer__link"
-      >
-        <UserIcon size={18} style={{ color: 'var(--text-secondary)' }} />
-        <span>My Profile</span>
-      </Link>
+      {/* 4. Authenticated-only links or Logged-out buttons */}
+      {isAuthenticated ? (
+        <>
+          <Link
+            to={`/profile/${currentUser?.username}`}
+            onClick={onClose}
+            className="mobile-nav-drawer__link"
+          >
+            <UserIcon size={18} style={{ color: 'var(--text-secondary)' }} />
+            <span>My Profile</span>
+          </Link>
 
-      <button
-        type="button"
-        onClick={() => {
-          onClose();
-          setSwitcherOpen(true);
-        }}
-        className="mobile-nav-drawer__link"
-        style={{ background: 'transparent', border: 'none', width: '100%', textAlign: 'left', cursor: 'pointer' }}
-      >
-        <Users size={18} style={{ color: 'var(--text-secondary)' }} />
-        <span>Switch Account (Demo)</span>
-      </button>
 
-      {isAdmin && (
-        <Link
-          to="/admin"
-          onClick={onClose}
-          className="mobile-nav-drawer__link"
-          style={{ color: 'var(--f1-red)' }}
-        >
-          <Shield size={18} style={{ color: 'var(--f1-red)' }} />
-          <span>Race Control (Admin)</span>
-        </Link>
+
+          {isAdmin && (
+            <Link
+              to="/admin"
+              onClick={onClose}
+              className="mobile-nav-drawer__link"
+              style={{ color: 'var(--f1-red)' }}
+            >
+              <Shield size={18} style={{ color: 'var(--f1-red)' }} />
+              <span>Race Control (Admin)</span>
+            </Link>
+          )}
+
+          <div className="mobile-nav-drawer__divider" />
+
+          <button
+            type="button"
+            onClick={() => {
+              onClose();
+              logout();
+            }}
+            className="mobile-nav-drawer__link"
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: '#ef4444',
+              cursor: 'pointer',
+              marginTop: '0.25rem',
+            }}
+          >
+            <LogOut size={18} style={{ color: '#ef4444' }} />
+            <span>Sign Out</span>
+          </button>
+        </>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem', marginTop: '0.5rem' }}>
+          <Link
+            to="/login"
+            onClick={onClose}
+            className="auth-btn auth-btn--signin"
+            style={{ justifyContent: 'center', height: '42px', fontSize: '0.85rem' }}
+          >
+            <LogIn size={16} />
+            <span>SIGN IN</span>
+          </Link>
+
+          <Link
+            to="/register"
+            onClick={onClose}
+            className="auth-btn auth-btn--register"
+            style={{ justifyContent: 'center', height: '42px', fontSize: '0.85rem' }}
+          >
+            <UserPlus size={16} />
+            <span>JOIN THE LEAGUE</span>
+          </Link>
+        </div>
       )}
-
-      <div className="mobile-nav-drawer__divider" />
-
-      {/* 5. Auth Actions Row */}
-      <div className="mobile-nav-drawer__auth-row">
-        <button
-          type="button"
-          onClick={() => {
-            onClose();
-            openLoginModal();
-          }}
-          className="mobile-nav-drawer__auth-btn"
-        >
-          <LogIn size={15} />
-          <span>Sign In</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => {
-            onClose();
-            openRegisterModal();
-          }}
-          className="mobile-nav-drawer__auth-btn"
-        >
-          <UserPlus size={15} />
-          <span>Register</span>
-        </button>
-      </div>
-
-      <button
-        type="button"
-        onClick={() => {
-          onClose();
-          logout();
-        }}
-        className="mobile-nav-drawer__link"
-        style={{
-          background: 'transparent',
-          border: 'none',
-          color: '#ef4444',
-          cursor: 'pointer',
-          marginTop: '0.25rem',
-        }}
-      >
-        <LogOut size={18} style={{ color: '#ef4444' }} />
-        <span>Sign Out</span>
-      </button>
     </div>
   );
 };

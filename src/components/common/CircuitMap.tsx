@@ -88,6 +88,7 @@ export const CircuitMap: React.FC<CircuitMapProps> = ({
       >
         {hasError ? (
           <div
+            className="circuit-map-fallback"
             style={{
               display: 'flex',
               flexDirection: 'column',
@@ -98,8 +99,13 @@ export const CircuitMap: React.FC<CircuitMapProps> = ({
               textAlign: 'center',
             }}
           >
-            <MapPinOff size={24} style={{ opacity: 0.5, marginBottom: '0.4rem' }} />
-            <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>Circuit map unavailable</span>
+            <MapPinOff size={28} style={{ opacity: 0.6, marginBottom: '0.5rem', color: 'var(--f1-red)' }} />
+            <span style={{ fontSize: '0.85rem', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>
+              CIRCUIT MAP UNAVAILABLE
+            </span>
+            <span style={{ fontSize: '0.75rem', marginTop: '0.25rem', opacity: 0.8 }}>
+              Circuit layout is currently unavailable.
+            </span>
           </div>
         ) : (
           <img
@@ -310,6 +316,7 @@ export const CircuitMap: React.FC<CircuitMapProps> = ({
         >
           {hasError ? (
             <div
+              className="circuit-map-fallback"
               style={{
                 display: 'flex',
                 flexDirection: 'column',
@@ -320,9 +327,13 @@ export const CircuitMap: React.FC<CircuitMapProps> = ({
                 textAlign: 'center',
               }}
             >
-              <MapPinOff size={32} style={{ opacity: 0.5, marginBottom: '0.5rem' }} />
-              <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>Circuit map unavailable</span>
-              <span style={{ fontSize: '0.72rem', opacity: 0.6, marginTop: '0.2rem' }}>{meta.name}</span>
+              <MapPinOff size={32} style={{ opacity: 0.6, marginBottom: '0.5rem', color: 'var(--f1-red)' }} />
+              <span style={{ fontSize: '0.85rem', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>
+                CIRCUIT MAP UNAVAILABLE
+              </span>
+              <span style={{ fontSize: '0.75rem', marginTop: '0.25rem', opacity: 0.8 }}>
+                Circuit layout is currently unavailable.
+              </span>
             </div>
           ) : (
             <>

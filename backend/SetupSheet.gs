@@ -55,6 +55,16 @@ function initializeDatabase() {
       name: 'SyncLogs',
       headers: ['logId', 'timestamp', 'entityType', 'entityId', 'action', 'previousValue', 'newValue', 'details'],
       headerColor: '#0284c7'
+    },
+    {
+      name: 'NotificationQueue',
+      headers: ['id', 'recipientEmail', 'recipientName', 'notificationType', 'subject', 'templateDataJson', 'status', 'idempotencyKey', 'attempts', 'queuedAt', 'sentAt', 'errorMessage'],
+      headerColor: '#10b981'
+    },
+    {
+      name: 'NotificationLog',
+      headers: ['id', 'queueId', 'recipientEmail', 'notificationType', 'idempotencyKey', 'sentAt', 'status', 'deliveryMetadata'],
+      headerColor: '#6366f1'
     }
   ];
 

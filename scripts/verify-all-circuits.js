@@ -25,12 +25,14 @@ const CIRCUITS = [
   { round: 21, id: 'interlagos', name: 'Interlagos', file: 'interlagos.svg', layout: 'interlagos-2' },
   { round: 22, id: 'las_vegas', name: 'Las Vegas Strip', file: 'las-vegas.svg', layout: 'las-vegas-1' },
   { round: 23, id: 'losail', name: 'Lusail', file: 'losail.svg', layout: 'lusail-1' },
-  { round: 24, id: 'yas_marina', name: 'Yas Marina', file: 'yas-marina.svg', layout: 'yas-marina-2' }
+  { round: 24, id: 'yas_marina', name: 'Yas Marina', file: 'yas-marina.svg', layout: 'yas-marina-2' },
+  { round: 25, id: 'madrid', name: 'Circuito de Madrid', file: 'madrid.svg', layout: 'madring-1' },
+  { round: 26, id: 'sepang', name: 'Sepang International', file: 'sepang.svg', layout: 'sepang-1' }
 ];
 
 const circuitsDir = path.resolve(process.cwd(), 'public/circuits');
 
-console.log('🏎️ Starting Verification of All 24 Championship Circuit SVG Assets...\n');
+console.log('🏎️ Starting Verification of All 26 Championship Circuit SVG Assets...\n');
 
 let allPassed = true;
 
@@ -60,7 +62,7 @@ CIRCUITS.forEach(c => {
 });
 
 if (allPassed) {
-  console.log('\n🏆 ALL 24 CALENDAR CIRCUITS VERIFIED AND READY FOR PRODUCTION!');
+  console.log('\n🏆 ALL 26 CALENDAR CIRCUITS VERIFIED AND READY FOR PRODUCTION!');
 } else {
   console.error('\n❌ SOME CIRCUITS FAILED VERIFICATION');
   process.exit(1);

@@ -5,7 +5,6 @@ import { AppProvider } from './context/AppContext';
 import { Navbar } from './components/common/Navbar';
 import { Footer } from './components/common/Footer';
 import { ToastContainer } from './components/common/ToastContainer';
-import { UserSwitcherModal } from './components/common/UserSwitcherModal';
 import { AuthModal } from './components/common/AuthModal';
 
 import { HomePage } from './pages/HomePage';
@@ -16,6 +15,11 @@ import { PredictionPage } from './pages/PredictionPage';
 import { LeaderboardPage } from './pages/LeaderboardPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { AdminDashboardPage } from './pages/AdminDashboardPage';
+import { LoginPage } from './pages/LoginPage';
+import { RegisterPage } from './pages/RegisterPage';
+import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
+import { LearnPage } from './pages/LearnPage';
+import { CircuitsPage } from './pages/CircuitsPage';
 
 export const App: React.FC = () => {
   return (
@@ -27,10 +31,17 @@ export const App: React.FC = () => {
             <main style={{ flex: 1 }}>
               <Routes>
                 <Route path="/" element={<HomePage />} />
+                <Route path="/login" element={<LoginPage />} />
+                <Route path="/register" element={<RegisterPage />} />
+                <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+                <Route path="/schedule" element={<WeekendsPage />} />
                 <Route path="/races" element={<WeekendsPage />} />
                 <Route path="/races/:round" element={<WeekendDashboardPage />} />
                 <Route path="/weekends" element={<WeekendsPage />} />
                 <Route path="/weekends/:raceWeekendId" element={<WeekendDashboardPage />} />
+                <Route path="/learn" element={<LearnPage />} />
+                <Route path="/circuits" element={<CircuitsPage />} />
+                <Route path="/circuits/:circuitId" element={<CircuitsPage />} />
                 <Route path="/predictions" element={<PredictionsHubPage />} />
                 <Route path="/predict/:roundId" element={<PredictionPage />} />
                 <Route path="/leaderboard" element={<LeaderboardPage />} />
@@ -44,7 +55,6 @@ export const App: React.FC = () => {
             </main>
             <Footer />
             <ToastContainer />
-            <UserSwitcherModal />
             <AuthModal />
           </div>
         </HashRouter>

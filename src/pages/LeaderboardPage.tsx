@@ -4,6 +4,7 @@ import { api } from '../services/apiClient';
 import { LeaderboardEntry, RaceWeekend, PredictionRound } from '../types';
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
+import { UserInitialsAvatar } from '../components/common/UserInitialsAvatar';
 import {
   Trophy,
   ArrowUpRight,
@@ -190,10 +191,9 @@ export const LeaderboardPage: React.FC = () => {
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            <img
-              src={userEntry.avatarUrl}
-              alt={userEntry.displayName}
-              style={{ width: '46px', height: '46px', borderRadius: '50%', border: '2px solid var(--f1-red)', objectFit: 'cover' }}
+            <UserInitialsAvatar
+              name={userEntry.displayName}
+              size={46}
             />
             <div>
               <div style={{ fontSize: '0.72rem', color: 'var(--f1-red)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
@@ -376,10 +376,10 @@ export const LeaderboardPage: React.FC = () => {
                             gap: '0.75rem',
                           }}
                         >
-                          <img
-                            src={entry.avatarUrl}
-                            alt={entry.displayName}
-                            style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover' }}
+                          <UserInitialsAvatar
+                            name={entry.displayName}
+                            size={32}
+                            showBorder={false}
                           />
                           <div>
                             <div style={{ fontWeight: 800, fontSize: '0.9rem', color: '#fff', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>

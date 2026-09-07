@@ -13,7 +13,8 @@ import {
 } from '../types';
 import { mockApi } from './mockApi';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || '';
+const API_BASE_URL =
+  (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL) || '';
 
 export const isLiveBackend = Boolean(API_BASE_URL && API_BASE_URL.startsWith('http'));
 

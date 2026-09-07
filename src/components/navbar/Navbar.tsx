@@ -64,11 +64,13 @@ export const Navbar: React.FC = () => {
         <div className="navbar-main__inner">
           <NavbarBrand />
           <NavbarLinks />
-          <PredictionCTA />
-          <UserProfileMenu
-            mobileMenuOpen={mobileMenuOpen}
-            onToggleMobileMenu={handleToggleMobile}
-          />
+          <div className="navbar-right">
+            <PredictionCTA />
+            <UserProfileMenu
+              mobileMenuOpen={mobileMenuOpen}
+              onToggleMobileMenu={handleToggleMobile}
+            />
+          </div>
         </div>
       </div>
 

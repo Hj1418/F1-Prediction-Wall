@@ -91,10 +91,10 @@
 }
 
 .navbar-main__inner {
-  display: grid;
-  grid-template-columns: auto 1fr auto auto;
+  display: flex;
   align-items: center;
-  gap: 1.5rem;
+  justify-content: space-between;
+  gap: 1rem;
   height: 60px;
 }
 
@@ -274,36 +274,85 @@
   flex-shrink: 0;
 }
 
-/* ── User Profile ── */
-.navbar-actions {
+/* ── User Profile & Auth Actions ── */
+.navbar-right {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
+  gap: 0.75rem;
   flex-shrink: 0;
 }
 
+.navbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-shrink: 0;
+}
+
+/* Secondary Authentication Buttons (Compact & Lightweight) */
 .auth-btn {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  padding: 0 0.75rem;
-  height: 34px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 0 0.65rem;
+  height: 30px;
   border-radius: var(--radius-sm);
-  color: var(--text-primary);
   font-weight: 700;
   font-size: 0.72rem;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.05em;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   white-space: nowrap;
+  text-decoration: none;
+  font-family: var(--font-heading);
 }
 
-.auth-btn:hover {
+.auth-btn__icon {
+  flex-shrink: 0;
+  opacity: 0.75;
+}
+
+/* Sign In: Lightweight Ghost/Text Action */
+.auth-btn--signin {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-secondary);
+}
+
+.auth-btn--signin:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+}
+
+.auth-btn--signin:hover .auth-btn__icon {
+  opacity: 1;
+}
+
+/* Join The League: Compact Outlined Action */
+.auth-btn--register {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #f1f5f9;
+}
+
+.auth-btn--register:hover {
   background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.38);
+  color: #ffffff;
+}
+
+.auth-btn--register:hover .auth-btn__icon {
+  opacity: 1;
+}
+
+.auth-btn__text-full {
+  display: inline;
+}
+
+.auth-btn__text-short {
+  display: none;
 }
 
 .user-profile-trigger {
@@ -579,6 +628,26 @@
 
 /* ── Responsive ── */
 
+/* Wide Desktop text collapse: <1280px */
+@media (max-width: 1279px) {
+  .auth-btn__text-full {
+    display: none;
+  }
+  .auth-btn__text-short {
+    display: inline;
+  }
+  .nav-link {
+    padding: 0.5rem 0.55rem;
+    font-size: 0.76rem;
+  }
+  .navbar-links {
+    gap: 0.15rem;
+  }
+  .navbar-right {
+    gap: 0.55rem;
+  }
+}
+
 /* Desktop: ≥1160px — full layout */
 @media (min-width: 1160px) {
   .navbar-links { display: flex; }
@@ -588,13 +657,14 @@
   .mobile-compact-actions { display: none; }
 }
 
-/* Tablet: 860–1159px — compact nav */
+/* Tablet / Compact Desktop: 860–1159px — compact nav with lightweight auth */
 @media (min-width: 860px) and (max-width: 1159px) {
   .navbar-links { display: flex; gap: 0.1rem; }
-  .nav-link { padding: 0.5rem 0.55rem; font-size: 0.76rem; }
+  .nav-link { padding: 0.5rem 0.45rem; font-size: 0.74rem; }
   .prediction-cta { display: inline-flex; }
-  .navbar-actions { display: flex; }
-  .navbar-actions .auth-btn { display: none; }
+  .navbar-right { display: flex; gap: 0.5rem; }
+  .navbar-actions { display: flex; gap: 0.35rem; }
+  .navbar-actions .auth-btn { display: inline-flex; padding: 0 0.55rem; }
   .mobile-menu-toggle { display: none; }
   .mobile-compact-actions { display: none; }
   .user-profile-trigger__info { display: none; }

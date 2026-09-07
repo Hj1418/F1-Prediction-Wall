@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, CalendarDays, CircleDot, Trophy } from 'lucide-react';
+import { Home, BookOpen, CalendarDays, MapPin, CircleDot, Trophy } from 'lucide-react';
 
 interface NavItem {
   label: string;
@@ -11,7 +11,9 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { label: 'HOME', path: '/', icon: Home },
-  { label: 'RACE WEEKENDS', path: '/races', icon: CalendarDays, matchPrefixes: ['/races', '/weekends'] },
+  { label: 'LEARN F1', path: '/learn', icon: BookOpen, matchPrefixes: ['/learn'] },
+  { label: 'RACE WEEKENDS', path: '/races', icon: CalendarDays, matchPrefixes: ['/races', '/weekends', '/schedule'] },
+  { label: 'CIRCUITS', path: '/circuits', icon: MapPin, matchPrefixes: ['/circuits'] },
   { label: 'PREDICTIONS', path: '/predictions', icon: CircleDot, matchPrefixes: ['/predictions', '/predict'] },
   { label: 'LEADERBOARD', path: '/leaderboard', icon: Trophy, matchPrefixes: ['/leaderboard'] },
 ];

@@ -37,7 +37,10 @@ export const CIRCUIT_SOURCE_MAPPING: Record<
   interlagos: { circuitId: 'interlagos', sourceId: 'interlagos', layoutId: 'interlagos-2', seasons: '1990-2026', assetFile: 'interlagos.svg' },
   las_vegas: { circuitId: 'las_vegas', sourceId: 'las-vegas', layoutId: 'las-vegas-1', seasons: '2023-2026', assetFile: 'las-vegas.svg' },
   losail: { circuitId: 'losail', sourceId: 'lusail', layoutId: 'lusail-1', seasons: '2021,2023-2026', assetFile: 'losail.svg' },
-  yas_marina: { circuitId: 'yas_marina', sourceId: 'yas-marina', layoutId: 'yas-marina-2', seasons: '2021-2026', assetFile: 'yas-marina.svg' }
+  yas_marina: { circuitId: 'yas_marina', sourceId: 'yas-marina', layoutId: 'yas-marina-2', seasons: '2021-2026', assetFile: 'yas-marina.svg' },
+  madrid: { circuitId: 'madrid', sourceId: 'madring', layoutId: 'madring-1', seasons: '2026', assetFile: 'madrid.svg' },
+  madring: { circuitId: 'madring', sourceId: 'madring', layoutId: 'madring-1', seasons: '2026', assetFile: 'madrid.svg' },
+  sepang: { circuitId: 'sepang', sourceId: 'sepang', layoutId: 'sepang-1', seasons: '1999-2017,2026', assetFile: 'sepang.svg' }
 };
 
 /**
@@ -121,6 +124,15 @@ export const F1_CIRCUITS_REGISTRY: Record<string, CircuitMetadata> = {
         description: 'Monza is the fastest circuit on the calendar, where long straights and heavy braking zones reward supreme engine power and bravery.',
       },
     ],
+    whySpecial: 'Known as the "Temple of Speed", Monza requires the lowest aerodynamic downforce package of the year. Teams run nearly flat rear wings to exceed 350 km/h down the historic parkland straights.',
+    keyCorners: [
+      { number: '1-2', name: 'Variante del Rettifilo', description: 'Cars slow from 350 km/h to 70 km/h in 120m, providing the prime overtaking hotspot on the track.' },
+      { number: '4-5', name: 'Variante della Roggia', description: 'Tight chicane demanding aggressive kerb-riding where precise braking balance is critical.' },
+      { number: '8-10', name: 'Variante Ascari', description: 'High-speed sequence where drivers flick through left-right-left transitions at over 220 km/h.' },
+      { number: '11', name: 'Curva Parabolica (Alboreto)', description: 'Long, accelerating 180-degree sweep onto the main straight determining top-speed runs.' },
+    ],
+    overtakingCharacteristics: 'High overtaking potential down the main straight into Turn 1 (Rettifilo) and along the back straight into Ascari, powered by slipstreaming and twin DRS zones.',
+    officialCircuitUrl: 'https://www.formula1.com/en/racing/2026/italy/circuit.html',
   },
 
   monaco: {
@@ -1402,6 +1414,118 @@ export const F1_CIRCUITS_REGISTRY: Record<string, CircuitMetadata> = {
       },
     ],
   },
+
+  madrid: {
+    circuitId: 'madrid',
+    id: 'madrid',
+    name: 'Circuito de Madrid',
+    locality: 'Madrid',
+    location: 'Madrid, Spain',
+    country: 'Spain',
+    flag: '🇪🇸',
+    lengthKm: 5.474,
+    length: 5.474,
+    turns: 20,
+    drsZones: 2,
+    laps: 56,
+    raceDistance: '306.544 km',
+    firstGrandPrix: 2026,
+    map: '/circuits/madrid.svg',
+    trackCharacter: {
+      speed: 'High',
+      braking: 'Heavy',
+      overtaking: 'High',
+      tyreWear: 'Medium',
+    },
+    facts: [
+      {
+        category: 'HISTORY',
+        title: 'New Spanish Grand Prix Era',
+        description: 'Beginning in 2026, the Spanish Grand Prix moves to a modern hybrid street-permanent circuit constructed around the IFEMA Madrid exhibition complex and Valdebebas.',
+      },
+      {
+        category: 'SPEED',
+        title: 'Dramatic Banked Turn',
+        description: 'The layout incorporates an exhilarating banked corner designed to challenge driver commitment and aerodynamic setup under high lateral G-forces.',
+      },
+      {
+        category: 'TECHNICAL',
+        title: 'Hybrid Circuit Dynamics',
+        description: 'Combining high-speed sweeping corners with tight urban exhibition sections, the Madrid circuit rewards mechanical grip and precise low-speed rotation.',
+      },
+    ],
+    characteristics: [
+      { label: 'Top Speed', value: 8, max: 10, description: 'Long full-throttle bursts along IFEMA avenues.' },
+      { label: 'Braking Demand', value: 8, max: 10, description: 'Heavy braking zones entering chicanes and hairpins.' },
+      { label: 'Downforce Requirement', value: 7, max: 10, description: 'Medium-high downforce for high-speed stability.' },
+      { label: 'Overtaking Potential', value: 8, max: 10, description: 'Multiple DRS zones and wide braking entries.' },
+      { label: 'Tyre Demand', value: 6, max: 10, description: 'Balanced degradation across front and rear axles.' },
+    ],
+    insights: [
+      {
+        category: 'TRACK CHARACTER',
+        title: 'HYBRID STREET CIRCUIT',
+        description: 'A cutting-edge modern venue combining purpose-built track sections with existing urban thoroughfares in the Spanish capital.',
+      },
+    ],
+    whySpecial: 'The Madrid circuit brings Formula 1 back to the Spanish capital with a purpose-engineered hybrid street circuit featuring tunnels, elevation changes, and a signature banked curve.',
+    keyCorners: [
+      { number: '1-2', name: 'IFEMA Arena Chicanes', description: 'Hard braking zone creating prime overtaking opportunities on the opening lap.' },
+      { number: '10', name: 'Valdebebas Banked Sweep', description: 'High-commitment banked turn producing intense lateral loading on suspension and tyres.' },
+    ],
+    overtakingCharacteristics: 'High overtaking capability supported by twin DRS straights and wide deceleration zones leading into tight radius turns.',
+    officialCircuitUrl: 'https://www.formula1.com/en/racing/2026/spain/circuit.html',
+  },
+
+  sepang: {
+    circuitId: 'sepang',
+    id: 'sepang',
+    name: 'Sepang International Circuit',
+    locality: 'Kuala Lumpur',
+    location: 'Kuala Lumpur, Malaysia',
+    country: 'Malaysia',
+    flag: '🇲🇾',
+    lengthKm: 5.543,
+    length: 5.543,
+    turns: 15,
+    drsZones: 2,
+    laps: 56,
+    raceDistance: '310.408 km',
+    firstGrandPrix: 1999,
+    map: '/circuits/sepang.svg',
+    trackCharacter: {
+      speed: 'High',
+      braking: 'Heavy',
+      overtaking: 'High',
+      tyreWear: 'High',
+    },
+    facts: [
+      {
+        category: 'TECHNICAL',
+        title: 'Twin Grandstand Straights',
+        description: 'Sepang features two massive straightaways separated only by the sharp hairpin of Turn 15 opposite the grandstand.',
+      },
+      {
+        category: 'TECHNICAL',
+        title: 'Tropical Heat & Rain',
+        description: 'Known for extreme humidity and sudden monsoon downpours that radically reshape race strategies.',
+      },
+    ],
+    characteristics: [
+      { label: 'Top Speed', value: 8, max: 10, description: 'High terminal velocities along the twin parallel straights.' },
+      { label: 'Braking Demand', value: 8, max: 10, description: 'Heavy braking into Turn 1 and Turn 15 hairpins.' },
+      { label: 'Downforce Requirement', value: 7, max: 10, description: 'High aerodynamic balance for mid-lap sweeps.' },
+      { label: 'Overtaking Potential', value: 8, max: 10, description: 'Wide circuit with sweeping entries.' },
+      { label: 'Tyre Demand', value: 8, max: 10, description: 'Severe lateral thermal loads on high-speed sweeps.' },
+    ],
+    insights: [
+      {
+        category: 'TRACK CHARACTER',
+        title: 'FLOWING MODERN CLASSIC',
+        description: 'Hermann Tilke benchmark track with wide radius sweeping corners and dual opposing DRS straights.',
+      },
+    ],
+  },
 };
 
 /**
@@ -1410,12 +1534,23 @@ export const F1_CIRCUITS_REGISTRY: Record<string, CircuitMetadata> = {
 export function normalizeCircuitId(circuitInput?: CircuitInfo | string): string {
   if (!circuitInput) return 'monza';
 
-  const rawKey = typeof circuitInput === 'string'
-    ? circuitInput
-    : (circuitInput as any).circuitId || circuitInput.name || '';
+  let rawKey = '';
+  if (typeof circuitInput === 'string') {
+    rawKey = circuitInput;
+  } else {
+    rawKey = [
+      circuitInput.id,
+      (circuitInput as any).circuitId,
+      circuitInput.name,
+      circuitInput.locality,
+      circuitInput.country,
+    ].filter(Boolean).join(' ');
+  }
 
   const clean = rawKey.toLowerCase().replace(/[^a-z0-9]/g, '_');
 
+  if (clean.includes('madrid') || clean.includes('madring')) return 'madrid';
+  if (clean.includes('sepang') || clean.includes('malaysia')) return 'sepang';
   if (clean.includes('monza') || clean.includes('italy')) return 'monza';
   if (clean.includes('monaco') || clean.includes('monte_carlo')) return 'monaco';
   if (clean.includes('silverstone') || clean.includes('britain') || clean.includes('british')) return 'silverstone';
@@ -1430,7 +1565,7 @@ export function normalizeCircuitId(circuitInput?: CircuitInfo | string): string 
   if (clean.includes('miami')) return 'miami';
   if (clean.includes('imola') || clean.includes('emilia') || clean.includes('ferrari')) return 'imola';
   if (clean.includes('villeneuve') || clean.includes('montreal') || clean.includes('canada')) return 'montreal';
-  if (clean.includes('barcelona') || clean.includes('catalunya') || clean.includes('spain')) return 'barcelona';
+  if (clean.includes('barcelona') || clean.includes('catalunya')) return 'barcelona';
   if (clean.includes('hungaroring') || clean.includes('hungary') || clean.includes('budapest')) return 'hungaroring';
   if (clean.includes('zandvoort') || clean.includes('dutch') || clean.includes('netherlands')) return 'zandvoort';
   if (clean.includes('baku') || clean.includes('azerbaijan')) return 'baku';

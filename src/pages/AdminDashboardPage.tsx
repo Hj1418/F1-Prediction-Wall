@@ -31,7 +31,7 @@ import { raceWeekendApi } from '../api/raceWeekendApi';
 import { SyncLog } from '../types';
 
 export const AdminDashboardPage: React.FC = () => {
-  const { currentUser, isAdmin, switchUser, allUsers } = useAuth();
+  const { currentUser, isAdmin, isAuthenticated, allUsers, openLoginModal } = useAuth();
   const { showToast, triggerDataRefresh } = useApp();
 
   const [activeTab, setActiveTab] = useState<'sync' | 'results' | 'weekends' | 'rounds'>('sync');
@@ -97,13 +97,6 @@ export const AdminDashboardPage: React.FC = () => {
   }, []);
 
   const activeRound = rounds.find(r => r.roundId === selectedRoundId);
-
-  // Handle switching to admin account if not currently admin
-  const handleBecomeAdmin = async () => {
-    const adminUser = allUsers.find(u => u.role === 'admin') || allUsers[allUsers.length - 1];
-    await switchUser(adminUser.userId);
-    showToast(`Switched to administrator account: ${adminUser.displayName}`, 'success');
-  };
 
   // Submit Official Result & Calculate Scores
   const handleSaveResultAndCalculate = async (e: React.FormEvent) => {
@@ -232,15 +225,15 @@ export const AdminDashboardPage: React.FC = () => {
         <div>
           {isAdmin ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--telemetry-green)', fontSize: '0.85rem', fontWeight: 700, fontFamily: 'var(--font-mono)' }}>
-              <CheckCircle2 size={16} /> ADMIN PRIVILEGES VERIFIED ({currentUser.displayName})
+              <CheckCircle2 size={16} /> ADMIN PRIVILEGES VERIFIED ({currentUser?.displayName})
             </div>
           ) : (
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
               <span style={{ color: '#f87171', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                <AlertTriangle size={14} /> Currently logged in as standard user
+                <AlertTriangle size={14} /> {!isAuthenticated ? 'Sign in as administrator required' : 'Current account does not have admin privileges'}
               </span>
-              <button onClick={handleBecomeAdmin} className="btn btn-primary btn-sm">
-                Switch to Admin Role
+              <button onClick={() => openLoginModal('/admin')} className="btn btn-primary btn-sm">
+                Sign In as Admin
               </button>
             </div>
           )}

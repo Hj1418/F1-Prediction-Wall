@@ -15,6 +15,7 @@ import { useApp } from '../context/AppContext';
 import { StatusBadge } from '../components/common/StatusBadge';
 import { CountdownTimer } from '../components/common/CountdownTimer';
 import { DriverSelectModal } from '../components/common/DriverSelectModal';
+import { UserInitialsAvatar } from '../components/common/UserInitialsAvatar';
 import confetti from 'canvas-confetti';
 import {
   Lock,
@@ -27,11 +28,12 @@ import {
   Sparkles,
   Trophy,
   Share2,
+  LogIn,
 } from 'lucide-react';
 
 export const PredictionPage: React.FC = () => {
   const { roundId } = useParams<{ roundId: string }>();
-  const { currentUser, setSwitcherOpen } = useAuth();
+  const { currentUser, isAuthenticated, openLoginModal } = useAuth();
   const { showToast, triggerDataRefresh } = useApp();
 
   const [round, setRound] = useState<PredictionRound | null>(null);
@@ -63,9 +65,9 @@ export const PredictionPage: React.FC = () => {
         if (r) {
           const [w, existingPred, res, score] = await Promise.all([
             api.getWeekendById(r.raceWeekendId),
-            api.getUserPrediction(r.roundId, currentUser.userId),
+            currentUser ? api.getUserPrediction(r.roundId, currentUser.userId) : Promise.resolve(null),
             api.getOfficialResult(r.roundId),
-            api.getRoundScore(r.roundId, currentUser.userId),
+            currentUser ? api.getRoundScore(r.roundId, currentUser.userId) : Promise.resolve(null),
           ]);
 
           setWeekend(w);
@@ -87,14 +89,14 @@ export const PredictionPage: React.FC = () => {
     }
 
     loadData();
-  }, [roundId, currentUser.userId]);
+  }, [roundId, currentUser?.userId]);
 
   if (loading) {
     return (
       <div className="container" style={{ padding: '6rem 0', textAlign: 'center' }}>
         <div className="live-pulse" style={{ width: '12px', height: '12px', backgroundColor: 'var(--f1-red)', marginBottom: '1rem' }} />
         <div style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>
-          CONFIGURING PIT WALL PREDICTION TELEMETRY...
+          LOADING PREDICTION FORM...
         </div>
       </div>
     );
@@ -149,6 +151,12 @@ export const PredictionPage: React.FC = () => {
     e.preventDefault();
     if (isReadOnly) return;
 
+    if (!isAuthenticated || !currentUser) {
+      showToast('Please sign in with Google or your account to submit predictions.', 'info');
+      openLoginModal(`/predict/${round.roundId}`);
+      return;
+    }
+
     // Validate required fields
     for (const field of round.predictionFields) {
       if (field.required && !formData[field.id]) {
@@ -174,7 +182,7 @@ export const PredictionPage: React.FC = () => {
       });
 
       setPrediction(saved);
-      showToast('Your prediction has been safely locked into the telemetry ledger!', 'success');
+      showToast('Prediction successfully submitted and locked for this round.', 'success');
       triggerDataRefresh();
 
       // Fire celebratory podium confetti!
@@ -226,30 +234,41 @@ export const PredictionPage: React.FC = () => {
             </Link>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Predicting as:</span>
-              <button
-                onClick={() => setSwitcherOpen(true)}
-                style={{
-                  background: 'var(--bg-input)',
-                  border: '1px solid var(--border-medium)',
-                  borderRadius: 'var(--radius-full)',
-                  padding: '0.2rem 0.6rem',
-                  fontSize: '0.75rem',
-                  color: 'var(--text-primary)',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.4rem',
-                }}
-              >
-                <img
-                  src={currentUser.avatarUrl}
-                  alt={currentUser.displayName}
-                  style={{ width: '18px', height: '18px', borderRadius: '50%' }}
-                />
-                {currentUser.displayName} (Switch)
-              </button>
+              {isAuthenticated && currentUser ? (
+                <>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Predicting as:</span>
+                  <div
+                    style={{
+                      background: 'var(--bg-input)',
+                      border: '1px solid var(--border-medium)',
+                      borderRadius: 'var(--radius-full)',
+                      padding: '0.2rem 0.6rem',
+                      fontSize: '0.75rem',
+                      color: 'var(--text-primary)',
+                      fontWeight: 700,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.4rem',
+                    }}
+                  >
+                    <UserInitialsAvatar
+                      name={currentUser.displayName}
+                      size={18}
+                      showBorder={false}
+                    />
+                    <span>{currentUser.displayName}</span>
+                  </div>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => openLoginModal(round ? `/predict/${round.roundId}` : undefined)}
+                  className="btn btn-outline btn-sm"
+                  style={{ fontSize: '0.75rem', padding: '0.25rem 0.65rem', gap: '0.35rem' }}
+                >
+                  <LogIn size={13} /> Sign in to Predict
+                </button>
+              )}
             </div>
           </div>
 
@@ -408,6 +427,41 @@ export const PredictionPage: React.FC = () => {
                 Locked at: {new Date(prediction.updatedAt).toLocaleTimeString()}
               </span>
             )}
+          </div>
+        )}
+
+        {/* Guest Prediction Notice */}
+        {!isAuthenticated && (
+          <div
+            style={{
+              background: 'linear-gradient(135deg, rgba(225, 6, 0, 0.08) 0%, rgba(22, 28, 40, 0.95) 100%)',
+              border: '1px solid rgba(225, 6, 0, 0.3)',
+              borderRadius: '10px',
+              padding: '1rem 1.25rem',
+              marginBottom: '1.5rem',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '0.75rem',
+            }}
+          >
+            <div>
+              <div style={{ fontWeight: 800, fontSize: '0.9rem', color: '#fff' }}>
+                Viewing Prediction Grid as Guest
+              </div>
+              <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                Sign in with Google to submit your picks, earn championship points, and join the community leaderboard.
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => openLoginModal(round ? `/predict/${round.roundId}` : undefined)}
+              className="btn btn-primary btn-sm"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
+            >
+              Sign In to Submit
+            </button>
           </div>
         )}
 
@@ -657,20 +711,31 @@ export const PredictionPage: React.FC = () => {
             </div>
 
             {!isReadOnly ? (
-              <button
-                type="submit"
-                disabled={submitting}
-                className="btn btn-primary btn-lg"
-                style={{ minWidth: '220px' }}
-              >
-                {submitting ? (
-                  'LOCKING SELECTION...'
-                ) : (
-                  <>
-                    <Save size={18} /> {prediction ? 'UPDATE PREDICTION' : 'SUBMIT PREDICTION'}
-                  </>
-                )}
-              </button>
+              !isAuthenticated ? (
+                <button
+                  type="button"
+                  onClick={() => openLoginModal(`/predict/${round.roundId}`)}
+                  className="btn btn-primary btn-lg"
+                  style={{ minWidth: '240px' }}
+                >
+                  <LogIn size={18} /> Sign In to Submit
+                </button>
+              ) : (
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="btn btn-primary btn-lg"
+                  style={{ minWidth: '220px' }}
+                >
+                  {submitting ? (
+                    'LOCKING SELECTION...'
+                  ) : (
+                    <>
+                      <Save size={18} /> {prediction ? 'UPDATE PREDICTION' : 'SUBMIT PREDICTION'}
+                    </>
+                  )}
+                </button>
+              )
             ) : (
               <div style={{ display: 'flex', gap: '0.75rem' }}>
                 <Link

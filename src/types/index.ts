@@ -77,6 +77,10 @@ export interface CircuitMetadata {
   map?: string | { asset: string };
   characteristics?: TrackCharacteristic[];
   insights?: CircuitInsight[];
+  whySpecial?: string;
+  keyCorners?: Array<{ number: number | string; name: string; description: string }>;
+  overtakingCharacteristics?: string;
+  officialCircuitUrl?: string;
   svgPath?: string;
   viewBox?: string;
 }

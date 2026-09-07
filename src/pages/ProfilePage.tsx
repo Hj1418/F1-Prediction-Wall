@@ -5,6 +5,7 @@ import { User, Achievement, Driver, Constructor } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
 import { F1_CONSTRUCTORS_2026 } from '../services/mockData';
+import { UserInitialsAvatar } from '../components/common/UserInitialsAvatar';
 import {
   Trophy,
   Award,
@@ -21,7 +22,7 @@ import {
 
 export const ProfilePage: React.FC = () => {
   const { username } = useParams<{ username: string }>();
-  const { currentUser, updateProfile } = useAuth();
+  const { currentUser, updateProfile, openLoginModal } = useAuth();
   const { showToast } = useApp();
 
   const [profileUser, setProfileUser] = useState<User | null>(null);
@@ -40,7 +41,12 @@ export const ProfilePage: React.FC = () => {
     async function loadProfile() {
       try {
         setLoading(true);
-        const targetUsername = username || currentUser.username;
+        const targetUsername = username || currentUser?.username;
+        if (!targetUsername) {
+          setProfileUser(null);
+          setLoading(false);
+          return;
+        }
         const [u, dList] = await Promise.all([
           api.getUserProfile(targetUsername),
           api.getDrivers(),
@@ -68,7 +74,7 @@ export const ProfilePage: React.FC = () => {
     }
 
     loadProfile();
-  }, [username, currentUser.userId]);
+  }, [username, currentUser?.userId]);
 
   if (loading) {
     return (
@@ -82,17 +88,30 @@ export const ProfilePage: React.FC = () => {
   }
 
   if (!profileUser) {
+    const isSelfProfile = !username && !currentUser;
     return (
       <div className="container" style={{ padding: '4rem 1.25rem', textAlign: 'center' }}>
-        <h2>User Profile Not Found</h2>
-        <Link to="/" className="btn btn-secondary" style={{ marginTop: '1rem' }}>
-          Back to Overview
-        </Link>
+        <h2>{isSelfProfile ? 'Sign In to View Profile' : 'User Profile Not Found'}</h2>
+        <p style={{ color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
+          {isSelfProfile
+            ? 'Please sign in to manage your racer license, driver picks, and prediction history.'
+            : 'The requested racer profile could not be found.'}
+        </p>
+        <div style={{ marginTop: '1.5rem', display: 'flex', gap: '0.75rem', justifyContent: 'center' }}>
+          {isSelfProfile && (
+            <button onClick={() => openLoginModal('/profile')} className="btn btn-primary">
+              Sign In
+            </button>
+          )}
+          <Link to="/" className="btn btn-secondary">
+            Back to Overview
+          </Link>
+        </div>
       </div>
     );
   }
 
-  const isOwner = currentUser.userId === profileUser.userId;
+  const isOwner = Boolean(currentUser && currentUser.userId === profileUser.userId);
   const favDriver = drivers.find(d => d.id === (isEditingFavDriver ? selectedFavDriver : profileUser.favouriteDriver));
   const favConstructor = F1_CONSTRUCTORS_2026.find(
     c => c.id === (isEditingFavConstructor ? selectedFavConstructor : profileUser.favouriteConstructor)
@@ -154,16 +173,12 @@ export const ProfilePage: React.FC = () => {
             {/* Left: Avatar + Details */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
               <div style={{ position: 'relative' }}>
-                <img
-                  src={profileUser.avatarUrl}
-                  alt={profileUser.displayName}
+                <UserInitialsAvatar
+                  name={profileUser.displayName}
+                  size={90}
                   style={{
-                    width: '90px',
-                    height: '90px',
-                    borderRadius: '50%',
-                    objectFit: 'cover',
                     border: '3px solid var(--f1-red)',
-                    boxShadow: '0 0 20px -3px var(--f1-red-glow)',
+                    boxShadow: '0 0 24px -3px var(--f1-red-glow)',
                   }}
                 />
                 <div

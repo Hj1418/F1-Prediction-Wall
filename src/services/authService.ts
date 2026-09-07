@@ -124,7 +124,12 @@ export const authService = {
 
     const allUsers = await api.getAllUsers();
     const match = allUsers.find(
-      u => u.username.toLowerCase() === cleanId || u.email.toLowerCase() === cleanId
+      u =>
+        u.username.toLowerCase() === cleanId ||
+        u.email.toLowerCase() === cleanId ||
+        u.userId.toLowerCase() === cleanId ||
+        u.userId.toLowerCase() === `user_${cleanId}` ||
+        (cleanId === 'admin' && u.role === 'admin')
     );
 
     if (!match) {

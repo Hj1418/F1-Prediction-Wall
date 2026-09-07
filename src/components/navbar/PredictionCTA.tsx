@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Zap, ArrowRight, Lock } from 'lucide-react';
 import { api } from '../../services/apiClient';
+import { useAuth } from '../../context/AuthContext';
 
 interface PredictionCTAState {
   label: string;
@@ -10,6 +11,8 @@ interface PredictionCTAState {
 }
 
 export const PredictionCTA: React.FC = () => {
+  const { isAuthenticated, openLoginModal } = useAuth();
+  const navigate = useNavigate();
   const [ctaState, setCtaState] = useState<PredictionCTAState>({
     label: 'PREDICT NOW',
     link: '/predictions',
@@ -77,9 +80,17 @@ export const PredictionCTA: React.FC = () => {
     return <Lock size={14} />;
   };
 
+  const handleClick = (e: React.MouseEvent) => {
+    if (!isAuthenticated && mode === 'open') {
+      e.preventDefault();
+      openLoginModal(link);
+    }
+  };
+
   return (
     <Link
       to={link}
+      onClick={handleClick}
       id="desktop-predict-cta"
       className={`prediction-cta prediction-cta--${mode}`}
       aria-label={label}

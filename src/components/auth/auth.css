@@ -1,0 +1,692 @@
+/* ==========================================================================
+   Motorsport Authentication Styling (AuthLayout, Card, Forms, Modals)
+   ========================================================================== */
+
+.auth-page-wrapper {
+  min-height: calc(100vh - 72px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2.5rem 1.25rem;
+  position: relative;
+  background-color: #0d0f12;
+  background-image: 
+    radial-gradient(ellipse 60% 40% at 50% 10%, rgba(225, 6, 0, 0.12) 0%, transparent 70%),
+    radial-gradient(circle at 10% 90%, rgba(225, 6, 0, 0.05) 0%, transparent 40%),
+    linear-gradient(180deg, rgba(13, 15, 18, 0.96) 0%, #08090b 100%);
+  overflow: hidden;
+}
+
+/* Subtle background circuit SVG watermark */
+.auth-circuit-bg {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 900px;
+  max-width: 140vw;
+  height: auto;
+  opacity: 0.04;
+  pointer-events: none;
+  z-index: 0;
+  filter: drop-shadow(0 0 20px rgba(225, 6, 0, 0.3));
+}
+
+/* Speed / Grid Lines */
+.auth-grid-overlay {
+  position: absolute;
+  inset: 0;
+  background-size: 40px 40px;
+  background-image: 
+    linear-gradient(to right, rgba(255, 255, 255, 0.015) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.015) 1px, transparent 1px);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.auth-container {
+  width: 100%;
+  max-width: 440px;
+  position: relative;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* Header Badge & Brand */
+.auth-brand-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.85rem;
+  background: rgba(225, 6, 0, 0.1);
+  border: 1px solid rgba(225, 6, 0, 0.3);
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #ff3b30;
+  margin-bottom: 0.5rem;
+  box-shadow: 0 0 15px rgba(225, 6, 0, 0.15);
+}
+
+.auth-header {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.auth-header h1 {
+  font-size: 2rem;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  color: #ffffff;
+  margin: 0.25rem 0 0.5rem;
+  text-transform: uppercase;
+  font-style: italic;
+  font-family: 'Titillium Web', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.auth-header h1 span {
+  color: var(--f1-red, #e10600);
+}
+
+.auth-subtitle {
+  font-size: 0.925rem;
+  color: #94a3b8;
+  line-height: 1.45;
+  margin: 0;
+}
+
+/* Auth Card Box */
+.auth-card {
+  background: linear-gradient(180deg, #161a20 0%, #101317 100%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 2rem;
+  position: relative;
+  box-shadow: 
+    0 10px 30px -5px rgba(0, 0, 0, 0.7),
+    0 0 0 1px rgba(255, 255, 255, 0.05),
+    0 0 40px -10px rgba(225, 6, 0, 0.1);
+  overflow: hidden;
+}
+
+/* Red Racing Accent Stripe */
+.auth-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #e10600 0%, #ff3b30 40%, rgba(225, 6, 0, 0.3) 100%);
+}
+
+/* Form Elements */
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.auth-field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  text-align: left;
+}
+
+.auth-label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #cbd5e1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.auth-label-link {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  text-decoration: none;
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: normal;
+  transition: color 0.15s ease;
+}
+
+.auth-label-link:hover {
+  color: #ff4d4d;
+  text-decoration: underline;
+}
+
+.auth-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.auth-input-icon {
+  position: absolute;
+  left: 1rem;
+  color: #64748b;
+  pointer-events: none;
+  transition: color 0.15s ease;
+}
+
+.auth-input {
+  width: 100%;
+  height: 48px;
+  background-color: #0b0d10;
+  border: 1px solid #282f3a;
+  border-radius: 10px;
+  padding: 0 1rem 0 2.75rem;
+  font-size: 0.95rem;
+  color: #f8fafc;
+  outline: none;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  font-family: inherit;
+}
+
+.auth-input:focus {
+  border-color: #e10600;
+  box-shadow: 0 0 0 3px rgba(225, 6, 0, 0.2), 0 0 12px rgba(225, 6, 0, 0.15);
+  background-color: #0f1217;
+}
+
+.auth-input:focus + .auth-input-icon,
+.auth-input-wrapper:focus-within .auth-input-icon {
+  color: #ff3b30;
+}
+
+.auth-input-has-action {
+  padding-right: 2.75rem;
+}
+
+.auth-input-action-btn {
+  position: absolute;
+  right: 0.75rem;
+  background: transparent;
+  border: none;
+  color: #64748b;
+  padding: 0.25rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+}
+
+.auth-input-action-btn:hover {
+  color: #f8fafc;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.auth-select {
+  appearance: none;
+  background-image: url("data:image/svg2+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 1rem center;
+  cursor: pointer;
+}
+
+/* Remember me & Helper row */
+.auth-options-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.825rem;
+  margin-top: -0.25rem;
+}
+
+.auth-checkbox-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #94a3b8;
+  cursor: pointer;
+  user-select: none;
+}
+
+.auth-checkbox {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border: 1px solid #334155;
+  border-radius: 4px;
+  background: #0b0d10;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.15s ease;
+}
+
+.auth-checkbox:checked {
+  background-color: #e10600;
+  border-color: #e10600;
+}
+
+.auth-checkbox:checked::after {
+  content: '✓';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+/* Error & Success Banner */
+.auth-alert-banner {
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  line-height: 1.4;
+  text-align: left;
+}
+
+.auth-alert-error {
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  color: #fca5a5;
+}
+
+.auth-alert-success {
+  background: rgba(34, 197, 94, 0.12);
+  border: 1px solid rgba(34, 197, 94, 0.35);
+  color: #86efac;
+}
+
+/* Primary Submit Button */
+.auth-submit-btn {
+  height: 48px;
+  background: linear-gradient(135deg, #e10600 0%, #c40500 100%);
+  color: #ffffff;
+  border: none;
+  border-radius: 10px;
+  font-size: 0.95rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  box-shadow: 0 4px 18px rgba(225, 6, 0, 0.4), inset 0 1px 1px rgba(255, 255, 255, 0.2);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  font-family: 'Titillium Web', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  margin-top: 0.25rem;
+}
+
+.auth-submit-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #ff1a12 0%, #e10600 100%);
+  box-shadow: 0 6px 24px rgba(225, 6, 0, 0.55), inset 0 1px 1px rgba(255, 255, 255, 0.3);
+  transform: translateY(-1px);
+}
+
+.auth-submit-btn:active:not(:disabled) {
+  transform: translateY(1px);
+  box-shadow: 0 2px 10px rgba(225, 6, 0, 0.35);
+}
+
+.auth-submit-btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  filter: grayscale(30%);
+}
+
+/* Social Login Divider & Button */
+.auth-divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  margin: 0.5rem 0;
+  color: #64748b;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid #222934;
+}
+
+.auth-divider span {
+  padding: 0 0.85rem;
+}
+
+.social-auth-btn {
+  height: 44px;
+  background: #111419;
+  border: 1px solid #282f3b;
+  border-radius: 10px;
+  color: #cbd5e1;
+  font-size: 0.875rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  position: relative;
+  width: 100%;
+}
+
+.social-auth-btn:hover:not(:disabled) {
+  background: #171c23;
+  border-color: #3b4554;
+  color: #ffffff;
+}
+
+.social-auth-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.social-badge {
+  font-size: 0.65rem;
+  background: #1e242d;
+  color: #94a3b8;
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+  text-transform: uppercase;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  border: 1px solid #333d4d;
+}
+
+/* Quick Demo Switcher Pills */
+.demo-switcher-box {
+  margin-top: 1rem;
+  padding: 0.75rem;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px dashed #282f3a;
+  border-radius: 10px;
+  text-align: left;
+}
+
+.demo-switcher-title {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #94a3b8;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.demo-pills {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.demo-pill-btn {
+  padding: 0.25rem 0.6rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: #191f28;
+  border: 1px solid #333f4e;
+  border-radius: 6px;
+  color: #e2e8f0;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.demo-pill-btn:hover {
+  background: #232c39;
+  border-color: #e10600;
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+.demo-pill-role {
+  font-size: 0.65rem;
+  color: #ff3b30;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+/* Auth Card Footer */
+.auth-card-footer {
+  margin-top: 1.25rem;
+  text-align: center;
+  font-size: 0.875rem;
+  color: #94a3b8;
+}
+
+.auth-link {
+  color: #ff4d4d;
+  font-weight: 700;
+  text-decoration: none;
+  transition: color 0.15s ease;
+  margin-left: 0.25rem;
+}
+
+.auth-link:hover {
+  color: #ffffff;
+  text-decoration: underline;
+}
+
+/* Page Footer Motorsport Tagline */
+.auth-page-footer {
+  font-size: 0.75rem;
+  color: #64748b;
+  text-align: center;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.auth-page-footer span {
+  color: #e10600;
+  font-weight: 700;
+}
+
+/* ==========================================================================
+   Post-Registration Onboarding Modal
+   ========================================================================== */
+.onboarding-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(5, 7, 10, 0.88);
+  backdrop-filter: blur(8px);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.onboarding-card {
+  width: 100%;
+  max-width: 480px;
+  background: linear-gradient(180deg, #181d24 0%, #101318 100%);
+  border: 1px solid rgba(225, 6, 0, 0.35);
+  border-radius: 18px;
+  padding: 2.25rem;
+  box-shadow: 
+    0 20px 50px rgba(0, 0, 0, 0.85),
+    0 0 35px rgba(225, 6, 0, 0.2);
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.onboarding-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #e10600, #ff5e57, #e10600);
+}
+
+.onboarding-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.85rem;
+  background: rgba(225, 6, 0, 0.15);
+  border: 1px solid rgba(225, 6, 0, 0.4);
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: #ff3b30;
+  text-transform: uppercase;
+  margin-bottom: 0.75rem;
+}
+
+.onboarding-title {
+  font-size: 1.75rem;
+  font-weight: 900;
+  color: #ffffff;
+  font-style: italic;
+  text-transform: uppercase;
+  letter-spacing: -0.01em;
+  margin: 0.25rem 0 0.5rem;
+  font-family: 'Titillium Web', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.onboarding-title span {
+  color: #e10600;
+}
+
+.onboarding-desc {
+  font-size: 0.9rem;
+  color: #94a3b8;
+  margin-bottom: 1.75rem;
+  line-height: 1.5;
+}
+
+.onboarding-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  text-align: left;
+  margin-bottom: 2rem;
+}
+
+.onboarding-step-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.9rem;
+  background: rgba(255, 255, 255, 0.03);
+  padding: 0.85rem 1rem;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.onboarding-step-num {
+  width: 28px;
+  height: 28px;
+  background: linear-gradient(135deg, #e10600 0%, #990400 100%);
+  color: #ffffff;
+  font-weight: 800;
+  font-size: 0.8rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  shrink: 0;
+}
+
+.onboarding-step-text h4 {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #f1f5f9;
+  letter-spacing: 0.02em;
+}
+
+.onboarding-step-text p {
+  margin: 0.2rem 0 0;
+  font-size: 0.775rem;
+  color: #94a3b8;
+  line-height: 1.35;
+}
+
+.onboarding-cta-btn {
+  width: 100%;
+  height: 48px;
+  background: linear-gradient(135deg, #e10600 0%, #b80500 100%);
+  color: #ffffff;
+  border: none;
+  border-radius: 10px;
+  font-size: 0.95rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  box-shadow: 0 4px 20px rgba(225, 6, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  transition: all 0.2s ease;
+  font-family: 'Titillium Web', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.onboarding-cta-btn:hover {
+  background: linear-gradient(135deg, #ff1a12 0%, #e10600 100%);
+  box-shadow: 0 6px 26px rgba(225, 6, 0, 0.6);
+  transform: translateY(-1px);
+}
+
+.onboarding-secondary-link {
+  display: inline-block;
+  margin-top: 1rem;
+  font-size: 0.8rem;
+  color: #94a3b8;
+  text-decoration: none;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.onboarding-secondary-link:hover {
+  color: #ffffff;
+  text-decoration: underline;
+}
+
+/* Responsive adjustments */
+@media (max-width: 480px) {
+  .auth-page-wrapper {
+    padding: 1.5rem 1rem;
+  }
+  .auth-card {
+    padding: 1.5rem 1.25rem;
+  }
+  .auth-header h1 {
+    font-size: 1.65rem;
+  }
+}

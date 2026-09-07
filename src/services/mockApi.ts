@@ -34,6 +34,7 @@ const STORAGE_KEYS = {
 };
 
 function getStored<T>(key: string, defaultVal: T): T {
+  if (typeof localStorage === 'undefined') return defaultVal;
   try {
     const item = localStorage.getItem(key);
     return item ? JSON.parse(item) : defaultVal;
@@ -44,6 +45,7 @@ function getStored<T>(key: string, defaultVal: T): T {
 }
 
 function setStored<T>(key: string, val: T): void {
+  if (typeof localStorage === 'undefined') return;
   try {
     localStorage.setItem(key, JSON.stringify(val));
   } catch (e) {
@@ -61,7 +63,18 @@ export class MockApiService {
   private achievements: Achievement[];
 
   constructor() {
-    this.users = getStored(STORAGE_KEYS.USERS, INITIAL_USERS);
+    const storedUsers = getStored<User[]>(STORAGE_KEYS.USERS, INITIAL_USERS);
+    // Purge removed mock profiles (user_alex, user_admin)
+    const cleaned = storedUsers.filter(u => u.userId !== 'user_alex' && u.userId !== 'user_admin');
+    const harsh = cleaned.find(u => u.userId === 'user_harsh');
+    if (harsh) {
+      harsh.role = 'admin';
+    } else {
+      cleaned.unshift(INITIAL_USERS[0]);
+    }
+    this.users = cleaned;
+    setStored(STORAGE_KEYS.USERS, this.users);
+
     this.weekends = getStored(STORAGE_KEYS.WEEKENDS, INITIAL_RACE_WEEKENDS);
     this.rounds = getStored(STORAGE_KEYS.ROUNDS, INITIAL_PREDICTION_ROUNDS);
     this.predictions = getStored(STORAGE_KEYS.PREDICTIONS, INITIAL_PREDICTIONS);

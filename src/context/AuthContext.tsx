@@ -5,43 +5,55 @@ import { INITIAL_USERS } from '../services/mockData';
 import { authService, RegisterParams } from '../services/authService';
 
 interface AuthContextType {
-  currentUser: User;
+  currentUser: User | null;
   allUsers: User[];
+  isAuthenticated: boolean;
   isAdmin: boolean;
-  isSwitcherOpen: boolean;
-  setSwitcherOpen: (open: boolean) => void;
+  isLoadingAuth: boolean;
   isAuthModalOpen: boolean;
   setAuthModalOpen: (open: boolean) => void;
   authModalMode: 'login' | 'register';
-  openLoginModal: () => void;
-  openRegisterModal: () => void;
+  intendedRoute: string | null;
+  setIntendedRoute: (route: string | null) => void;
+  openLoginModal: (redirectRoute?: string) => void;
+  openRegisterModal: (redirectRoute?: string) => void;
   login: (identifier: string, password?: string) => Promise<void>;
+  loginWithGoogle: (googleUser?: { email?: string; displayName?: string; photoUrl?: string }) => Promise<void>;
   register: (params: RegisterParams) => Promise<User>;
   logout: () => void;
-  switchUser: (userId: string) => Promise<void>;
   updateProfile: (updated: Partial<User>) => Promise<void>;
   refreshUsers: () => Promise<void>;
 }
 
 const CURRENT_USER_KEY = 'f1_pred_current_user_id';
+const AUTH_STATUS_KEY = 'f1_pred_auth_status';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [allUsers, setAllUsers] = useState<User[]>(INITIAL_USERS);
-  const [currentUser, setCurrentUser] = useState<User>(INITIAL_USERS[0]); // default Harsh
-  const [isSwitcherOpen, setSwitcherOpen] = useState(false);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [isLoadingAuth, setIsLoadingAuth] = useState<boolean>(true);
   const [isAuthModalOpen, setAuthModalOpen] = useState(false);
   const [authModalMode, setAuthModalMode] = useState<'login' | 'register'>('login');
+  const [intendedRoute, setIntendedRoute] = useState<string | null>(null);
 
   const refreshUsers = async () => {
     try {
       const users = await api.getAllUsers();
       if (users && users.length > 0) {
         setAllUsers(users);
+        const authStatus = localStorage.getItem(AUTH_STATUS_KEY);
         const savedUserId = localStorage.getItem(CURRENT_USER_KEY);
-        const match = users.find(u => u.userId === savedUserId) || users[0];
-        setCurrentUser(match);
+        if (authStatus === 'authenticated' && savedUserId) {
+          const match = users.find(u => u.userId === savedUserId);
+          if (match) {
+            setCurrentUser(match);
+            setIsAuthenticated(true);
+            return;
+          }
+        }
       }
     } catch (e) {
       console.warn('Failed to refresh users:', e);
@@ -49,15 +61,59 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   useEffect(() => {
-    refreshUsers();
+    const restoreSession = async () => {
+      try {
+        setIsLoadingAuth(true);
+        const users = await api.getAllUsers();
+        if (users && users.length > 0) {
+          setAllUsers(users);
+        }
+
+        const authStatus = localStorage.getItem(AUTH_STATUS_KEY);
+        const savedUserId = localStorage.getItem(CURRENT_USER_KEY);
+
+        // Strict session restoration:
+        // A session is VALID if and only if auth status is explicitly 'authenticated'
+        // and savedUserId corresponds to an active registered user account.
+        if (authStatus === 'authenticated' && savedUserId) {
+          const userList = users && users.length > 0 ? users : INITIAL_USERS;
+          const match = userList.find(u => u.userId === savedUserId);
+          if (match) {
+            setCurrentUser(match);
+            setIsAuthenticated(true);
+            return;
+          }
+        }
+
+        // NO SESSION: clean up and ensure unauthenticated state
+        setCurrentUser(null);
+        setIsAuthenticated(false);
+        localStorage.removeItem(AUTH_STATUS_KEY);
+        localStorage.removeItem(CURRENT_USER_KEY);
+      } catch (e) {
+        console.warn('Failed to restore auth session:', e);
+        setCurrentUser(null);
+        setIsAuthenticated(false);
+      } finally {
+        setIsLoadingAuth(false);
+      }
+    };
+
+    restoreSession();
   }, []);
 
-  const openLoginModal = () => {
+  const openLoginModal = (redirectRoute?: string) => {
+    if (redirectRoute) {
+      setIntendedRoute(redirectRoute);
+    }
     setAuthModalMode('login');
     setAuthModalOpen(true);
   };
 
-  const openRegisterModal = () => {
+  const openRegisterModal = (redirectRoute?: string) => {
+    if (redirectRoute) {
+      setIntendedRoute(redirectRoute);
+    }
     setAuthModalMode('register');
     setAuthModalOpen(true);
   };
@@ -65,6 +121,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (identifier: string, password?: string) => {
     const user = await authService.login(identifier, password);
     setCurrentUser(user);
+    setIsAuthenticated(true);
+    localStorage.setItem(AUTH_STATUS_KEY, 'authenticated');
     localStorage.setItem(CURRENT_USER_KEY, user.userId);
     setAuthModalOpen(false);
     await refreshUsers();
@@ -73,28 +131,60 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const register = async (params: RegisterParams) => {
     const newUser = await authService.register(params);
     setCurrentUser(newUser);
+    setIsAuthenticated(true);
+    localStorage.setItem(AUTH_STATUS_KEY, 'authenticated');
     localStorage.setItem(CURRENT_USER_KEY, newUser.userId);
     setAuthModalOpen(false);
     await refreshUsers();
     return newUser;
   };
 
+  const loginWithGoogle = async (googleUser?: { email?: string; displayName?: string; photoUrl?: string }) => {
+    let email = googleUser?.email;
+    let displayName = googleUser?.displayName;
+
+    if (!email) {
+      const input = window.prompt('Sign in with Google: Enter your Google email address:', '');
+      if (!input || !input.trim()) {
+        return;
+      }
+      email = input.trim().toLowerCase();
+      displayName = googleUser?.displayName || email.split('@')[0];
+    }
+
+    const cleanEmail = email.toLowerCase().trim();
+    const cleanDisplayName = displayName || cleanEmail.split('@')[0];
+    const username = cleanEmail.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '_');
+
+    let match = allUsers.find(u => u.email.toLowerCase() === cleanEmail);
+    if (!match) {
+      match = await authService.register({
+        email: cleanEmail,
+        displayName: cleanDisplayName,
+        username,
+        favouriteDriver: 'verstappen',
+        favouriteConstructor: 'red_bull',
+        avatarUrl: googleUser?.photoUrl,
+      });
+    }
+
+    setCurrentUser(match);
+    setIsAuthenticated(true);
+    localStorage.setItem(AUTH_STATUS_KEY, 'authenticated');
+    localStorage.setItem(CURRENT_USER_KEY, match.userId);
+    setAuthModalOpen(false);
+    await refreshUsers();
+  };
+
   const logout = () => {
-    // Revert to demo racer if logged out
-    const defaultUser = allUsers[0] || INITIAL_USERS[0];
-    setCurrentUser(defaultUser);
+    setCurrentUser(null);
+    setIsAuthenticated(false);
+    localStorage.removeItem(AUTH_STATUS_KEY);
     localStorage.removeItem(CURRENT_USER_KEY);
   };
 
-  const switchUser = async (userId: string) => {
-    const match = allUsers.find(u => u.userId === userId);
-    if (match) {
-      setCurrentUser(match);
-      localStorage.setItem(CURRENT_USER_KEY, userId);
-    }
-  };
-
   const updateProfile = async (updated: Partial<User>) => {
+    if (!currentUser) throw new Error('Not authenticated');
     const safeUpdates = { ...updated };
     delete safeUpdates.role;
     delete safeUpdates.userId;
@@ -104,25 +194,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setAllUsers(prev => prev.map(u => (u.userId === saved.userId ? saved : u)));
   };
 
-  const isAdmin = currentUser.role === 'admin';
+  const isAdmin = Boolean(currentUser && currentUser.role === 'admin');
 
   return (
     <AuthContext.Provider
       value={{
         currentUser,
         allUsers,
+        isAuthenticated,
         isAdmin,
-        isSwitcherOpen,
-        setSwitcherOpen,
+        isLoadingAuth,
         isAuthModalOpen,
         setAuthModalOpen,
         authModalMode,
+        intendedRoute,
+        setIntendedRoute,
         openLoginModal,
         openRegisterModal,
         login,
+        loginWithGoogle,
         register,
         logout,
-        switchUser,
         updateProfile,
         refreshUsers,
       }}

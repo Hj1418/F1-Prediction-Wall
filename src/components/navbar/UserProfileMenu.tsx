@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { getInitials } from '../../utils/getInitials';
+import { UserInitialsAvatar } from '../common/UserInitialsAvatar';
 
 interface UserProfileMenuProps {
   mobileMenuOpen?: boolean;
@@ -24,7 +25,7 @@ export const UserProfileMenu: React.FC<UserProfileMenuProps> = ({
   mobileMenuOpen = false,
   onToggleMobileMenu,
 }) => {
-  const { currentUser, isAdmin, setSwitcherOpen, openLoginModal, openRegisterModal, logout } = useAuth();
+  const { currentUser, isAuthenticated, isAdmin, logout } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const location = useLocation();
@@ -45,82 +46,87 @@ export const UserProfileMenu: React.FC<UserProfileMenuProps> = ({
     setIsOpen(false);
   }, [location.pathname]);
 
-  const userInitials = getInitials(currentUser.displayName || currentUser.username || 'User');
-  const userDisplayName = currentUser.displayName || currentUser.username || 'Racer';
+  const userDisplayName = currentUser?.displayName || currentUser?.username || 'Racer';
 
   return (
     <div className="navbar-actions">
-      {/* Secondary Auth Buttons */}
-      <button
-        onClick={openLoginModal}
-        className="auth-btn"
-        title="Sign in with racer credentials"
-        type="button"
-      >
-        <LogIn size={13} />
-        <span>SIGN IN</span>
-      </button>
+      {!isAuthenticated ? (
+        <>
+          <Link
+            to="/login"
+            className="auth-btn auth-btn--signin"
+            title="Sign in to your racer account"
+            aria-label="Sign in"
+          >
+            <LogIn size={13} className="auth-btn__icon" />
+            <span>SIGN IN</span>
+          </Link>
 
-      <button
-        onClick={openRegisterModal}
-        className="auth-btn"
-        title="Register new prediction profile"
-        type="button"
-      >
-        <UserPlus size={13} />
-        <span>REGISTER</span>
-      </button>
+          <Link
+            to="/register"
+            className="auth-btn auth-btn--register"
+            title="Join the F1 Community Prediction League"
+            aria-label="Join the F1 Community Prediction League"
+          >
+            <UserPlus size={13} className="auth-btn__icon" />
+            <span className="auth-btn__text-full">JOIN THE LEAGUE</span>
+            <span className="auth-btn__text-short">JOIN</span>
+          </Link>
+        </>
+      ) : (
+        /* User Profile Avatar & Dropdown */
+        <div className="user-profile-wrapper" ref={menuRef} style={{ position: 'relative' }}>
+          <button
+            onClick={() => setIsOpen(prev => !prev)}
+            className={`user-profile-trigger ${isOpen ? 'user-profile-trigger--open' : ''}`}
+            aria-label="Open profile menu"
+            aria-expanded={isOpen}
+            type="button"
+          >
+            {/* Circular Initials Avatar */}
+            <UserInitialsAvatar
+              name={userDisplayName}
+              size="sm"
+              className="shrink-0"
+              showBorder={false}
+            />
 
-      {/* User Profile Avatar & Dropdown */}
-      <div className="user-profile-wrapper" ref={menuRef} style={{ position: 'relative' }}>
-        <button
-          onClick={() => setIsOpen(prev => !prev)}
-          className={`user-profile-trigger ${isOpen ? 'user-profile-trigger--open' : ''}`}
-          aria-label="Open profile menu"
-          aria-expanded={isOpen}
-          type="button"
-        >
-          {/* Circular Initials Avatar */}
-          <div className="user-profile-trigger__avatar">
-            {userInitials}
-          </div>
+            {/* User Info (Name + Points) */}
+            <div className="user-profile-trigger__info">
+              <span className="user-profile-trigger__name">{userDisplayName}</span>
+              <span className="user-profile-trigger__points">
+                {currentUser?.totalPoints ?? 0} PTS
+              </span>
+            </div>
 
-          {/* User Info (Name + Points) */}
-          <div className="user-profile-trigger__info">
-            <span className="user-profile-trigger__name">{userDisplayName}</span>
-            <span className="user-profile-trigger__points">
-              {currentUser.totalPoints ?? 0} PTS
-            </span>
-          </div>
-
-          {/* Chevron indicator */}
-          <ChevronDown
-            size={13}
-            className={`user-profile-trigger__chevron ${isOpen ? 'user-profile-trigger__chevron--open' : ''}`}
-          />
-        </button>
+            {/* Chevron indicator */}
+            <ChevronDown
+              size={14}
+              className={`user-profile-trigger__chevron ${isOpen ? 'user-profile-trigger__chevron--open' : ''}`}
+            />
+          </button>
 
         {/* Profile Dropdown Menu */}
         {isOpen && (
           <div className="user-dropdown" role="menu">
             {/* Header with name, handle and stats */}
             <div className="user-dropdown__header">
-              <div className="user-dropdown__header-name">{currentUser.displayName}</div>
-              <div className="user-dropdown__header-handle">@{currentUser.username}</div>
+              <div className="user-dropdown__header-name">{currentUser?.displayName}</div>
+              <div className="user-dropdown__header-handle">@{currentUser?.username}</div>
               <div className="user-dropdown__header-stats">
                 <span style={{ fontSize: '0.72rem', fontFamily: 'var(--font-mono)', color: 'var(--telemetry-yellow)', fontWeight: 700 }}>
-                  {currentUser.totalPoints ?? 0} PTS
+                  {currentUser?.totalPoints ?? 0} PTS
                 </span>
                 <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>•</span>
                 <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
-                  Rank P{currentUser.seasonRank || 1}
+                  Rank P{currentUser?.seasonRank || 1}
                 </span>
               </div>
             </div>
 
             {/* Menu Items */}
             <Link
-              to={`/profile/${currentUser.username}`}
+              to={`/profile/${currentUser?.username || ''}`}
               onClick={() => setIsOpen(false)}
               className="user-dropdown__item"
               role="menuitem"
@@ -138,19 +144,6 @@ export const UserProfileMenu: React.FC<UserProfileMenuProps> = ({
               <Target size={14} style={{ color: 'var(--text-secondary)' }} />
               <span>My Predictions</span>
             </Link>
-
-            <button
-              onClick={() => {
-                setIsOpen(false);
-                setSwitcherOpen(true);
-              }}
-              className="user-dropdown__item"
-              role="menuitem"
-              type="button"
-            >
-              <Users size={14} style={{ color: 'var(--text-secondary)' }} />
-              <span>Switch Account (Demo)</span>
-            </button>
 
             {isAdmin && (
               <Link
@@ -181,6 +174,7 @@ export const UserProfileMenu: React.FC<UserProfileMenuProps> = ({
           </div>
         )}
       </div>
+    )}
 
       {/* Mobile Hamburger Menu Toggle */}
       {onToggleMobileMenu && (
