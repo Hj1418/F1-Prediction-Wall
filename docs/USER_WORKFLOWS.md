@@ -100,3 +100,37 @@ Admin Dashboard (`/admin`)
         ├── Re-computes Leaderboard standings
         └── Buffers results notifications into `NotificationQueue`
 ```
+
+---
+
+## 5. Journey E: Authentication → Application User Persistence
+
+```
+Google Login Trigger (Modal / Button)
+  │
+  ├──► 1. Identity Establishment:
+  │         User authenticates with Google account (email, name, avatar).
+  │
+  ├──► 2. Backend Persistence Handshake:
+  │         Frontend dispatches `action: 'googleLogin'` to Google Apps Script.
+  │         Backend secures `LockService` to prevent race conditions.
+  │
+  ├──► 3. Database Account Lifecycle:
+  │         ├── CASE A (New User):
+  │         │     No existing record found for email in `Users` sheet.
+  │         │     Creates permanent `userId`, sanitizes username, appends row.
+  │         │     Returns newly minted application user.
+  │         └── CASE B (Returning User):
+  │               Matching record found in `Users` sheet.
+  │               Updates `lastLoginAt` and missing profile fields.
+  │               Returns existing persistent application user.
+  │
+  ├──► 4. Prediction & Telemetry Binding:
+  │         All predictions, leaderboard entries, and round scores are bound to the
+  │         canonical application `userId` (not client session tokens).
+  │
+  └──► 5. Failure Transparency:
+            Authentication success does not automatically mean database persistence success.
+            If the Google Sheets backend fails to persist or find the account, the frontend
+            surfaces an explicit error toast rather than masking it in client-side storage.
+```

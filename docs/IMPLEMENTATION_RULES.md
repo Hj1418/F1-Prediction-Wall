@@ -87,4 +87,14 @@ Never remove or break existing navigation paths. The platform must support both 
 - **Responsive Text Collapse**: To prevent horizontal overflow and clipped labels (`JOIN T...`), secondary actions must collapse to short text (`JOIN`) on narrower viewports (`< 1280px`) while retaining complete screen-reader and accessible labels (`title`, `aria-label`).
 - **Preserve Authenticated State**: Changes to the unauthenticated layout must never regress the logged-in profile trigger (`[AVATAR NAME / POINTS ▼]`).
 
+---
+
+## 9. Authentication → Application User Persistence Rules
+
+- **Identity vs. Persistence**: Google authentication identifies the person. The application creates or retrieves an application user record. The application user ID is used for predictions, scores, and profile data.
+- **Persistence Verification**: Authentication success does not automatically mean database persistence success. Never assume a successful Google token or client profile means the record is stored in Google Sheets.
+- **Zero Silent Fallback**: Never catch backend database errors and silently dump data into client-side `localStorage`. If `isLiveBackend` is enabled and an API request fails, throw an explicit, descriptive error to the user interface.
+- **Strict Concurrency**: Concurrency locks (`LockService.getScriptLock()`) must always guard user lookup and creation in `Code.gs` to prevent duplicate rows.
+- **Prediction User Integrity**: The backend must verify that the `userId` in `submitPrediction` exists in the `Users` sheet before writing the prediction.
+
 

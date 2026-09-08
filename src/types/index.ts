@@ -111,6 +111,7 @@ export interface User {
   passwordHash?: string;
   role: UserRole;
   createdAt: string;
+  lastLoginAt?: string;
   totalPoints: number;
   seasonRank: number;
   previousRank: number;

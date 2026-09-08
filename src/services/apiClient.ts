@@ -124,17 +124,17 @@ export const api = {
   }): Promise<Prediction> {
     if (!isLiveBackend) return mockApi.submitPrediction(payload);
     try {
-      const res = await fetch(API_BASE_URL, {
+      const res = await fetch(`${API_BASE_URL}?action=submitPrediction`, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // Apps Script preferred Content-Type for CORS
         body: JSON.stringify({ action: 'submitPrediction', ...payload }),
       });
       const json: ApiResponse<Prediction> = await res.json();
       if (json.success && json.data) return json.data;
-      throw new Error(json.message || 'Failed to submit prediction on live backend');
+      throw new Error(json.message || 'Failed to submit prediction to live database');
     } catch (e: any) {
-      console.warn('Live API submit failed, saving locally via mockApi:', e);
-      return mockApi.submitPrediction(payload);
+      console.error('Live database prediction submit failed:', e);
+      throw new Error(e.message || 'Failed to submit prediction to database');
     }
   },
 
@@ -168,51 +168,145 @@ export const api = {
   },
 
   async getUserProfile(usernameOrId: string): Promise<User | null> {
+    if (isLiveBackend) {
+      try {
+        const res = await fetch(`${API_BASE_URL}?action=getUserProfile&userId=${encodeURIComponent(usernameOrId)}`);
+        const json: ApiResponse<User> = await res.json();
+        if (json.success && json.data) return json.data;
+      } catch (e) {
+        console.warn('Live API getUserProfile failed, checking fallback:', e);
+      }
+    }
     return mockApi.getUserProfile(usernameOrId);
   },
 
   async getUserAchievements(userId: string): Promise<Achievement[]> {
+    if (isLiveBackend) {
+      try {
+        const res = await fetch(`${API_BASE_URL}?action=getUserAchievements&userId=${encodeURIComponent(userId)}`);
+        const json: ApiResponse<Achievement[]> = await res.json();
+        if (json.success && json.data) return json.data;
+      } catch (e) {
+        console.warn('Live API getUserAchievements failed, checking fallback:', e);
+      }
+    }
     return mockApi.getUserAchievements(userId);
   },
 
   async getUserPredictionsHistory(userId: string) {
+    if (isLiveBackend) {
+      try {
+        const res = await fetch(`${API_BASE_URL}?action=getUserPredictionsHistory&userId=${encodeURIComponent(userId)}`);
+        const json = await res.json();
+        if (json.success && json.data) return json.data;
+      } catch (e) {
+        console.warn('Live API getUserPredictionsHistory failed, checking fallback:', e);
+      }
+    }
     return mockApi.getUserPredictionsHistory(userId);
   },
 
   async getAllUsers(): Promise<User[]> {
+    if (isLiveBackend) {
+      try {
+        const res = await fetch(`${API_BASE_URL}?action=getAllUsers`);
+        const json: ApiResponse<User[]> = await res.json();
+        if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+          return json.data;
+        }
+      } catch (e) {
+        console.warn('Live API getAllUsers failed, checking fallback:', e);
+      }
+    }
     return mockApi.getAllUsers();
+  },
+
+  async getAdminUsers(requesterId: string): Promise<User[]> {
+    if (isLiveBackend) {
+      try {
+        const res = await fetch(`${API_BASE_URL}?action=getAdminUsers&requesterId=${encodeURIComponent(requesterId)}`);
+        const json: ApiResponse<User[]> = await res.json();
+        if (json.success && Array.isArray(json.data)) {
+          return json.data;
+        }
+        throw new Error(json.message || 'Failed to fetch admin users directory');
+      } catch (e: any) {
+        console.error('Live API getAdminUsers error:', e);
+        throw e;
+      }
+    }
+    return mockApi.getAdminUsers(requesterId);
+  },
+
+  async googleLogin(payload: { email: string; displayName?: string; photoUrl?: string }): Promise<User> {
+    if (isLiveBackend) {
+      try {
+        const res = await fetch(`${API_BASE_URL}?action=googleLogin`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'googleLogin', ...payload }),
+        });
+        const json: ApiResponse<User> = await res.json();
+        if (json.success && json.data) return json.data;
+        throw new Error(json.message || 'Failed to authenticate Google user on live database');
+      } catch (e: any) {
+        console.error('Live API googleLogin failed:', e);
+        throw e;
+      }
+    }
+    return mockApi.googleLogin(payload);
+  },
+
+  async loginUser(identifier: string, passwordHash?: string): Promise<User> {
+    if (isLiveBackend) {
+      try {
+        const res = await fetch(`${API_BASE_URL}?action=loginUser`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'loginUser', identifier, passwordHash }),
+        });
+        const json: ApiResponse<User> = await res.json();
+        if (json.success && json.data) return json.data;
+        throw new Error(json.message || 'Authentication failed on live database');
+      } catch (e: any) {
+        console.error('Live API login failed:', e);
+        throw e;
+      }
+    }
+    return mockApi.login(identifier, passwordHash);
   },
 
   async registerUser(userData: any): Promise<User> {
     if (!isLiveBackend) return mockApi.registerUser(userData);
     try {
-      const res = await fetch(API_BASE_URL, {
+      const res = await fetch(`${API_BASE_URL}?action=registerUser`, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify({ action: 'registerUser', ...userData }),
       });
       const json = await res.json();
       if (json.success && json.data) return json.data;
-      throw new Error(json.message || 'Registration failed');
+      throw new Error(json.message || 'Registration failed on live database');
     } catch (e: any) {
-      console.warn('Live API registration failed, saving locally via mockApi:', e);
-      return mockApi.registerUser(userData);
+      console.error('Live API registration failed:', e);
+      throw e;
     }
   },
 
   async updateUser(userId: string, updates: Partial<User>): Promise<User> {
     if (!isLiveBackend) return mockApi.updateUser(userId, updates);
     try {
-      const res = await fetch(API_BASE_URL, {
+      const res = await fetch(`${API_BASE_URL}?action=updateUser`, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify({ action: 'updateUser', userId, updates }),
       });
       const json = await res.json();
       if (json.success && json.data) return json.data;
-      return mockApi.updateUser(userId, updates);
-    } catch (e) {
-      return mockApi.updateUser(userId, updates);
+      throw new Error(json.message || 'Profile update failed on database');
+    } catch (e: any) {
+      console.error('Live API updateUser failed:', e);
+      throw e;
     }
   },
 

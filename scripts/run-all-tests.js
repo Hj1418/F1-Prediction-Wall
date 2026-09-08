@@ -7,7 +7,8 @@ try {
   execSync('npx tsx scripts/verify-sync.ts', { stdio: 'inherit' });
   execSync('node scripts/verify-all-circuits.js', { stdio: 'inherit' });
   execSync('npx tsx scripts/verify-auth.ts', { stdio: 'inherit' });
-  console.log('🏆 ALL 81 UNIT, INTEGRATION, AUTH & ASSET TESTS PASSED PERFECTLY!\n');
+  execSync('npx tsx scripts/verify-admin-users.ts', { stdio: 'inherit' });
+  console.log('🏆 ALL 91 UNIT, INTEGRATION, AUTH, ADMIN & ASSET TESTS PASSED PERFECTLY!\n');
 } catch (err) {
   console.error('Test execution failed');
   process.exit(1);

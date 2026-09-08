@@ -359,6 +359,85 @@ export class MockApiService {
     return [...this.users];
   }
 
+  public async getAdminUsers(requesterId: string): Promise<User[]> {
+    const cleanId = (requesterId || '').trim().toLowerCase();
+    const requester = this.users.find(
+      u =>
+        u.userId.toLowerCase() === cleanId ||
+        u.email.toLowerCase() === cleanId ||
+        u.username.toLowerCase() === cleanId
+    );
+    if (!requester || requester.role !== 'admin') {
+      throw new Error('Forbidden: Administrator privileges required to access user list.');
+    }
+    return [...this.users];
+  }
+
+  public async login(identifier: string, passwordHash?: string): Promise<User> {
+    const cleanId = identifier.trim().toLowerCase();
+    const match = this.users.find(
+      u =>
+        u.username.toLowerCase() === cleanId ||
+        u.email.toLowerCase() === cleanId ||
+        u.userId.toLowerCase() === cleanId ||
+        u.userId.toLowerCase() === `user_${cleanId}` ||
+        (cleanId === 'admin' && u.role === 'admin')
+    );
+
+    if (!match) {
+      throw new Error('No racer found with this username or email.');
+    }
+
+    if (match.passwordHash && passwordHash) {
+      if (match.passwordHash !== passwordHash) {
+        throw new Error('Invalid password for this account.');
+      }
+    }
+
+    return { ...match };
+  }
+
+  public async googleLogin(payload: { email: string; displayName?: string; photoUrl?: string }): Promise<User> {
+    const cleanEmail = payload.email.toLowerCase().trim();
+    const match = this.users.find(u => u.email.toLowerCase() === cleanEmail);
+    if (match) {
+      return { ...match };
+    }
+
+    const baseUsername = cleanEmail.split('@')[0].replace(/[^a-z0-9_]/g, '') || 'racer';
+    let cleanUsername = baseUsername;
+    let suffix = 1;
+    while (this.users.some(u => u.username.toLowerCase() === cleanUsername)) {
+      cleanUsername = `${baseUsername}${suffix}`;
+      suffix++;
+    }
+
+    const newUser: User = {
+      userId: `usr_${cleanUsername}_${Date.now().toString(36)}`,
+      email: cleanEmail,
+      displayName: payload.displayName || cleanUsername,
+      username: cleanUsername,
+      avatarUrl: payload.photoUrl || '',
+      favouriteDriver: 'verstappen',
+      favouriteConstructor: 'red_bull',
+      bio: 'F1 Enthusiast & Strategy Predictor',
+      role: 'user',
+      createdAt: new Date().toISOString(),
+      totalPoints: 0,
+      seasonRank: this.users.length + 1,
+      previousRank: this.users.length + 1,
+      racesParticipated: 0,
+      bestWeekendScore: 0,
+      exactP1Count: 0,
+      perfectPodiumCount: 0,
+      wildcardsCorrect: 0,
+    };
+
+    this.users.push(newUser);
+    this.persistAll();
+    return { ...newUser };
+  }
+
   public async registerUser(
     userData: Omit<
       User,

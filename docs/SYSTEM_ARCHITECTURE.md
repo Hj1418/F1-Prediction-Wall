@@ -124,3 +124,45 @@
 1. **Lightweight Governance Registry**: Managed via typed TypeScript definitions (`OfficialResource`, `GovernanceMetadata`) without database overhead.
 2. **Deterministic Verification**: Every regulatory topic is pinned to a specific verified season and verification date.
 3. **Zero Scraping / Zero Mirroring**: Zero backend bandwidth or storage used for external article content.
+
+---
+
+## 5. Authentication → Application User Persistence
+
+```
+Google Sign-In
+      ↓
+Google Authenticated Identity (email, name, photo)
+      ↓
+Frontend Authentication State
+      ↓
+api.googleLogin({ email, displayName, photoUrl })
+      ↓
+Google Apps Script Endpoint (doPost: action='googleLogin')
+      ↓
+LockService Concurrency Control
+      ↓
+User Lookup in USERS Sheet (by email)
+ ┌────┴───────────────────────────┐
+ │ CASE A: New User               │ CASE B: Returning User
+ ▼                                ▼
+Create USERS Row (userId, etc.)   Update lastLoginAt & avatarUrl
+ └────┬───────────────────────────┘
+      ▼
+Return Persistent Application User Record
+      ↓
+Frontend currentUser & Session ID
+      ↓
+Predictions / Scores / Notifications (Bound to Application userId)
+```
+
+### Core Architecture Principles:
+1. **Separation of Identity vs. Persistence**:
+   - Google authentication identifies the person (email, name, avatar).
+   - The application then creates or retrieves a persistent application user record in the `Users` sheet.
+   - **Authentication success does not automatically mean database persistence success**. If the database write fails or is unreachable, the frontend surfaces an explicit error rather than silently masking it in local storage.
+2. **Deterministic Identity Binding**:
+   - The application user ID (`usr_<username>_<uuid>`) is the canonical primary key.
+   - All user actions—predictions (`Predictions` sheet), scores (`Scores` sheet), achievements, and notifications—are strictly keyed to this persistent application user ID, never to ephemeral client-side tokens.
+3. **Strict Concurrency Protection**:
+   - Apps Script acquires a lock via `LockService.getScriptLock()` during `googleLogin` and `registerUser` lookups and writes to guarantee that concurrent logins never produce duplicate user records.

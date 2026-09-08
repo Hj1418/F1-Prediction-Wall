@@ -77,3 +77,13 @@ This document records the foundational product and technical decisions for the F
   - Transparently communicates when regulation-sensitive rules were last verified (e.g. 2026 Sporting Regulations Article 39 for Qualifying).
   - Explicitly forbids automatic AI rewriting of regulatory changes, prioritizing accuracy over artificial automation.
 
+---
+
+## Decision 9: Authentication → Application User Persistence Decoupling
+
+- **Decision**: Decouple Google Identity authentication from Google Sheets database user persistence. The application user record in the `Users` sheet—and its associated `userId`—is the single canonical source of truth for predictions, scores, and profile telemetry.
+- **Rationale**:
+  - Google authentication provides identity assertion (email, name, picture), but the league requires domain-specific state (races participated, season rank, points, favourite constructor, driver selections).
+  - Explicit error boundaries prevent the application from presenting a "successful login" if the backend database write failed.
+  - Eliminates duplicate accounts via server-side locking (`LockService.getScriptLock()`) and handles first-time vs. returning Google users deterministically.
+

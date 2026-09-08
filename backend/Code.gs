@@ -84,6 +84,19 @@ function doGet(e) {
       case 'getUserProfile':
         responseData = getUserProfile(e.parameter.username || e.parameter.userId);
         break;
+      case 'getAllUsers':
+        responseData = getAllUsers();
+        break;
+      case 'getAdminUsers':
+      case 'getUsers':
+        responseData = getAdminUsers(e.parameter.requesterId || e.parameter.userId);
+        break;
+      case 'getUserAchievements':
+        responseData = getUserAchievements(e.parameter.userId);
+        break;
+      case 'getUserPredictionsHistory':
+        responseData = getUserPredictionsHistory(e.parameter.userId);
+        break;
       case 'getAllDrivers':
         responseData = getAllDrivers();
         break;
@@ -125,6 +138,12 @@ function doPost(e) {
     let responseData = null;
 
     switch (action) {
+      case 'googleLogin':
+        responseData = googleLogin(payload);
+        break;
+      case 'loginUser':
+        responseData = loginUser(payload.identifier, payload.passwordHash);
+        break;
       case 'submitPrediction':
         responseData = submitPrediction(payload);
         break;
@@ -154,6 +173,10 @@ function doPost(e) {
         break;
       case 'processNotificationQueue':
         responseData = processNotificationQueue(payload.limit);
+        break;
+      case 'getAdminUsers':
+      case 'getUsers':
+        responseData = getAdminUsers(payload.requesterId || payload.userId);
         break;
       default:
         return createJsonResponse({
@@ -610,6 +633,12 @@ function submitPrediction(payload) {
     throw new Error('Missing required prediction fields.');
   }
 
+  // Verify that submitting user exists in the database
+  const userProfile = getUserProfile(userId);
+  if (!userProfile) {
+    throw new Error('User not found in database. Please log in again.');
+  }
+
   const round = getPredictionRound(roundId);
   if (!round) throw new Error('Prediction round not found.');
 
@@ -639,18 +668,34 @@ function submitPrediction(payload) {
 
   const nowIso = serverTime.toISOString();
   const dataJson = JSON.stringify(predictionData);
+  let savedPrediction = null;
 
   if (existingRow > 0) {
     sheet.getRange(existingRow, 4).setValue(dataJson);
     sheet.getRange(existingRow, 6).setValue(nowIso);
+    savedPrediction = {
+      predictionId: rows[existingRow - 1][0],
+      userId: userId,
+      roundId: roundId,
+      predictionData: predictionData,
+      submittedAt: rows[existingRow - 1][4],
+      updatedAt: nowIso
+    };
   } else {
     const predId = 'pred_' + Utilities.getUuid();
     sheet.appendRow([predId, userId, roundId, dataJson, nowIso, nowIso, '']);
+    savedPrediction = {
+      predictionId: predId,
+      userId: userId,
+      roundId: roundId,
+      predictionData: predictionData,
+      submittedAt: nowIso,
+      updatedAt: nowIso
+    };
   }
 
   // Enqueue confirmation notification idempotently
   try {
-    const userProfile = getUserProfile(userId);
     const recipientEmail = userProfile ? userProfile.email : (payload.email || '');
     if (recipientEmail) {
       enqueueNotification(
@@ -666,7 +711,7 @@ function submitPrediction(payload) {
     Logger.log('Failed to enqueue prediction confirmation: ' + err.toString());
   }
 
-  return { success: true, roundId: roundId, userId: userId, updatedAt: nowIso };
+  return savedPrediction;
 }
 
 function adminCalculateScores(roundId) {
@@ -805,21 +850,10 @@ function getRoundResults(roundId) {
 }
 
 function getLeaderboard(type, id) {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const userSheet = ss.getSheetByName(SHEET_NAMES.USERS);
-  const userRows = userSheet.getDataRange().getValues();
+  const users = getAllUsers();
   const usersMap = {};
-  for (let i = 1; i < userRows.length; i++) {
-    usersMap[userRows[i][0]] = {
-      userId: userRows[i][0],
-      email: userRows[i][1],
-      displayName: userRows[i][2],
-      username: userRows[i][3],
-      avatarUrl: userRows[i][4],
-      favouriteDriver: userRows[i][5],
-      role: userRows[i][6],
-      totalPoints: Number(userRows[i][8] || 0)
-    };
+  for (let i = 0; i < users.length; i++) {
+    usersMap[users[i].userId] = users[i];
   }
 
   const scoreSheet = ss.getSheetByName(SHEET_NAMES.SCORES);
@@ -884,117 +918,334 @@ function getLeaderboard(type, id) {
   });
 }
 
-function getUserProfile(userIdOrUsername) {
+const USER_HEADERS = [
+  'userId', 'email', 'displayName', 'username', 'avatarUrl',
+  'favouriteDriver', 'favouriteConstructor', 'bio', 'passwordHash',
+  'authProvider', 'lastLoginAt', 'role', 'createdAt', 'totalPoints', 'seasonRank'
+];
+
+function ensureUserHeaders(sheet) {
+  if (!sheet) return;
+  const lastCol = sheet.getLastColumn();
+  if (lastCol === 0) {
+    sheet.getRange(1, 1, 1, USER_HEADERS.length).setValues([USER_HEADERS]);
+    sheet.getRange(1, 1, 1, USER_HEADERS.length).setBackground('#e10600').setFontColor('#ffffff').setFontWeight('bold');
+    sheet.setFrozenRows(1);
+    return;
+  }
+  const currentHeaders = sheet.getRange(1, 1, 1, lastCol).getValues()[0] || [];
+  const existingMap = {};
+  currentHeaders.forEach(function(h) { existingMap[String(h).trim()] = true; });
+
+  const missing = [];
+  USER_HEADERS.forEach(function(h) {
+    if (!existingMap[h]) missing.push(h);
+  });
+  if (missing.length > 0) {
+    sheet.getRange(1, lastCol + 1, 1, missing.length).setValues([missing]);
+    sheet.getRange(1, lastCol + 1, 1, missing.length).setBackground('#e10600').setFontColor('#ffffff').setFontWeight('bold');
+  }
+}
+
+function getAllUsersInternal() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const userSheet = ss.getSheetByName(SHEET_NAMES.USERS);
-  const rows = userSheet.getDataRange().getValues();
+  const sheet = ss.getSheetByName(SHEET_NAMES.USERS);
+  if (!sheet) return [];
+  ensureUserHeaders(sheet);
+  const rows = sheet.getDataRange().getValues();
+  if (rows.length <= 1) return [];
+
+  const headers = rows[0];
+  const colMap = {};
+  for (let c = 0; c < headers.length; c++) {
+    colMap[String(headers[c]).trim()] = c;
+  }
+
+  const users = [];
   for (let i = 1; i < rows.length; i++) {
-    if (rows[i][0] === userIdOrUsername || rows[i][3] === userIdOrUsername) {
-      return {
-        userId: rows[i][0],
-        email: rows[i][1],
-        displayName: rows[i][2],
-        username: rows[i][3],
-        avatarUrl: rows[i][4],
-        favouriteDriver: rows[i][5],
-        role: rows[i][6],
-        createdAt: rows[i][7],
-        totalPoints: Number(rows[i][8] || 0),
-        seasonRank: Number(rows[i][9] || 1)
-      };
+    const row = rows[i];
+    const uid = colMap['userId'] !== undefined ? row[colMap['userId']] : row[0];
+    if (!uid) continue;
+
+    users.push({
+      userId: String(uid),
+      email: String(colMap['email'] !== undefined ? row[colMap['email']] : row[1] || ''),
+      displayName: String(colMap['displayName'] !== undefined ? row[colMap['displayName']] : row[2] || ''),
+      username: String(colMap['username'] !== undefined ? row[colMap['username']] : row[3] || ''),
+      avatarUrl: String(colMap['avatarUrl'] !== undefined ? row[colMap['avatarUrl']] : row[4] || ''),
+      favouriteDriver: String(colMap['favouriteDriver'] !== undefined ? row[colMap['favouriteDriver']] : row[5] || ''),
+      favouriteConstructor: String((colMap['favouriteConstructor'] !== undefined ? row[colMap['favouriteConstructor']] : '') || 'ferrari'),
+      bio: String((colMap['bio'] !== undefined ? row[colMap['bio']] : '') || ''),
+      role: String((colMap['role'] !== undefined ? row[colMap['role']] : '') || 'user'),
+      createdAt: String((colMap['createdAt'] !== undefined ? row[colMap['createdAt']] : '') || ''),
+      lastLoginAt: String((colMap['lastLoginAt'] !== undefined ? row[colMap['lastLoginAt']] : '') || ''),
+      totalPoints: Number((colMap['totalPoints'] !== undefined ? row[colMap['totalPoints']] : 0) || 0),
+      seasonRank: Number((colMap['seasonRank'] !== undefined ? row[colMap['seasonRank']] : i) || i)
+    });
+  }
+  return users;
+}
+
+/**
+ * Public User Listing:
+ * Protects email privacy by blanking email addresses for public consumption.
+ */
+function getAllUsers() {
+  const users = getAllUsersInternal();
+  return users.map(function(u) {
+    return Object.assign({}, u, { email: '' });
+  });
+}
+
+/**
+ * Admin User Directory:
+ * Strictly verifies that the requesting user exists in the USERS table
+ * and possesses role === 'admin'. Only verified administrators receive
+ * complete user data with email and login timestamps.
+ */
+function getAdminUsers(requesterId) {
+  if (!requesterId) {
+    throw new Error('Unauthorized: Authentication identity required.');
+  }
+
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(SHEET_NAMES.USERS);
+  if (!sheet) return [];
+  ensureUserHeaders(sheet);
+
+  const rows = sheet.getDataRange().getValues();
+  if (rows.length <= 1) return [];
+
+  const headers = rows[0];
+  const colMap = {};
+  for (let c = 0; c < headers.length; c++) {
+    colMap[String(headers[c]).trim()] = c;
+  }
+
+  const cleanReq = String(requesterId).trim().toLowerCase();
+  let isAdmin = false;
+
+  const uidCol = colMap['userId'] !== undefined ? colMap['userId'] : 0;
+  const emailCol = colMap['email'] !== undefined ? colMap['email'] : 1;
+  const usernameCol = colMap['username'] !== undefined ? colMap['username'] : 3;
+  const roleCol = colMap['role'] !== undefined ? colMap['role'] : 6;
+
+  for (let i = 1; i < rows.length; i++) {
+    const row = rows[i];
+    const uId = String(row[uidCol] || '').trim().toLowerCase();
+    const uEmail = String(row[emailCol] || '').trim().toLowerCase();
+    const uName = String(row[usernameCol] || '').trim().toLowerCase();
+
+    if (uId === cleanReq || uEmail === cleanReq || uName === cleanReq) {
+      const roleVal = String(row[roleCol] || '').trim().toLowerCase();
+      if (roleVal === 'admin') {
+        isAdmin = true;
+      }
+      break;
+    }
+  }
+
+  if (!isAdmin) {
+    throw new Error('Forbidden: Administrator privileges required to access user list.');
+  }
+
+  return getAllUsersInternal();
+}
+
+function getUserProfile(userIdOrUsername) {
+  if (!userIdOrUsername) return null;
+  const target = String(userIdOrUsername).trim().toLowerCase();
+  const users = getAllUsersInternal();
+  for (let i = 0; i < users.length; i++) {
+    if (
+      String(users[i].userId).toLowerCase() === target ||
+      String(users[i].username).toLowerCase() === target ||
+      String(users[i].email).toLowerCase() === target
+    ) {
+      return users[i];
     }
   }
   return null;
 }
 
-function getAllDrivers() {
-  return [
-    { id: 'norris', code: 'NOR', firstName: 'Lando', lastName: 'Norris', number: 4, team: 'McLaren', teamColor: '#ff8000', country: 'United Kingdom', countryFlag: '🇬🇧' },
-    { id: 'piastri', code: 'PIA', firstName: 'Oscar', lastName: 'Piastri', number: 81, team: 'McLaren', teamColor: '#ff8000', country: 'Australia', countryFlag: '🇦🇺' },
-    { id: 'verstappen', code: 'VER', firstName: 'Max', lastName: 'Verstappen', number: 1, team: 'Red Bull Racing', teamColor: '#1e41ff', country: 'Netherlands', countryFlag: '🇳🇱' },
-    { id: 'lawson', code: 'LAW', firstName: 'Liam', lastName: 'Lawson', number: 30, team: 'Red Bull Racing', teamColor: '#1e41ff', country: 'New Zealand', countryFlag: '🇳🇿' },
-    { id: 'hamilton', code: 'HAM', firstName: 'Lewis', lastName: 'Hamilton', number: 44, team: 'Ferrari', teamColor: '#e10600', country: 'United Kingdom', countryFlag: '🇬🇧' },
-    { id: 'leclerc', code: 'LEC', firstName: 'Charles', lastName: 'Leclerc', number: 16, team: 'Ferrari', teamColor: '#e10600', country: 'Monaco', countryFlag: '🇲🇨' },
-    { id: 'russell', code: 'RUS', firstName: 'George', lastName: 'Russell', number: 63, team: 'Mercedes', teamColor: '#00a19c', country: 'United Kingdom', countryFlag: '🇬🇧' },
-    { id: 'antonelli', code: 'ANT', firstName: 'Kimi', lastName: 'Antonelli', number: 12, team: 'Mercedes', teamColor: '#00a19c', country: 'Italy', countryFlag: '🇮🇹' },
-    { id: 'alonso', code: 'ALO', firstName: 'Fernando', lastName: 'Alonso', number: 14, team: 'Aston Martin', teamColor: '#229971', country: 'Spain', countryFlag: '🇪🇸' },
-    { id: 'stroll', code: 'STR', firstName: 'Lance', lastName: 'Stroll', number: 18, team: 'Aston Martin', teamColor: '#229971', country: 'Canada', countryFlag: '🇨🇦' },
-    { id: 'gasly', code: 'GAS', firstName: 'Pierre', lastName: 'Gasly', number: 10, team: 'Alpine', teamColor: '#0090ff', country: 'France', countryFlag: '🇫🇷' },
-    { id: 'doohan', code: 'DOO', firstName: 'Jack', lastName: 'Doohan', number: 7, team: 'Alpine', teamColor: '#0090ff', country: 'Australia', countryFlag: '🇦🇺' },
-    { id: 'albon', code: 'ALB', firstName: 'Alexander', lastName: 'Albon', number: 23, team: 'Williams', teamColor: '#64c4ff', country: 'Thailand', countryFlag: '🇹🇭' },
-    { id: 'sainz', code: 'SAI', firstName: 'Carlos', lastName: 'Sainz', number: 55, team: 'Williams', teamColor: '#64c4ff', country: 'Spain', countryFlag: '🇪🇸' },
-    { id: 'tsunoda', code: 'TSU', firstName: 'Yuki', lastName: 'Tsunoda', number: 22, team: 'Racing Bulls', teamColor: '#6692ff', country: 'Japan', countryFlag: '🇯🇵' },
-    { id: 'hadjar', code: 'HAD', firstName: 'Isack', lastName: 'Hadjar', number: 6, team: 'Racing Bulls', teamColor: '#6692ff', country: 'France', countryFlag: '🇫🇷' },
-    { id: 'hulkenberg', code: 'HUL', firstName: 'Nico', lastName: 'Hülkenberg', number: 27, team: 'Sauber', teamColor: '#52e252', country: 'Germany', countryFlag: '🇩🇪' },
-    { id: 'bortoleto', code: 'BOR', firstName: 'Gabriel', lastName: 'Bortoleto', number: 5, team: 'Sauber', teamColor: '#52e252', country: 'Brazil', countryFlag: '🇧🇷' },
-    { id: 'ocon', code: 'OCO', firstName: 'Esteban', lastName: 'Ocon', number: 31, team: 'Haas', teamColor: '#b6babd', country: 'France', countryFlag: '🇫🇷' },
-    { id: 'bearman', code: 'BEA', firstName: 'Oliver', lastName: 'Bearman', number: 87, team: 'Haas', teamColor: '#b6babd', country: 'United Kingdom', countryFlag: '🇬🇧' }
-  ];
-}
-
-function syncCurrentWeekend() {
-  const current = getCurrentWeekend();
-  if (current && current.season && current.round) {
-    return syncRaceWeekend(current.season, current.round);
+function googleLogin(payload) {
+  const email = (payload.email || '').toLowerCase().trim();
+  if (!email) {
+    throw new Error('Google email address is required.');
   }
-  return { success: false, message: 'No current weekend found' };
+
+  const lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(10000);
+  } catch (e) {
+    throw new Error('Database is busy, please retry in a moment.');
+  }
+
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    let sheet = ss.getSheetByName(SHEET_NAMES.USERS);
+    if (!sheet) {
+      sheet = ss.insertSheet(SHEET_NAMES.USERS);
+    }
+    ensureUserHeaders(sheet);
+
+    const rows = sheet.getDataRange().getValues();
+    const headers = rows[0] || [];
+    const colMap = {};
+    for (let c = 0; c < headers.length; c++) {
+      colMap[String(headers[c]).trim()] = c;
+    }
+
+    const emailCol = colMap['email'] !== undefined ? colMap['email'] : 1;
+    const userIdCol = colMap['userId'] !== undefined ? colMap['userId'] : 0;
+    const displayNameCol = colMap['displayName'] !== undefined ? colMap['displayName'] : 2;
+    const usernameCol = colMap['username'] !== undefined ? colMap['username'] : 3;
+    const avatarCol = colMap['avatarUrl'] !== undefined ? colMap['avatarUrl'] : 4;
+    const favDriverCol = colMap['favouriteDriver'] !== undefined ? colMap['favouriteDriver'] : 5;
+    const favConstCol = colMap['favouriteConstructor'];
+    const bioCol = colMap['bio'];
+    const roleCol = colMap['role'] !== undefined ? colMap['role'] : 6;
+    const createdAtCol = colMap['createdAt'] !== undefined ? colMap['createdAt'] : 7;
+    const pointsCol = colMap['totalPoints'] !== undefined ? colMap['totalPoints'] : 8;
+    const rankCol = colMap['seasonRank'] !== undefined ? colMap['seasonRank'] : 9;
+    const authProviderCol = colMap['authProvider'];
+    const lastLoginCol = colMap['lastLoginAt'];
+
+    const nowIso = new Date().toISOString();
+
+    // CASE B — RETURNING USER: Check if user already exists
+    for (let i = 1; i < rows.length; i++) {
+      const row = rows[i];
+      if (String(row[emailCol]).toLowerCase() === email) {
+        const rowIdx = i + 1;
+        if (lastLoginCol !== undefined) {
+          sheet.getRange(rowIdx, lastLoginCol + 1).setValue(nowIso);
+        }
+        if (payload.photoUrl && avatarCol !== undefined && !row[avatarCol]) {
+          sheet.getRange(rowIdx, avatarCol + 1).setValue(payload.photoUrl);
+        }
+
+        return {
+          userId: String(row[userIdCol]),
+          email: String(row[emailCol]),
+          displayName: String(row[displayNameCol] || payload.displayName || email.split('@')[0]),
+          username: String(row[usernameCol] || email.split('@')[0]),
+          avatarUrl: String((avatarCol !== undefined ? row[avatarCol] : '') || payload.photoUrl || ''),
+          favouriteDriver: String((favDriverCol !== undefined ? row[favDriverCol] : '') || 'verstappen'),
+          favouriteConstructor: String((favConstCol !== undefined ? row[favConstCol] : '') || 'red_bull'),
+          bio: String((bioCol !== undefined ? row[bioCol] : '') || 'F1 Enthusiast & Strategy Predictor'),
+          role: String(row[roleCol] || 'user'),
+          createdAt: String(row[createdAtCol] || nowIso),
+          totalPoints: Number((pointsCol !== undefined ? row[pointsCol] : 0) || 0),
+          seasonRank: Number((rankCol !== undefined ? row[rankCol] : i) || i)
+        };
+      }
+    }
+
+    // CASE A — NEW USER: Create user record in USERS
+    const baseUsername = (payload.username || email.split('@')[0]).toLowerCase().replace(/[^a-z0-9_]/g, '') || 'racer';
+    let cleanUsername = baseUsername;
+    let suffix = 1;
+    while (rows.some(function(r, idx) { return idx > 0 && String(r[usernameCol]).toLowerCase() === cleanUsername; })) {
+      cleanUsername = baseUsername + suffix;
+      suffix++;
+    }
+
+    const userId = 'usr_' + cleanUsername + '_' + Utilities.getUuid().substring(0, 8);
+    const displayName = payload.displayName || cleanUsername;
+    const avatarUrl = payload.photoUrl || '';
+    const favouriteDriver = payload.favouriteDriver || 'verstappen';
+    const favouriteConstructor = payload.favouriteConstructor || 'red_bull';
+    const bio = payload.bio || 'F1 Enthusiast & Strategy Predictor';
+    const role = 'user';
+    const totalPoints = 0;
+    const seasonRank = rows.length;
+
+    const newRow = new Array(headers.length).fill('');
+    newRow[userIdCol] = userId;
+    newRow[emailCol] = email;
+    newRow[displayNameCol] = displayName;
+    newRow[usernameCol] = cleanUsername;
+    if (avatarCol !== undefined) newRow[avatarCol] = avatarUrl;
+    if (favDriverCol !== undefined) newRow[favDriverCol] = favouriteDriver;
+    if (favConstCol !== undefined) newRow[favConstCol] = favouriteConstructor;
+    if (bioCol !== undefined) newRow[bioCol] = bio;
+    if (colMap['passwordHash'] !== undefined) newRow[colMap['passwordHash']] = '';
+    if (roleCol !== undefined) newRow[roleCol] = role;
+    if (createdAtCol !== undefined) newRow[createdAtCol] = nowIso;
+    if (pointsCol !== undefined) newRow[pointsCol] = totalPoints;
+    if (rankCol !== undefined) newRow[rankCol] = seasonRank;
+    if (authProviderCol !== undefined) newRow[authProviderCol] = 'google';
+    if (lastLoginCol !== undefined) newRow[lastLoginCol] = nowIso;
+
+    sheet.appendRow(newRow);
+
+    return {
+      userId: userId,
+      email: email,
+      displayName: displayName,
+      username: cleanUsername,
+      avatarUrl: avatarUrl,
+      favouriteDriver: favouriteDriver,
+      favouriteConstructor: favouriteConstructor,
+      bio: bio,
+      role: role,
+      createdAt: nowIso,
+      totalPoints: 0,
+      seasonRank: seasonRank
+    };
+  } finally {
+    lock.releaseLock();
+  }
 }
 
-function syncRaceWeekend(season, round) {
-  return syncSeasonCalendar(season || 2026);
-}
-
-function adminSaveWeekend(payload) {
+function loginUser(identifier, passwordHash) {
+  if (!identifier) throw new Error('Username or email is required.');
+  const cleanId = String(identifier).trim().toLowerCase();
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName(SHEET_NAMES.RACE_WEEKENDS);
-  upsertRaceWeekendRow(sheet, payload);
-  return { success: true, weekend: payload };
-}
+  const sheet = ss.getSheetByName(SHEET_NAMES.USERS);
+  if (!sheet) throw new Error('Users sheet not found');
+  ensureUserHeaders(sheet);
 
-function adminSubmitResult(payload) {
-  const roundId = payload.roundId;
-  const resultData = payload.resultData;
-  if (!roundId || !resultData) throw new Error('Missing roundId or resultData');
-
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName(SHEET_NAMES.RESULTS);
   const rows = sheet.getDataRange().getValues();
-  let existingRow = -1;
+  const headers = rows[0] || [];
+  const colMap = {};
+  for (let c = 0; c < headers.length; c++) {
+    colMap[String(headers[c]).trim()] = c;
+  }
 
   for (let i = 1; i < rows.length; i++) {
-    if (rows[i][1] === roundId) {
-      existingRow = i + 1;
-      break;
+    const row = rows[i];
+    const uName = String(colMap['username'] !== undefined ? row[colMap['username']] : row[3] || '').toLowerCase();
+    const uEmail = String(colMap['email'] !== undefined ? row[colMap['email']] : row[1] || '').toLowerCase();
+    const uId = String(colMap['userId'] !== undefined ? row[colMap['userId']] : row[0] || '').toLowerCase();
+    const uRole = String(colMap['role'] !== undefined ? row[colMap['role']] : row[6] || '').toLowerCase();
+
+    if (uName === cleanId || uEmail === cleanId || uId === cleanId || (cleanId === 'admin' && uRole === 'admin')) {
+      const storedHash = colMap['passwordHash'] !== undefined ? String(row[colMap['passwordHash']]) : '';
+      if (storedHash && passwordHash && storedHash !== passwordHash) {
+        throw new Error('Invalid password for this account.');
+      }
+      return {
+        userId: String(row[colMap['userId'] !== undefined ? colMap['userId'] : 0]),
+        email: String(row[colMap['email'] !== undefined ? row[colMap['email']] : 1] || ''),
+        displayName: String(row[colMap['displayName'] !== undefined ? row[colMap['displayName']] : 2] || ''),
+        username: String(row[colMap['username'] !== undefined ? row[colMap['username']] : 3] || ''),
+        avatarUrl: String(colMap['avatarUrl'] !== undefined ? row[colMap['avatarUrl']] : row[4] || ''),
+        favouriteDriver: String(colMap['favouriteDriver'] !== undefined ? row[colMap['favouriteDriver']] : row[5] || ''),
+        favouriteConstructor: String(colMap['favouriteConstructor'] !== undefined ? row[colMap['favouriteConstructor']] : 'ferrari'),
+        bio: String(colMap['bio'] !== undefined ? row[colMap['bio']] : ''),
+        role: String(colMap['role'] !== undefined ? row[colMap['role']] : 'user'),
+        createdAt: String(colMap['createdAt'] !== undefined ? row[colMap['createdAt']] : ''),
+        totalPoints: Number(colMap['totalPoints'] !== undefined ? row[colMap['totalPoints']] : 0),
+        seasonRank: Number(colMap['seasonRank'] !== undefined ? row[colMap['seasonRank']] : i)
+      };
     }
   }
-
-  const nowIso = new Date().toISOString();
-  const jsonStr = JSON.stringify(resultData);
-
-  if (existingRow > 0) {
-    sheet.getRange(existingRow, 3).setValue(jsonStr);
-    sheet.getRange(existingRow, 4).setValue(nowIso);
-  } else {
-    sheet.appendRow(['res_' + Utilities.getUuid(), roundId, jsonStr, nowIso]);
-  }
-
-  const prSheet = ss.getSheetByName(SHEET_NAMES.PREDICTION_ROUNDS);
-  const prRows = prSheet.getDataRange().getValues();
-  for (let j = 1; j < prRows.length; j++) {
-    if (prRows[j][0] === roundId) {
-      prSheet.getRange(j + 1, 9).setValue('COMPLETED');
-      break;
-    }
-  }
-
-  return { success: true, roundId: roundId, publishedAt: nowIso };
+  throw new Error('No racer found with username or email: ' + identifier);
 }
 
 function registerUser(payload) {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName(SHEET_NAMES.USERS);
-  const rows = sheet.getDataRange().getValues();
-
   const username = (payload.username || '').toLowerCase().trim();
   const email = (payload.email || '').toLowerCase().trim();
 
@@ -1002,68 +1253,206 @@ function registerUser(payload) {
     throw new Error('Username and email are required.');
   }
 
-  for (let i = 1; i < rows.length; i++) {
-    if (String(rows[i][3]).toLowerCase() === username) {
-      throw new Error('Username @' + username + ' is already registered.');
-    }
-    if (String(rows[i][1]).toLowerCase() === email) {
-      throw new Error('Email ' + email + ' is already registered.');
-    }
+  const lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(10000);
+  } catch (e) {
+    throw new Error('Database is busy, please retry in a moment.');
   }
 
-  const userId = payload.userId || ('usr_' + username + '_' + Utilities.getUuid().substring(0, 8));
-  const displayName = payload.displayName || username;
-  const avatarUrl = payload.avatarUrl || '';
-  const favouriteDriver = payload.favouriteDriver || 'verstappen';
-  const role = 'user'; // strictly enforced 'user'
-  const nowIso = new Date().toISOString();
-  const totalPoints = 0;
-  const seasonRank = rows.length;
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    let sheet = ss.getSheetByName(SHEET_NAMES.USERS);
+    if (!sheet) {
+      sheet = ss.insertSheet(SHEET_NAMES.USERS);
+    }
+    ensureUserHeaders(sheet);
 
-  sheet.appendRow([
-    userId,
-    email,
-    displayName,
-    username,
-    avatarUrl,
-    favouriteDriver,
-    role,
-    nowIso,
-    totalPoints,
-    seasonRank
-  ]);
+    const rows = sheet.getDataRange().getValues();
+    const headers = rows[0] || [];
+    const colMap = {};
+    for (let c = 0; c < headers.length; c++) {
+      colMap[String(headers[c]).trim()] = c;
+    }
 
-  return {
-    userId: userId,
-    email: email,
-    displayName: displayName,
-    username: username,
-    avatarUrl: avatarUrl,
-    favouriteDriver: favouriteDriver,
-    role: role,
-    createdAt: nowIso,
-    totalPoints: 0,
-    seasonRank: seasonRank
-  };
+    const uCol = colMap['username'] !== undefined ? colMap['username'] : 3;
+    const eCol = colMap['email'] !== undefined ? colMap['email'] : 1;
+
+    for (let i = 1; i < rows.length; i++) {
+      if (String(rows[i][uCol]).toLowerCase() === username) {
+        throw new Error('Username @' + username + ' is already registered.');
+      }
+      if (String(rows[i][eCol]).toLowerCase() === email) {
+        throw new Error('Email ' + email + ' is already registered.');
+      }
+    }
+
+    const userId = payload.userId || ('usr_' + username + '_' + Utilities.getUuid().substring(0, 8));
+    const displayName = payload.displayName || username;
+    const avatarUrl = payload.avatarUrl || '';
+    const favouriteDriver = payload.favouriteDriver || 'verstappen';
+    const favouriteConstructor = payload.favouriteConstructor || 'ferrari';
+    const bio = payload.bio || 'F1 Enthusiast & Strategy Predictor';
+    const passwordHash = payload.passwordHash || '';
+    const role = 'user';
+    const nowIso = new Date().toISOString();
+    const totalPoints = 0;
+    const seasonRank = rows.length;
+
+    const newRow = new Array(headers.length).fill('');
+    if (colMap['userId'] !== undefined) newRow[colMap['userId']] = userId;
+    if (colMap['email'] !== undefined) newRow[colMap['email']] = email;
+    if (colMap['displayName'] !== undefined) newRow[colMap['displayName']] = displayName;
+    if (colMap['username'] !== undefined) newRow[colMap['username']] = username;
+    if (colMap['avatarUrl'] !== undefined) newRow[colMap['avatarUrl']] = avatarUrl;
+    if (colMap['favouriteDriver'] !== undefined) newRow[colMap['favouriteDriver']] = favouriteDriver;
+    if (colMap['favouriteConstructor'] !== undefined) newRow[colMap['favouriteConstructor']] = favouriteConstructor;
+    if (colMap['bio'] !== undefined) newRow[colMap['bio']] = bio;
+    if (colMap['passwordHash'] !== undefined) newRow[colMap['passwordHash']] = passwordHash;
+    if (colMap['role'] !== undefined) newRow[colMap['role']] = role;
+    if (colMap['createdAt'] !== undefined) newRow[colMap['createdAt']] = nowIso;
+    if (colMap['totalPoints'] !== undefined) newRow[colMap['totalPoints']] = totalPoints;
+    if (colMap['seasonRank'] !== undefined) newRow[colMap['seasonRank']] = seasonRank;
+    if (colMap['authProvider'] !== undefined) newRow[colMap['authProvider']] = 'credentials';
+    if (colMap['lastLoginAt'] !== undefined) newRow[colMap['lastLoginAt']] = nowIso;
+
+    sheet.appendRow(newRow);
+
+    return {
+      userId: userId,
+      email: email,
+      displayName: displayName,
+      username: username,
+      avatarUrl: avatarUrl,
+      favouriteDriver: favouriteDriver,
+      favouriteConstructor: favouriteConstructor,
+      bio: bio,
+      role: role,
+      createdAt: nowIso,
+      totalPoints: 0,
+      seasonRank: seasonRank
+    };
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 function updateUser(payload) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName(SHEET_NAMES.USERS);
+  if (!sheet) throw new Error('Users sheet not found');
+  ensureUserHeaders(sheet);
+
   const rows = sheet.getDataRange().getValues();
   const userId = payload.userId;
   const updates = payload.updates || {};
 
+  const headers = rows[0] || [];
+  const colMap = {};
+  for (let c = 0; c < headers.length; c++) {
+    colMap[String(headers[c]).trim()] = c;
+  }
+
   for (let i = 1; i < rows.length; i++) {
-    if (rows[i][0] === userId) {
+    const uid = colMap['userId'] !== undefined ? rows[i][colMap['userId']] : rows[i][0];
+    if (uid === userId) {
       const rowIdx = i + 1;
-      if (updates.displayName) sheet.getRange(rowIdx, 3).setValue(updates.displayName);
-      if (updates.avatarUrl) sheet.getRange(rowIdx, 5).setValue(updates.avatarUrl);
-      if (updates.favouriteDriver) sheet.getRange(rowIdx, 6).setValue(updates.favouriteDriver);
+      if (updates.displayName !== undefined && colMap['displayName'] !== undefined) {
+        sheet.getRange(rowIdx, colMap['displayName'] + 1).setValue(updates.displayName);
+      }
+      if (updates.avatarUrl !== undefined && colMap['avatarUrl'] !== undefined) {
+        sheet.getRange(rowIdx, colMap['avatarUrl'] + 1).setValue(updates.avatarUrl);
+      }
+      if (updates.favouriteDriver !== undefined && colMap['favouriteDriver'] !== undefined) {
+        sheet.getRange(rowIdx, colMap['favouriteDriver'] + 1).setValue(updates.favouriteDriver);
+      }
+      if (updates.favouriteConstructor !== undefined && colMap['favouriteConstructor'] !== undefined) {
+        sheet.getRange(rowIdx, colMap['favouriteConstructor'] + 1).setValue(updates.favouriteConstructor);
+      }
+      if (updates.bio !== undefined && colMap['bio'] !== undefined) {
+        sheet.getRange(rowIdx, colMap['bio'] + 1).setValue(updates.bio);
+      }
       return { success: true, userId: userId };
     }
   }
-  throw new Error('User not found');
+  throw new Error('User not found in database');
+}
+
+function getUserAchievements(userId) {
+  if (!userId) return [];
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(SHEET_NAMES.ACHIEVEMENTS);
+  if (!sheet) return [];
+  const rows = sheet.getDataRange().getValues();
+  const achievements = [];
+  for (let i = 1; i < rows.length; i++) {
+    if (rows[i][1] === userId) {
+      achievements.push({
+        achievementId: rows[i][0],
+        userId: rows[i][1],
+        achievementType: rows[i][2],
+        title: rows[i][3],
+        description: rows[i][4],
+        badgeIcon: rows[i][5],
+        earnedAt: rows[i][6]
+      });
+    }
+  }
+  return achievements;
+}
+
+function getUserPredictionsHistory(userId) {
+  if (!userId) return [];
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const predSheet = ss.getSheetByName(SHEET_NAMES.PREDICTIONS);
+  if (!predSheet) return [];
+  const predRows = predSheet.getDataRange().getValues();
+  const userPreds = [];
+  for (let i = 1; i < predRows.length; i++) {
+    if (predRows[i][1] === userId) {
+      const roundId = predRows[i][2];
+      const round = getPredictionRound(roundId);
+      const pred = {
+        predictionId: predRows[i][0],
+        userId: predRows[i][1],
+        roundId: roundId,
+        predictionData: JSON.parse(predRows[i][3] || '{}'),
+        submittedAt: predRows[i][4],
+        updatedAt: predRows[i][5]
+      };
+      const result = getRoundResults(roundId);
+      let score = null;
+      const scoreSheet = ss.getSheetByName(SHEET_NAMES.SCORES);
+      if (scoreSheet) {
+        const scoreRows = scoreSheet.getDataRange().getValues();
+        for (let s = 1; s < scoreRows.length; s++) {
+          if (scoreRows[s][1] === userId && scoreRows[s][2] === roundId) {
+            score = {
+              scoreId: scoreRows[s][0],
+              userId: scoreRows[s][1],
+              roundId: scoreRows[s][2],
+              breakdown: JSON.parse(scoreRows[s][3] || '{}'),
+              totalScore: Number(scoreRows[s][4] || 0),
+              calculatedAt: scoreRows[s][5]
+            };
+            break;
+          }
+        }
+      }
+      let weekend = null;
+      if (round && round.raceWeekendId) {
+        weekend = getWeekendDetails(round.raceWeekendId);
+      }
+      userPreds.push({
+        prediction: pred,
+        round: round,
+        score: score,
+        result: result,
+        weekend: weekend
+      });
+    }
+  }
+  return userPreds;
 }
 
 function createJsonResponse(data) {

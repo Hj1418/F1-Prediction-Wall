@@ -4,6 +4,26 @@ All notable changes to the F1 Community Platform are documented in this file.
 
 ---
 
+## [2026-09-08] — Diagnostic & Verification: Authentication → Google Sheets Database Persistence
+
+### Fixed
+- **Authentication → Google Sheets Persistence Disconnect**:
+  - **Root Cause**: Identified that Google sign-in was authenticating the client identity, but:
+    1. The Google Apps Script deployment URL in `.env` was returning Google account redirects / 404 HTML due to deployment permissions not being set to "Anyone" or stale deployment ID.
+    2. Frontend `apiClient.ts` caught fetch failures and silently fell back to `mockApi.registerUser`, which wrote the authenticated user into browser `localStorage` (`f1_pred_mock_users`).
+    3. `backend/Code.gs` lacked dedicated endpoints for `googleLogin`, `getAllUsers`, and `loginUser`, and `registerUser` threw an error for returning Google users instead of resolving them.
+    4. `submitPrediction` did not verify whether the submitting user existed in the `Users` database table.
+  - **Fix Implemented**:
+    - Added dedicated `googleLogin` endpoint in `backend/Code.gs` utilizing `LockService.getScriptLock()` to cleanly differentiate Case A (New User creation) vs Case B (Returning User resolution) with zero duplicate records.
+    - Updated `ensureUserHeaders()` in `Code.gs` and `SetupSheet.gs` to dynamically map headers and support full user attributes (`userId`, `email`, `displayName`, `username`, `avatarUrl`, `favouriteDriver`, `favouriteConstructor`, `bio`, `passwordHash`, `authProvider`, `lastLoginAt`, `role`, `createdAt`, `totalPoints`, `seasonRank`).
+    - Added server-side user verification to `submitPrediction()` ensuring predictions are strictly tied to a registered database user.
+    - Added `api.googleLogin()` in `apiClient.ts` and connected `loginWithGoogle` in `AuthContext.tsx` to the backend.
+    - Removed silent error-swallowing for live database operations; network/database failures now surface transparently to the user interface.
+- **Documentation**:
+  - Updated `SYSTEM_ARCHITECTURE.md`, `USER_WORKFLOWS.md`, `IMPLEMENTATION_RULES.md`, and `PRODUCT_DECISIONS.md` with explicit sections explaining "Authentication → Application User Persistence" and the separation of authentication from database persistence.
+
+---
+
 ## [2026-09-07] — Circuit Asset Reliability & Logged-Out Navbar Polish
 
 ### Fixed

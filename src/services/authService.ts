@@ -122,27 +122,7 @@ export const authService = {
     const cleanId = identifier.trim().toLowerCase();
     if (!cleanId) throw new Error('Username or email is required.');
 
-    const allUsers = await api.getAllUsers();
-    const match = allUsers.find(
-      u =>
-        u.username.toLowerCase() === cleanId ||
-        u.email.toLowerCase() === cleanId ||
-        u.userId.toLowerCase() === cleanId ||
-        u.userId.toLowerCase() === `user_${cleanId}` ||
-        (cleanId === 'admin' && u.role === 'admin')
-    );
-
-    if (!match) {
-      throw new Error('No racer found with this username or email.');
-    }
-
-    if (match.passwordHash && password) {
-      const hashed = await hashPassword(password);
-      if (match.passwordHash !== hashed) {
-        throw new Error('Invalid password for this account.');
-      }
-    }
-
-    return match;
+    const passwordHash = password ? await hashPassword(password) : undefined;
+    return await api.loginUser(cleanId, passwordHash);
   },
 };

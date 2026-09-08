@@ -13,7 +13,7 @@ function initializeDatabase() {
   const tables = [
     {
       name: 'Users',
-      headers: ['userId', 'email', 'displayName', 'username', 'avatarUrl', 'favouriteDriver', 'role', 'createdAt', 'totalPoints', 'seasonRank'],
+      headers: ['userId', 'email', 'displayName', 'username', 'avatarUrl', 'favouriteDriver', 'favouriteConstructor', 'bio', 'passwordHash', 'authProvider', 'lastLoginAt', 'role', 'createdAt', 'totalPoints', 'seasonRank'],
       headerColor: '#e10600'
     },
     {

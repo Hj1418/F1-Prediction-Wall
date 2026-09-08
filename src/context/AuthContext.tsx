@@ -41,19 +41,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const refreshUsers = async () => {
     try {
+      const authStatus = localStorage.getItem(AUTH_STATUS_KEY);
+      const savedUserId = localStorage.getItem(CURRENT_USER_KEY);
+      if (authStatus === 'authenticated' && savedUserId) {
+        try {
+          const profile = await api.getUserProfile(savedUserId);
+          if (profile) {
+            setCurrentUser(profile);
+            setIsAuthenticated(true);
+          }
+        } catch (err) {
+          console.warn('Failed to fetch user profile in refreshUsers:', err);
+        }
+      }
+
       const users = await api.getAllUsers();
       if (users && users.length > 0) {
         setAllUsers(users);
-        const authStatus = localStorage.getItem(AUTH_STATUS_KEY);
-        const savedUserId = localStorage.getItem(CURRENT_USER_KEY);
-        if (authStatus === 'authenticated' && savedUserId) {
-          const match = users.find(u => u.userId === savedUserId);
-          if (match) {
-            setCurrentUser(match);
-            setIsAuthenticated(true);
-            return;
-          }
-        }
       }
     } catch (e) {
       console.warn('Failed to refresh users:', e);
@@ -64,13 +68,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const restoreSession = async () => {
       try {
         setIsLoadingAuth(true);
+        const authStatus = localStorage.getItem(AUTH_STATUS_KEY);
+        const savedUserId = localStorage.getItem(CURRENT_USER_KEY);
+
+        if (authStatus === 'authenticated' && savedUserId) {
+          try {
+            const profile = await api.getUserProfile(savedUserId);
+            if (profile) {
+              setCurrentUser(profile);
+              setIsAuthenticated(true);
+              const users = await api.getAllUsers();
+              if (users && users.length > 0) setAllUsers(users);
+              return;
+            }
+          } catch (profileErr) {
+            console.warn('Could not fetch user profile from live database:', profileErr);
+          }
+        }
+
         const users = await api.getAllUsers();
         if (users && users.length > 0) {
           setAllUsers(users);
         }
-
-        const authStatus = localStorage.getItem(AUTH_STATUS_KEY);
-        const savedUserId = localStorage.getItem(CURRENT_USER_KEY);
 
         // Strict session restoration:
         // A session is VALID if and only if auth status is explicitly 'authenticated'
@@ -154,24 +173,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const cleanEmail = email.toLowerCase().trim();
     const cleanDisplayName = displayName || cleanEmail.split('@')[0];
-    const username = cleanEmail.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '_');
 
-    let match = allUsers.find(u => u.email.toLowerCase() === cleanEmail);
-    if (!match) {
-      match = await authService.register({
-        email: cleanEmail,
-        displayName: cleanDisplayName,
-        username,
-        favouriteDriver: 'verstappen',
-        favouriteConstructor: 'red_bull',
-        avatarUrl: googleUser?.photoUrl,
-      });
-    }
+    // Authenticate and persist the Google user via API to backend database
+    const user = await api.googleLogin({
+      email: cleanEmail,
+      displayName: cleanDisplayName,
+      photoUrl: googleUser?.photoUrl,
+    });
 
-    setCurrentUser(match);
+    setCurrentUser(user);
     setIsAuthenticated(true);
     localStorage.setItem(AUTH_STATUS_KEY, 'authenticated');
-    localStorage.setItem(CURRENT_USER_KEY, match.userId);
+    localStorage.setItem(CURRENT_USER_KEY, user.userId);
     setAuthModalOpen(false);
     await refreshUsers();
   };

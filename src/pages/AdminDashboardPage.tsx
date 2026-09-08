@@ -7,6 +7,7 @@ import {
   WeekendType,
   RoundType,
   RoundStatus,
+  User,
 } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
@@ -26,6 +27,7 @@ import {
   Database,
   ArrowDownRight,
   ArrowUpRight,
+  Users,
 } from 'lucide-react';
 import { raceWeekendApi } from '../api/raceWeekendApi';
 import { SyncLog } from '../types';
@@ -34,11 +36,69 @@ export const AdminDashboardPage: React.FC = () => {
   const { currentUser, isAdmin, isAuthenticated, allUsers, openLoginModal } = useAuth();
   const { showToast, triggerDataRefresh } = useApp();
 
-  const [activeTab, setActiveTab] = useState<'sync' | 'results' | 'weekends' | 'rounds'>('sync');
+  const [activeTab, setActiveTab] = useState<'sync' | 'results' | 'weekends' | 'rounds' | 'users'>('sync');
   const [weekends, setWeekends] = useState<RaceWeekend[]>([]);
   const [rounds, setRounds] = useState<PredictionRound[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Admin Users state
+  const [adminUsers, setAdminUsers] = useState<User[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [usersError, setUsersError] = useState<string | null>(null);
+
+  const fetchAdminUsers = async () => {
+    if (!currentUser?.userId) return;
+    try {
+      setLoadingUsers(true);
+      setUsersError(null);
+      const data = await api.getAdminUsers(currentUser.userId);
+      setAdminUsers(data);
+    } catch (err: any) {
+      console.error('Failed to load admin users:', err);
+      setUsersError(err.message || 'Failed to retrieve registered users directory.');
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isAdmin && (activeTab === 'users' || adminUsers.length === 0)) {
+      fetchAdminUsers();
+    }
+  }, [isAdmin, activeTab, currentUser?.userId]);
+
+  const formatDate = (isoStr?: string) => {
+    if (!isoStr) return '—';
+    try {
+      const d = new Date(isoStr);
+      if (isNaN(d.getTime())) return isoStr;
+      return d.toLocaleDateString(undefined, {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+      });
+    } catch {
+      return isoStr;
+    }
+  };
+
+  const formatDateTime = (isoStr?: string) => {
+    if (!isoStr) return '—';
+    try {
+      const d = new Date(isoStr);
+      if (isNaN(d.getTime())) return isoStr;
+      return d.toLocaleString(undefined, {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+    } catch {
+      return isoStr;
+    }
+  };
 
   // Live Sync state
   const [syncSeason, setSyncSeason] = useState<number>(2026);
@@ -297,6 +357,18 @@ export const AdminDashboardPage: React.FC = () => {
           }}
         >
           <Layers size={14} /> Prediction Rounds Manager
+        </button>
+
+        <button
+          onClick={() => setActiveTab('users')}
+          className="btn btn-sm"
+          style={{
+            background: activeTab === 'users' ? 'var(--f1-red)' : 'transparent',
+            color: activeTab === 'users' ? '#fff' : 'var(--text-secondary)',
+            border: 'none',
+          }}
+        >
+          <Users size={14} /> Users
         </button>
       </div>
 
@@ -871,6 +943,223 @@ export const AdminDashboardPage: React.FC = () => {
               );
             })}
           </div>
+        </div>
+      )}
+      {/* TAB 4: USERS DIRECTORY */}
+      {activeTab === 'users' && (
+        <div className="race-card" style={{ padding: '1.75rem' }}>
+          <div
+            style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              alignItems: 'flex-start',
+              justifyContent: 'space-between',
+              gap: '1rem',
+              marginBottom: '1.5rem',
+            }}
+          >
+            <div>
+              <h2 style={{ fontSize: '1.5rem', fontWeight: 900, textTransform: 'uppercase', margin: 0, letterSpacing: '0.05em' }}>
+                USERS
+              </h2>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginTop: '0.25rem', marginBottom: 0 }}>
+                Registered users in the F1 Community Prediction League.
+              </p>
+            </div>
+
+            {/* Small Context Summary: TOTAL USERS */}
+            <div
+              style={{
+                background: 'var(--bg-input)',
+                border: '1px solid var(--border-subtle)',
+                borderRadius: 'var(--radius-sm)',
+                padding: '0.5rem 1rem',
+                minWidth: '130px',
+                textAlign: 'right',
+              }}
+            >
+              <div
+                style={{
+                  fontSize: '0.7rem',
+                  fontWeight: 800,
+                  color: 'var(--text-muted)',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.08em',
+                }}
+              >
+                TOTAL USERS
+              </div>
+              <div
+                style={{
+                  fontSize: '1.5rem',
+                  fontWeight: 900,
+                  color: 'var(--text-primary)',
+                  fontFamily: 'var(--font-mono)',
+                  lineHeight: 1.1,
+                }}
+              >
+                {adminUsers.length}
+              </div>
+            </div>
+          </div>
+
+          {!isAdmin ? (
+            <div
+              style={{
+                background: 'rgba(239, 68, 68, 0.08)',
+                border: '1px solid rgba(239, 68, 68, 0.25)',
+                borderRadius: 'var(--radius-md)',
+                padding: '2.5rem 1.5rem',
+                textAlign: 'center',
+              }}
+            >
+              <AlertTriangle size={32} color="#f87171" style={{ margin: '0 auto 0.75rem' }} />
+              <div style={{ fontWeight: 800, color: '#f87171', marginBottom: '0.5rem' }}>
+                ADMINISTRATOR ACCESS REQUIRED
+              </div>
+              <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '1.25rem' }}>
+                You must be authenticated with an ADMIN role account to view registered users.
+              </div>
+              <button onClick={() => openLoginModal('/admin')} className="btn btn-primary btn-sm">
+                Sign In as Administrator
+              </button>
+            </div>
+          ) : loadingUsers && adminUsers.length === 0 ? (
+            <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+              <RefreshCw size={24} className="animate-spin" style={{ margin: '0 auto 0.75rem' }} />
+              <div>Loading registered users directory from live database...</div>
+            </div>
+          ) : usersError ? (
+            <div
+              style={{
+                background: 'rgba(239, 68, 68, 0.08)',
+                border: '1px solid rgba(239, 68, 68, 0.25)',
+                borderRadius: 'var(--radius-md)',
+                padding: '1.5rem',
+                textAlign: 'center',
+              }}
+            >
+              <AlertTriangle size={24} color="#f87171" style={{ margin: '0 auto 0.5rem' }} />
+              <div style={{ color: '#f87171', fontWeight: 700, marginBottom: '0.5rem' }}>
+                {usersError}
+              </div>
+              <button onClick={fetchAdminUsers} className="btn btn-outline btn-sm">
+                <RotateCcw size={14} /> Retry Fetch
+              </button>
+            </div>
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
+              <table
+                style={{
+                  width: '100%',
+                  borderCollapse: 'collapse',
+                  textAlign: 'left',
+                  fontSize: '0.875rem',
+                }}
+              >
+                <thead>
+                  <tr
+                    style={{
+                      borderBottom: '1px solid var(--border-subtle)',
+                      color: 'var(--text-muted)',
+                      fontSize: '0.75rem',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.08em',
+                    }}
+                  >
+                    <th style={{ padding: '0.75rem 1rem', fontWeight: 800 }}>Name</th>
+                    <th style={{ padding: '0.75rem 1rem', fontWeight: 800 }}>Email</th>
+                    <th style={{ padding: '0.75rem 1rem', fontWeight: 800 }}>Role</th>
+                    <th style={{ padding: '0.75rem 1rem', fontWeight: 800 }}>Joined</th>
+                    <th style={{ padding: '0.75rem 1rem', fontWeight: 800 }}>Last Login</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {adminUsers.map((u, idx) => {
+                    const isUserAdmin = u.role?.toLowerCase() === 'admin';
+                    return (
+                      <tr
+                        key={u.userId || idx}
+                        style={{
+                          borderBottom: '1px solid var(--border-subtle)',
+                          transition: 'background 0.15s ease',
+                        }}
+                      >
+                        <td style={{ padding: '1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                            {u.avatarUrl ? (
+                              <img
+                                src={u.avatarUrl}
+                                alt={u.displayName}
+                                style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover' }}
+                                onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
+                              />
+                            ) : (
+                              <div
+                                style={{
+                                  width: 32,
+                                  height: 32,
+                                  borderRadius: '50%',
+                                  background: 'rgba(255, 255, 255, 0.1)',
+                                  color: 'var(--text-secondary)',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  fontSize: '0.75rem',
+                                  fontWeight: 800,
+                                }}
+                              >
+                                {(u.displayName || u.username || 'U').substring(0, 2).toUpperCase()}
+                              </div>
+                            )}
+                            <div>
+                              <div>{u.displayName || u.username || 'Anonymous Racer'}</div>
+                              {u.username && (
+                                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 500 }}>
+                                  @{u.username}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+                        <td style={{ padding: '1rem', fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>
+                          {u.email || '—'}
+                        </td>
+                        <td style={{ padding: '1rem' }}>
+                          <span
+                            className="status-pill"
+                            style={{
+                              background: isUserAdmin ? 'rgba(225, 6, 0, 0.15)' : 'rgba(255, 255, 255, 0.08)',
+                              color: isUserAdmin ? 'var(--f1-red)' : 'var(--text-secondary)',
+                              border: isUserAdmin ? '1px solid rgba(225, 6, 0, 0.4)' : '1px solid var(--border-subtle)',
+                              fontWeight: 800,
+                              fontSize: '0.75rem',
+                              letterSpacing: '0.05em',
+                            }}
+                          >
+                            {isUserAdmin ? 'ADMIN' : 'USER'}
+                          </span>
+                        </td>
+                        <td style={{ padding: '1rem', color: 'var(--text-muted)' }}>
+                          {formatDate(u.createdAt)}
+                        </td>
+                        <td style={{ padding: '1rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: '0.8rem' }}>
+                          {formatDateTime(u.lastLoginAt)}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {adminUsers.length === 0 && (
+                    <tr>
+                      <td colSpan={5} style={{ padding: '2.5rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                        No registered users found.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
     </div>
