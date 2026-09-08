@@ -4,6 +4,8 @@ import { api } from '../services/apiClient';
 import { INITIAL_USERS } from '../services/mockData';
 import { authService, RegisterParams } from '../services/authService';
 
+import { signInWithGoogle } from '../services/googleAuth';
+
 interface AuthContextType {
   currentUser: User | null;
   allUsers: User[];
@@ -18,7 +20,7 @@ interface AuthContextType {
   openLoginModal: (redirectRoute?: string) => void;
   openRegisterModal: (redirectRoute?: string) => void;
   login: (identifier: string, password?: string) => Promise<void>;
-  loginWithGoogle: (googleUser?: { email?: string; displayName?: string; photoUrl?: string }) => Promise<void>;
+  loginWithGoogle: (googleUser?: { email?: string; displayName?: string; photoUrl?: string; accessToken?: string }) => Promise<User>;
   register: (params: RegisterParams) => Promise<User>;
   logout: () => void;
   updateProfile: (updated: Partial<User>) => Promise<void>;
@@ -158,27 +160,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return newUser;
   };
 
-  const loginWithGoogle = async (googleUser?: { email?: string; displayName?: string; photoUrl?: string }) => {
+  const loginWithGoogle = async (googleUser?: { email?: string; displayName?: string; photoUrl?: string; accessToken?: string }) => {
     let email = googleUser?.email;
     let displayName = googleUser?.displayName;
+    let photoUrl = googleUser?.photoUrl;
+    let accessToken = googleUser?.accessToken;
 
-    if (!email) {
-      const input = window.prompt('Sign in with Google: Enter your Google email address:', '');
-      if (!input || !input.trim()) {
-        return;
-      }
-      email = input.trim().toLowerCase();
-      displayName = googleUser?.displayName || email.split('@')[0];
+    if (!accessToken) {
+      // Initiate official Google Identity Services OAuth popup flow
+      const profile = await signInWithGoogle();
+      email = profile.email;
+      displayName = profile.displayName;
+      photoUrl = profile.photoUrl;
+      accessToken = profile.accessToken;
     }
 
-    const cleanEmail = email.toLowerCase().trim();
+    const cleanEmail = (email || '').toLowerCase().trim();
     const cleanDisplayName = displayName || cleanEmail.split('@')[0];
 
     // Authenticate and persist the Google user via API to backend database
     const user = await api.googleLogin({
       email: cleanEmail,
       displayName: cleanDisplayName,
-      photoUrl: googleUser?.photoUrl,
+      photoUrl,
+      accessToken,
     });
 
     setCurrentUser(user);
@@ -187,6 +192,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.setItem(CURRENT_USER_KEY, user.userId);
     setAuthModalOpen(false);
     await refreshUsers();
+    return user;
   };
 
   const logout = () => {

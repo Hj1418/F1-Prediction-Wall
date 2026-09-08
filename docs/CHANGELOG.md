@@ -4,6 +4,71 @@ All notable changes to the F1 Community Platform are documented in this file.
 
 ---
 
+## [2026-09-08] — Prediction Bench Beta/V1 Core Engineering Implementation
+
+### Added
+- **Google Identity `sub` Claim Invariant (`backend/Code.gs`)**:
+  - Independent server-side verification using Google's UserInfo and TokenInfo APIs.
+  - Extracts immutable Google `sub` and maps to `googleSubjectId` column in `Users` sheet.
+  - Guarantees one Google identity permanently maps to exactly one application user.
+- **Asynchronous Notification Queue & Email Engine**:
+  - Structured `NotificationQueue` and `NotificationLog` in Google Sheets.
+  - Implemented `enqueueNotification` with deterministic idempotency keys:
+    - Welcome email: `WELCOME_{userId}`
+    - Prediction confirmation: `PRED_{userId}_{roundId}`
+    - Race result email: `RESULT_{userId}_{roundId}`
+  - Implemented `processNotificationQueue` with `LockService` concurrency control, branded motorsport email templates, and delivery failure isolation.
+  - Email sending failures never roll back or invalidate predictions, scores, or user records.
+- **Beta Core Automated Verification Suite (`scripts/verify-beta-core.ts`)**:
+  - 30 new unit/integration tests verifying Google identity verification, duplicate prevention, welcome notification idempotency, returning user behavior, prediction ownership, deadline enforcement, confirmation emails, scoring idempotency, result notifications, email failure isolation, and admin authorization.
+  - Test suite expanded to **121 passing tests**.
+
+### Changed
+- **Google-Only Beta Authentication Experience**:
+  - Completely removed user-facing password forms, confirm password fields, and password reset flows from `LoginForm`, `RegisterForm`, and `AuthModal`.
+  - Streamlined `RegisterForm` to 1-click Google authentication with optional post-auth telemetry personalization (racer tag `@handle`, allegiance driver/team) and skip support.
+- **Admin Authorization Hardening**:
+  - Backend strictly enforces `role === 'admin'` from the `Users` sheet record for all administrative operations and directory listings.
+  - Rejected cross-user prediction submissions and tampered client requests with explicit HTTP 403 / Forbidden errors.
+
+### Fixed
+- **Duplicate User Prevention under Concurrency**:
+  - Enforced `LockService.getScriptLock()` in `googleLogin()` to guarantee that simultaneous first-time login requests create only ONE user.
+- **Prediction Deadlines & Podium Uniqueness**:
+  - Server-side deadline verification against `closesAt` using server `new Date()`.
+  - Server-side enforcement of unique podium driver selections.
+
+---
+
+## [2026-09-08] — Google Identity Services OAuth Flow, Registration Flow & Zero-Overflow Responsive Navbar
+
+### Fixed
+- **Issue 1: Native Browser Prompt in Google Sign-In Completely Replaced with Google Identity Services (GIS) OAuth 2.0**:
+  - Removed `window.prompt` dialog completely from `AuthContext.tsx`.
+  - Implemented `src/services/googleAuth.ts` utilizing official Google Identity Services (`https://accounts.google.com/gsi/client`) Token Client (`google.accounts.oauth2.initTokenClient`).
+  - Separated client-side authentication (Google OAuth popup granting access token to fetch `userinfo`) from server-side database persistence (`api.googleLogin` writing to Google Apps Script `USERS` sheet).
+  - Graceful configuration check: if `VITE_GOOGLE_CLIENT_ID` is missing from the environment, an in-page alert banner informs the user (`"Google Sign-In is not configured. Please set VITE_GOOGLE_CLIENT_ID in your environment."`) without freezing or triggering blocking browser popups.
+  - Graceful cancellation handling: user cancelling or closing the Google popup does not throw unhandled rejections or break the UI.
+  - Verified initial application state starts with `currentUser = null` without any automatic mock logins in production.
+
+- **Issue 2: Registration Flow Wiring, In-Flight States & Robustness**:
+  - Connected `SocialAuthButton` on the Register page (`src/components/auth/RegisterForm.tsx`) to `loginWithGoogle()`, enabling seamless 1-click Google registration.
+  - Added real-time loading feedback on form submit: button text immediately changes to `JOINING THE LEAGUE...` with an animated spinner (`<Loader2 className="animate-spin" />`).
+  - Form inputs and submit buttons are automatically disabled while submissions are in flight to strictly prevent duplicate entries.
+  - Added request timeout safeguarding (20-second race) to prevent UI freezing during Apps Script cold-starts or network interruptions.
+  - Upon successful registration, the user is authenticated and the `OnboardingModal` renders cleanly displaying driver license approval and welcome messaging.
+
+- **Issue 3: Logged-Out Navbar Horizontal Overflow & Responsive Alignment**:
+  - Expanded `.navbar-main` max-width to `1360px` with responsive inner padding.
+  - Eliminated horizontal scrollbars (`overflow-x: hidden` / properly constrained flex children) across all viewports (1920px, 1440px, 1280px, 1024px, 768px, 430px, 375px).
+  - Preserved strict visual hierarchy: `NEXT PREDICTION` remains prominent as the primary F1 red CTA; `SIGN IN` and `JOIN THE LEAGUE` fit comfortably alongside as secondary compact actions.
+  - Added dedicated compact tablet landscape breakpoint (`900px–1159px` covering 1024px iPad landscape / small laptops):
+    - Hides nav link icons while keeping clean typography, reducing navigation width by ~130px.
+    - Condenses button text to `JOIN` with compact padding, fitting all brand, 6 nav links, prediction CTA, and auth actions within 1024px viewports with over 300px of breathing room.
+  - Mobile collapse at `≤ 899px` (covering 768px tablet portrait and mobile phones): cleanly hides desktop nav and presents mobile hamburger menu; mobile drawer provides touch-friendly `SIGN IN` and `JOIN THE LEAGUE` actions.
+
+---
+
 ## [2026-09-08] — Diagnostic & Verification: Authentication → Google Sheets Database Persistence
 
 ### Fixed

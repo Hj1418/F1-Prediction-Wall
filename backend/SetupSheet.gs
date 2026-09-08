@@ -13,7 +13,7 @@ function initializeDatabase() {
   const tables = [
     {
       name: 'Users',
-      headers: ['userId', 'email', 'displayName', 'username', 'avatarUrl', 'favouriteDriver', 'favouriteConstructor', 'bio', 'passwordHash', 'authProvider', 'lastLoginAt', 'role', 'createdAt', 'totalPoints', 'seasonRank'],
+      headers: ['userId', 'googleSubjectId', 'email', 'displayName', 'username', 'avatarUrl', 'favouriteDriver', 'favouriteConstructor', 'bio', 'passwordHash', 'authProvider', 'lastLoginAt', 'role', 'createdAt', 'totalPoints', 'seasonRank'],
       headerColor: '#e10600'
     },
     {
@@ -97,5 +97,73 @@ function initializeDatabase() {
     }
   }
 
-  Logger.log('Successfully initialized all 9 F1 Prediction tables including SyncLogs with headers and formatting!');
+  Logger.log('Successfully initialized all F1 Prediction tables including NotificationQueue and NotificationLog with headers and formatting!');
 }
+
+/**
+ * Automated Trigger Setup Function.
+ * Run this function ONCE inside Google Apps Script as thepaddockprediction14@gmail.com
+ * to authorize MailApp permissions and install the 1-minute time-driven background worker.
+ */
+function setupEmailWorkerTrigger() {
+  const quota = MailApp.getRemainingDailyQuota();
+  Logger.log('[EMAIL_SETUP] Remaining daily email quota: ' + quota);
+
+  // Remove existing triggers for processNotificationQueue to avoid duplicates
+  const triggers = ScriptApp.getProjectTriggers();
+  let removedCount = 0;
+  for (let i = 0; i < triggers.length; i++) {
+    if (triggers[i].getHandlerFunction() === 'processNotificationQueue') {
+      ScriptApp.deleteTrigger(triggers[i]);
+      removedCount++;
+    }
+  }
+  Logger.log('[EMAIL_SETUP] Removed ' + removedCount + ' existing triggers.');
+
+  // Create clean 1-minute time-driven trigger
+  const newTrigger = ScriptApp.newTrigger('processNotificationQueue')
+    .timeBased()
+    .everyMinutes(1)
+    .create();
+
+  Logger.log('[EMAIL_SETUP] Created new 1-minute time-driven trigger ID: ' + newTrigger.getUniqueId());
+
+  // Immediately process any pending items in queue
+  const queueResult = typeof processNotificationQueue === 'function' ? processNotificationQueue(25) : null;
+  Logger.log('[EMAIL_SETUP] Initial queue process result: ' + JSON.stringify(queueResult));
+
+  return {
+    success: true,
+    senderAccount: 'thepaddockprediction14@gmail.com',
+    quotaRemaining: quota,
+    triggerCreated: true,
+    initialProcess: queueResult
+  };
+}
+
+/**
+ * Manual test function to send a verification email and authorize MailApp in 1 click.
+ */
+function testSendWelcomeEmail(targetEmail) {
+  const recipient = targetEmail || 'thepaddockprediction14@gmail.com';
+  const subject = 'Welcome to Prediction Bench';
+  const body = 'Hi Racer,\n\n' +
+    'Welcome to Prediction Bench — The 2026 Formula 1 Community Prediction League!\n\n' +
+    'You are officially registered. Before every Grand Prix weekend:\n' +
+    '1. Browse live circuit telemetry and session schedules\n' +
+    '2. Lock in your predictions before the session deadline\n' +
+    '3. Compete with racers worldwide on the global leaderboard\n\n' +
+    '— Prediction Bench Team\n' +
+    'https://hj1418.github.io/F1-Prediction-Wall/';
+
+  MailApp.sendEmail({
+    to: recipient,
+    name: 'Prediction Bench',
+    subject: subject,
+    body: body
+  });
+
+  Logger.log('[EMAIL_SENT] Verification test email sent successfully to: ' + recipient);
+  return { success: true, recipient: recipient, sender: 'thepaddockprediction14@gmail.com' };
+}
+

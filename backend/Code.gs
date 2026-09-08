@@ -89,7 +89,7 @@ function doGet(e) {
         break;
       case 'getAdminUsers':
       case 'getUsers':
-        responseData = getAdminUsers(e.parameter.requesterId || e.parameter.userId);
+        responseData = getAdminUsers(e.parameter.requesterId || e.parameter.userId, e.parameter.accessToken);
         break;
       case 'getUserAchievements':
         responseData = getUserAchievements(e.parameter.userId);
@@ -99,6 +99,9 @@ function doGet(e) {
         break;
       case 'getAllDrivers':
         responseData = getAllDrivers();
+        break;
+      case 'getNotificationQueueStatus':
+        responseData = getNotificationQueueStatus();
         break;
       default:
         return createJsonResponse({
@@ -176,7 +179,7 @@ function doPost(e) {
         break;
       case 'getAdminUsers':
       case 'getUsers':
-        responseData = getAdminUsers(payload.requesterId || payload.userId);
+        responseData = getAdminUsers(payload.requesterId || payload.userId, payload.accessToken);
         break;
       default:
         return createJsonResponse({
@@ -702,9 +705,9 @@ function submitPrediction(payload) {
         recipientEmail,
         userProfile ? userProfile.displayName : userId,
         'PREDICTION_CONFIRMATION',
-        'F1 Community: Prediction Registered for ' + round.title,
+        'Prediction Locked In — ' + (round.title || 'Grand Prix Prediction'),
         { roundId: roundId, roundTitle: round.title, predictionData: predictionData },
-        'PREDICTION:' + roundId + ':' + userId
+        'PRED_' + userId + '_' + roundId
       );
     }
   } catch (err) {
@@ -768,10 +771,10 @@ function adminCalculateScores(roundId) {
           enqueueNotification(
             userProfile.email,
             userProfile.displayName || userId,
-            'RACE_RESULTS',
-            'F1 Community: Results Published for ' + round.title,
+            'PREDICTION_RESULT',
+            'Your ' + (round.title || 'Grand Prix') + ' Prediction Results',
             { roundId: roundId, roundTitle: round.title, score: calc.totalScore, breakdown: calc.breakdown },
-            'RESULT:' + roundId + ':' + userId
+            'RESULT_' + userId + '_' + roundId
           );
         }
       } catch (err) {
@@ -921,7 +924,8 @@ function getLeaderboard(type, id) {
 const USER_HEADERS = [
   'userId', 'email', 'displayName', 'username', 'avatarUrl',
   'favouriteDriver', 'favouriteConstructor', 'bio', 'passwordHash',
-  'authProvider', 'lastLoginAt', 'role', 'createdAt', 'totalPoints', 'seasonRank'
+  'authProvider', 'lastLoginAt', 'role', 'createdAt', 'totalPoints', 'seasonRank',
+  'googleSubjectId'
 ];
 
 function ensureUserHeaders(sheet) {
@@ -969,6 +973,7 @@ function getAllUsersInternal() {
 
     users.push({
       userId: String(uid),
+      googleSubjectId: String((colMap['googleSubjectId'] !== undefined ? row[colMap['googleSubjectId']] : '') || ''),
       email: String(colMap['email'] !== undefined ? row[colMap['email']] : row[1] || ''),
       displayName: String(colMap['displayName'] !== undefined ? row[colMap['displayName']] : row[2] || ''),
       username: String(colMap['username'] !== undefined ? row[colMap['username']] : row[3] || ''),
@@ -1003,8 +1008,8 @@ function getAllUsers() {
  * and possesses role === 'admin'. Only verified administrators receive
  * complete user data with email and login timestamps.
  */
-function getAdminUsers(requesterId) {
-  if (!requesterId) {
+function getAdminUsers(requesterId, accessToken) {
+  if (!requesterId && !accessToken) {
     throw new Error('Unauthorized: Authentication identity required.');
   }
 
@@ -1022,7 +1027,14 @@ function getAdminUsers(requesterId) {
     colMap[String(headers[c]).trim()] = c;
   }
 
-  const cleanReq = String(requesterId).trim().toLowerCase();
+  let cleanReq = String(requesterId || '').trim().toLowerCase();
+  if (accessToken) {
+    const verified = verifyGoogleAccessToken(accessToken);
+    if (!verified) {
+      throw new Error('Forbidden: Invalid or expired Google OAuth credential.');
+    }
+    cleanReq = verified.email;
+  }
   let isAdmin = false;
 
   const uidCol = colMap['userId'] !== undefined ? colMap['userId'] : 0;
@@ -1068,10 +1080,84 @@ function getUserProfile(userIdOrUsername) {
   return null;
 }
 
+/**
+ * Independently validates a Google OAuth 2.0 access token or OpenID ID token directly with Google.
+ * Never trusts frontend-supplied identity claims.
+ * Extracts immutable Google `sub` identifier as stable identity.
+ */
+function verifyGoogleAccessToken(credentialOrToken) {
+  if (!credentialOrToken || typeof credentialOrToken !== 'string' || !credentialOrToken.trim()) {
+    return null;
+  }
+  const token = credentialOrToken.trim();
+
+  // 1. Try Google UserInfo endpoint (OAuth 2.0 access token)
+  try {
+    const res = UrlFetchApp.fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+      headers: {
+        Authorization: 'Bearer ' + token
+      },
+      muteHttpExceptions: true
+    });
+    if (res.getResponseCode() === 200) {
+      const data = JSON.parse(res.getContentText());
+      if (data && data.email && (data.email_verified === true || data.email_verified === 'true')) {
+        return {
+          sub: String(data.sub || ''),
+          email: String(data.email).toLowerCase().trim(),
+          displayName: data.name || data.given_name || String(data.email).split('@')[0],
+          photoUrl: data.picture || ''
+        };
+      }
+    }
+  } catch (err) {
+    Logger.log('Google UserInfo verification error: ' + err);
+  }
+
+  // 2. Try Google TokenInfo endpoint (OpenID Connect ID Token)
+  try {
+    const resId = UrlFetchApp.fetch('https://oauth2.googleapis.com/tokeninfo?id_token=' + encodeURIComponent(token), {
+      muteHttpExceptions: true
+    });
+    if (resId.getResponseCode() === 200) {
+      const data = JSON.parse(resId.getContentText());
+      if (data && data.email && (data.email_verified === true || data.email_verified === 'true')) {
+        return {
+          sub: String(data.sub || ''),
+          email: String(data.email).toLowerCase().trim(),
+          displayName: data.name || data.given_name || String(data.email).split('@')[0],
+          photoUrl: data.picture || ''
+        };
+      }
+    }
+  } catch (err2) {
+    Logger.log('Google ID Token verification error: ' + err2);
+  }
+
+  return null;
+}
+
 function googleLogin(payload) {
-  const email = (payload.email || '').toLowerCase().trim();
-  if (!email) {
-    throw new Error('Google email address is required.');
+  let email = '';
+  let displayName = '';
+  let photoUrl = '';
+  let googleSubjectId = '';
+
+  // 1. Independent backend credential validation with Google
+  const token = payload.accessToken || payload.credential || payload.idToken;
+  if (token) {
+    const verified = verifyGoogleAccessToken(token);
+    if (!verified) {
+      throw new Error('Unauthorized: Google access token is invalid, expired, or failed verification with Google.');
+    }
+    // Trust ONLY Google's verified identity
+    googleSubjectId = verified.sub || '';
+    email = verified.email;
+    displayName = verified.displayName || (payload.displayName || email.split('@')[0]);
+    photoUrl = verified.photoUrl || (payload.photoUrl || '');
+  } else {
+    // Reject untrusted client identity without credential
+    throw new Error('Unauthorized: Google OAuth access token is required. Client-supplied identity fields cannot be trusted.');
   }
 
   const lock = LockService.getScriptLock();
@@ -1110,36 +1196,65 @@ function googleLogin(payload) {
     const rankCol = colMap['seasonRank'] !== undefined ? colMap['seasonRank'] : 9;
     const authProviderCol = colMap['authProvider'];
     const lastLoginCol = colMap['lastLoginAt'];
+    const subCol = colMap['googleSubjectId'];
 
     const nowIso = new Date().toISOString();
 
-    // CASE B — RETURNING USER: Check if user already exists
-    for (let i = 1; i < rows.length; i++) {
-      const row = rows[i];
-      if (String(row[emailCol]).toLowerCase() === email) {
-        const rowIdx = i + 1;
-        if (lastLoginCol !== undefined) {
-          sheet.getRange(rowIdx, lastLoginCol + 1).setValue(nowIso);
-        }
-        if (payload.photoUrl && avatarCol !== undefined && !row[avatarCol]) {
-          sheet.getRange(rowIdx, avatarCol + 1).setValue(payload.photoUrl);
-        }
+    // CASE B — RETURNING USER LOOKUP:
+    let existingRowIdx = -1;
+    let existingRow = null;
 
-        return {
-          userId: String(row[userIdCol]),
-          email: String(row[emailCol]),
-          displayName: String(row[displayNameCol] || payload.displayName || email.split('@')[0]),
-          username: String(row[usernameCol] || email.split('@')[0]),
-          avatarUrl: String((avatarCol !== undefined ? row[avatarCol] : '') || payload.photoUrl || ''),
-          favouriteDriver: String((favDriverCol !== undefined ? row[favDriverCol] : '') || 'verstappen'),
-          favouriteConstructor: String((favConstCol !== undefined ? row[favConstCol] : '') || 'red_bull'),
-          bio: String((bioCol !== undefined ? row[bioCol] : '') || 'F1 Enthusiast & Strategy Predictor'),
-          role: String(row[roleCol] || 'user'),
-          createdAt: String(row[createdAtCol] || nowIso),
-          totalPoints: Number((pointsCol !== undefined ? row[pointsCol] : 0) || 0),
-          seasonRank: Number((rankCol !== undefined ? row[rankCol] : i) || i)
-        };
+    // First: Search by immutable googleSubjectId
+    if (googleSubjectId && subCol !== undefined) {
+      for (let i = 1; i < rows.length; i++) {
+        if (String(rows[i][subCol]).trim() === googleSubjectId) {
+          existingRowIdx = i + 1;
+          existingRow = rows[i];
+          break;
+        }
       }
+    }
+
+    // Fallback: Search by verified email (for users created before googleSubjectId column was populated)
+    if (existingRowIdx === -1) {
+      for (let i = 1; i < rows.length; i++) {
+        if (String(rows[i][emailCol]).toLowerCase() === email) {
+          existingRowIdx = i + 1;
+          existingRow = rows[i];
+          // Backfill googleSubjectId on the existing user row
+          if (googleSubjectId && subCol !== undefined) {
+            sheet.getRange(existingRowIdx, subCol + 1).setValue(googleSubjectId);
+          }
+          break;
+        }
+      }
+    }
+
+    if (existingRowIdx > 0 && existingRow) {
+      if (lastLoginCol !== undefined) {
+        sheet.getRange(existingRowIdx, lastLoginCol + 1).setValue(nowIso);
+      }
+      if (photoUrl && avatarCol !== undefined && !existingRow[avatarCol]) {
+        sheet.getRange(existingRowIdx, avatarCol + 1).setValue(photoUrl);
+      }
+
+      // Returning user retains their identity. Do NOT send welcome email!
+      return {
+        userId: String(existingRow[userIdCol]),
+        googleSubjectId: googleSubjectId || String(subCol !== undefined ? existingRow[subCol] || '' : ''),
+        email: String(existingRow[emailCol]),
+        displayName: String(existingRow[displayNameCol] || displayName || email.split('@')[0]),
+        username: String(existingRow[usernameCol] || email.split('@')[0]),
+        avatarUrl: String((avatarCol !== undefined ? existingRow[avatarCol] : '') || photoUrl || ''),
+        favouriteDriver: String((favDriverCol !== undefined ? existingRow[favDriverCol] : '') || 'verstappen'),
+        favouriteConstructor: String((favConstCol !== undefined ? existingRow[favConstCol] : '') || 'red_bull'),
+        bio: String((bioCol !== undefined ? existingRow[bioCol] : '') || 'F1 Enthusiast & Strategy Predictor'),
+        role: String(existingRow[roleCol] || 'user'),
+        createdAt: String(existingRow[createdAtCol] || nowIso),
+        totalPoints: Number((pointsCol !== undefined ? existingRow[pointsCol] : 0) || 0),
+        seasonRank: Number((rankCol !== undefined ? existingRow[rankCol] : existingRowIdx - 1) || (existingRowIdx - 1)),
+        isNewUser: false
+      };
     }
 
     // CASE A — NEW USER: Create user record in USERS
@@ -1152,8 +1267,8 @@ function googleLogin(payload) {
     }
 
     const userId = 'usr_' + cleanUsername + '_' + Utilities.getUuid().substring(0, 8);
-    const displayName = payload.displayName || cleanUsername;
-    const avatarUrl = payload.photoUrl || '';
+    const resolvedDisplayName = displayName || cleanUsername;
+    const avatarUrl = photoUrl || '';
     const favouriteDriver = payload.favouriteDriver || 'verstappen';
     const favouriteConstructor = payload.favouriteConstructor || 'red_bull';
     const bio = payload.bio || 'F1 Enthusiast & Strategy Predictor';
@@ -1164,7 +1279,7 @@ function googleLogin(payload) {
     const newRow = new Array(headers.length).fill('');
     newRow[userIdCol] = userId;
     newRow[emailCol] = email;
-    newRow[displayNameCol] = displayName;
+    newRow[displayNameCol] = resolvedDisplayName;
     newRow[usernameCol] = cleanUsername;
     if (avatarCol !== undefined) newRow[avatarCol] = avatarUrl;
     if (favDriverCol !== undefined) newRow[favDriverCol] = favouriteDriver;
@@ -1177,13 +1292,33 @@ function googleLogin(payload) {
     if (rankCol !== undefined) newRow[rankCol] = seasonRank;
     if (authProviderCol !== undefined) newRow[authProviderCol] = 'google';
     if (lastLoginCol !== undefined) newRow[lastLoginCol] = nowIso;
+    if (subCol !== undefined) newRow[subCol] = googleSubjectId;
 
     sheet.appendRow(newRow);
 
+    // Queue exactly ONE welcome notification with deterministic idempotency key
+    try {
+      enqueueNotification(
+        email,
+        resolvedDisplayName,
+        'WELCOME',
+        'Welcome to Prediction Bench',
+        {
+          userId: userId,
+          displayName: resolvedDisplayName,
+          username: cleanUsername
+        },
+        'WELCOME:' + userId
+      );
+    } catch (ntfErr) {
+      Logger.log('[NOTIFICATION_FAILED] Welcome notification enqueue error: ' + ntfErr);
+    }
+
     return {
       userId: userId,
+      googleSubjectId: googleSubjectId,
       email: email,
-      displayName: displayName,
+      displayName: resolvedDisplayName,
       username: cleanUsername,
       avatarUrl: avatarUrl,
       favouriteDriver: favouriteDriver,
@@ -1192,7 +1327,8 @@ function googleLogin(payload) {
       role: role,
       createdAt: nowIso,
       totalPoints: 0,
-      seasonRank: seasonRank
+      seasonRank: seasonRank,
+      isNewUser: true
     };
   } finally {
     lock.releaseLock();
@@ -1474,13 +1610,20 @@ function enqueueNotification(recipientEmail, recipientName, notificationType, su
   if (!queueSheet) {
     queueSheet = ss.insertSheet(SHEET_NAMES.NOTIFICATION_QUEUE);
     queueSheet.getRange(1, 1, 1, 12).setValues([['id', 'recipientEmail', 'recipientName', 'notificationType', 'subject', 'templateDataJson', 'status', 'idempotencyKey', 'attempts', 'queuedAt', 'sentAt', 'errorMessage']]);
+    queueSheet.getRange(1, 1, 1, 12).setBackground('#10b981').setFontColor('#ffffff').setFontWeight('bold');
   }
+
+  // Normalize key for both delimiter styles (WELCOME:usr_ vs WELCOME_usr_)
+  const altKey = idempotencyKey.includes(':') 
+    ? idempotencyKey.replace(':', '_') 
+    : idempotencyKey.replace('_', ':');
 
   // Idempotency check in queue
   const queueRows = queueSheet.getDataRange().getValues();
   for (let i = 1; i < queueRows.length; i++) {
-    if (queueRows[i][7] === idempotencyKey) {
-      Logger.log('Notification with idempotency key ' + idempotencyKey + ' already enqueued. Skipping.');
+    const key = String(queueRows[i][7]);
+    if (key === idempotencyKey || key === altKey) {
+      Logger.log('[NOTIFICATION_IDEMPOTENT_SKIP] Already enqueued: ' + idempotencyKey);
       return false;
     }
   }
@@ -1490,8 +1633,9 @@ function enqueueNotification(recipientEmail, recipientName, notificationType, su
   if (logSheet) {
     const logRows = logSheet.getDataRange().getValues();
     for (let j = 1; j < logRows.length; j++) {
-      if (logRows[j][4] === idempotencyKey) {
-        Logger.log('Notification with idempotency key ' + idempotencyKey + ' already delivered. Skipping.');
+      const key = String(logRows[j][4]);
+      if (key === idempotencyKey || key === altKey) {
+        Logger.log('[NOTIFICATION_IDEMPOTENT_SKIP] Already delivered in log: ' + idempotencyKey);
         return false;
       }
     }
@@ -1514,81 +1658,255 @@ function enqueueNotification(recipientEmail, recipientName, notificationType, su
     ''
   ]);
 
+  Logger.log('[NOTIFICATION_CREATED] Queued ' + notificationType + ' for ' + recipientEmail + ' (key: ' + idempotencyKey + ')');
   return true;
 }
 
 function processNotificationQueue(batchLimit) {
   const limit = batchLimit || 25;
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const queueSheet = ss.getSheetByName(SHEET_NAMES.NOTIFICATION_QUEUE);
-  if (!queueSheet) return { processed: 0, sent: 0, failed: 0 };
-
-  let logSheet = ss.getSheetByName(SHEET_NAMES.NOTIFICATION_LOG);
-  if (!logSheet) {
-    logSheet = ss.insertSheet(SHEET_NAMES.NOTIFICATION_LOG);
-    logSheet.getRange(1, 1, 1, 8).setValues([['id', 'queueId', 'recipientEmail', 'notificationType', 'idempotencyKey', 'sentAt', 'status', 'deliveryMetadata']]);
+  const lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(10000);
+  } catch (lockErr) {
+    Logger.log('[EMAIL_LOCKED] Notification processor lock busy, skipping run.');
+    return { processed: 0, sent: 0, failed: 0, locked: true };
   }
 
-  const rows = queueSheet.getDataRange().getValues();
-  let processed = 0;
-  let sent = 0;
-  let failed = 0;
+  try {
+    Logger.log('[EMAIL_PROCESSING_STARTED] Checking queue (batch limit: ' + limit + ')...');
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const queueSheet = ss.getSheetByName(SHEET_NAMES.NOTIFICATION_QUEUE);
+    if (!queueSheet) return { processed: 0, sent: 0, failed: 0 };
 
-  for (let i = 1; i < rows.length && processed < limit; i++) {
-    const status = rows[i][6];
-    if (status === 'PENDING' || status === 'RETRY') {
-      processed++;
-      const rowIdx = i + 1;
-      const queueId = rows[i][0];
-      const email = rows[i][1];
-      const name = rows[i][2];
-      const type = rows[i][3];
-      const subject = rows[i][4];
-      const data = JSON.parse(rows[i][5] || '{}');
-      const idempotencyKey = rows[i][7];
-      const attempts = Number(rows[i][8] || 0) + 1;
-      const nowIso = new Date().toISOString();
+    let logSheet = ss.getSheetByName(SHEET_NAMES.NOTIFICATION_LOG);
+    if (!logSheet) {
+      logSheet = ss.insertSheet(SHEET_NAMES.NOTIFICATION_LOG);
+      logSheet.getRange(1, 1, 1, 8).setValues([['id', 'queueId', 'recipientEmail', 'notificationType', 'idempotencyKey', 'sentAt', 'status', 'deliveryMetadata']]);
+      logSheet.getRange(1, 1, 1, 8).setBackground('#e10600').setFontColor('#ffffff').setFontWeight('bold');
+    }
 
-      try {
-        let body = 'Hello ' + (name || 'Racer') + ',\n\n' + subject + '\n\n';
-        if (type === 'PREDICTION_CONFIRMATION') {
-          body += 'Your predictions for ' + (data.roundTitle || 'this round') + ' have been registered and locked.\n';
-        } else if (type === 'RACE_RESULTS') {
-          body += 'Official race results are published. You scored ' + (data.score || 0) + ' points.\n';
-        } else if (type === 'WELCOME') {
-          body += 'Welcome to the 2026 F1 Community Platform!\n';
+    const rows = queueSheet.getDataRange().getValues();
+    let processed = 0;
+    let sent = 0;
+    let failed = 0;
+
+    for (let i = 1; i < rows.length && processed < limit; i++) {
+      const status = String(rows[i][6] || '').trim();
+      if (status === 'PENDING' || status === 'RETRY') {
+        processed++;
+        const rowIdx = i + 1;
+        const queueId = rows[i][0];
+        const email = rows[i][1];
+        const name = rows[i][2];
+        const type = rows[i][3];
+        const data = JSON.parse(rows[i][5] || '{}');
+        const idempotencyKey = rows[i][7];
+        const attempts = Number(rows[i][8] || 0) + 1;
+        const nowIso = new Date().toISOString();
+
+        // Standardized subject formatting
+        let subject = rows[i][4] || 'Prediction Bench Notification';
+        if (type === 'WELCOME') {
+          subject = 'Welcome to Prediction Bench';
+        } else if (type === 'PREDICTION_CONFIRMATION' || type === 'PREDICTION_SUBMITTED') {
+          subject = 'Prediction Locked In — ' + (data.roundTitle || 'Race Session');
+        } else if (type === 'RACE_RESULTS' || type === 'PREDICTION_RESULT') {
+          subject = 'Your ' + (data.roundTitle || 'Race Session') + ' Prediction Results';
         }
-        body += '\nTrack standings and race weekends: https://f1community.local\n— F1 Community Platform';
 
-        MailApp.sendEmail({
-          to: email,
-          subject: subject,
-          body: body
-        });
+        // Mark as PROCESSING
+        queueSheet.getRange(rowIdx, 7).setValue('PROCESSING');
 
-        queueSheet.getRange(rowIdx, 7).setValue('SENT');
-        queueSheet.getRange(rowIdx, 9).setValue(attempts);
-        queueSheet.getRange(rowIdx, 11).setValue(nowIso);
+        try {
+          Logger.log('[EMAIL_SEND_ATTEMPT] Delivering ' + type + ' to ' + email + ' (Attempt ' + attempts + ')');
+          let body = 'Hi ' + (name || 'Racer') + ',\n\n';
 
-        logSheet.appendRow([
-          'log_' + Utilities.getUuid(),
-          queueId,
-          email,
-          type,
-          idempotencyKey,
-          nowIso,
-          'DELIVERED',
-          JSON.stringify({ attempts: attempts })
-        ]);
-        sent++;
-      } catch (err) {
-        failed++;
-        queueSheet.getRange(rowIdx, 7).setValue(attempts >= 3 ? 'FAILED' : 'RETRY');
-        queueSheet.getRange(rowIdx, 9).setValue(attempts);
-        queueSheet.getRange(rowIdx, 12).setValue(err.toString());
+          if (type === 'PREDICTION_CONFIRMATION' || type === 'PREDICTION_SUBMITTED') {
+            body += 'Your predictions for ' + (data.roundTitle || 'this round') + ' have been registered and locked in.\n\n';
+            if (data.predictionData) {
+              const p = data.predictionData;
+              body += 'Your Locked Predictions:\n';
+              if (p.p1) body += '• P1: ' + String(p.p1).toUpperCase() + '\n';
+              if (p.p2) body += '• P2: ' + String(p.p2).toUpperCase() + '\n';
+              if (p.p3) body += '• P3: ' + String(p.p3).toUpperCase() + '\n';
+              if (p.fastestLap) body += '• Fastest Lap: ' + String(p.fastestLap).toUpperCase() + '\n';
+              if (p.driverOfTheDay) body += '• Driver of the Day: ' + String(p.driverOfTheDay).toUpperCase() + '\n';
+              if (p.safetyCar) body += '• Safety Car: ' + p.safetyCar + '\n';
+              if (p.redFlag) body += '• Red Flag: ' + p.redFlag + '\n';
+            }
+            body += '\nScoring and leaderboard standings will be calculated once official FIA results are verified.\n';
+          } else if (type === 'RACE_RESULTS' || type === 'PREDICTION_RESULT') {
+            body += 'Official results are in for ' + (data.roundTitle || 'the session') + '!\n\n';
+            body += 'You scored: ' + (data.score !== undefined ? data.score : 0) + ' points.\n';
+            if (data.breakdown) {
+              body += '\nScore Breakdown:\n';
+              for (const key in data.breakdown) {
+                body += '• ' + key + ': ' + data.breakdown[key] + ' pts\n';
+              }
+            }
+            body += '\nHead over to the Leaderboard to view your updated global championship rank!\n';
+          } else if (type === 'WELCOME') {
+            body += 'Welcome to Prediction Bench — The Formula 1 Community Prediction League!\n\n';
+            body += 'We are thrilled to have you on the grid. Here is everything you need to know to get started:\n\n';
+            body += '🏎️ RACE WEEKENDS & CIRCUIT TELEMETRY\n';
+            body += 'Explore all 24 Grand Prix circuits with real-time countdowns, session schedules (Sprint & Grand Prix formats), and circuit history.\n\n';
+            body += '🎯 STRATEGY PREDICTIONS\n';
+            body += 'Lock in your podium predictions (P1, P2, P3), Fastest Lap, Driver of the Day, Safety Car, and Red Flag calls before each session deadline.\n\n';
+            body += '🏆 CHAMPIONSHIP LEADERBOARD\n';
+            body += 'Earn points based on official race results, climb the global season standings, and compete for pole position in the community!\n\n';
+            body += 'Good luck on the grid, and may your strategy lead you to the podium!\n';
+          }
+          body += '\nWarm regards,\nPrediction Bench Team\nhttps://hj1418.github.io/F1-Prediction-Wall/';
+
+          MailApp.sendEmail({
+            to: email,
+            name: 'Prediction Bench',
+            subject: subject,
+            body: body
+          });
+
+          queueSheet.getRange(rowIdx, 7).setValue('SENT');
+          queueSheet.getRange(rowIdx, 9).setValue(attempts);
+          queueSheet.getRange(rowIdx, 11).setValue(nowIso);
+
+          logSheet.appendRow([
+            'log_' + Utilities.getUuid(),
+            queueId,
+            email,
+            type,
+            idempotencyKey,
+            nowIso,
+            'DELIVERED',
+            JSON.stringify({ attempts: attempts, sender: 'thepaddockprediction14@gmail.com' })
+          ]);
+          sent++;
+          Logger.log('[EMAIL_SENT] Successfully sent ' + type + ' to ' + email);
+        } catch (err) {
+          failed++;
+          const finalStatus = attempts >= 3 ? 'FAILED' : 'RETRY';
+          queueSheet.getRange(rowIdx, 7).setValue(finalStatus);
+          queueSheet.getRange(rowIdx, 9).setValue(attempts);
+          queueSheet.getRange(rowIdx, 12).setValue(err.toString());
+          Logger.log('[EMAIL_FAILED] Delivery failed for ' + email + ': ' + err.toString());
+          if (finalStatus === 'RETRY') {
+            Logger.log('[EMAIL_RETRY] Queued for retry: ' + email + ' (Attempt ' + attempts + ' of 3)');
+          }
+        }
       }
     }
+
+    Logger.log('[EMAIL_PROCESSING_COMPLETED] Processed: ' + processed + ', Sent: ' + sent + ', Failed: ' + failed);
+    return { processed: processed, sent: sent, failed: failed };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/**
+ * Diagnostic & Status Endpoint for Notification Queue
+ */
+function getNotificationQueueStatus() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const queueSheet = ss.getSheetByName(SHEET_NAMES.NOTIFICATION_QUEUE);
+  if (!queueSheet) return { total: 0, pending: 0, processing: 0, sent: 0, failed: 0, retry: 0, items: [] };
+
+  const rows = queueSheet.getDataRange().getValues();
+  const statusCounts = { PENDING: 0, PROCESSING: 0, SENT: 0, FAILED: 0, RETRY: 0 };
+  const items = [];
+
+  for (let i = 1; i < rows.length; i++) {
+    const status = String(rows[i][6] || '').trim().toUpperCase();
+    if (statusCounts[status] !== undefined) {
+      statusCounts[status]++;
+    }
+    items.push({
+      id: rows[i][0],
+      email: rows[i][1],
+      type: rows[i][3],
+      subject: rows[i][4],
+      status: status,
+      idempotencyKey: rows[i][7],
+      attempts: rows[i][8],
+      queuedAt: rows[i][9],
+      sentAt: rows[i][10],
+      errorMessage: rows[i][11]
+    });
   }
 
-  return { processed: processed, sent: sent, failed: failed };
+  return {
+    total: rows.length - 1,
+    pending: statusCounts.PENDING,
+    processing: statusCounts.PROCESSING,
+    sent: statusCounts.SENT,
+    failed: statusCounts.FAILED,
+    retry: statusCounts.RETRY,
+    items: items.slice(-10)
+  };
+}
+
+/**
+ * Automated Trigger Setup Function.
+ * Run this function ONCE inside Google Apps Script as thepaddockprediction14@gmail.com
+ * to authorize MailApp permissions and install the 1-minute time-driven background worker.
+ */
+function setupEmailWorkerTrigger() {
+  const quota = MailApp.getRemainingDailyQuota();
+  Logger.log('[EMAIL_SETUP] Remaining daily email quota: ' + quota);
+
+  // Remove existing triggers for processNotificationQueue to avoid duplicates
+  const triggers = ScriptApp.getProjectTriggers();
+  let removedCount = 0;
+  for (let i = 0; i < triggers.length; i++) {
+    if (triggers[i].getHandlerFunction() === 'processNotificationQueue') {
+      ScriptApp.deleteTrigger(triggers[i]);
+      removedCount++;
+    }
+  }
+  Logger.log('[EMAIL_SETUP] Removed ' + removedCount + ' existing triggers.');
+
+  // Create clean 1-minute time-driven trigger
+  const newTrigger = ScriptApp.newTrigger('processNotificationQueue')
+    .timeBased()
+    .everyMinutes(1)
+    .create();
+
+  Logger.log('[EMAIL_SETUP] Created new 1-minute time-driven trigger ID: ' + newTrigger.getUniqueId());
+
+  // Immediately process any pending items in queue
+  const queueResult = processNotificationQueue(25);
+  Logger.log('[EMAIL_SETUP] Initial queue process result: ' + JSON.stringify(queueResult));
+
+  return {
+    success: true,
+    senderAccount: 'thepaddockprediction14@gmail.com',
+    quotaRemaining: quota,
+    triggerCreated: true,
+    initialProcess: queueResult
+  };
+}
+
+/**
+ * Manual test function to send a verification email and authorize MailApp in 1 click.
+ */
+function testSendWelcomeEmail(targetEmail) {
+  const recipient = targetEmail || 'thepaddockprediction14@gmail.com';
+  const subject = 'Welcome to Prediction Bench';
+  const body = 'Hi Racer,\n\n' +
+    'Welcome to Prediction Bench — The 2026 Formula 1 Community Prediction League!\n\n' +
+    'You are officially registered. Before every Grand Prix weekend:\n' +
+    '1. Browse live circuit telemetry and session schedules\n' +
+    '2. Lock in your predictions before the session deadline\n' +
+    '3. Compete with racers worldwide on the global leaderboard\n\n' +
+    '— Prediction Bench Team\n' +
+    'https://hj1418.github.io/F1-Prediction-Wall/';
+
+  MailApp.sendEmail({
+    to: recipient,
+    name: 'Prediction Bench',
+    subject: subject,
+    body: body
+  });
+
+  Logger.log('[EMAIL_SENT] Verification test email sent successfully to: ' + recipient);
+  return { success: true, recipient: recipient, sender: 'thepaddockprediction14@gmail.com' };
 }

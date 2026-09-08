@@ -1,168 +1,135 @@
-# System Architecture
+# System Architecture — Prediction Bench (Beta/V1)
 
-## 1. System Topology
+## 1. System Topology & Core Flow
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    Client Browser                           │
+│                    Client Browser (SPA)                     │
 │  React 19 + TypeScript + Vite + Vanilla CSS System          │
 │  State: AuthContext, ScheduleContext, Offline Caching       │
+│  Auth: Google Identity Services (OAuth 2.0 Token Client)    │
 └───────────────────────────┬─────────────────────────────────┘
-                            │ HTTPS JSON / Fetch API
+                            │ HTTPS POST / GET (JSON payload)
                             ▼
 ┌─────────────────────────────────────────────────────────────┐
 │           Google Apps Script Web App (API Gateway)          │
-│  Code.gs: doGet (Read queries), doPost (Mutations & Auth)   │
-│  LockService (Concurrency control)                          │
-└───────────────────────────┬─────────────────────────────────┘
-                            │ Google Apps Script SpreadsheetApp
-                            ▼
-┌─────────────────────────────────────────────────────────────┐
-│                 Google Sheets Database                      │
-│  11 Structured Relational Sheets:                           │
-│  - Users                 - UserPredictions                  │
-│  - RaceWeekends          - ActualResults                    │
-│  - Sessions              - Leaderboard                      │
-│  - Drivers               - NotificationQueue                │
-│  - Constructors          - NotificationLog                  │
-│  - Circuits                                                 │
-└─────────────────────────────────────────────────────────────┘
+│  Code.gs: doGet (Queries), doPost (Mutations)               │
+│  LockService (Concurrency control & duplicate prevention)   │
+└─────────────┬───────────────────────────────┬───────────────┘
+              │ Token verification            │ Relational Operations
+              ▼                               ▼
+┌───────────────────────────┐   ┌─────────────────────────────┐
+│  Google Identity Services │   │   Google Sheets Database    │
+│  https://www.googleapis.  │   │  - Users (googleSubjectId)  │
+│  com/oauth2/v3/userinfo   │   │  - RaceWeekends             │
+│  Extracts immutable `sub` │   │  - Sessions                 │
+└───────────────────────────┘   │  - PredictionRounds         │
+                                │  - Predictions              │
+                                │  - Results                  │
+                                │  - Scores                   │
+                                │  - NotificationQueue        │
+                                │  - NotificationLog          │
+                                └─────────────┬───────────────┘
+                                              │ Async Queue Sweep
+                                              ▼
+                                ┌─────────────────────────────┐
+                                │   Apps Script Email Engine  │
+                                │   processNotificationQueue  │
+                                │   MailApp.sendEmail()       │
+                                └─────────────────────────────┘
 ```
 
 ---
 
-## 2. Google Sheets Relational Schema (11 Sheets)
+## 2. Authentication & Identity Architecture
 
-### 1. `Users`
-- **Columns**: `userId`, `email`, `displayName`, `photoUrl`, `authProvider`, `passwordHash`, `createdAt`, `lastLoginAt`, `isAdmin`
-- **Key**: `userId` (Primary), `email` (Unique)
+### 2.1 Google-Only Beta Authentication
+* The user-facing authentication flow relies exclusively on **Google Identity Services (GIS)**.
+* No passwords, confirm passwords, or custom password hashing exist in the user-facing UI.
+* Google provides a cryptographically signed OAuth `access_token` or OpenID Connect `id_token`.
 
-### 2. `RaceWeekends`
-- **Columns**: `id`, `season`, `round`, `name`, `circuitId`, `country`, `startDate`, `endDate`, `hasSprint`, `status`, `lockTime`
-- **Key**: `id` / `round`
+### 2.2 Independent Server-Side Identity Verification
+* The browser is **never trusted** to declare its own identity (e.g. sending `{ email: 'admin@f1.com' }` is rejected).
+* Upon receiving a login request, Apps Script queries Google's UserInfo API (`https://www.googleapis.com/oauth2/v3/userinfo`) with `Authorization: Bearer <accessToken>`.
+* Apps Script verifies:
+  1. Token is present and valid.
+  2. Google responds with HTTP 200.
+  3. `email_verified` is strictly `true`.
+* **Google `sub` as Immutable Anchor:** The user's Google Subject ID (`sub`) is extracted and treated as the immutable identity key. The application user is bound to this `sub`, preventing email changes or client-side tampering from spawning multiple accounts.
 
-### 3. `Sessions`
-- **Columns**: `id`, `raceWeekendId`, `sessionType`, `sessionName`, `startTimeUtc`, `endTimeUtc`, `status`
-- **Key**: `id`
-
-### 4. `Drivers`
-- **Columns**: `id`, `code`, `number`, `firstName`, `lastName`, `constructorId`, `country`, `headshotUrl`, `isActive`
-- **Key**: `id`
-
-### 5. `Constructors`
-- **Columns**: `id`, `name`, `fullTeamName`, `colorHex`, `logoUrl`, `country`, `isActive`
-- **Key**: `id`
-
-### 6. `Circuits`
-- **Columns**: `id`, `name`, `city`, `country`, `lengthKm`, `turns`, `lapRecordTime`, `lapRecordDriver`, `lapRecordYear`, `svgAssetPath`
-- **Key**: `id`
-
-### 7. `UserPredictions`
-- **Columns**: `id`, `userId`, `raceWeekendId`, `poleDriverId`, `p1DriverId`, `p2DriverId`, `p3DriverId`, `fastestLapDriverId`, `dotdDriverId`, `safetyCar`, `submittedAt`, `pointsEarned`, `breakdownJson`
-- **Key**: `id` (Composite Unique: `userId + raceWeekendId`)
-
-### 8. `ActualResults`
-- **Columns**: `id`, `raceWeekendId`, `poleDriverId`, `p1DriverId`, `p2DriverId`, `p3DriverId`, `fastestLapDriverId`, `dotdDriverId`, `safetyCar`, `isFinal`, `publishedAt`
-- **Key**: `id` / `raceWeekendId`
-
-### 9. `Leaderboard`
-- **Columns**: `userId`, `displayName`, `totalPoints`, `predictionsCount`, `podiumExactHits`, `poleHits`, `fastestLapHits`, `rank`, `previousRank`, `lastCalculatedAt`
-- **Key**: `userId`
-
-### 10. `NotificationQueue`
-- **Columns**: `id`, `recipientEmail`, `recipientName`, `notificationType`, `subject`, `templateDataJson`, `status`, `idempotencyKey`, `attempts`, `queuedAt`, `sentAt`, `errorMessage`
-- **Key**: `id`, `idempotencyKey` (Unique to prevent duplicate sends)
-
-### 11. `NotificationLog`
-- **Columns**: `id`, `queueId`, `recipientEmail`, `notificationType`, `idempotencyKey`, `sentAt`, `status`, `deliveryMetadata`
-- **Key**: `id`
+### 2.3 User Lifecycle & Concurrency Control
+* **LockService Protection:** First-time login requests acquire a script lock (`LockService.getScriptLock()`) with a 10-second timeout. Simultaneous first-time logins resolve sequentially without inserting duplicate rows.
+* **New User:**
+  1. Verified with Google.
+  2. Generated stable internal ID: `usr_<cleanUsername>_<uuid>`.
+  3. Safe default role: `'user'`.
+  4. Persisted to `Users` sheet with `googleSubjectId`.
+  5. Exactly one `WELCOME` notification is enqueued with idempotency key `WELCOME_{userId}`.
+  6. Returns user profile with `isNewUser: true` to trigger optional profile customization.
+* **Returning User:**
+  1. Matches existing row by `googleSubjectId === sub` (or verified email fallback for legacy accounts, which backfills `googleSubjectId`).
+  2. Updates `lastLoginAt`.
+  3. Preserves all profile preferences, predictions, scores, and roles.
+  4. Does **not** enqueue a welcome notification.
+  5. Returns user profile with `isNewUser: false`.
 
 ---
 
-## 3. Data Flow & Scoring Engine
+## 3. Authorization Model
 
-1. **Schedule Ingestion**: Synchronized using official schedule endpoints with Ergast / OpenF1 fallback, stored in `RaceWeekends` and `Sessions`.
-2. **Prediction Submission**:
-   - Client sends prediction payload to Apps Script endpoint before session lock time.
-   - Apps Script checks `lockTime` vs `new Date()`. If locked, rejects with HTTP 403.
-   - Stores record in `UserPredictions`.
-   - Adds a confirmation entry into `NotificationQueue` with `idempotencyKey = "PREDICTION:" + roundId + ":" + userId`.
-3. **Race Result Publication & Scoring**:
-   - Admin or automated worker commits `ActualResults`.
-   - Scoring engine evaluates each user prediction using standardized points:
-     - Exact P1/P2/P3: 10 pts each
-     - Podium in incorrect position: 5 pts each
-     - Exact Pole: 5 pts
-     - Exact Fastest Lap: 5 pts
-     - Exact Safety Car: 3 pts
-     - Driver of the Day: 3 pts
-   - Updates `Leaderboard` standings and queues result notification emails with `idempotencyKey = "RESULT:" + roundId + ":" + userId`.
+Authentication answers **"Who is this user?"** while authorization answers **"What is this user permitted to do?"**.
+
+* **Role Resolution:** The user's role is loaded exclusively from the `Users` sheet (column H). Client-side role claims in request payloads or `localStorage` are discarded.
+* **Roles:**
+  * `user`: Can browse public content, submit predictions for their own `userId`, view their own scores, and access the leaderboard.
+  * `admin`: Can view the full registered user directory (`getAdminUsers`) and perform Race Control operations (`adminSaveWeekend`, `adminSubmitResult`, `adminCalculateScores`).
+* **Enforcement:** Admin endpoints verify that `requesterId` exists in the database and has `role === 'admin'`. Non-admins are rejected with HTTP 403 / Forbidden errors.
 
 ---
 
-## 4. Educational & Official Sources Architecture
+## 4. Prediction Ownership & Server-Side Validation
 
-```
-┌────────────────────────────────────────────────────────────────────────┐
-│                        External Official Sources                       │
-│  - Formula1.com (Editorial articles, beginners' guides, track previews)│
-│  - FIA.com (Sporting/Technical Regulations, Stewards' bulletins)        │
-│  - Jolpica-F1 (Live calendar, sessions, drivers, standings)             │
-└────────────────────────────────────┬───────────────────────────────────┘
-                                     │ Direct External Linking (No CMS)
-                                     ▼
-┌────────────────────────────────────────────────────────────────────────┐
-│                   Client Educational Architecture                      │
-│  - officialContent.ts (Structured metadata, governance & verification) │
-│  - circuitRegistry.ts (Track DNA, key corners, official track guides)  │
-│  - LearnPage.tsx (3-Part Pedagogical: What / How / Why / Official)     │
-│  - OfficialUpdatesSection.tsx (Discovery widget for official sources)  │
-│  - Contextual Educational Bridges (Connecting active GP to rules)      │
-└────────────────────────────────────────────────────────────────────────┘
-```
-
-1. **Lightweight Governance Registry**: Managed via typed TypeScript definitions (`OfficialResource`, `GovernanceMetadata`) without database overhead.
-2. **Deterministic Verification**: Every regulatory topic is pinned to a specific verified season and verification date.
-3. **Zero Scraping / Zero Mirroring**: Zero backend bandwidth or storage used for external article content.
+* **Authentic Ownership:** The server verifies that the prediction belongs to an authenticated user existing in the database. Cross-user prediction manipulation is strictly blocked.
+* **Server-Controlled Deadlines:** The client deadline display is purely for UX. The backend verifies that the server time (`new Date().getTime()`) has not passed the round's `closesAt` timestamp. Past-deadline submissions are rejected with `"Predictions are LOCKED"`.
+* **Unique Podium:** Backend validates that no driver is selected more than once among P1, P2, and P3.
+* **Atomic Persistence:** The prediction is saved to the `Predictions` sheet first. If an existing prediction for that user and round exists, it updates in place.
 
 ---
 
-## 5. Authentication → Application User Persistence
+## 5. Notification System & Email Processing
 
-```
-Google Sign-In
-      ↓
-Google Authenticated Identity (email, name, photo)
-      ↓
-Frontend Authentication State
-      ↓
-api.googleLogin({ email, displayName, photoUrl })
-      ↓
-Google Apps Script Endpoint (doPost: action='googleLogin')
-      ↓
-LockService Concurrency Control
-      ↓
-User Lookup in USERS Sheet (by email)
- ┌────┴───────────────────────────┐
- │ CASE A: New User               │ CASE B: Returning User
- ▼                                ▼
-Create USERS Row (userId, etc.)   Update lastLoginAt & avatarUrl
- └────┬───────────────────────────┘
-      ▼
-Return Persistent Application User Record
-      ↓
-Frontend currentUser & Session ID
-      ↓
-Predictions / Scores / Notifications (Bound to Application userId)
-```
+### 5.1 Architecture
+Email and authentication are decoupled systems:
+`AUTHENTICATION` → `APPLICATION USER` → `USERS.email` → `NOTIFICATION_QUEUE` → `EMAIL PROCESSOR` → `RECIPIENT`
 
-### Core Architecture Principles:
-1. **Separation of Identity vs. Persistence**:
-   - Google authentication identifies the person (email, name, avatar).
-   - The application then creates or retrieves a persistent application user record in the `Users` sheet.
-   - **Authentication success does not automatically mean database persistence success**. If the database write fails or is unreachable, the frontend surfaces an explicit error rather than silently masking it in local storage.
-2. **Deterministic Identity Binding**:
-   - The application user ID (`usr_<username>_<uuid>`) is the canonical primary key.
-   - All user actions—predictions (`Predictions` sheet), scores (`Scores` sheet), achievements, and notifications—are strictly keyed to this persistent application user ID, never to ephemeral client-side tokens.
-3. **Strict Concurrency Protection**:
-   - Apps Script acquires a lock via `LockService.getScriptLock()` during `googleLogin` and `registerUser` lookups and writes to guarantee that concurrent logins never produce duplicate user records.
+### 5.2 Deterministic Idempotency Keys
+Before inserting into `NotificationQueue`, Apps Script checks both `NotificationQueue` and `NotificationLog`:
+* **Welcome Email:** `WELCOME_{userId}`
+* **Prediction Confirmation:** `PRED_{userId}_{roundId}`
+* **Race Results:** `RESULT_{userId}_{roundId}`
+
+If a notification with the same idempotency key already exists, enqueuing is skipped silently.
+
+### 5.3 Asynchronous Queue Processor
+* `processNotificationQueue(batchLimit)` runs asynchronously or via scheduled trigger.
+* Wrapped in `LockService.getScriptLock()` to prevent two concurrent workers from sending the same message.
+* Pulls `PENDING` or `RETRY` notifications.
+* Sends branded emails via `MailApp.sendEmail()`.
+* On success: Updates status to `SENT`, records entry in `NotificationLog`.
+* On error: Increments `attempts`. If `attempts >= 3`, marks status as `FAILED`. Otherwise marks as `RETRY`. Records error message.
+
+### 5.4 Delivery Failure Isolation
+Email sending is treated strictly as a side effect. An email failure **never** rolls back or invalidates:
+* User registration
+* Saved predictions
+* Calculated scores
+* Leaderboard standings
+
+---
+
+## 6. Scoring Idempotency & Leaderboard Consistency
+
+1. Race results are committed to the `Results` sheet.
+2. `adminCalculateScores(roundId)` computes scores using the deterministic engine.
+3. Scoring updates existing `Scores` rows or inserts new ones. Running scoring multiple times produces identical points and never duplicates rows.
+4. Leaderboard standings are computed directly from persisted `Scores`.

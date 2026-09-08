@@ -6,14 +6,13 @@ import { F1_DRIVERS_2026, F1_CONSTRUCTORS_2026 } from '../../services/mockData';
 import { SocialAuthButton } from './SocialAuthButton';
 import {
   User as UserIcon,
-  Mail,
-  Lock,
-  Eye,
-  EyeOff,
   Flag,
   Shield,
   ArrowRight,
   AlertCircle,
+  CheckCircle2,
+  ShieldCheck,
+  Loader2,
 } from 'lucide-react';
 
 interface RegisterFormProps {
@@ -21,77 +20,238 @@ interface RegisterFormProps {
 }
 
 export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
-  const { register } = useAuth();
+  const { loginWithGoogle, updateProfile } = useAuth();
 
+  const [signedInUser, setSignedInUser] = useState<User | null>(null);
   const [displayName, setDisplayName] = useState('');
   const [username, setUsername] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [favouriteDriver, setFavouriteDriver] = useState(F1_DRIVERS_2026[0].id);
   const [favouriteConstructor, setFavouriteConstructor] = useState(F1_CONSTRUCTORS_2026[0].id);
 
   const [error, setError] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
+  const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleGoogleSignIn = async () => {
     setError(null);
-
-    if (!displayName.trim()) {
-      setError('Please enter your full racer or display name.');
-      return;
-    }
-
-    const cleanUser = username.trim().toLowerCase().replace(/[^a-z0-9_]/g, '');
-    if (cleanUser.length < 3) {
-      setError('Racer tag must be at least 3 characters (letters, numbers, or underscores).');
-      return;
-    }
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email.trim())) {
-      setError('Please provide a valid email address.');
-      return;
-    }
-
-    if (password.length > 0 && password.length < 6) {
-      setError('Password must be at least 6 characters.');
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      setError('Passwords do not match. Please verify.');
-      return;
-    }
-
-    setIsSubmitting(true);
-
+    setIsGoogleSubmitting(true);
     try {
-      const newUser = await register({
-        displayName: displayName.trim(),
-        username: cleanUser,
-        email: email.trim().toLowerCase(),
-        password: password || undefined,
-        favouriteDriver,
-        favouriteConstructor,
-      });
-      onSuccess(newUser);
+      const user = await loginWithGoogle();
+      if (user) {
+        if (user.isNewUser) {
+          // Present optional profile customization
+          setSignedInUser(user);
+          setDisplayName(user.displayName || '');
+          setUsername(user.username || '');
+        } else {
+          // Returning user goes directly to destination
+          onSuccess(user);
+        }
+      }
     } catch (err: unknown) {
       if (err instanceof Error) {
         setError(err.message);
       } else {
-        setError('Registration failed. Please try again.');
+        setError('Google authentication failed. Please try again.');
       }
     } finally {
-      setIsSubmitting(false);
+      setIsGoogleSubmitting(false);
     }
   };
 
+  const handleCompleteProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!signedInUser) return;
+
+    setIsUpdatingProfile(true);
+    setError(null);
+
+    try {
+      const cleanUser = username.trim().toLowerCase().replace(/[^a-z0-9_]/g, '') || signedInUser.username;
+      await updateProfile({
+        displayName: displayName.trim() || signedInUser.displayName,
+        username: cleanUser,
+        favouriteDriver,
+        favouriteConstructor,
+      });
+
+      const updatedUser: User = {
+        ...signedInUser,
+        displayName: displayName.trim() || signedInUser.displayName,
+        username: cleanUser,
+        favouriteDriver,
+        favouriteConstructor,
+      };
+
+      onSuccess(updatedUser);
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError('Failed to update profile preferences.');
+      }
+    } finally {
+      setIsUpdatingProfile(false);
+    }
+  };
+
+  const handleSkip = () => {
+    if (signedInUser) {
+      onSuccess(signedInUser);
+    }
+  };
+
+  // STEP 2: Optional profile personalization after Google authentication
+  if (signedInUser) {
+    return (
+      <form className="auth-form" onSubmit={handleCompleteProfile} noValidate>
+        {error && (
+          <div className="auth-alert-banner auth-alert-error" role="alert">
+            <AlertCircle size={16} className="shrink-0" />
+            <span>{error}</span>
+          </div>
+        )}
+
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.75rem',
+            padding: '0.85rem 1rem',
+            borderRadius: '8px',
+            background: 'rgba(16, 185, 129, 0.08)',
+            border: '1px solid rgba(16, 185, 129, 0.25)',
+            marginBottom: '1.25rem',
+            color: '#10b981',
+            fontSize: '0.84rem'
+          }}
+        >
+          <CheckCircle2 size={18} className="shrink-0" />
+          <span>
+            Google identity verified! Welcome, <strong>{signedInUser.email}</strong>. Customize your racer telemetry below or skip to start predicting.
+          </span>
+        </div>
+
+        {/* Display Name */}
+        <div className="auth-field-group">
+          <label htmlFor="reg-display-name" className="auth-label">
+            Display Name
+          </label>
+          <div className="auth-input-wrapper">
+            <UserIcon size={18} className="auth-input-icon" />
+            <input
+              id="reg-display-name"
+              type="text"
+              className="auth-input"
+              placeholder="e.g. Alex Thorne"
+              value={displayName}
+              onChange={e => setDisplayName(e.target.value)}
+              disabled={isUpdatingProfile}
+              autoComplete="name"
+            />
+          </div>
+        </div>
+
+        {/* Racer Tag */}
+        <div className="auth-field-group">
+          <label htmlFor="reg-username" className="auth-label">
+            Racer Tag
+          </label>
+          <div className="auth-input-wrapper">
+            <span className="auth-input-prefix">@</span>
+            <input
+              id="reg-username"
+              type="text"
+              className="auth-input auth-input-has-prefix"
+              placeholder="racer_handle"
+              value={username}
+              onChange={e => setUsername(e.target.value)}
+              disabled={isUpdatingProfile}
+              autoComplete="username"
+            />
+          </div>
+        </div>
+
+        {/* Favourite Driver & Team */}
+        <div className="auth-grid-2">
+          <div className="auth-field-group">
+            <label htmlFor="reg-fav-driver" className="auth-label">
+              <Flag size={14} className="inline mr-1" />
+              Allegiance Driver
+            </label>
+            <select
+              id="reg-fav-driver"
+              className="auth-select"
+              value={favouriteDriver}
+              onChange={e => setFavouriteDriver(e.target.value)}
+              disabled={isUpdatingProfile}
+            >
+              {F1_DRIVERS_2026.map(driver => (
+                <option key={driver.id} value={driver.id}>
+                  {driver.firstName} {driver.lastName} (#{driver.number})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="auth-field-group">
+            <label htmlFor="reg-fav-team" className="auth-label">
+              <Shield size={14} className="inline mr-1" />
+              Constructor Team
+            </label>
+            <select
+              id="reg-fav-team"
+              className="auth-select"
+              value={favouriteConstructor}
+              onChange={e => setFavouriteConstructor(e.target.value)}
+              disabled={isUpdatingProfile}
+            >
+              {F1_CONSTRUCTORS_2026.map(team => (
+                <option key={team.id} value={team.id}>
+                  {team.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {/* Action CTAs */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '1rem' }}>
+          <button
+            type="submit"
+            className="auth-submit-btn"
+            disabled={isUpdatingProfile}
+          >
+            {isUpdatingProfile ? (
+              <>
+                <Loader2 size={18} className="animate-spin" style={{ animation: 'spin 1s linear infinite' }} />
+                <span>SAVING TELEMETRY...</span>
+              </>
+            ) : (
+              <>
+                <span>COMPLETE ONBOARDING</span>
+                <ArrowRight size={18} />
+              </>
+            )}
+          </button>
+
+          <button
+            type="button"
+            onClick={handleSkip}
+            className="btn btn-ghost"
+            style={{ width: '100%', fontSize: '0.85rem', color: '#94a3b8' }}
+            disabled={isUpdatingProfile}
+          >
+            Skip to Predictions →
+          </button>
+        </div>
+      </form>
+    );
+  }
+
+  // STEP 1: Primary Google Registration
   return (
-    <form className="auth-form" onSubmit={handleSubmit} noValidate>
+    <div className="auth-form">
       {error && (
         <div className="auth-alert-banner auth-alert-error" role="alert">
           <AlertCircle size={16} className="shrink-0" />
@@ -99,191 +259,70 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
         </div>
       )}
 
-      {/* Display Name */}
-      <div className="auth-field-group">
-        <label htmlFor="reg-display-name" className="auth-label">
-          Racer Display Name
-        </label>
-        <div className="auth-input-wrapper">
-          <UserIcon size={18} className="auth-input-icon" />
-          <input
-            id="reg-display-name"
-            type="text"
-            className="auth-input"
-            placeholder="e.g. Lewis Hamilton or Alex Wong"
-            value={displayName}
-            onChange={e => setDisplayName(e.target.value)}
-            required
-            autoFocus
-          />
-        </div>
-      </div>
-
-      {/* Username */}
-      <div className="auth-field-group">
-        <label htmlFor="reg-username" className="auth-label">
-          Racer Tag (Unique Handle)
-        </label>
-        <div className="auth-input-wrapper">
-          <span className="auth-input-icon text-xs font-bold font-mono">@</span>
-          <input
-            id="reg-username"
-            type="text"
-            className="auth-input"
-            placeholder="e.g. speed_demon44"
-            value={username}
-            onChange={e => setUsername(e.target.value)}
-            required
-          />
-        </div>
-      </div>
-
-      {/* Email */}
-      <div className="auth-field-group">
-        <label htmlFor="reg-email" className="auth-label">
-          Email Address
-        </label>
-        <div className="auth-input-wrapper">
-          <Mail size={18} className="auth-input-icon" />
-          <input
-            id="reg-email"
-            type="email"
-            className="auth-input"
-            placeholder="pitwall@formula1.com"
-            value={email}
-            onChange={e => setEmail(e.target.value)}
-            autoComplete="email"
-            required
-          />
-        </div>
-      </div>
-
-      {/* Password */}
-      <div className="auth-field-group">
-        <label htmlFor="reg-password" className="auth-label">
-          Password
-        </label>
-        <div className="auth-input-wrapper">
-          <Lock size={18} className="auth-input-icon" />
-          <input
-            id="reg-password"
-            type={showPassword ? 'text' : 'password'}
-            className="auth-input auth-input-has-action"
-            placeholder="Create a secure passkey"
-            value={password}
-            onChange={e => setPassword(e.target.value)}
-            autoComplete="new-password"
-            required
-          />
-          <button
-            type="button"
-            className="auth-input-action-btn"
-            onClick={() => setShowPassword(!showPassword)}
-            aria-label={showPassword ? 'Hide password' : 'Show password'}
-          >
-            {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-          </button>
-        </div>
-      </div>
-
-      {/* Confirm Password */}
-      <div className="auth-field-group">
-        <label htmlFor="reg-confirm-password" className="auth-label">
-          Confirm Password
-        </label>
-        <div className="auth-input-wrapper">
-          <Lock size={18} className="auth-input-icon" />
-          <input
-            id="reg-confirm-password"
-            type={showConfirmPassword ? 'text' : 'password'}
-            className="auth-input auth-input-has-action"
-            placeholder="Repeat passkey"
-            value={confirmPassword}
-            onChange={e => setConfirmPassword(e.target.value)}
-            autoComplete="new-password"
-            required
-          />
-          <button
-            type="button"
-            className="auth-input-action-btn"
-            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-            aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
-          >
-            {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-          </button>
-        </div>
-      </div>
-
-      {/* Favorite Driver & Constructor Row */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-        <div className="auth-field-group">
-          <label htmlFor="reg-fav-driver" className="auth-label">
-            Fav Driver
-          </label>
-          <div className="auth-input-wrapper">
-            <Flag size={16} className="auth-input-icon" />
-            <select
-              id="reg-fav-driver"
-              className="auth-input auth-select"
-              value={favouriteDriver}
-              onChange={e => setFavouriteDriver(e.target.value)}
-            >
-              {F1_DRIVERS_2026.map(d => (
-                <option key={d.id} value={d.id}>
-                  {d.firstName} {d.lastName} ({d.code})
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        <div className="auth-field-group">
-          <label htmlFor="reg-fav-team" className="auth-label">
-            Fav Team
-          </label>
-          <div className="auth-input-wrapper">
-            <Shield size={16} className="auth-input-icon" />
-            <select
-              id="reg-fav-team"
-              className="auth-input auth-select"
-              value={favouriteConstructor}
-              onChange={e => setFavouriteConstructor(e.target.value)}
-            >
-              {F1_CONSTRUCTORS_2026.map(c => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-      </div>
-
-      {/* Primary Submit CTA */}
-      <button
-        type="submit"
-        className="auth-submit-btn"
-        disabled={isSubmitting}
+      {/* Beta Welcome Badge */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.75rem',
+          padding: '0.85rem 1rem',
+          borderRadius: '8px',
+          background: 'rgba(225, 6, 0, 0.06)',
+          border: '1px solid rgba(225, 6, 0, 0.2)',
+          marginBottom: '1.25rem',
+          color: '#e2e8f0',
+          fontSize: '0.82rem',
+          lineHeight: '1.4'
+        }}
       >
-        <span>{isSubmitting ? 'Issuing Superlicense...' : 'Join The League'}</span>
-        <ArrowRight size={18} />
-      </button>
-
-      {/* Social Auth Separator */}
-      <div className="auth-divider">
-        <span>or</span>
+        <ShieldCheck size={20} style={{ color: '#e10600', flexShrink: 0 }} />
+        <span>
+          <strong>Join the 2026 Prediction Bench:</strong> Authenticate with Google to lock in qualifying and race predictions, earn championship points, and climb the leaderboard.
+        </span>
       </div>
 
-      {/* Social Button (Disabled / Coming soon) */}
-      <SocialAuthButton />
+      {/* Features List */}
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '0.5rem',
+          marginBottom: '1.5rem',
+          fontSize: '0.82rem',
+          color: '#94a3b8'
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <CheckCircle2 size={15} style={{ color: '#10b981' }} />
+          <span>100% Free to compete all season</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <CheckCircle2 size={15} style={{ color: '#10b981' }} />
+          <span>Automatic email confirmations & official results</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <CheckCircle2 size={15} style={{ color: '#10b981' }} />
+          <span>Live telemetry & dynamic session countdowns</span>
+        </div>
+      </div>
+
+      {/* Primary Google Auth CTA */}
+      <div style={{ marginBottom: '1.5rem' }}>
+        <SocialAuthButton
+          disabled={isGoogleSubmitting}
+          isLoading={isGoogleSubmitting}
+          onClick={handleGoogleSignIn}
+          label="Join the League with Google"
+        />
+      </div>
 
       {/* Footer Navigation */}
       <div className="auth-card-footer">
-        Already have a superlicense?
+        Already part of the league?
         <Link to="/login" className="auth-link">
           Sign In
         </Link>
       </div>
-    </form>
+    </div>
   );
 };

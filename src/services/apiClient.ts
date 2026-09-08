@@ -238,7 +238,7 @@ export const api = {
     return mockApi.getAdminUsers(requesterId);
   },
 
-  async googleLogin(payload: { email: string; displayName?: string; photoUrl?: string }): Promise<User> {
+  async googleLogin(payload: { email: string; displayName?: string; photoUrl?: string; accessToken?: string }): Promise<User> {
     if (isLiveBackend) {
       try {
         const res = await fetch(`${API_BASE_URL}?action=googleLogin`, {

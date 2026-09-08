@@ -97,4 +97,30 @@ Never remove or break existing navigation paths. The platform must support both 
 - **Strict Concurrency**: Concurrency locks (`LockService.getScriptLock()`) must always guard user lookup and creation in `Code.gs` to prevent duplicate rows.
 - **Prediction User Integrity**: The backend must verify that the `userId` in `submitPrediction` exists in the `Users` sheet before writing the prediction.
 
+---
 
+## 10. Zero Native Browser Dialogs & In-Flight Form States
+
+- **Zero window.prompt() / alert() / confirm()**: Never use native browser dialogs for authentication, email collection, or confirmation flows. Authentication must rely on official Google Identity Services (GIS) OAuth 2.0 popups or standard in-page form fields.
+- **Graceful Unconfigured Handling**: When external OAuth configuration (`VITE_GOOGLE_CLIENT_ID`) is missing or unconfigured, render a clear, dismissible in-page error banner. Never crash or freeze the UI.
+- **Immediate In-Flight Feedback**: All form submit buttons must immediately update their label (`JOINING THE LEAGUE...`, `SIGNING IN...`), show animated spinners, and enter a disabled state upon submission.
+- **Duplicate Submission Lock**: While an authentication or registration request is in-flight, disable form inputs and action buttons to strictly block double-click duplicate creation.
+- **Timeout Protection**: All network requests to serverless/Apps Script backends must include timeout safeguards (e.g., 20 seconds) to prevent infinite pending states during cold starts.
+
+---
+
+## 11. Beta/V1 Core Engineering Invariant Rules
+
+1. **Rule: Never trust client identity**: A client providing `{ email: '...', displayName: '...' }` is never trusted. Every authenticated operation requires an independently verified Google OAuth access token or ID token verified server-side.
+2. **Rule: Google `sub` is the stable Google identity**: The Google Subject ID (`sub`) is immutable and uniquely identifies the account. Users are looked up and stored by `googleSubjectId`. Email changes or display name variations do not create duplicate application accounts.
+3. **Rule: Application `userId` owns application data**: Predictions, scores, achievements, and leaderboard entries reference the persistent application `userId`, never third-party provider tokens or raw email strings.
+4. **Rule: Backend controls authorization**: Roles are loaded strictly from the `Users` sheet (column H). Client-supplied roles or frontend role checks are never sufficient to authorize admin operations.
+5. **Rule: Backend controls prediction deadlines**: The backend verifies deadlines against `closesAt` using server time (`new Date()`). Client-supplied deadlines are strictly ignored.
+6. **Rule: Prediction persistence is independent from email delivery**: An email notification is an asynchronous side effect. Email delivery failure must never invalidate or roll back a saved prediction or user registration.
+7. **Rule: Notifications are idempotent**: Every notification utilizes a deterministic idempotency key (`WELCOME_{userId}`, `PRED_{userId}_{roundId}`, `RESULT_{userId}_{roundId}`). The same logical event never produces multiple emails.
+8. **Rule: Scoring is idempotent**: Running scoring multiple times produces identical points and never duplicates `Scores` records or leaderboard points.
+9. **Rule: No mock users**: Never render simulated or mock users when unauthenticated.
+10. **Rule: No silent authentication fallback**: If authentication fails, display an explicit error. Never catch errors and secretly substitute a fake local profile.
+11. **Rule: No plaintext passwords**: User-facing Beta flow is strictly Google OAuth 2.0. No passwords or plaintext hashes exist in client storage or sheets.
+12. **Rule: No sensitive secrets in frontend code**: Frontend bundles expose only `VITE_GOOGLE_CLIENT_ID`. Never leak service account keys, Apps Script deployment credentials, or admin secrets.
+13. **Rule: Do not add unrelated features during Beta stabilization**: Focus exclusively on deterministic reliability, security, and idempotency of the core user journey.

@@ -83,14 +83,32 @@ The color palette reflects official motorsport timing towers and carbon-composit
 
 ---
 
-## 6. Authentication Navigation Hierarchy
+## 6. Authentication Navigation Hierarchy & Responsive Breakpoints
 
-- **WHAT**: Logged-out users see lightweight, compact secondary authentication actions alongside the prominent primary contextual action.
-- **WHY**: "Sign In" and "Join the League" should never compete visually with the primary race/prediction CTA (`NEXT PREDICTION` / `PREDICT NOW`), nor should they cause horizontal overflow or clipped text labels.
+- **WHAT**: Logged-out users see lightweight, compact secondary authentication actions alongside the prominent primary contextual action without any horizontal scrollbar or clipping across all viewports.
+- **WHY**: "Sign In" and "Join the League" should never compete visually with the primary race/prediction CTA (`NEXT PREDICTION` / `PREDICT NOW`), nor should they cause horizontal overflow or clipped text labels on laptops (1280px) or tablet landscape (1024px).
 - **HOW**:
-  - **PRIMARY CTA**: `PredictionCTA` with bold red background (`--f1-red`), 36px height, uppercase monospace typography, and luminous glow.
+  - **PRIMARY CTA**: `PredictionCTA` with bold red background (`--f1-red`), 36px height (32px on compact), uppercase monospace typography, and luminous glow.
   - **SECONDARY ACTIONS**:
-    - `SIGN IN`: Subtle ghost button (transparent background, `--text-secondary`, compact 30px height, subtle hover highlight).
-    - `JOIN THE LEAGUE`: Compact outlined action (`1px solid rgba(255, 255, 255, 0.2)`), collapsing to responsive `JOIN` label on viewports `< 1280px`.
-- **BOUNDARY**: Do NOT remove authentication actions, do NOT hide them arbitrarily without accessible alternatives, and do NOT make them visually dominate the navigation bar.
+    - `SIGN IN`: Subtle ghost button (transparent background, `--text-secondary`, compact 32–34px height, subtle hover highlight).
+    - `JOIN THE LEAGUE`: Compact outlined action (`1px solid rgba(255, 255, 255, 0.22)`), displaying full text at ≥ 1280px and collapsing to responsive `JOIN` label on viewports `< 1280px`.
+  - **VIEWPORT BREAKPOINTS**:
+    - **≥ 1280px (Desktop / Wide)**: Full nav links with icons, full `NEXT PREDICTION`, `SIGN IN`, and `JOIN THE LEAGUE` (or `JOIN` at 1280px). Container max-width: 1360px.
+    - **900px – 1159px (Tablet Landscape / Small Laptop — 1024px)**: Nav link icons hidden (`display: none`), typography kept at `0.72rem`, `JOIN` label used, subtitle hidden. Total width is ~650px in a 1000px container, providing over 300px of breathing room with zero clipping.
+    - **≤ 899px (Tablet Portrait / Mobile — 768px, 430px, 375px)**: Desktop links and top auth buttons hide; mobile hamburger menu activates. Full-width touch-friendly `SIGN IN` and `JOIN THE LEAGUE` buttons render inside the sliding navigation drawer.
+- **BOUNDARY**: Do NOT introduce horizontal overflow, do NOT truncate labels with ellipsis, and do NOT remove authentication access on any device width.
+
+---
+
+## 7. Beta Authentication Presentation & Onboarding Standards
+
+- **WHAT**: Google-only authentication presentation across `LoginForm`, `RegisterForm`, and `AuthModal`.
+- **WHY**: Streamlined, secure onboarding for the Beta release. Eliminates password confusion, forgotten password friction, and credential storage security risks.
+- **HOW**:
+  - **Single Action**: High-contrast white Google Sign-In button with authentic official Google SVG iconography and crisp typography (`Continue with Google` / `Join the League with Google`).
+  - **Security Telemetry Badge**: Subtle motorsport notification pill indicating 256-bit encrypted session binding.
+  - **Post-Auth Personalization**: Once Google confirms identity, the user is presented with a streamlined telemetry step (Display Name, Racer Tag `@handle`, Allegiance Driver, Constructor Team).
+  - **Skip Support**: Racers who wish to start predicting immediately can skip profile personalization at any time.
+- **BOUNDARY**: No password fields, passkeys, or custom registration forms appear in the user-facing interface. Never render fake or mock user states when logged out.
+
 

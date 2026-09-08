@@ -1,136 +1,120 @@
-# User Workflows & Journeys
+# User Workflows & Journeys — Prediction Bench (Beta/V1)
 
-This document maps out the core user journeys across the F1 Community Platform.
-
----
-
-## 1. Journey A: The Newcomer / Casual Fan (Explore & Learn)
-
-```
-Landing on Home
-  │
-  ├──► Views Next Race Hero & Local Countdown (No auth required)
-  │
-  ├──► Clicks "Learn F1"
-  │     ├── Explores 3-part educational topics (What / How / Why / Official Source):
-  │     │    - Knockout Qualifying & Grid implications
-  │     │    - Sprint Weekend formats
-  │     │    - Race Control, Stewards & Super Licence penalties
-  │     │    - Flags & Safety Car protocols (Appendix H)
-  │     │    - Tyres, Compound rules & Undercut/Overcut strategies
-  │     │    - DRS rules & Aerodynamics
-  │     │    - Points system & WDC / WCC breakdown
-  │     ├── Consults Official F1 Updates & Regulations widget
-  │     └── Direct external deep-dive into official Formula1.com / FIA documentation
-  │
-  └──► Clicks "Circuits"
-        └── Browses 24 visual vector circuit tracks
-             ├── Inspects "Why is this track different?"
-             ├── Reviews iconic corners, overtaking hotspots, and track DNA
-             └── Follows direct link to official Formula1.com track guide
-```
-
-- **Goal**: Zero friction, high-density educational content.
-- **Auth Status**: Unauthenticated (guest).
+This document details the nine core user journeys across the Prediction Bench platform. For each workflow, we define: **WHAT**, **WHY**, **HOW**, **EXPECTED RESULT**, and **FAILURE BEHAVIOR**.
 
 ---
 
-## 2. Journey B: Race Weekend Follower (Schedule & Planning)
-
-```
-Navigation -> "Race Weekends"
-  │
-  ├──► Views full 24-race championship calendar
-  ├──► Selects upcoming Grand Prix
-  │     ├── Sees countdown to next session
-  │     ├── Inspects full session timetable in user's local timezone
-  │     └── Toggles between Local Time and Track Time
-  └──► Reviews circuit characteristics directly tied to that weekend
-```
-
-- **Goal**: Fast, accurate schedule answers without ads or clutter.
-- **Auth Status**: Unauthenticated or Authenticated.
+## Journey A: Public Visitor (Explore & Learn)
+* **WHAT**: A guest browses public educational content, race calendar, session countdowns, and circuit telemetry without logging in.
+* **WHY**: Zero-friction discovery. F1 fans should never be forced to sign up just to view educational guides or schedule information.
+* **HOW**: Visit Home, Learn F1, Race Weekends, or Circuits. Read regulation guides, inspect 26 circuit vector assets, and view local countdowns.
+* **EXPECTED RESULT**: All public pages load instantly. Navbar shows primary "Next Prediction", secondary "Sign In", and compact "Join the League".
+* **FAILURE BEHAVIOR**: Offline fallback serves cached static data; no login prompts interrupt reading.
 
 ---
 
-## 3. Journey C: Community Competitor (Predict & Compete)
-
-```
-Next Race Hero or "Predictions" tab
-  │
-  ├──► User clicks "Make Predictions"
-  │     │
-  │     ├── If Guest:
-  │     │    └── Modal opens: "Sign in with Google to enter predictions & track your leaderboard rank"
-  │     │         └── Signs in via Google OAuth (or email) -> Redirected back to prediction form
-  │     │
-  │     └── If Authenticated:
-  │          ├── Selects Pole Position
-  │          ├── Selects Podium Finishers: P1, P2, P3
-  │          ├── Selects Fastest Lap
-  │          ├── Selects Driver of the Day
-  │          ├── Selects Safety Car prediction (Yes / No)
-  │          └── Clicks "Submit Predictions"
-  │               ├── Validation check: No duplicate drivers in podium
-  │               ├── Payload submitted to backend
-  │               ├── Instant feedback toast + Confirmation email queued
-  │               └── Prediction locked state previewed
-  │
-  └──► Post-Race: User visits "Leaderboard"
-        ├── Sees updated points, position change, and exact hits
-        └── Compares scores with community peers
-```
-
-- **Goal**: Engaging, fair community competition with immediate feedback.
-- **Auth Status**: Authenticated via Google.
+## Journey B: New User Registration
+* **WHAT**: A newcomer joins the league using their Google account and sets up their initial telemetry profile.
+* **WHY**: Establishes a permanent, secure identity without insecure custom passwords.
+* **HOW**:
+  1. Click "Join the League" on navbar or hero CTA.
+  2. Complete Google Identity Services popup.
+  3. Server independently verifies credential and extracts Google `sub`.
+  4. Server creates persistent `Users` row (`role: 'user'`).
+  5. Server queues exactly one `WELCOME` notification (`idempotencyKey: WELCOME_{userId}`).
+  6. Frontend displays optional profile customization (racer tag, allegiance driver/team).
+* **EXPECTED RESULT**: User is registered with a unique `userId`. Welcome email is enqueued. Session is established in `localStorage`.
+* **FAILURE BEHAVIOR**: If Google popup is closed, user remains on page with clear cancellation message. If network times out, error alert displays retry advice; no partial user is created.
 
 ---
 
-## 4. Journey D: Platform Administrator (Sync & Result Resolution)
-
-```
-Admin Dashboard (`/admin`)
-  │
-  ├──► Authenticated as Admin
-  ├──► Clicks "Trigger Calendar Sync" -> Updates schedule from Ergast/OpenF1
-  ├──► Enter Actual Race Results (Pole, P1, P2, P3, Fastest Lap, Safety Car, DOTD)
-  ├──► Previews scoring calculation across all submitted predictions
-  └──► Confirms and Publishes Results
-        ├── Updates UserPredictions points
-        ├── Re-computes Leaderboard standings
-        └── Buffers results notifications into `NotificationQueue`
-```
+## Journey C: Returning User Login
+* **WHAT**: An existing racer signs in on a new device or restored session.
+* **WHY**: Retrieve personal prediction history, scoring history, and championship rank.
+* **HOW**:
+  1. Click "Sign In" or "Continue with Google".
+  2. Authenticate with Google.
+  3. Backend matches `googleSubjectId === sub` (or backfills it from verified email).
+  4. Backend updates `lastLoginAt` in place.
+* **EXPECTED RESULT**: User is logged in with their existing `userId`. Zero duplicate user rows created. **No welcome email is sent**.
+* **FAILURE BEHAVIOR**: If token has expired or cannot be verified, backend rejects with `401 Unauthorized`. Frontend displays retry CTA.
 
 ---
 
-## 5. Journey E: Authentication → Application User Persistence
+## Journey D: Prediction Submission
+* **WHAT**: A racer selects their podium (P1, P2, P3), fastest lap, driver of the day, and safety car / red flag predictions for an upcoming session.
+* **WHY**: Core gameplay of the league.
+* **HOW**:
+  1. Navigate to Predictions page for an OPEN session.
+  2. Select drivers using interactive selectors (duplicate podium driver prevented).
+  3. Click "Lock In Predictions".
+  4. Backend validates server deadline (`serverTime <= closesAt`), driver validity, and authentic ownership.
+  5. Backend atomically persists prediction to `Predictions` sheet.
+* **EXPECTED RESULT**: Prediction is locked and saved. Success toast confirms submission. Preview shows locked picks.
+* **FAILURE BEHAVIOR**:
+  - If deadline passed: Server rejects with `"Predictions are LOCKED"`. Form enters disabled state.
+  - If duplicate driver selected on podium: Server rejects with validation error.
+  - If network fails: Prediction is not saved; user is alerted with option to retry.
 
-```
-Google Login Trigger (Modal / Button)
-  │
-  ├──► 1. Identity Establishment:
-  │         User authenticates with Google account (email, name, avatar).
-  │
-  ├──► 2. Backend Persistence Handshake:
-  │         Frontend dispatches `action: 'googleLogin'` to Google Apps Script.
-  │         Backend secures `LockService` to prevent race conditions.
-  │
-  ├──► 3. Database Account Lifecycle:
-  │         ├── CASE A (New User):
-  │         │     No existing record found for email in `Users` sheet.
-  │         │     Creates permanent `userId`, sanitizes username, appends row.
-  │         │     Returns newly minted application user.
-  │         └── CASE B (Returning User):
-  │               Matching record found in `Users` sheet.
-  │               Updates `lastLoginAt` and missing profile fields.
-  │               Returns existing persistent application user.
-  │
-  ├──► 4. Prediction & Telemetry Binding:
-  │         All predictions, leaderboard entries, and round scores are bound to the
-  │         canonical application `userId` (not client session tokens).
-  │
-  └──► 5. Failure Transparency:
-            Authentication success does not automatically mean database persistence success.
-            If the Google Sheets backend fails to persist or find the account, the frontend
-            surfaces an explicit error toast rather than masking it in client-side storage.
-```
+---
+
+## Journey E: Prediction Confirmation Email
+* **WHAT**: An automated confirmation email is queued and delivered after a prediction is saved.
+* **WHY**: Reassures the racer that their choices are officially recorded before the session deadline.
+* **HOW**:
+  1. Upon successful prediction save, backend enqueues `PREDICTION_CONFIRMATION` notification with `idempotencyKey: PRED_{userId}_{roundId}`.
+  2. Asynchronous email processor picks up `PENDING` notifications.
+  3. Sends branded email containing real submitted selections.
+  4. Updates queue row to `SENT` and logs in `NotificationLog`.
+* **EXPECTED RESULT**: Racer receives an email detailing their exact picks. Resubmitting an updated prediction updates the picks and prevents duplicate email sends.
+* **FAILURE BEHAVIOR**: If email delivery fails (e.g. SMTP timeout), the notification enters `RETRY` (up to 3 attempts) or `FAILED`. **The saved prediction remains 100% valid and unaffected.**
+
+---
+
+## Journey F: Race Result Processing
+* **WHAT**: Race Control enters official FIA session results and triggers scoring.
+* **WHY**: Translates on-track race results into league points.
+* **HOW**:
+  1. Administrator enters official P1, P2, P3, and Fastest Lap in Race Control.
+  2. System runs `adminCalculateScores(roundId)`.
+  3. Scoring engine evaluates each user prediction idempotently.
+  4. Points are saved to `Scores` sheet.
+* **EXPECTED RESULT**: All predictions for the round are scored. Running scoring again yields identical points with zero duplicate rows.
+* **FAILURE BEHAVIOR**: If official results are missing or invalid, scoring stops with a descriptive error. Existing scores remain intact.
+
+---
+
+## Journey G: Result Email
+* **WHAT**: Racers who submitted predictions receive their personalized points breakdown and updated championship rank.
+* **WHY**: Closes the feedback loop and drives engagement.
+* **HOW**:
+  1. Scoring enqueues `PREDICTION_RESULT` notifications with `idempotencyKey: RESULT_{userId}_{roundId}`.
+  2. Email processor formats personalized results: user predictions, actual outcomes, score breakdown, and points earned.
+  3. Processor sends email via `MailApp.sendEmail()`.
+* **EXPECTED RESULT**: Exactly one result email per participant. Repeated scoring runs do not trigger duplicate emails.
+* **FAILURE BEHAVIOR**: If delivery fails, it is logged in `NotificationQueue` as `RETRY` / `FAILED`. User's score on the live leaderboard remains accurate.
+
+---
+
+## Journey H: Leaderboard Exploration
+* **WHAT**: Racers view global standings, rank changes, points breakdown, and peer profiles.
+* **WHY**: Fosters community competition.
+* **HOW**:
+  1. Click "Leaderboard" tab.
+  2. Frontend queries aggregated scores derived from the backend database.
+  3. Displays current rank, points, races participated, and best scores.
+* **EXPECTED RESULT**: Consistent rank across page refreshes. Points match persisted server score data.
+* **FAILURE BEHAVIOR**: If database query is slow, skeleton loader displays while cached state is presented.
+
+---
+
+## Journey I: Race Control Administration
+* **WHAT**: An administrator manages race weekends, monitors registered racers, inputs results, and verifies notification delivery.
+* **WHY**: Platform governance and operations.
+* **HOW**:
+  1. Sign in with an account having `role === 'admin'` in the `Users` sheet.
+  2. Access `/admin` dashboard.
+  3. Backend checks `role === 'admin'`.
+  4. Admin can inspect registered users, sync Jolpica calendar, and enter official results.
+* **EXPECTED RESULT**: Admin dashboard opens with full management controls.
+* **FAILURE BEHAVIOR**: If a non-admin attempts to access admin APIs, the server responds with `"Forbidden: Administrator privileges required"`.

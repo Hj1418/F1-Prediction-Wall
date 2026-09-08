@@ -397,7 +397,7 @@ export class MockApiService {
     return { ...match };
   }
 
-  public async googleLogin(payload: { email: string; displayName?: string; photoUrl?: string }): Promise<User> {
+  public async googleLogin(payload: { email: string; displayName?: string; photoUrl?: string; accessToken?: string }): Promise<User> {
     const cleanEmail = payload.email.toLowerCase().trim();
     const match = this.users.find(u => u.email.toLowerCase() === cleanEmail);
     if (match) {

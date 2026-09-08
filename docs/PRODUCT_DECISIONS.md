@@ -1,89 +1,69 @@
-# Product & Architecture Decisions Log
+# Product & Architecture Decisions Log — Prediction Bench (Beta/V1)
 
-This document records the foundational product and technical decisions for the F1 Community Platform, including context, alternatives considered, and rationale.
-
----
-
-## Decision 1: Separation of Public Content vs. Authenticated Actions
-
-- **Decision**: Public users have unrestricted access to the Home, Learn F1, Race Weekends, Circuits, and Leaderboard pages without needing an account. Authentication is only required when submitting predictions, saving preferences, or accessing user profiles.
-- **Rationale**: Reduces friction to zero for casual fans and newcomers seeking information. Encourages organic exploration and builds trust before asking for credentials.
-- **Alternatives Considered**: Gating all views behind a sign-in wall (rejected: damages SEO, causes bounce rates, and alienates new fans).
+This document records the foundational product and technical decisions for the F1 Community Prediction Bench, detailing the context, alternatives considered, and strategic rationale.
 
 ---
 
-## Decision 2: Google Sign-In as Primary Identity Provider
-
-- **Decision**: Google Sign-In via OAuth 2.0 is the primary authentication path, with local email/password maintained for developer testing, automated suites, and backward compatibility.
-- **Rationale**: Zero-friction sign-in for users, verified email addresses, built-in security, and no need to manage password resets.
-- **Implementation**: Frontend handles Google credential response (JWT token) and exchanges user details with backend. Existing test scripts (`verify-auth.ts`) continue to test local hashing routines to maintain test fidelity.
+## 1. Public Content Does Not Require Authentication
+* **Decision**: Public visitors can browse Home, Learn F1, Race Weekends, Circuits, and the global Leaderboard without an account.
+* **Rationale**: Eliminates friction for casual fans and newcomers seeking information. Encourages organic exploration and builds community trust before requesting credentials.
 
 ---
 
-## Decision 3: Google Sheets & Apps Script as the Platform Backend
-
-- **Decision**: Use a structured Google Spreadsheet with 11 relational sheets as the database, served via a Google Apps Script Web App (`doGet`/`doPost`).
-- **Rationale**: 
-  - Zero-cost, zero-maintenance database and compute infrastructure.
-  - Transparent data inspection and manual score overrides for community admins without needing a custom CMS.
-  - Native Google MailApp / GmailApp integration for queued automated notifications.
-- **Alternatives Considered**: PostgreSQL/Supabase, Firebase, Redis (rejected: unneeded complexity, ongoing cost, extra dependencies outside project scope).
+## 2. Authentication is Required for User-Specific Prediction Functionality
+* **Decision**: Authentication is strictly required only when submitting predictions, saving allegiance preferences, or accessing individual scoring history.
+* **Rationale**: Predictions require verifiable ownership, score tracking, and championship points attribution. Actions that do not create or modify personal state remain public.
 
 ---
 
-## Decision 4: High-Performance Vector SVGs for Circuit Exploration
-
-- **Decision**: Store all 24 official championship circuit layouts as optimized SVGs in `public/circuits/` indexed by `circuitRegistry.ts`.
-- **Rationale**:
-  - Instant loading, 0 kB external API latency, zero bandwidth costs.
-  - Crisp rendering on any screen density (Retina, mobile, 4K displays).
-  - Works offline and in local mock mode without relying on flaky third-party tile servers.
+## 3. Google-Only Authentication for the Initial Beta Release
+* **Decision**: Google OAuth 2.0 is the sole user-facing authentication provider for the Beta. The legacy custom password registration/login forms have been removed.
+* **Rationale**: Eliminates the severe security vulnerabilities associated with custom password systems (storing password hashes in sheets, implementing password resets, handling weak passwords). Google handles two-factor authentication, verified emails, and account recovery natively.
 
 ---
 
-## Decision 5: Prediction Lock Timing at Qualifying / Sprint Qualifying Start
-
-- **Decision**: Predictions for any race weekend lock strictly at the scheduled start time of the first competitive timed session (Qualifying for standard weekends, Sprint Qualifying for sprint weekends).
-- **Rationale**: Once competitive running begins, car pace hierarchy is revealed. Locking at qualifying start ensures fair competition and authentic predictive skill across all community participants.
-
----
-
-## Decision 6: Asynchronous, Idempotent Email Notification Queue
-
-- **Decision**: Email notifications (Welcome, Prediction Confirmation, Race Results Published) are buffered into a `NotificationQueue` sheet with unique idempotency keys (`WELCOME:<userId>`, `PREDICTION:<roundId>:<userId>`, `RESULT:<roundId>:<userId>`) processed via Apps Script triggers.
-- **Rationale**:
-  - Prevents race conditions and duplicate email spam.
-  - Avoids blocking synchronous HTTP requests during prediction submissions or admin result publication.
-  - Provides a full audit trail in `NotificationLog`.
+## 4. Application Users Stored Separately from Identity Provider
+* **Decision**: The `Users` sheet stores application-domain records with internal `userId` values, using Google's `sub` as an immutable external identifier (`googleSubjectId`).
+* **Rationale**: Decouples application logic from the identity provider. If identity providers change or expand in the future, prediction records, scores, and leaderboard ranks remain undisturbed because they reference the stable application `userId`.
 
 ---
 
-## Decision 7: Direct Linking to Official Sources Instead of Building a News CMS
-
-- **Decision**: Rather than building an article database, scraper, or editorial CMS, the platform maintains curated structured metadata (`OfficialResource`) pointing directly to official `Formula1.com` and `FIA.com` publications.
-- **Rationale**:
-  - Official publishers own their editorial content; duplicating articles creates copyright and staleness issues.
-  - Keeps our codebase lightweight and focused on our core strength: beginner explanations and contextual understanding.
-  - Users are directed to authoritative rulebooks and official stewards' notices with zero latency.
-- **Alternatives Considered**: Scraping RSS feeds, local article database, markdown blog (rejected: unneeded complexity, high maintenance cost, deviates from core product mission).
+## 5. Email Architecture is Independent from Authentication
+* **Decision**: The outbound notification engine pulls email addresses from the application `Users` database, not directly from active OAuth tokens.
+* **Rationale**: Allows reliable asynchronous email delivery hours or days after the user has logged out (e.g. race results delivered on Sunday evening after a prediction submitted on Friday).
 
 ---
 
-## Decision 8: Structured 3-Part Pedagogical Framework with Season Governance
-
-- **Decision**: All educational topics are strictly structured into three questions: **1. WHAT IS IT?**, **2. HOW DOES IT WORK?**, and **3. WHY DOES IT MATTER?**, accompanied by explicit governance metadata (Season, Source, Verification Date, Official Link).
-- **Rationale**:
-  - Eliminates rambling walls of text and ensures bite-sized comprehension for newcomers.
-  - Transparently communicates when regulation-sensitive rules were last verified (e.g. 2026 Sporting Regulations Article 39 for Qualifying).
-  - Explicitly forbids automatic AI rewriting of regulatory changes, prioritizing accuracy over artificial automation.
+## 6. Welcome Email is Sent Only on First Registration
+* **Decision**: A `WELCOME` notification is queued strictly when a new user row is created, with idempotency key `WELCOME_{userId}`. Returning users logging in never trigger a welcome email.
+* **Rationale**: Reassures new racers upon joining without spamming returning users on subsequent session logins.
 
 ---
 
-## Decision 9: Authentication → Application User Persistence Decoupling
+## 7. Prediction Confirmation is Sent After Successful Persistence
+* **Decision**: The `PREDICTION_CONFIRMATION` notification is enqueued only after the prediction has been committed to the `Predictions` sheet.
+* **Rationale**: Prediction persistence is the single source of truth. Racers are never sent a confirmation email for a prediction that failed to save.
 
-- **Decision**: Decouple Google Identity authentication from Google Sheets database user persistence. The application user record in the `Users` sheet—and its associated `userId`—is the single canonical source of truth for predictions, scores, and profile telemetry.
-- **Rationale**:
-  - Google authentication provides identity assertion (email, name, picture), but the league requires domain-specific state (races participated, season rank, points, favourite constructor, driver selections).
-  - Explicit error boundaries prevent the application from presenting a "successful login" if the backend database write failed.
-  - Eliminates duplicate accounts via server-side locking (`LockService.getScriptLock()`) and handles first-time vs. returning Google users deterministically.
+---
 
+## 8. Result Email is Sent After Scoring
+* **Decision**: The `PREDICTION_RESULT` notification is triggered only after race results are published and individual scores are computed in the `Scores` sheet.
+* **Rationale**: Guarantees that result emails contain actual points earned and an accurate score breakdown rather than preliminary estimates.
+
+---
+
+## 9. Notification Processing is Asynchronous
+* **Decision**: Notifications are queued in `NotificationQueue` and processed asynchronously by the background email worker (`processNotificationQueue`).
+* **Rationale**: Prevents external SMTP latency from slowing down user-facing prediction submissions. Guarantees that network email errors never fail or roll back core prediction writes.
+
+---
+
+## 10. Free-First Architecture Without Paid Infrastructure
+* **Decision**: Built on React/Vite (hosted on GitHub Pages) and Google Apps Script / Google Sheets.
+* **Rationale**: Zero hosting costs, zero database maintenance fees, and transparent community auditing during the Beta. Proves product-market fit before incurring infrastructure overhead.
+
+---
+
+## 11. Focus on a Reliable Core User Journey Before Advanced Features
+* **Decision**: Focus exclusively on the single critical loop: Explore → Authenticate → Predict → Confirm → Score → Result → Rank.
+* **Rationale**: Advanced community features (private mini-leagues, live chat, betting odds, badges) are meaningless if predictions, scoring, or authentication are flaky. Stabilizing the core loop ensures weekend test readiness.

@@ -101,6 +101,8 @@ export interface Driver {
 
 export interface User {
   userId: string;
+  googleSubjectId?: string;
+  isNewUser?: boolean;
   email: string;
   displayName: string;
   username: string;
