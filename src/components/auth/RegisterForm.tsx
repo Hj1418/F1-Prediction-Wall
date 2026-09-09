@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { User } from '../../types';
 import { F1_DRIVERS_2026, F1_CONSTRUCTORS_2026 } from '../../services/mockData';
+import { api } from '../../services/apiClient';
 import { SocialAuthButton } from './SocialAuthButton';
+import { F1Select, F1SelectOption } from './F1Select';
 import {
   User as UserIcon,
   Flag,
@@ -17,9 +19,10 @@ import {
 
 interface RegisterFormProps {
   onSuccess: (user: User) => void;
+  onStepChange?: (step: 'signup' | 'identity') => void;
 }
 
-export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
+export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, onStepChange }) => {
   const { loginWithGoogle, updateProfile } = useAuth();
 
   const [signedInUser, setSignedInUser] = useState<User | null>(null);
@@ -28,9 +31,46 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
   const [favouriteDriver, setFavouriteDriver] = useState(F1_DRIVERS_2026[0].id);
   const [favouriteConstructor, setFavouriteConstructor] = useState(F1_CONSTRUCTORS_2026[0].id);
 
+  // Racer Tag validation & debounced availability state
+  const [usernameStatus, setUsernameStatus] = useState<'idle' | 'checking' | 'available' | 'unavailable' | 'invalid'>('idle');
+  const [usernameMessage, setUsernameMessage] = useState<string>('');
+
   const [error, setError] = useState<string | null>(null);
   const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
   const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
+
+  // Driver options formatted for dark F1Select
+  const driverOptions: F1SelectOption[] = useMemo(
+    () =>
+      F1_DRIVERS_2026.map(d => ({
+        value: d.id,
+        label: `${d.firstName} ${d.lastName}`,
+        badge: `#${d.number}`,
+        color: d.teamColor,
+        flag: d.countryFlag,
+      })),
+    []
+  );
+
+  // Constructor options formatted for dark F1Select
+  const constructorOptions: F1SelectOption[] = useMemo(
+    () =>
+      F1_CONSTRUCTORS_2026.map(c => ({
+        value: c.id,
+        label: c.name,
+        color: c.color,
+        flag: c.flag,
+      })),
+    []
+  );
+
+  // Inform parent of step change for dynamic header
+  useEffect(() => {
+    if (onStepChange) {
+      onStepChange(signedInUser ? 'identity' : 'signup');
+    }
+  }, [signedInUser, onStepChange]);
 
   const handleGoogleSignIn = async () => {
     setError(null);
@@ -39,12 +79,17 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
       const user = await loginWithGoogle();
       if (user) {
         if (user.isNewUser) {
-          // Present optional profile customization
+          // Present polished Racing Identity onboarding screen
           setSignedInUser(user);
           setDisplayName(user.displayName || '');
-          setUsername(user.username || '');
+          const initialTag = (user.username || '').toLowerCase();
+          setUsername(initialTag);
+          setUsernameStatus('available');
+          setUsernameMessage(`@${initialTag} is assigned to you`);
+          if (user.favouriteDriver) setFavouriteDriver(user.favouriteDriver);
+          if (user.favouriteConstructor) setFavouriteConstructor(user.favouriteConstructor);
         } else {
-          // Returning user goes directly to destination
+          // Returning user who already completed onboarding goes directly to destination
           onSuccess(user);
         }
       }
@@ -59,17 +104,90 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
     }
   };
 
+  // Debounced Racer Tag validation & server-authoritative uniqueness check
+  useEffect(() => {
+    if (!signedInUser) return;
+
+    const tag = username.trim().toLowerCase();
+
+    if (!tag) {
+      setUsernameStatus('invalid');
+      setUsernameMessage('Racer Tag is required');
+      return;
+    }
+
+    if (tag.length < 3) {
+      setUsernameStatus('invalid');
+      setUsernameMessage('Racer Tag must be at least 3 characters');
+      return;
+    }
+
+    if (tag.length > 20) {
+      setUsernameStatus('invalid');
+      setUsernameMessage('Racer Tag cannot exceed 20 characters');
+      return;
+    }
+
+    if (!/^[a-z0-9_]+$/.test(tag)) {
+      setUsernameStatus('invalid');
+      setUsernameMessage('Only lowercase letters, numbers, and underscores');
+      return;
+    }
+
+    // If tag matches what the backend already confirmed for this user
+    if (tag === (signedInUser.username || '').toLowerCase()) {
+      setUsernameStatus('available');
+      setUsernameMessage(`@${tag} is reserved for you`);
+      return;
+    }
+
+    setUsernameStatus('checking');
+    setUsernameMessage('Checking availability...');
+
+    const timer = setTimeout(async () => {
+      try {
+        const res = await api.checkUsername(tag, signedInUser.userId);
+        if (res.available) {
+          setUsernameStatus('available');
+          setUsernameMessage(`@${tag} is available`);
+        } else {
+          setUsernameStatus('unavailable');
+          setUsernameMessage(res.reason || 'This Racer Tag is already taken');
+        }
+      } catch (err) {
+        setUsernameStatus('unavailable');
+        setUsernameMessage('Could not verify availability');
+      }
+    }, 350);
+
+    return () => clearTimeout(timer);
+  }, [username, signedInUser]);
+
+  const handleUsernameChange = (val: string) => {
+    // Force lowercase and strip whitespace
+    const sanitized = val.toLowerCase().replace(/\s+/g, '');
+    setUsername(sanitized);
+  };
+
   const handleCompleteProfile = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!signedInUser) return;
+    if (!signedInUser || isUpdatingProfile || isSuccess) return;
+
+    if (usernameStatus === 'checking') return;
+    if (usernameStatus === 'invalid' || usernameStatus === 'unavailable') {
+      setError(usernameMessage || 'Please choose an available Racer Tag.');
+      return;
+    }
 
     setIsUpdatingProfile(true);
     setError(null);
 
     try {
-      const cleanUser = username.trim().toLowerCase().replace(/[^a-z0-9_]/g, '') || signedInUser.username;
+      const cleanUser = username.trim().toLowerCase();
+      const finalDisplayName = displayName.trim() || signedInUser.displayName;
+
       await updateProfile({
-        displayName: displayName.trim() || signedInUser.displayName,
+        displayName: finalDisplayName,
         username: cleanUser,
         favouriteDriver,
         favouriteConstructor,
@@ -77,32 +195,44 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
 
       const updatedUser: User = {
         ...signedInUser,
-        displayName: displayName.trim() || signedInUser.displayName,
+        displayName: finalDisplayName,
         username: cleanUser,
         favouriteDriver,
         favouriteConstructor,
       };
 
-      onSuccess(updatedUser);
+      setIsSuccess(true);
+      setTimeout(() => {
+        onSuccess(updatedUser);
+      }, 400);
     } catch (err: unknown) {
+      setIsUpdatingProfile(false);
       if (err instanceof Error) {
         setError(err.message);
       } else {
         setError('Failed to update profile preferences.');
       }
-    } finally {
-      setIsUpdatingProfile(false);
     }
   };
 
   const handleSkip = () => {
-    if (signedInUser) {
+    if (signedInUser && !isUpdatingProfile && !isSuccess) {
+      // Skipping does NOT destroy auth or log out; user finishes setup later
       onSuccess(signedInUser);
     }
   };
 
-  // STEP 2: Optional profile personalization after Google authentication
+  // =========================================================================
+  // STEP 2: Racing Identity Setup Screen (Post-Google Authentication)
+  // =========================================================================
   if (signedInUser) {
+    const isSubmitDisabled =
+      isUpdatingProfile ||
+      isSuccess ||
+      usernameStatus === 'checking' ||
+      usernameStatus === 'invalid' ||
+      usernameStatus === 'unavailable';
+
     return (
       <form className="auth-form" onSubmit={handleCompleteProfile} noValidate>
         {error && (
@@ -112,24 +242,21 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
           </div>
         )}
 
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.75rem',
-            padding: '0.85rem 1rem',
-            borderRadius: '8px',
-            background: 'rgba(16, 185, 129, 0.08)',
-            border: '1px solid rgba(16, 185, 129, 0.25)',
-            marginBottom: '1.25rem',
-            color: '#10b981',
-            fontSize: '0.84rem'
-          }}
-        >
-          <CheckCircle2 size={18} className="shrink-0" />
-          <span>
-            Google identity verified! Welcome, <strong>{signedInUser.email}</strong>. Customize your racer telemetry below or skip to start predicting.
+        {/* Subtle Google Confirmation Badge */}
+        <div className="auth-google-connected-pill">
+          <div className="auth-google-connected-left">
+            <CheckCircle2 size={16} />
+            <span>✓ Google account connected</span>
+          </div>
+          <span className="auth-google-connected-email" title={signedInUser.email}>
+            {signedInUser.email}
           </span>
+        </div>
+
+        {/* SECTION 1: YOUR PROFILE */}
+        <div className="auth-section-divider">
+          <span className="auth-section-title">Your Profile</span>
+          <div className="auth-section-line" />
         </div>
 
         {/* Display Name */}
@@ -146,8 +273,9 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
               placeholder="e.g. Alex Thorne"
               value={displayName}
               onChange={e => setDisplayName(e.target.value)}
-              disabled={isUpdatingProfile}
+              disabled={isUpdatingProfile || isSuccess}
               autoComplete="name"
+              maxLength={50}
             />
           </div>
         </div>
@@ -165,71 +293,104 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
               className="auth-input auth-input-has-prefix"
               placeholder="racer_handle"
               value={username}
-              onChange={e => setUsername(e.target.value)}
-              disabled={isUpdatingProfile}
+              onChange={e => handleUsernameChange(e.target.value)}
+              disabled={isUpdatingProfile || isSuccess}
               autoComplete="username"
+              maxLength={20}
             />
+            {usernameStatus === 'checking' && (
+              <Loader2
+                size={16}
+                className="auth-input-action-btn animate-spin"
+                style={{ color: '#94a3b8', pointerEvents: 'none' }}
+              />
+            )}
+            {usernameStatus === 'available' && (
+              <CheckCircle2
+                size={16}
+                className="auth-input-action-btn"
+                style={{ color: '#10b981', pointerEvents: 'none' }}
+              />
+            )}
+            {(usernameStatus === 'unavailable' || usernameStatus === 'invalid') && (
+              <AlertCircle
+                size={16}
+                className="auth-input-action-btn"
+                style={{ color: '#f87171', pointerEvents: 'none' }}
+              />
+            )}
           </div>
+          {usernameMessage && (
+            <div className={`auth-tag-status ${usernameStatus}`}>
+              {usernameStatus === 'available' && <span>✓ {usernameMessage}</span>}
+              {usernameStatus === 'checking' && <span>{usernameMessage}</span>}
+              {(usernameStatus === 'unavailable' || usernameStatus === 'invalid') && (
+                <span>⚠ {usernameMessage}</span>
+              )}
+            </div>
+          )}
         </div>
 
-        {/* Favourite Driver & Team */}
+        {/* SECTION 2: YOUR F1 PICKS */}
+        <div className="auth-section-divider" style={{ marginTop: '0.4rem' }}>
+          <span className="auth-section-title">Your F1 Picks</span>
+          <div className="auth-section-line" />
+        </div>
+
         <div className="auth-grid-2">
           <div className="auth-field-group">
             <label htmlFor="reg-fav-driver" className="auth-label">
-              <Flag size={14} className="inline mr-1" />
-              Allegiance Driver
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                <Flag size={13} style={{ color: '#e10600' }} />
+                Favourite Driver
+              </span>
             </label>
-            <select
+            <F1Select
               id="reg-fav-driver"
-              className="auth-select"
               value={favouriteDriver}
-              onChange={e => setFavouriteDriver(e.target.value)}
-              disabled={isUpdatingProfile}
-            >
-              {F1_DRIVERS_2026.map(driver => (
-                <option key={driver.id} value={driver.id}>
-                  {driver.firstName} {driver.lastName} (#{driver.number})
-                </option>
-              ))}
-            </select>
+              onChange={setFavouriteDriver}
+              options={driverOptions}
+              disabled={isUpdatingProfile || isSuccess}
+            />
           </div>
 
           <div className="auth-field-group">
             <label htmlFor="reg-fav-team" className="auth-label">
-              <Shield size={14} className="inline mr-1" />
-              Constructor Team
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                <Shield size={13} style={{ color: '#e10600' }} />
+                Favourite Constructor
+              </span>
             </label>
-            <select
+            <F1Select
               id="reg-fav-team"
-              className="auth-select"
               value={favouriteConstructor}
-              onChange={e => setFavouriteConstructor(e.target.value)}
-              disabled={isUpdatingProfile}
-            >
-              {F1_CONSTRUCTORS_2026.map(team => (
-                <option key={team.id} value={team.id}>
-                  {team.name}
-                </option>
-              ))}
-            </select>
+              onChange={setFavouriteConstructor}
+              options={constructorOptions}
+              disabled={isUpdatingProfile || isSuccess}
+            />
           </div>
         </div>
 
         {/* Action CTAs */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '1rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem', marginTop: '1.25rem' }}>
           <button
             type="submit"
             className="auth-submit-btn"
-            disabled={isUpdatingProfile}
+            disabled={isSubmitDisabled}
           >
             {isUpdatingProfile ? (
               <>
-                <Loader2 size={18} className="animate-spin" style={{ animation: 'spin 1s linear infinite' }} />
-                <span>SAVING TELEMETRY...</span>
+                <Loader2 size={18} className="animate-spin" />
+                <span>SAVING PROFILE...</span>
+              </>
+            ) : isSuccess ? (
+              <>
+                <CheckCircle2 size={18} />
+                <span>PROFILE CONFIRMED!</span>
               </>
             ) : (
               <>
-                <span>COMPLETE ONBOARDING</span>
+                <span>COMPLETE PROFILE</span>
                 <ArrowRight size={18} />
               </>
             )}
@@ -238,18 +399,19 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
           <button
             type="button"
             onClick={handleSkip}
-            className="btn btn-ghost"
-            style={{ width: '100%', fontSize: '0.85rem', color: '#94a3b8' }}
-            disabled={isUpdatingProfile}
+            className="auth-skip-btn"
+            disabled={isUpdatingProfile || isSuccess}
           >
-            Skip to Predictions →
+            Skip for now
           </button>
         </div>
       </form>
     );
   }
 
+  // =========================================================================
   // STEP 1: Primary Google Registration
+  // =========================================================================
   return (
     <div className="auth-form">
       {error && (

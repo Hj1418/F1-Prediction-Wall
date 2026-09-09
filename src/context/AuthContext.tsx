@@ -33,7 +33,7 @@ const AUTH_STATUS_KEY = 'f1_pred_auth_status';
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [allUsers, setAllUsers] = useState<User[]>(INITIAL_USERS);
+  const [allUsers, setAllUsers] = useState<User[]>(import.meta.env.PROD ? [] : INITIAL_USERS);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [isLoadingAuth, setIsLoadingAuth] = useState<boolean>(true);
@@ -97,7 +97,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // A session is VALID if and only if auth status is explicitly 'authenticated'
         // and savedUserId corresponds to an active registered user account.
         if (authStatus === 'authenticated' && savedUserId) {
-          const userList = users && users.length > 0 ? users : INITIAL_USERS;
+          const userList = users && users.length > 0 ? users : (import.meta.env.PROD ? [] : INITIAL_USERS);
           const match = userList.find(u => u.userId === savedUserId);
           if (match) {
             setCurrentUser(match);

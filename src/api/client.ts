@@ -1,6 +1,9 @@
 import { ApiResponse } from '../types';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || '';
+const PRODUCTION_API_URL =
+  'https://script.google.com/macros/s/AKfycbz_TmSvhPNdrTT9HCiCnViVY9dG-5ypZMfyWtp0d4XcjP25mJc7yW8VyawKaSI6LTF9/exec';
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || PRODUCTION_API_URL;
 
 export const isLiveBackend = Boolean(API_BASE_URL && API_BASE_URL.startsWith('http'));
 

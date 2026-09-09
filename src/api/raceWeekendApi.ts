@@ -20,6 +20,7 @@ export const raceWeekendApi = {
       const res = await apiClient<RaceWeekend>('action=getCurrentWeekend');
       if (res.success && res.data) return res.data;
     }
+    if (import.meta.env.PROD) return null;
     const all = await mockApi.getRaceWeekends();
     return all.find(w => w.status === 'ACTIVE') || all.find(w => w.status === 'UPCOMING') || all[0] || null;
   },
@@ -29,6 +30,7 @@ export const raceWeekendApi = {
       const res = await apiClient<RaceWeekend>('action=getUpcomingRace');
       if (res.success && res.data) return res.data;
     }
+    if (import.meta.env.PROD) return null;
     const all = await mockApi.getRaceWeekends();
     return all.find(w => w.status === 'UPCOMING') || all[0] || null;
   },
@@ -42,6 +44,7 @@ export const raceWeekendApi = {
       }
     }
     if (list.length === 0) {
+      if (import.meta.env.PROD) return [];
       list = await mockApi.getRaceWeekends();
     }
 

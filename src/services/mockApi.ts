@@ -401,7 +401,7 @@ export class MockApiService {
     const cleanEmail = payload.email.toLowerCase().trim();
     const match = this.users.find(u => u.email.toLowerCase() === cleanEmail);
     if (match) {
-      return { ...match };
+      return { ...match, isNewUser: false };
     }
 
     const baseUsername = cleanEmail.split('@')[0].replace(/[^a-z0-9_]/g, '') || 'racer';
@@ -431,11 +431,12 @@ export class MockApiService {
       exactP1Count: 0,
       perfectPodiumCount: 0,
       wildcardsCorrect: 0,
+      isNewUser: true,
     };
 
     this.users.push(newUser);
     this.persistAll();
-    return { ...newUser };
+    return { ...newUser, isNewUser: true };
   }
 
   public async registerUser(
@@ -483,6 +484,36 @@ export class MockApiService {
     return { ...newUser };
   }
 
+  public async checkUsername(rawUsername: string, excludeUserId?: string): Promise<{ available: boolean; reason?: string; username?: string }> {
+    if (!rawUsername || typeof rawUsername !== 'string') {
+      return { available: false, reason: 'Racer Tag is required.' };
+    }
+    const cleanUsername = rawUsername.trim().toLowerCase();
+    if (cleanUsername.length < 3 || cleanUsername.length > 20) {
+      return { available: false, reason: 'Racer Tag must be between 3 and 20 characters.' };
+    }
+    if (!/^[a-z0-9_]+$/.test(cleanUsername)) {
+      return { available: false, reason: 'Racer Tag can only contain lowercase letters, numbers, and underscores.' };
+    }
+    const reserved = [
+      'admin', 'administrator', 'system', 'f1', 'fia', 'root', 'official',
+      'predictionbench', 'support', 'help', 'null', 'undefined', 'moderator',
+      'staff', 'api', 'bot', 'security', 'guest'
+    ];
+    if (reserved.includes(cleanUsername)) {
+      return { available: false, reason: 'This Racer Tag is reserved.' };
+    }
+    const exclude = excludeUserId ? excludeUserId.trim().toLowerCase() : '';
+    const exists = this.users.some(u => {
+      if (exclude && u.userId.toLowerCase() === exclude) return false;
+      return (u.username || '').toLowerCase() === cleanUsername;
+    });
+    if (exists) {
+      return { available: false, reason: 'This Racer Tag is already taken.' };
+    }
+    return { available: true, username: cleanUsername };
+  }
+
   public async updateUser(userId: string, updates: Partial<User>): Promise<User> {
     const idx = this.users.findIndex(u => u.userId === userId);
     if (idx < 0) throw new Error('User not found');
@@ -490,6 +521,18 @@ export class MockApiService {
     const safeUpdates = { ...updates };
     delete safeUpdates.role;
     delete safeUpdates.userId;
+
+    if (safeUpdates.username !== undefined) {
+      const avail = await this.checkUsername(safeUpdates.username, userId);
+      if (!avail.available) {
+        throw new Error(avail.reason || 'Invalid or unavailable Racer Tag');
+      }
+      safeUpdates.username = avail.username;
+    }
+
+    if (safeUpdates.displayName !== undefined) {
+      safeUpdates.displayName = safeUpdates.displayName.trim();
+    }
 
     this.users[idx] = { ...this.users[idx], ...safeUpdates };
     this.persistAll();

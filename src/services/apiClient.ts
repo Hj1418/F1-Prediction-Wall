@@ -13,10 +13,18 @@ import {
 } from '../types';
 import { mockApi } from './mockApi';
 
-const API_BASE_URL =
-  (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL) || '';
+const isTestEnv = typeof window === 'undefined';
 
-export const isLiveBackend = Boolean(API_BASE_URL && API_BASE_URL.startsWith('http'));
+const PRODUCTION_API_URL =
+  'https://script.google.com/macros/s/AKfycbz_TmSvhPNdrTT9HCiCnViVY9dG-5ypZMfyWtp0d4XcjP25mJc7yW8VyawKaSI6LTF9/exec';
+
+const API_BASE_URL =
+  (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL) ||
+  (typeof window !== 'undefined' ? PRODUCTION_API_URL : '');
+
+export const isLiveBackend = Boolean(API_BASE_URL && API_BASE_URL.startsWith('http') && !isTestEnv);
+
+const isProd = typeof import.meta !== 'undefined' && Boolean(import.meta.env?.PROD);
 
 export const api = {
   isLive: isLiveBackend,
@@ -69,52 +77,56 @@ export const api = {
   },
 
   async getWeekendById(id: string): Promise<RaceWeekend | null> {
-    if (!isLiveBackend) return mockApi.getWeekendById(id);
-    try {
-      const res = await fetch(`${API_BASE_URL}?action=getWeekendDetails&raceWeekendId=${encodeURIComponent(id)}`);
-      const json: ApiResponse<RaceWeekend> = await res.json();
-      if (json.success && json.data) return json.data;
-      return mockApi.getWeekendById(id);
-    } catch (e) {
-      return mockApi.getWeekendById(id);
+    if (isLiveBackend) {
+      try {
+        const res = await fetch(`${API_BASE_URL}?action=getWeekendDetails&raceWeekendId=${encodeURIComponent(id)}`);
+        const json: ApiResponse<RaceWeekend> = await res.json();
+        if (json.success && json.data) return json.data;
+      } catch (e) {
+        console.error('Live API getWeekendById failed:', e);
+      }
     }
+    return isProd ? null : mockApi.getWeekendById(id);
   },
 
   async getPredictionRounds(raceWeekendId?: string): Promise<PredictionRound[]> {
-    if (!isLiveBackend) return mockApi.getPredictionRounds(raceWeekendId);
-    try {
-      const url = `${API_BASE_URL}?action=getPredictionRounds${raceWeekendId ? `&raceWeekendId=${encodeURIComponent(raceWeekendId)}` : ''}`;
-      const res = await fetch(url);
-      const json: ApiResponse<PredictionRound[]> = await res.json();
-      if (json.success && json.data) return json.data;
-      return mockApi.getPredictionRounds(raceWeekendId);
-    } catch (e) {
-      return mockApi.getPredictionRounds(raceWeekendId);
+    if (isLiveBackend) {
+      try {
+        const url = `${API_BASE_URL}?action=getPredictionRounds${raceWeekendId ? `&raceWeekendId=${encodeURIComponent(raceWeekendId)}` : ''}`;
+        const res = await fetch(url);
+        const json: ApiResponse<PredictionRound[]> = await res.json();
+        if (json.success && json.data) return json.data;
+      } catch (e) {
+        console.error('Live API getPredictionRounds failed:', e);
+      }
     }
+    return isProd ? [] : mockApi.getPredictionRounds(raceWeekendId);
   },
 
   async getPredictionRoundById(roundId: string): Promise<PredictionRound | null> {
-    if (!isLiveBackend) return mockApi.getPredictionRoundById(roundId);
-    try {
-      const res = await fetch(`${API_BASE_URL}?action=getPredictionRound&roundId=${encodeURIComponent(roundId)}`);
-      const json: ApiResponse<PredictionRound> = await res.json();
-      if (json.success && json.data) return json.data;
-      return mockApi.getPredictionRoundById(roundId);
-    } catch (e) {
-      return mockApi.getPredictionRoundById(roundId);
+    if (isLiveBackend) {
+      try {
+        const res = await fetch(`${API_BASE_URL}?action=getPredictionRound&roundId=${encodeURIComponent(roundId)}`);
+        const json: ApiResponse<PredictionRound> = await res.json();
+        if (json.success && json.data) return json.data;
+      } catch (e) {
+        console.error('Live API getPredictionRoundById failed:', e);
+      }
     }
+    return isProd ? null : mockApi.getPredictionRoundById(roundId);
   },
 
   async getUserPrediction(roundId: string, userId: string): Promise<Prediction | null> {
-    if (!isLiveBackend) return mockApi.getUserPrediction(roundId, userId);
-    try {
-      const res = await fetch(`${API_BASE_URL}?action=getUserPrediction&roundId=${encodeURIComponent(roundId)}&userId=${encodeURIComponent(userId)}`);
-      const json: ApiResponse<Prediction> = await res.json();
-      if (json.success && json.data) return json.data;
-      return mockApi.getUserPrediction(roundId, userId);
-    } catch (e) {
-      return mockApi.getUserPrediction(roundId, userId);
+    if (isLiveBackend) {
+      try {
+        const res = await fetch(`${API_BASE_URL}?action=getUserPrediction&roundId=${encodeURIComponent(roundId)}&userId=${encodeURIComponent(userId)}`);
+        const json: ApiResponse<Prediction> = await res.json();
+        if (json.success && json.data) return json.data;
+      } catch (e) {
+        console.error('Live API getUserPrediction failed:', e);
+      }
     }
+    return isProd ? null : mockApi.getUserPrediction(roundId, userId);
   },
 
   async submitPrediction(payload: {
@@ -122,11 +134,14 @@ export const api = {
     roundId: string;
     predictionData: Record<string, any>;
   }): Promise<Prediction> {
+    if (!isLiveBackend && isProd) {
+      throw new Error('Live database connection is required for predictions.');
+    }
     if (!isLiveBackend) return mockApi.submitPrediction(payload);
     try {
       const res = await fetch(`${API_BASE_URL}?action=submitPrediction`, {
         method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // Apps Script preferred Content-Type for CORS
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify({ action: 'submitPrediction', ...payload }),
       });
       const json: ApiResponse<Prediction> = await res.json();
@@ -139,32 +154,43 @@ export const api = {
   },
 
   async getOfficialResult(roundId: string): Promise<SessionResult | null> {
-    if (!isLiveBackend) return mockApi.getOfficialResult(roundId);
-    try {
-      const res = await fetch(`${API_BASE_URL}?action=getRoundResults&roundId=${encodeURIComponent(roundId)}`);
-      const json: ApiResponse<SessionResult> = await res.json();
-      if (json.success && json.data) return json.data;
-      return mockApi.getOfficialResult(roundId);
-    } catch (e) {
-      return mockApi.getOfficialResult(roundId);
+    if (isLiveBackend) {
+      try {
+        const res = await fetch(`${API_BASE_URL}?action=getRoundResults&roundId=${encodeURIComponent(roundId)}`);
+        const json: ApiResponse<SessionResult> = await res.json();
+        if (json.success && json.data) return json.data;
+      } catch (e) {
+        console.error('Live API getOfficialResult failed:', e);
+      }
     }
+    return isProd ? null : mockApi.getOfficialResult(roundId);
   },
 
   async getRoundScore(roundId: string, userId: string): Promise<RoundScore | null> {
-    return mockApi.getRoundScore(roundId, userId);
+    if (isLiveBackend) {
+      try {
+        const res = await fetch(`${API_BASE_URL}?action=getRoundScore&roundId=${encodeURIComponent(roundId)}&userId=${encodeURIComponent(userId)}`);
+        const json: ApiResponse<RoundScore> = await res.json();
+        if (json.success && json.data) return json.data;
+      } catch (e) {
+        console.error('Live API getRoundScore failed:', e);
+      }
+    }
+    return isProd ? null : mockApi.getRoundScore(roundId, userId);
   },
 
   async getLeaderboard(type: 'season' | 'weekend' | 'round', id?: string): Promise<LeaderboardEntry[]> {
-    if (!isLiveBackend) return mockApi.getLeaderboard(type, id);
-    try {
-      const url = `${API_BASE_URL}?action=getLeaderboard&type=${type}${id ? `&id=${encodeURIComponent(id)}` : ''}`;
-      const res = await fetch(url);
-      const json: ApiResponse<LeaderboardEntry[]> = await res.json();
-      if (json.success && json.data) return json.data;
-      return mockApi.getLeaderboard(type, id);
-    } catch (e) {
-      return mockApi.getLeaderboard(type, id);
+    if (isLiveBackend) {
+      try {
+        const url = `${API_BASE_URL}?action=getLeaderboard&type=${type}${id ? `&id=${encodeURIComponent(id)}` : ''}`;
+        const res = await fetch(url);
+        const json: ApiResponse<LeaderboardEntry[]> = await res.json();
+        if (json.success && json.data) return json.data;
+      } catch (e) {
+        console.error('Live API getLeaderboard failed:', e);
+      }
     }
+    return isProd ? [] : mockApi.getLeaderboard(type, id);
   },
 
   async getUserProfile(usernameOrId: string): Promise<User | null> {
@@ -177,7 +203,7 @@ export const api = {
         console.warn('Live API getUserProfile failed, checking fallback:', e);
       }
     }
-    return mockApi.getUserProfile(usernameOrId);
+    return isProd ? null : mockApi.getUserProfile(usernameOrId);
   },
 
   async getUserAchievements(userId: string): Promise<Achievement[]> {
@@ -190,7 +216,7 @@ export const api = {
         console.warn('Live API getUserAchievements failed, checking fallback:', e);
       }
     }
-    return mockApi.getUserAchievements(userId);
+    return isProd ? [] : mockApi.getUserAchievements(userId);
   },
 
   async getUserPredictionsHistory(userId: string) {
@@ -203,7 +229,7 @@ export const api = {
         console.warn('Live API getUserPredictionsHistory failed, checking fallback:', e);
       }
     }
-    return mockApi.getUserPredictionsHistory(userId);
+    return isProd ? [] : mockApi.getUserPredictionsHistory(userId);
   },
 
   async getAllUsers(): Promise<User[]> {
@@ -218,7 +244,7 @@ export const api = {
         console.warn('Live API getAllUsers failed, checking fallback:', e);
       }
     }
-    return mockApi.getAllUsers();
+    return isProd ? [] : mockApi.getAllUsers();
   },
 
   async getAdminUsers(requesterId: string): Promise<User[]> {
@@ -235,10 +261,16 @@ export const api = {
         throw e;
       }
     }
+    if (isProd) {
+      throw new Error('Live database required for admin directory.');
+    }
     return mockApi.getAdminUsers(requesterId);
   },
 
   async googleLogin(payload: { email: string; displayName?: string; photoUrl?: string; accessToken?: string }): Promise<User> {
+    if (!isLiveBackend && isProd) {
+      throw new Error('Live database connection is required for Google authentication.');
+    }
     if (isLiveBackend) {
       try {
         const res = await fetch(`${API_BASE_URL}?action=googleLogin`, {
@@ -258,6 +290,9 @@ export const api = {
   },
 
   async loginUser(identifier: string, passwordHash?: string): Promise<User> {
+    if (!isLiveBackend && isProd) {
+      throw new Error('Live database connection is required for login.');
+    }
     if (isLiveBackend) {
       try {
         const res = await fetch(`${API_BASE_URL}?action=loginUser`, {
@@ -277,6 +312,9 @@ export const api = {
   },
 
   async registerUser(userData: any): Promise<User> {
+    if (!isLiveBackend && isProd) {
+      throw new Error('Live database connection is required for registration.');
+    }
     if (!isLiveBackend) return mockApi.registerUser(userData);
     try {
       const res = await fetch(`${API_BASE_URL}?action=registerUser`, {
@@ -294,6 +332,9 @@ export const api = {
   },
 
   async updateUser(userId: string, updates: Partial<User>): Promise<User> {
+    if (!isLiveBackend && isProd) {
+      throw new Error('Live database connection is required for profile updates.');
+    }
     if (!isLiveBackend) return mockApi.updateUser(userId, updates);
     try {
       const res = await fetch(`${API_BASE_URL}?action=updateUser`, {
@@ -308,6 +349,27 @@ export const api = {
       console.error('Live API updateUser failed:', e);
       throw e;
     }
+  },
+
+  async checkUsername(username: string, excludeUserId?: string): Promise<{ available: boolean; reason?: string; username?: string }> {
+    if (isLiveBackend) {
+      try {
+        const url = `${API_BASE_URL}?action=checkUsernameAvailability&username=${encodeURIComponent(username)}${excludeUserId ? `&userId=${encodeURIComponent(excludeUserId)}` : ''}`;
+        const res = await fetch(url);
+        const json = await res.json();
+        if (json.success && json.data) return json.data;
+        return { available: false, reason: json.message || 'Racer Tag check failed' };
+      } catch (e: any) {
+        console.error('Live API checkUsername failed:', e);
+        if (isProd) {
+          return { available: false, reason: 'Live database connection failed. Please retry.' };
+        }
+      }
+    }
+    if (isProd) {
+      return { available: false, reason: 'Live database connection required.' };
+    }
+    return mockApi.checkUsername(username, excludeUserId);
   },
 
   // Admin Methods

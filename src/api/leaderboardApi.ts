@@ -9,6 +9,6 @@ export const leaderboardApi = {
       const res = await apiClient<LeaderboardEntry[]>(url);
       if (res.success && res.data) return res.data;
     }
-    return mockApi.getLeaderboard(type, id);
+    return import.meta.env.PROD ? [] : mockApi.getLeaderboard(type, id);
   },
 };

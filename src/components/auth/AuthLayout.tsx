@@ -20,29 +20,8 @@ export const AuthLayout: React.FC<AuthLayoutProps> = ({
       {/* Grid line overlay */}
       <div className="auth-grid-overlay" aria-hidden="true" />
 
-      {/* Subtle background circuit SVG watermark */}
-      <svg
-        className="auth-circuit-bg"
-        viewBox="0 0 800 600"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-        aria-hidden="true"
-      >
-        <path
-          d="M 100,300 C 120,200 200,100 350,120 C 500,140 650,80 700,200 C 750,320 680,480 550,520 C 420,560 300,500 220,480 C 140,460 80,400 100,300 Z"
-          stroke="currentColor"
-          strokeWidth="3"
-          strokeDasharray="8 6"
-        />
-        <path
-          d="M 180,300 C 200,230 260,170 380,180 C 500,190 580,150 620,240 C 660,330 600,430 500,450 C 400,470 300,430 240,410 C 180,390 160,360 180,300 Z"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          opacity="0.6"
-        />
-        <circle cx="700" cy="200" r="8" fill="#e10600" opacity="0.6" />
-        <circle cx="220" cy="480" r="6" fill="#e10600" opacity="0.4" />
-      </svg>
+      {/* Subtle top telemetry glow */}
+      <div className="auth-telemetry-glow" aria-hidden="true" />
 
       <div className="auth-container">
         <header className="auth-header">

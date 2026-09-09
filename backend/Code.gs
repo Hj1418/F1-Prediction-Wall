@@ -103,6 +103,13 @@ function doGet(e) {
       case 'getNotificationQueueStatus':
         responseData = getNotificationQueueStatus();
         break;
+      case 'checkUsernameAvailability':
+      case 'checkUsername':
+        responseData = checkUsernameAvailability(e.parameter.username, e.parameter.userId || e.parameter.excludeUserId);
+        break;
+      case 'getRoundScore':
+        responseData = getRoundScore(e.parameter.roundId, e.parameter.userId);
+        break;
       default:
         return createJsonResponse({
           success: false,
@@ -852,7 +859,29 @@ function getRoundResults(roundId) {
   return null;
 }
 
+function getRoundScore(roundId, userId) {
+  if (!roundId || !userId) return null;
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(SHEET_NAMES.SCORES);
+  if (!sheet) return null;
+  const rows = sheet.getDataRange().getValues();
+  for (let i = 1; i < rows.length; i++) {
+    if (String(rows[i][1]) === String(userId) && String(rows[i][2]) === String(roundId)) {
+      return {
+        scoreId: rows[i][0],
+        userId: rows[i][1],
+        roundId: rows[i][2],
+        breakdown: JSON.parse(rows[i][3] || '{}'),
+        totalScore: Number(rows[i][4] || 0),
+        calculatedAt: rows[i][5]
+      };
+    }
+  }
+  return null;
+}
+
 function getLeaderboard(type, id) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
   const users = getAllUsers();
   const usersMap = {};
   for (let i = 0; i < users.length; i++) {
@@ -1473,6 +1502,62 @@ function registerUser(payload) {
   }
 }
 
+const RESERVED_USERNAMES = [
+  'admin', 'administrator', 'system', 'f1', 'fia', 'root', 'official',
+  'predictionbench', 'support', 'help', 'null', 'undefined', 'moderator',
+  'staff', 'api', 'bot', 'security', 'guest'
+];
+
+function checkUsernameAvailability(rawUsername, excludeUserId) {
+  if (!rawUsername || typeof rawUsername !== 'string') {
+    return { available: false, reason: 'Racer Tag is required.' };
+  }
+  const cleanUsername = rawUsername.trim().toLowerCase();
+  if (cleanUsername.length < 3 || cleanUsername.length > 20) {
+    return { available: false, reason: 'Racer Tag must be between 3 and 20 characters.' };
+  }
+  if (!/^[a-z0-9_]+$/.test(cleanUsername)) {
+    return { available: false, reason: 'Racer Tag can only contain lowercase letters, numbers, and underscores.' };
+  }
+  if (RESERVED_USERNAMES.indexOf(cleanUsername) !== -1) {
+    return { available: false, reason: 'This Racer Tag is reserved.' };
+  }
+
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(SHEET_NAMES.USERS);
+  if (!sheet) {
+    return { available: true, username: cleanUsername };
+  }
+
+  const rows = sheet.getDataRange().getValues();
+  if (rows.length <= 1) {
+    return { available: true, username: cleanUsername };
+  }
+
+  const headers = rows[0] || [];
+  let uCol = 3;
+  let uidCol = 0;
+  for (let c = 0; c < headers.length; c++) {
+    const h = String(headers[c]).trim();
+    if (h === 'username') uCol = c;
+    if (h === 'userId') uidCol = c;
+  }
+
+  const exclude = excludeUserId ? String(excludeUserId).trim().toLowerCase() : '';
+  for (let i = 1; i < rows.length; i++) {
+    const rowUid = String(rows[i][uidCol] || '').trim().toLowerCase();
+    if (exclude && rowUid === exclude) {
+      continue;
+    }
+    const rowUser = String(rows[i][uCol] || '').trim().toLowerCase();
+    if (rowUser === cleanUsername) {
+      return { available: false, reason: 'This Racer Tag is already taken.' };
+    }
+  }
+
+  return { available: true, username: cleanUsername };
+}
+
 function updateUser(payload) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName(SHEET_NAMES.USERS);
@@ -1489,12 +1574,25 @@ function updateUser(payload) {
     colMap[String(headers[c]).trim()] = c;
   }
 
+  // If updating username, perform strict validation & uniqueness check
+  let cleanUsername = null;
+  if (updates.username !== undefined) {
+    const availability = checkUsernameAvailability(updates.username, userId);
+    if (!availability.available) {
+      throw new Error(availability.reason || 'Invalid or unavailable Racer Tag.');
+    }
+    cleanUsername = availability.username;
+  }
+
   for (let i = 1; i < rows.length; i++) {
     const uid = colMap['userId'] !== undefined ? rows[i][colMap['userId']] : rows[i][0];
     if (uid === userId) {
       const rowIdx = i + 1;
+      if (cleanUsername !== null && colMap['username'] !== undefined) {
+        sheet.getRange(rowIdx, colMap['username'] + 1).setValue(cleanUsername);
+      }
       if (updates.displayName !== undefined && colMap['displayName'] !== undefined) {
-        sheet.getRange(rowIdx, colMap['displayName'] + 1).setValue(updates.displayName);
+        sheet.getRange(rowIdx, colMap['displayName'] + 1).setValue(String(updates.displayName).trim());
       }
       if (updates.avatarUrl !== undefined && colMap['avatarUrl'] !== undefined) {
         sheet.getRange(rowIdx, colMap['avatarUrl'] + 1).setValue(updates.avatarUrl);
@@ -1508,7 +1606,10 @@ function updateUser(payload) {
       if (updates.bio !== undefined && colMap['bio'] !== undefined) {
         sheet.getRange(rowIdx, colMap['bio'] + 1).setValue(updates.bio);
       }
-      return { success: true, userId: userId };
+
+      // Return authoritative fresh user profile
+      const updatedProfile = getUserProfile(userId);
+      return updatedProfile || { success: true, userId: userId };
     }
   }
   throw new Error('User not found in database');
