@@ -12,15 +12,10 @@ import {
   Calendar,
   Zap,
   Trophy,
-  Gauge,
-  Clock,
   ChevronRight,
   BookOpen,
   MapPin,
-  Flag,
   Crown,
-  Timer,
-  Sliders,
   LogIn,
   ExternalLink,
   MapPinOff,
@@ -28,14 +23,17 @@ import {
 
 export const HomePage: React.FC = () => {
   const { dataVersion } = useApp();
-  const { currentUser, isAuthenticated, setAuthModalOpen } = useAuth();
+  const { isAuthenticated, setAuthModalOpen } = useAuth();
   const [activeWeekend, setActiveWeekend] = useState<RaceWeekend | null>(null);
   const [circuitImgError, setCircuitImgError] = useState(false);
-  const [activeRounds, setActiveRounds] = useState<PredictionRound[]>([]);
   const [currentRound, setCurrentRound] = useState<PredictionRound | null>(null);
   const [seasonLeaderboard, setSeasonLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    document.title = 'The Grid | The F1 Community Hub';
+  }, []);
 
   useEffect(() => {
     async function loadHomeData() {
@@ -59,8 +57,6 @@ export const HomePage: React.FC = () => {
 
         if (currentW) {
           const rounds = await api.getPredictionRounds(currentW.raceWeekendId);
-          setActiveRounds(rounds);
-
           const openR =
             rounds.find(r => r.status === 'OPEN') ||
             rounds.find(r => r.status === 'UPCOMING') ||
@@ -116,6 +112,327 @@ export const HomePage: React.FC = () => {
 
   return (
     <div className="homepage-root" style={{ paddingBottom: '4rem' }}>
+      {/* 0. THE GRID PLATFORM HERO & FOUR PILLARS */}
+      <section
+        style={{
+          background: 'radial-gradient(ellipse at 50% -10%, rgba(225, 6, 0, 0.22) 0%, var(--bg-base) 70%)',
+          borderBottom: '1px solid var(--border-subtle)',
+          padding: '3.5rem 0 2.5rem 0',
+          position: 'relative',
+          overflow: 'hidden',
+        }}
+      >
+        <div className="container" style={{ textAlign: 'center', position: 'relative', zIndex: 1 }}>
+          {/* Top pill badge */}
+          <div
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              padding: '0.35rem 0.9rem',
+              borderRadius: '9999px',
+              background: 'rgba(225, 6, 0, 0.12)',
+              border: '1px solid rgba(225, 6, 0, 0.35)',
+              color: 'var(--f1-red)',
+              fontSize: '0.74rem',
+              fontWeight: 800,
+              letterSpacing: '0.12em',
+              textTransform: 'uppercase',
+              marginBottom: '1rem',
+              fontFamily: 'var(--font-mono)',
+            }}
+          >
+            <span className="live-pulse" />
+            <span>THE F1 COMMUNITY HUB</span>
+          </div>
+
+          <h1
+            style={{
+              fontSize: 'clamp(2.4rem, 5vw, 3.8rem)',
+              fontWeight: 900,
+              letterSpacing: '-0.03em',
+              lineHeight: 1.1,
+              margin: '0 0 0.75rem 0',
+              color: '#ffffff',
+            }}
+          >
+            THE GRID
+          </h1>
+
+          <p
+            style={{
+              fontSize: 'clamp(1rem, 2vw, 1.25rem)',
+              color: 'var(--text-secondary)',
+              maxWidth: '680px',
+              margin: '0 auto 1.25rem auto',
+              lineHeight: 1.5,
+              fontWeight: 500,
+            }}
+          >
+            Your place to learn, follow, explore and experience Formula 1.
+          </p>
+
+          {/* Core product loop pill */}
+          <div
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexWrap: 'wrap',
+              gap: '0.5rem',
+              background: 'rgba(255, 255, 255, 0.04)',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: '30px',
+              padding: '0.4rem 1.1rem',
+              marginBottom: '2rem',
+              fontSize: '0.78rem',
+              fontFamily: 'var(--font-mono)',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            <span style={{ color: '#fff', fontWeight: 700 }}>Learn</span>
+            <span style={{ color: 'var(--f1-red)' }}>→</span>
+            <span style={{ color: '#fff', fontWeight: 700 }}>Understand</span>
+            <span style={{ color: 'var(--f1-red)' }}>→</span>
+            <span style={{ color: '#fff', fontWeight: 700 }}>Predict</span>
+            <span style={{ color: 'var(--f1-red)' }}>→</span>
+            <span style={{ color: '#fff', fontWeight: 700 }}>Compete</span>
+            <span style={{ color: 'var(--f1-red)' }}>→</span>
+            <span style={{ color: 'var(--telemetry-green, #00e676)', fontWeight: 700 }}>Learn More</span>
+          </div>
+
+          {/* Dual CTAs */}
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem', flexWrap: 'wrap', marginBottom: '2.75rem' }}>
+            <Link
+              to="/learn"
+              className="btn btn-secondary"
+              style={{
+                padding: '0.85rem 1.6rem',
+                fontSize: '0.95rem',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.55rem',
+                borderRadius: '8px',
+                border: '1px solid var(--border-medium)',
+              }}
+            >
+              <BookOpen size={18} />
+              <span>Explore Learn F1</span>
+            </Link>
+
+            <Link
+              to={currentRound ? `/predict/${currentRound.roundId}` : '/predictions'}
+              className="btn btn-primary"
+              style={{
+                padding: '0.85rem 1.6rem',
+                fontSize: '0.95rem',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.55rem',
+                borderRadius: '8px',
+              }}
+            >
+              <Zap size={18} />
+              <span>Enter Prediction Bench</span>
+            </Link>
+          </div>
+
+          {/* The Four Pillars Grid */}
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+              gap: '1rem',
+              textAlign: 'left',
+            }}
+          >
+            {/* Pillar 1: LEARN */}
+            <Link
+              to="/learn"
+              style={{
+                textDecoration: 'none',
+                background: 'var(--bg-surface)',
+                border: '1px solid var(--border-subtle)',
+                borderRadius: '12px',
+                padding: '1.25rem',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.6rem',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div
+                  style={{
+                    width: '36px',
+                    height: '36px',
+                    borderRadius: '8px',
+                    background: 'rgba(56, 189, 248, 0.12)',
+                    color: '#38bdf8',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <BookOpen size={18} />
+                </div>
+                <span style={{ fontSize: '0.7rem', fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#38bdf8', letterSpacing: '0.08em' }}>
+                  PILLAR 01
+                </span>
+              </div>
+              <div>
+                <h3 style={{ fontSize: '1.05rem', fontWeight: 900, margin: '0 0 0.25rem 0', color: '#fff' }}>
+                  LEARN
+                </h3>
+                <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '0.35rem' }}>
+                  Understand how F1 works.
+                </div>
+                <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: 0, lineHeight: 1.45 }}>
+                  Technical regulations, Active Aero (X-Mode & Z-Mode), 2026 Hybrid Power Units (400 kW ICE + 350 kW MGU-K), and tyre strategies.
+                </p>
+              </div>
+            </Link>
+
+            {/* Pillar 2: FOLLOW */}
+            <Link
+              to="/weekends"
+              style={{
+                textDecoration: 'none',
+                background: 'var(--bg-surface)',
+                border: '1px solid var(--border-subtle)',
+                borderRadius: '12px',
+                padding: '1.25rem',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.6rem',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div
+                  style={{
+                    width: '36px',
+                    height: '36px',
+                    borderRadius: '8px',
+                    background: 'rgba(34, 197, 94, 0.12)',
+                    color: '#00e676',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Calendar size={18} />
+                </div>
+                <span style={{ fontSize: '0.7rem', fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#00e676', letterSpacing: '0.08em' }}>
+                  PILLAR 02
+                </span>
+              </div>
+              <div>
+                <h3 style={{ fontSize: '1.05rem', fontWeight: 900, margin: '0 0 0.25rem 0', color: '#fff' }}>
+                  FOLLOW
+                </h3>
+                <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '0.35rem' }}>
+                  Stay on top of race weekends.
+                </div>
+                <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: 0, lineHeight: 1.45 }}>
+                  Real-time countdown clocks, local session timetables (Practice, Qualifying, Sprint, and Race), and live event status.
+                </p>
+              </div>
+            </Link>
+
+            {/* Pillar 3: EXPLORE */}
+            <Link
+              to="/circuits"
+              style={{
+                textDecoration: 'none',
+                background: 'var(--bg-surface)',
+                border: '1px solid var(--border-subtle)',
+                borderRadius: '12px',
+                padding: '1.25rem',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.6rem',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div
+                  style={{
+                    width: '36px',
+                    height: '36px',
+                    borderRadius: '8px',
+                    background: 'rgba(168, 85, 247, 0.12)',
+                    color: '#c084fc',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <MapPin size={18} />
+                </div>
+                <span style={{ fontSize: '0.7rem', fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#c084fc', letterSpacing: '0.08em' }}>
+                  PILLAR 03
+                </span>
+              </div>
+              <div>
+                <h3 style={{ fontSize: '1.05rem', fontWeight: 900, margin: '0 0 0.25rem 0', color: '#fff' }}>
+                  EXPLORE
+                </h3>
+                <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '0.35rem' }}>
+                  Discover circuits, drivers and teams.
+                </div>
+                <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: 0, lineHeight: 1.45 }}>
+                  Inspect all 24 world circuits, 11 constructors (including Cadillac), 22 race seats, and rich track telemetry.
+                </p>
+              </div>
+            </Link>
+
+            {/* Pillar 4: COMPETE */}
+            <Link
+              to="/predictions"
+              style={{
+                textDecoration: 'none',
+                background: 'var(--bg-surface)',
+                border: '1px solid var(--border-subtle)',
+                borderRadius: '12px',
+                padding: '1.25rem',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.6rem',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div
+                  style={{
+                    width: '36px',
+                    height: '36px',
+                    borderRadius: '8px',
+                    background: 'rgba(234, 179, 8, 0.12)',
+                    color: '#eab308',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Trophy size={18} />
+                </div>
+                <span style={{ fontSize: '0.7rem', fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#eab308', letterSpacing: '0.08em' }}>
+                  PILLAR 04
+                </span>
+              </div>
+              <div>
+                <h3 style={{ fontSize: '1.05rem', fontWeight: 900, margin: '0 0 0.25rem 0', color: '#fff' }}>
+                  COMPETE
+                </h3>
+                <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '0.35rem' }}>
+                  Predict via Prediction Bench.
+                </div>
+                <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: 0, lineHeight: 1.45 }}>
+                  Lock in your podium and pole predictions, battle friends on the leaderboard, and build your motorsport legacy.
+                </p>
+              </div>
+            </Link>
+          </div>
+        </div>
+      </section>
+
       {/* 1. RACE STATUS HEADER BANNER */}
       <section
         style={{
@@ -382,7 +699,62 @@ export const HomePage: React.FC = () => {
         </section>
       )}
 
-      {/* 4. CIRCUIT SNAPSHOT & TELEMETRY */}
+      {/* 4. LEARN F1 EDUCATIONAL TEASER */}
+      <section className="container" style={{ marginTop: '3rem' }}>
+        <div
+          style={{
+            background: 'linear-gradient(135deg, rgba(225, 6, 0, 0.08) 0%, var(--bg-surface) 100%)',
+            border: '1px solid rgba(225, 6, 0, 0.25)',
+            borderRadius: '16px',
+            padding: '2rem',
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+            gap: '2rem',
+            alignItems: 'center',
+          }}
+        >
+          <div>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', color: 'var(--f1-red)', fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.4rem' }}>
+              <BookOpen size={15} />
+              <span>LEARN F1 ACADEMY</span>
+            </div>
+            <h2 style={{ fontSize: '1.7rem', fontWeight: 900, color: '#fff', margin: '0 0 0.5rem', lineHeight: 1.25 }}>
+              Master the Rules, Strategy & Formats
+            </h2>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.92rem', lineHeight: 1.55, margin: '0 0 1.25rem' }}>
+              Whether you are a newcomer or a seasoned race fan, explore our comprehensive guides to knockout qualifying, Pirelli tire compound strategies, official flag rules, and 2026 technical regulations freely without needing an account.
+            </p>
+            <Link
+              to="/learn"
+              className="btn btn-primary"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1.25rem' }}
+            >
+              <BookOpen size={16} /> Explore Learn F1
+            </Link>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.75rem' }}>
+            <div style={{ background: 'var(--bg-base)', border: '1px solid var(--border-subtle)', borderRadius: '8px', padding: '1rem' }}>
+              <div style={{ fontWeight: 800, fontSize: '0.85rem', color: '#fff', marginBottom: '0.2rem' }}>Weekend Anatomy</div>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.75rem', margin: 0 }}>Standard 3-practice vs Sprint 1-practice formats.</p>
+            </div>
+            <div style={{ background: 'var(--bg-base)', border: '1px solid var(--border-subtle)', borderRadius: '8px', padding: '1rem' }}>
+              <div style={{ fontWeight: 800, fontSize: '0.85rem', color: '#fff', marginBottom: '0.2rem' }}>Knockout Qualifying</div>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.75rem', margin: 0 }}>Q1, Q2, and Q3 progression to Pole Position.</p>
+            </div>
+            <div style={{ background: 'var(--bg-base)', border: '1px solid var(--border-subtle)', borderRadius: '8px', padding: '1rem' }}>
+              <div style={{ fontWeight: 800, fontSize: '0.85rem', color: '#fff', marginBottom: '0.2rem' }}>Tyres & Strategy</div>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.75rem', margin: 0 }}>Soft, Medium, Hard compounds, Undercut vs Overcut.</p>
+            </div>
+            <div style={{ background: 'var(--bg-base)', border: '1px solid var(--border-subtle)', borderRadius: '8px', padding: '1rem' }}>
+              <div style={{ fontWeight: 800, fontSize: '0.85rem', color: '#fff', marginBottom: '0.2rem' }}>Motorsport Glossary</div>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.75rem', margin: 0 }}>Demystifying 50+ technical concepts and jargon.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 5. EXPLORE THE SPORT — CIRCUIT SNAPSHOT & TELEMETRY */}
       {circuitMeta && (
         <section className="container" style={{ marginTop: '3rem' }}>
           <div
@@ -396,7 +768,7 @@ export const HomePage: React.FC = () => {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.5rem' }}>
               <div>
                 <div style={{ fontSize: '0.72rem', fontWeight: 800, color: 'var(--f1-red)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-                  CIRCUIT SNAPSHOT
+                  EXPLORE THE SPORT • CIRCUIT SNAPSHOT
                 </div>
                 <h2 style={{ fontSize: '1.4rem', fontWeight: 800, margin: '0.2rem 0 0', color: '#fff' }}>
                   {circuitMeta.name}
@@ -541,10 +913,10 @@ export const HomePage: React.FC = () => {
                   </p>
                   <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', marginTop: '0.35rem', paddingTop: '0.45rem', borderTop: '1px solid var(--border-subtle)' }}>
                     <Link to="/learn" style={{ fontSize: '0.74rem', color: '#58a6ff', textDecoration: 'none', fontWeight: 700 }}>
-                      • Learn: DRS & Low-Downforce Aero →
+                      • Learn: Low-Downforce Aero &amp; X-Mode →
                     </Link>
                     <Link to="/learn" style={{ fontSize: '0.74rem', color: '#58a6ff', textDecoration: 'none', fontWeight: 700 }}>
-                      • Learn: Heavy Braking & Tyres →
+                      • Learn: Heavy Braking &amp; ERS Recovery →
                     </Link>
                     <a
                       href={circuitMeta.officialCircuitUrl || 'https://www.formula1.com/en/racing/2026.html'}
@@ -562,61 +934,6 @@ export const HomePage: React.FC = () => {
           </div>
         </section>
       )}
-
-      {/* 5. LEARN F1 EDUCATIONAL TEASER */}
-      <section className="container" style={{ marginTop: '3rem' }}>
-        <div
-          style={{
-            background: 'linear-gradient(135deg, rgba(225, 6, 0, 0.08) 0%, var(--bg-surface) 100%)',
-            border: '1px solid rgba(225, 6, 0, 0.25)',
-            borderRadius: '16px',
-            padding: '2rem',
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
-            gap: '2rem',
-            alignItems: 'center',
-          }}
-        >
-          <div>
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', color: 'var(--f1-red)', fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.4rem' }}>
-              <BookOpen size={15} />
-              <span>LEARN F1 ACADEMY</span>
-            </div>
-            <h2 style={{ fontSize: '1.7rem', fontWeight: 900, color: '#fff', margin: '0 0 0.5rem', lineHeight: 1.25 }}>
-              Master the Rules, Strategy & Formats
-            </h2>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.92rem', lineHeight: 1.55, margin: '0 0 1.25rem' }}>
-              Whether you are a newcomer or a seasoned race fan, explore our comprehensive guides to knockout qualifying, Pirelli tire compound strategies, official flag rules, and Parc Fermé sporting regulations.
-            </p>
-            <Link
-              to="/learn"
-              className="btn btn-primary"
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1.25rem' }}
-            >
-              <BookOpen size={16} /> Explore Learn F1
-            </Link>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.75rem' }}>
-            <div style={{ background: 'var(--bg-base)', border: '1px solid var(--border-subtle)', borderRadius: '8px', padding: '1rem' }}>
-              <div style={{ fontWeight: 800, fontSize: '0.85rem', color: '#fff', marginBottom: '0.2rem' }}>Weekend Anatomy</div>
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.75rem', margin: 0 }}>Standard 3-practice vs Sprint 1-practice formats.</p>
-            </div>
-            <div style={{ background: 'var(--bg-base)', border: '1px solid var(--border-subtle)', borderRadius: '8px', padding: '1rem' }}>
-              <div style={{ fontWeight: 800, fontSize: '0.85rem', color: '#fff', marginBottom: '0.2rem' }}>Knockout Qualifying</div>
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.75rem', margin: 0 }}>Q1, Q2, and Q3 progression to Pole Position.</p>
-            </div>
-            <div style={{ background: 'var(--bg-base)', border: '1px solid var(--border-subtle)', borderRadius: '8px', padding: '1rem' }}>
-              <div style={{ fontWeight: 800, fontSize: '0.85rem', color: '#fff', marginBottom: '0.2rem' }}>Tyres & Strategy</div>
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.75rem', margin: 0 }}>Soft, Medium, Hard compounds, Undercut vs Overcut.</p>
-            </div>
-            <div style={{ background: 'var(--bg-base)', border: '1px solid var(--border-subtle)', borderRadius: '8px', padding: '1rem' }}>
-              <div style={{ fontWeight: 800, fontSize: '0.85rem', color: '#fff', marginBottom: '0.2rem' }}>Motorsport Glossary</div>
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.75rem', margin: 0 }}>Demystifying 50+ technical concepts and jargon.</p>
-            </div>
-          </div>
-        </div>
-      </section>
 
       {/* 6. COMMUNITY / LEADERBOARD & PREDICTION PROMPT */}
       <section className="container" style={{ marginTop: '3rem' }}>
@@ -683,7 +1000,12 @@ export const HomePage: React.FC = () => {
                         {idx + 1}
                       </div>
 
-                      <UserInitialsAvatar name={player.displayName} size={34} showBorder={false} />
+                      <UserInitialsAvatar
+                        name={player.displayName}
+                        imageUrl={player.avatarUrl}
+                        size={34}
+                        showBorder={false}
+                      />
 
                       <div>
                         <div style={{ fontWeight: 800, fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
@@ -710,18 +1032,23 @@ export const HomePage: React.FC = () => {
             </div>
           </div>
 
-          {/* Predict & Compete Prompt Card */}
+          {/* Prediction Bench Competition Card */}
           <div className="race-card" style={{ padding: '1.75rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
                 <Trophy size={20} color="var(--f1-red)" />
-                <h3 style={{ fontSize: '1.25rem', fontWeight: 900, textTransform: 'uppercase', margin: 0 }}>
-                  Predict & Compete
-                </h3>
+                <div>
+                  <div style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--f1-red)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                    INTERACTIVE COMPETITION
+                  </div>
+                  <h3 style={{ fontSize: '1.25rem', fontWeight: 900, textTransform: 'uppercase', margin: 0 }}>
+                    PREDICTION BENCH
+                  </h3>
+                </div>
               </div>
 
               <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', lineHeight: 1.5, marginBottom: '1.25rem' }}>
-                Test your motorsport knowledge across every Grand Prix. Pick the Pole Sitter, Podium Finishers (P1, P2, P3), and Fastest Lap before sessions lock.
+                Prediction Bench is The Grid's interactive prediction engine. Test your strategy foresight: pick the Pole Sitter, Podium Finishers (P1, P2, P3), and Fastest Lap before sessions lock.
               </p>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.82rem', marginBottom: '1.5rem' }}>
@@ -746,7 +1073,7 @@ export const HomePage: React.FC = () => {
                 className="btn btn-primary"
                 style={{ width: '100%', justifyContent: 'center', padding: '0.8rem', fontSize: '0.9rem' }}
               >
-                <Zap size={16} /> Enter This Weekend's Picks
+                <Zap size={16} /> Enter Prediction Bench
               </Link>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>

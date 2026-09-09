@@ -10,6 +10,10 @@ export const WeekendsPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    document.title = '2026 Race Calendar & Weekends | The Grid';
+  }, []);
+
+  useEffect(() => {
     async function loadWeekends() {
       try {
         setLoading(true);

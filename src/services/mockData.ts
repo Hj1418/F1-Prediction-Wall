@@ -22,6 +22,7 @@ export const F1_CONSTRUCTORS_2026: Constructor[] = [
   { id: 'alpine', name: 'Alpine', color: '#0093cc', country: 'France', flag: '🇫🇷', powerUnit: 'Renault' },
   { id: 'sauber_audi', name: 'Sauber / Audi', color: '#52e252', country: 'Switzerland', flag: '🇨🇭', powerUnit: 'Audi' },
   { id: 'haas', name: 'Haas', color: '#b6babd', country: 'United States', flag: '🇺🇸', powerUnit: 'Ferrari' },
+  { id: 'cadillac', name: 'Cadillac', color: '#c5a059', country: 'United States', flag: '🇺🇸', powerUnit: 'Ferrari' },
 ];
 
 export const F1_DRIVERS_2026: Driver[] = [
@@ -244,6 +245,28 @@ export const F1_DRIVERS_2026: Driver[] = [
     teamColor: '#b6babd',
     country: 'United Kingdom',
     countryFlag: '🇬🇧',
+  },
+  {
+    id: 'perez',
+    code: 'PER',
+    firstName: 'Sergio',
+    lastName: 'Pérez',
+    number: 11,
+    team: 'Cadillac',
+    teamColor: '#c5a059',
+    country: 'Mexico',
+    countryFlag: '🇲🇽',
+  },
+  {
+    id: 'bottas',
+    code: 'BOT',
+    firstName: 'Valtteri',
+    lastName: 'Bottas',
+    number: 77,
+    team: 'Cadillac',
+    teamColor: '#c5a059',
+    country: 'Finland',
+    countryFlag: '🇫🇮',
   },
 ];
 

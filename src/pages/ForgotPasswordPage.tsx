@@ -11,7 +11,7 @@ export const ForgotPasswordPage: React.FC = () => {
   const [isSending, setIsSending] = useState(false);
 
   useEffect(() => {
-    document.title = 'Reset Passkey | F1 Community Prediction Wall';
+    document.title = 'Reset Password | The Grid';
   }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -34,13 +34,13 @@ export const ForgotPasswordPage: React.FC = () => {
 
   return (
     <AuthLayout
-      badgeText="Security & Credentials"
+      badgeText="Account Security"
       title={
         <>
-          Reset <span>Passkey</span>
+          Reset <span>Password</span>
         </>
       }
-      subtitle="Enter the email associated with your racer profile to receive a telemetry passkey recovery token."
+      subtitle="Enter the email associated with your racer profile to receive a password reset link."
     >
       <AuthCard>
         {isSubmitted ? (

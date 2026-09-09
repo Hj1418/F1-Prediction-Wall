@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import {
   MapPin,
@@ -50,6 +50,10 @@ export const CircuitsPage: React.FC = () => {
     const mapping = CIRCUIT_SOURCE_MAPPING[activeCircuit.circuitId];
     return getCircuitAssetUrl(mapping ? mapping.assetFile : `${activeCircuit.circuitId}.svg`);
   }, [activeCircuit]);
+
+  useEffect(() => {
+    document.title = `${activeCircuit.name} | Circuits Directory • The Grid`;
+  }, [activeCircuit.name]);
 
   return (
     <div className="circuits-page" style={{ maxWidth: '1280px', margin: '0 auto', padding: '2rem 1rem 4rem' }}>

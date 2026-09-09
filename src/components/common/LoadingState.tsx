@@ -7,7 +7,7 @@ interface LoadingStateProps {
 }
 
 export const LoadingState: React.FC<LoadingStateProps> = ({
-  message = 'ACQUIRING PIT WALL TELEMETRY...',
+  message = 'ACQUIRING TELEMETRY...',
   className = '',
   minHeight = '300px',
 }) => {

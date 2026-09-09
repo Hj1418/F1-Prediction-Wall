@@ -6,6 +6,7 @@ import { Navbar } from './components/common/Navbar';
 import { Footer } from './components/common/Footer';
 import { ToastContainer } from './components/common/ToastContainer';
 import { AuthModal } from './components/common/AuthModal';
+import { OnboardingModal } from './components/auth/OnboardingModal';
 
 import { HomePage } from './pages/HomePage';
 import { WeekendsPage } from './pages/WeekendsPage';
@@ -56,6 +57,7 @@ export const App: React.FC = () => {
             <Footer />
             <ToastContainer />
             <AuthModal />
+            <OnboardingModal />
           </div>
         </HashRouter>
       </AuthProvider>

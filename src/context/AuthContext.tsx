@@ -17,6 +17,8 @@ interface AuthContextType {
   authModalMode: 'login' | 'register';
   intendedRoute: string | null;
   setIntendedRoute: (route: string | null) => void;
+  onboardingUser: User | null;
+  setOnboardingUser: (user: User | null) => void;
   openLoginModal: (redirectRoute?: string) => void;
   openRegisterModal: (redirectRoute?: string) => void;
   login: (identifier: string, password?: string) => Promise<void>;
@@ -40,6 +42,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isAuthModalOpen, setAuthModalOpen] = useState(false);
   const [authModalMode, setAuthModalMode] = useState<'login' | 'register'>('login');
   const [intendedRoute, setIntendedRoute] = useState<string | null>(null);
+  const [onboardingUser, setOnboardingUser] = useState<User | null>(null);
 
   const refreshUsers = async () => {
     try {
@@ -191,6 +194,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.setItem(AUTH_STATUS_KEY, 'authenticated');
     localStorage.setItem(CURRENT_USER_KEY, user.userId);
     setAuthModalOpen(false);
+
+    // Only first-time users (isNewUser: true) trigger the lightweight Welcome to The Grid modal
+    if (user.isNewUser) {
+      setOnboardingUser(user);
+    }
+
     await refreshUsers();
     return user;
   };
@@ -198,6 +207,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = () => {
     setCurrentUser(null);
     setIsAuthenticated(false);
+    setOnboardingUser(null);
     localStorage.removeItem(AUTH_STATUS_KEY);
     localStorage.removeItem(CURRENT_USER_KEY);
   };
@@ -228,6 +238,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         authModalMode,
         intendedRoute,
         setIntendedRoute,
+        onboardingUser,
+        setOnboardingUser,
         openLoginModal,
         openRegisterModal,
         login,

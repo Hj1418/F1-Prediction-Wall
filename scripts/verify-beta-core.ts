@@ -135,7 +135,7 @@ class MockAppsScriptBackend {
       email,
       displayName,
       'WELCOME',
-      'Welcome to Prediction Bench',
+      'Welcome to The Grid 🏁',
       { userId, displayName },
       'WELCOME:' + userId
     );

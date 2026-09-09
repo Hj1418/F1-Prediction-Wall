@@ -1331,7 +1331,7 @@ function googleLogin(payload) {
         email,
         resolvedDisplayName,
         'WELCOME',
-        'Welcome to Prediction Bench',
+        'Welcome to The Grid 🏁',
         {
           userId: userId,
           displayName: resolvedDisplayName,
@@ -1806,9 +1806,9 @@ function processNotificationQueue(batchLimit) {
         const nowIso = new Date().toISOString();
 
         // Standardized subject formatting
-        let subject = rows[i][4] || 'Prediction Bench Notification';
+        let subject = rows[i][4] || 'The Grid Notification';
         if (type === 'WELCOME') {
-          subject = 'Welcome to Prediction Bench';
+          subject = 'Welcome to The Grid 🏁';
         } else if (type === 'PREDICTION_CONFIRMATION' || type === 'PREDICTION_SUBMITTED') {
           subject = 'Prediction Locked In — ' + (data.roundTitle || 'Race Session');
         } else if (type === 'RACE_RESULTS' || type === 'PREDICTION_RESULT') {
@@ -1847,21 +1847,21 @@ function processNotificationQueue(batchLimit) {
             }
             body += '\nHead over to the Leaderboard to view your updated global championship rank!\n';
           } else if (type === 'WELCOME') {
-            body += 'Welcome to Prediction Bench — The Formula 1 Community Prediction League!\n\n';
-            body += 'We are thrilled to have you on the grid. Here is everything you need to know to get started:\n\n';
-            body += '🏎️ RACE WEEKENDS & CIRCUIT TELEMETRY\n';
-            body += 'Explore all 24 Grand Prix circuits with real-time countdowns, session schedules (Sprint & Grand Prix formats), and circuit history.\n\n';
-            body += '🎯 STRATEGY PREDICTIONS\n';
-            body += 'Lock in your podium predictions (P1, P2, P3), Fastest Lap, Driver of the Day, Safety Car, and Red Flag calls before each session deadline.\n\n';
-            body += '🏆 CHAMPIONSHIP LEADERBOARD\n';
-            body += 'Earn points based on official race results, climb the global season standings, and compete for pole position in the community!\n\n';
+            body += 'Welcome to The Grid — your home for learning, following, and experiencing Formula 1.\n\n';
+            body += 'We are thrilled to have you join our motorsport community. Here is what you can do on The Grid:\n\n';
+            body += '📚 LEARN FORMULA 1\n';
+            body += 'Explore comprehensive breakdowns of F1 rules, 2026 technical regulations (Active Aero X-Mode/Z-Mode, 400 kW ICE + 350 kW MGU-K hybrid power units, and Overtake Mode), tyre strategy, and racing terminology.\n\n';
+            body += '🏎️ FOLLOW RACE WEEKENDS\n';
+            body += 'Stay on top of all 24 Grand Prix circuits with real-time countdown timers, local session timetables (Practice, Qualifying, Sprint, and Race), and circuit telemetry.\n\n';
+            body += '🏁 PREDICTION BENCH & COMMUNITY COMPETITION\n';
+            body += 'Put your strategy knowledge to the test. Lock in your picks for Pole Position, Podium Finishers (P1, P2, P3), and Fastest Lap before sessions begin, score points, and climb the season leaderboard!\n\n';
             body += 'Good luck on the grid, and may your strategy lead you to the podium!\n';
           }
-          body += '\nWarm regards,\nPrediction Bench Team\nhttps://hj1418.github.io/F1-Prediction-Wall/';
+          body += '\nWarm regards,\nThe Grid Team\nhttps://hj1418.github.io/F1-Prediction-Wall/';
 
           MailApp.sendEmail({
             to: email,
-            name: 'Prediction Bench',
+            name: 'The Grid',
             subject: subject,
             body: body
           });
@@ -1991,19 +1991,19 @@ function setupEmailWorkerTrigger() {
  */
 function testSendWelcomeEmail(targetEmail) {
   const recipient = targetEmail || 'thepaddockprediction14@gmail.com';
-  const subject = 'Welcome to Prediction Bench';
+  const subject = 'Welcome to The Grid 🏁';
   const body = 'Hi Racer,\n\n' +
-    'Welcome to Prediction Bench — The 2026 Formula 1 Community Prediction League!\n\n' +
-    'You are officially registered. Before every Grand Prix weekend:\n' +
-    '1. Browse live circuit telemetry and session schedules\n' +
-    '2. Lock in your predictions before the session deadline\n' +
-    '3. Compete with racers worldwide on the global leaderboard\n\n' +
-    '— Prediction Bench Team\n' +
+    'Welcome to The Grid — your home for learning, following, and experiencing Formula 1.\n\n' +
+    'You are officially registered. On The Grid you can:\n' +
+    '1. Learn F1 rules, 2026 regulations (Active Aero X-Mode/Z-Mode & 400 kW ICE + 350 kW MGU-K), and strategy\n' +
+    '2. Follow live circuit telemetry and session schedules across all 24 Grand Prix weekends\n' +
+    '3. Compete in Prediction Bench and battle on the global championship leaderboard\n\n' +
+    '— The Grid Team\n' +
     'https://hj1418.github.io/F1-Prediction-Wall/';
 
   MailApp.sendEmail({
     to: recipient,
-    name: 'Prediction Bench',
+    name: 'The Grid',
     subject: subject,
     body: body
   });

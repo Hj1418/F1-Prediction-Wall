@@ -46,12 +46,14 @@ export const WeekendDashboardPage: React.FC = () => {
 
         if (found) {
           setWeekend(found);
+          document.title = `${found.raceName} Weekend Hub | The Grid`;
           const rList = await api.getPredictionRounds(found.raceWeekendId);
           setRounds(rList);
         } else {
           try {
             const w = await api.getWeekendById(routeParam);
             setWeekend(w);
+            if (w) document.title = `${w.raceName} Weekend Hub | The Grid`;
             const rList = await api.getPredictionRounds(routeParam);
             setRounds(rList);
           } catch (e) {

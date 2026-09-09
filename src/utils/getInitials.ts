@@ -1,26 +1,38 @@
 /**
- * Generates up to 2 uppercase initials from a person's display name.
+ * Generates dynamic 1-character uppercase avatar initial from a person's display name.
+ * Rules:
+ * - Trim whitespace.
+ * - Use the first meaningful character of the display name.
+ * - Return exactly ONE character.
+ * - Convert to uppercase.
+ * - Safe fallback "U" if missing or empty.
+ * - Does NOT modify stored displayName or persist to database.
+ *
  * Examples:
- *   "Harsh Jalnekar" -> "HJ"
- *   "Alex Turner"    -> "AT"
- *   "Max"            -> "M"
- *   ""               -> "U"
+ *   "Harsh Jalnekar"   -> "H"
+ *   "Alex Thorne"      -> "A"
+ *   "max verstappen"   -> "M"
+ *   " Lewis Hamilton " -> "L"
+ *   ""                 -> "U"
  */
-export const getInitials = (name?: string | null): string => {
-  if (!name) return 'U';
+export const getAvatarInitial = (displayName?: string | null): string => {
+  if (!displayName) return 'U';
 
-  const cleaned = name.trim();
+  const cleaned = displayName.trim();
   if (!cleaned) return 'U';
 
-  const parts = cleaned.split(/\s+/).filter(Boolean);
-  if (parts.length >= 2) {
-    return (parts[0].charAt(0) + parts[1].charAt(0)).toUpperCase();
-  }
+  // Find first alphanumeric character; fall back to the first non-whitespace char
+  const match = cleaned.match(/[a-zA-Z0-9]/);
+  const char = match ? match[0] : cleaned.charAt(0);
 
-  if (parts.length === 1) {
-    const single = parts[0];
-    return (single.length >= 2 ? single.slice(0, 2) : single).toUpperCase();
-  }
-
-  return 'U';
+  return (char || 'U').toUpperCase();
 };
+
+/**
+ * Backward-compatible alias for getAvatarInitial.
+ * Strictly guarantees a single uppercase initial is returned.
+ */
+export const getInitials = (name?: string | null): string => {
+  return getAvatarInitial(name);
+};
+

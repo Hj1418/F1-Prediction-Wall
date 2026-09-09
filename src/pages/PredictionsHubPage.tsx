@@ -32,6 +32,10 @@ export const PredictionsHubPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    document.title = 'Prediction Bench | The Grid';
+  }, []);
+
+  useEffect(() => {
     async function loadHubData() {
       try {
         setLoading(true);
@@ -85,13 +89,13 @@ export const PredictionsHubPage: React.FC = () => {
       {/* Header */}
       <div style={{ marginBottom: '2.5rem' }}>
         <div style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--f1-red)', letterSpacing: '0.12em', textTransform: 'uppercase' }}>
-          COMMUNITY PREDICTION LEAGUE
+          THE GRID • INTERACTIVE COMPETITION
         </div>
         <h1 style={{ fontSize: '2.25rem', fontWeight: 900, textTransform: 'uppercase', marginTop: '0.2rem' }}>
-          Predictions Hub
+          Prediction Bench
         </h1>
         <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginTop: '0.3rem' }}>
-          Predict qualifying and race outcomes, check session deadlines, and review your points.
+          Prediction Bench is The Grid's interactive competition layer. Put your strategy foresight to the test: pick the Pole Sitter, Podium Finishers (P1, P2, P3), and Fastest Lap before sessions lock to earn points and climb the championship leaderboard.
         </p>
       </div>
 

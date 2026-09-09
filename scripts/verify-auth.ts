@@ -23,11 +23,11 @@ async function runTests() {
 
   // Test 1: Initials Generation
   console.log('Testing Initials Avatar Logic:');
-  assert(getInitials('Harsh Jalnekar') === 'HJ', 'Harsh Jalnekar -> HJ');
-  assert(getInitials('Alex Thorne') === 'AT', 'Alex Thorne -> AT');
-  assert(getInitials('Max Verstappen') === 'MV', 'Max Verstappen -> MV');
-  assert(getInitials('Charles Leclerc') === 'CL', 'Charles Leclerc -> CL');
-  assert(getInitials('Lewis') === 'LE', 'Single word Lewis -> LE');
+  assert(getInitials('Harsh Jalnekar') === 'H', 'Harsh Jalnekar -> H');
+  assert(getInitials('Alex Thorne') === 'A', 'Alex Thorne -> A');
+  assert(getInitials('Max Verstappen') === 'M', 'Max Verstappen -> M');
+  assert(getInitials('Charles Leclerc') === 'C', 'Charles Leclerc -> C');
+  assert(getInitials('Lewis') === 'L', 'Single word Lewis -> L');
   assert(getInitials('') === 'U', 'Empty string -> U');
 
   // Test 2: Password hashing

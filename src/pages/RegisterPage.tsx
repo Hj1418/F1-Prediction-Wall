@@ -23,8 +23,8 @@ export const RegisterPage: React.FC = () => {
 
   useEffect(() => {
     document.title = step === 'identity'
-      ? 'Racing Identity Setup | F1 Prediction Wall'
-      : 'Join the League | F1 Community Prediction Wall';
+      ? 'Racing Identity Setup | The Grid'
+      : 'Join The Grid | The F1 Community Hub';
   }, [step]);
 
   const handleRegistrationSuccess = (user: User) => {
@@ -34,7 +34,7 @@ export const RegisterPage: React.FC = () => {
 
   return (
     <AuthLayout
-      badgeText={step === 'identity' ? 'FIA Superlicense • Step 2 of 2' : 'FIA Superlicense Registration'}
+      badgeText={step === 'identity' ? 'Racing Identity • The Grid' : 'THE GRID • F1 COMMUNITY HUB'}
       title={
         step === 'identity' ? (
           <>
@@ -42,14 +42,14 @@ export const RegisterPage: React.FC = () => {
           </>
         ) : (
           <>
-            Join The <span>League</span>
+            Join The <span>Grid</span>
           </>
         )
       }
       subtitle={
         step === 'identity'
-          ? 'Customize your paddock callsign and constructor allegiance for the 2026 season.'
-          : 'Create your driver profile, pick your constructor allegiance, and compete against Formula 1 fans worldwide.'
+          ? 'Customize your paddock callsign and constructor allegiance.'
+          : 'Create your member profile, pick your constructor allegiance, and join the global motorsport community.'
       }
     >
       <AuthCard>

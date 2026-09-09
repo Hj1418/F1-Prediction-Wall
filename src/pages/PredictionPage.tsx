@@ -63,6 +63,7 @@ export const PredictionPage: React.FC = () => {
         setDrivers(dList);
 
         if (r) {
+          document.title = `${r.title || 'Prediction Entry'} | Prediction Bench • The Grid`;
           const [w, existingPred, res, score] = await Promise.all([
             api.getWeekendById(r.raceWeekendId),
             currentUser ? api.getUserPrediction(r.roundId, currentUser.userId) : Promise.resolve(null),
@@ -253,6 +254,7 @@ export const PredictionPage: React.FC = () => {
                   >
                     <UserInitialsAvatar
                       name={currentUser.displayName}
+                      imageUrl={currentUser.avatarUrl}
                       size={18}
                       showBorder={false}
                     />
@@ -293,7 +295,7 @@ export const PredictionPage: React.FC = () => {
                     letterSpacing: '0.08em',
                   }}
                 >
-                  {weekend?.raceName.toUpperCase()} • {round.roundType.replace('_', ' ')}
+                  THE GRID • PREDICTION BENCH • {weekend?.raceName.toUpperCase()} • {round.roundType.replace('_', ' ')}
                 </span>
                 <StatusBadge status={round.status} />
               </div>

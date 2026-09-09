@@ -25,6 +25,16 @@ interface GlossaryTerm {
 
 const GLOSSARY_TERMS: GlossaryTerm[] = [
   {
+    term: 'Active Aerodynamics (X-Mode & Z-Mode)',
+    category: 'Technical',
+    definition: '2026 movable wing system replacing traditional DRS. Straight mode (X-Mode) minimizes drag on straights for efficiency; Corner mode (Z-Mode) maximizes downforce through corners.',
+  },
+  {
+    term: 'Overtake Mode / Manual Override',
+    category: 'Technical',
+    definition: 'The 2026 electrical passing assist. When an attacking car is within 1.000s of a rival at the activation point, the driver receives an additional 0.5 MJ of MGU-K electrical boost up to 337 km/h.',
+  },
+  {
     term: 'Apex',
     category: 'Driving',
     definition: 'The innermost point of a corner trajectory where the car is closest to the inside kerb before unwinding steering lock to accelerate.',
@@ -35,14 +45,14 @@ const GLOSSARY_TERMS: GlossaryTerm[] = [
     definition: 'The radio instruction from race engineer to driver instructing them to enter the pit lane this lap for a pit stop.',
   },
   {
-    term: 'DRS (Drag Reduction System)',
+    term: 'DRS (Drag Reduction System — Legacy)',
     category: 'Technical',
-    definition: 'A hydraulic actuator that opens a flap in the rear wing when within 1.000s of the car ahead in designated zones, reducing aerodynamic drag and boosting top speed by 15-25 km/h.',
+    definition: 'Historical aerodynamic flap system used through 2025. In 2026, traditional DRS has been replaced by Active Aero (energy efficiency for all cars) and Overtake Mode (electrical boost for attackers).',
   },
   {
     term: 'Parc Fermé',
     category: 'Rules',
-    definition: 'Strict impound conditions beginning at the start of qualifying. Teams are prohibited from altering car setup, suspension geometry, or aerodynamics without FIA approval, with limited exceptions like front wing angle adjustments and tire pressure.',
+    definition: 'Strict impound conditions beginning at the start of qualifying. Teams are prohibited from altering car setup, suspension geometry, or aerodynamics without FIA approval.',
   },
   {
     term: 'Undercut',
@@ -75,24 +85,28 @@ const GLOSSARY_TERMS: GlossaryTerm[] = [
     definition: 'A localized patch of rubber scraped flat when a wheel locks under heavy braking, inducing severe steering vibration and requiring premature pit stops.',
   },
   {
-    term: 'ERS (Energy Recovery System)',
+    term: 'ERS (Energy Recovery System — 2026)',
     category: 'Technical',
-    definition: 'The hybrid powertrain component harvesting heat energy (MGU-H) and kinetic braking energy (MGU-K) into an energy store, providing supplementary electric boost.',
+    definition: 'The 2026 hybrid powertrain recovery system. Feeds an advanced 350 kW MGU-K motor by harvesting up to 8.5 MJ/lap of kinetic braking energy into the energy store (with MGU-H eliminated).',
   },
   {
     term: 'Track Limits',
     category: 'Rules',
-    definition: 'Defined by the white lines bordering the circuit surface. If all four wheels cross completely over the white boundary, lap times are deleted in practice/qualifying, and race warnings/penalties are applied.',
+    definition: 'Defined by the white lines bordering the circuit surface. If all four wheels cross completely over the white boundary, lap times are deleted and warnings/penalties are applied.',
   },
 ];
 
 export const LearnPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<
-    'overview' | 'weekend' | 'qualifying' | 'officials' | 'flags' | 'tyres' | 'drs' | 'points' | 'glossary'
+    'overview' | 'weekend' | 'qualifying' | 'aero' | 'overtake' | 'powerunit' | 'tyres' | 'flags' | 'officials' | 'points' | 'glossary'
   >('overview');
   const [weekendFormat, setWeekendFormat] = useState<'standard' | 'sprint'>('standard');
   const [glossaryFilter, setGlossaryFilter] = useState('');
   const [glossaryCategory, setGlossaryCategory] = useState<string>('all');
+
+  React.useEffect(() => {
+    document.title = 'Learn F1 | The Grid Academy';
+  }, []);
 
   const filteredGlossary = GLOSSARY_TERMS.filter(item => {
     const matchesSearch =
@@ -265,7 +279,9 @@ export const LearnPage: React.FC = () => {
   const officialsTopic = getTopic('officials');
   const flagsTopic = getTopic('flags');
   const tyresTopic = getTopic('tyres');
-  const drsTopic = getTopic('drs');
+  const activeAeroTopic = getTopic('active-aero');
+  const overtakeTopic = getTopic('overtake-mode');
+  const powerUnitTopic = getTopic('power-unit');
   const pointsTopic = getTopic('points');
 
   return (
@@ -274,13 +290,13 @@ export const LearnPage: React.FC = () => {
       <header style={{ marginBottom: '2rem', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '1.5rem' }}>
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', color: 'var(--f1-red)', fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.5rem' }}>
           <BookOpen size={16} />
-          <span>F1 ACADEMY & TECHNICAL GUIDE</span>
+          <span>F1 ACADEMY & 2026 TECHNICAL GUIDE</span>
         </div>
         <h1 style={{ fontSize: '2.4rem', fontWeight: 900, letterSpacing: '-0.02em', margin: 0, color: 'var(--text-primary)' }}>
           Understanding Formula 1
         </h1>
         <p style={{ color: 'var(--text-secondary)', fontSize: '1.05rem', marginTop: '0.5rem', maxWidth: '820px', lineHeight: 1.5 }}>
-          We explain the fundamentals so you can follow any Grand Prix with confidence. For official rulebooks, editorial analysis, and authoritative FIA decisions, direct links to official publications are provided throughout.
+          We explain the fundamentals so you can follow any Grand Prix with confidence. For authoritative rulebooks, technical specifications, and official FIA decisions, direct links to current official publications are provided throughout.
         </p>
       </header>
 
@@ -290,11 +306,13 @@ export const LearnPage: React.FC = () => {
           { id: 'overview', label: 'The Championship', icon: Trophy },
           { id: 'weekend', label: 'Weekend Anatomy', icon: Timer },
           { id: 'qualifying', label: 'Knockout Qualifying', icon: Zap },
-          { id: 'officials', label: 'Officials & Stewards', icon: Scale },
-          { id: 'flags', label: 'Flags & Safety', icon: Flag },
+          { id: 'aero', label: 'Active Aero (X & Z Mode)', icon: Wind },
+          { id: 'overtake', label: 'Overtake Mode', icon: Gauge },
+          { id: 'powerunit', label: '2026 Hybrid PU', icon: Zap },
           { id: 'tyres', label: 'Tyres & Strategy', icon: Sliders },
-          { id: 'drs', label: 'DRS & Aero', icon: Wind },
-          { id: 'points', label: 'Points System', icon: Gauge },
+          { id: 'flags', label: 'Flags & Safety', icon: Flag },
+          { id: 'officials', label: 'Officials & Stewards', icon: Scale },
+          { id: 'points', label: 'Points System', icon: Trophy },
           { id: 'glossary', label: 'Glossary', icon: HelpCircle },
         ].map(tab => {
           const Icon = tab.icon;
@@ -361,19 +379,22 @@ export const LearnPage: React.FC = () => {
                 THE GRID
               </div>
               <h2 style={{ fontSize: '1.4rem', fontWeight: 800, margin: '0 0 0.75rem', color: '#fff' }}>
-                10 Teams, 20 Drivers
+                11 Teams, 22 Race Seats
               </h2>
               <p style={{ color: 'var(--text-secondary)', lineHeight: 1.6, fontSize: '0.92rem' }}>
-                Each constructor designs and manufactures their own aerodynamic chassis. They field two identical cars driven by full-time drivers holding an FIA Super Licence.
+                Each constructor designs and manufactures their own aerodynamic chassis. At the start of the 2026 season, 11 constructors field 22 full-time race seats, including the debut of the Cadillac Formula 1 Team.
+              </p>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', lineHeight: 1.5, marginTop: '0.4rem' }}>
+                *Note: While 22 race seats are contested each Grand Prix weekend, the total roster of drivers participating across a season dynamically expands as teams deploy reserve and substitute drivers.
               </p>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.75rem', marginTop: '1rem', textAlign: 'center' }}>
                 <div style={{ background: 'var(--bg-base)', padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--border-subtle)' }}>
-                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.4rem', fontWeight: 800, color: 'var(--f1-red)' }}>10</div>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.4rem', fontWeight: 800, color: 'var(--f1-red)' }}>11</div>
                   <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Constructors</div>
                 </div>
                 <div style={{ background: 'var(--bg-base)', padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--border-subtle)' }}>
-                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.4rem', fontWeight: 800, color: '#fff' }}>20</div>
-                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Drivers</div>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.4rem', fontWeight: 800, color: '#fff' }}>22</div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Race Seats</div>
                 </div>
                 <div style={{ background: 'var(--bg-base)', padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--border-subtle)' }}>
                   <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.4rem', fontWeight: 800, color: '#238636' }}>24</div>
@@ -399,70 +420,61 @@ export const LearnPage: React.FC = () => {
             </div>
             <div style={{ display: 'inline-flex', background: 'var(--bg-surface)', padding: '0.25rem', borderRadius: '8px', border: '1px solid var(--border-subtle)' }}>
               <button
+                type="button"
                 onClick={() => setWeekendFormat('standard')}
                 style={{
-                  padding: '0.4rem 0.9rem',
+                  padding: '0.45rem 0.85rem',
                   borderRadius: '6px',
                   border: 'none',
                   background: weekendFormat === 'standard' ? 'var(--f1-red)' : 'transparent',
                   color: '#fff',
-                  fontSize: '0.8rem',
                   fontWeight: 700,
+                  fontSize: '0.8rem',
                   cursor: 'pointer',
                 }}
               >
-                Standard Weekend
+                Standard Grand Prix
               </button>
               <button
+                type="button"
                 onClick={() => setWeekendFormat('sprint')}
                 style={{
-                  padding: '0.4rem 0.9rem',
+                  padding: '0.45rem 0.85rem',
                   borderRadius: '6px',
                   border: 'none',
                   background: weekendFormat === 'sprint' ? 'var(--f1-red)' : 'transparent',
                   color: '#fff',
-                  fontSize: '0.8rem',
                   fontWeight: 700,
+                  fontSize: '0.8rem',
                   cursor: 'pointer',
                 }}
               >
-                Sprint Weekend (6x / season)
+                Sprint Weekend
               </button>
             </div>
           </div>
 
           {weekendFormat === 'standard' ? (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1rem' }}>
-              <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: '12px', padding: '1.25rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-                  <span style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-muted)' }}>FRIDAY</span>
-                  <span style={{ fontSize: '0.72rem', background: 'rgba(255, 255, 255, 0.06)', padding: '0.2rem 0.5rem', borderRadius: '4px' }}>PREPARATION</span>
-                </div>
-                <h3 style={{ fontSize: '1.1rem', fontWeight: 700, margin: '0 0 0.5rem', color: '#fff' }}>Free Practice 1 & 2 (FP1, FP2)</h3>
-                <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', lineHeight: 1.5 }}>
-                  Two 60-minute untimed sessions. Teams dial in aerodynamic setups, test tire degradation over high-fuel race simulations, and evaluate track evolution.
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
+              <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: '10px', padding: '1.25rem' }}>
+                <div style={{ color: 'var(--text-muted)', fontSize: '0.72rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '0.35rem' }}>FRIDAY</div>
+                <h3 style={{ fontSize: '1.1rem', fontWeight: 800, margin: '0 0 0.5rem', color: '#fff' }}>Free Practice 1 & 2</h3>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.86rem', lineHeight: 1.5, margin: 0 }}>
+                  Two 60-minute sessions. Teams optimize aerodynamic balance, test tyre degradation on high fuel, and refine race simulation setups.
                 </p>
               </div>
-
-              <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: '12px', padding: '1.25rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-                  <span style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-muted)' }}>SATURDAY</span>
-                  <span style={{ fontSize: '0.72rem', background: 'rgba(225, 6, 0, 0.15)', color: 'var(--f1-red)', padding: '0.2rem 0.5rem', borderRadius: '4px', fontWeight: 700 }}>LOCKS PICKS</span>
-                </div>
-                <h3 style={{ fontSize: '1.1rem', fontWeight: 700, margin: '0 0 0.5rem', color: '#fff' }}>FP3 & Qualifying</h3>
-                <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', lineHeight: 1.5 }}>
-                  Final 60-minute practice followed by the 3-stage Knockout Qualifying (Q1, Q2, Q3) to establish Sunday's starting grid and crown the Pole Sitter.
+              <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: '10px', padding: '1.25rem' }}>
+                <div style={{ color: 'var(--text-muted)', fontSize: '0.72rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '0.35rem' }}>SATURDAY</div>
+                <h3 style={{ fontSize: '1.1rem', fontWeight: 800, margin: '0 0 0.5rem', color: '#fff' }}>Practice 3 & Qualifying</h3>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.86rem', lineHeight: 1.5, margin: 0 }}>
+                  A final 60-minute tune-up followed by three-stage knockout qualifying (Q1, Q2, Q3) to decide Sunday’s 22-car starting grid.
                 </p>
               </div>
-
-              <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: '12px', padding: '1.25rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-                  <span style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-muted)' }}>SUNDAY</span>
-                  <span style={{ fontSize: '0.72rem', background: 'rgba(0, 230, 118, 0.15)', color: '#00e676', padding: '0.2rem 0.5rem', borderRadius: '4px', fontWeight: 700 }}>RACE DAY</span>
-                </div>
-                <h3 style={{ fontSize: '1.1rem', fontWeight: 700, margin: '0 0 0.5rem', color: '#fff' }}>The Grand Prix</h3>
-                <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', lineHeight: 1.5 }}>
-                  Full ~305 km race distance (typically 50-78 laps or max 2 hours). Mandatory pit stop rules apply in dry weather. 25 points awarded to the winner.
+              <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: '10px', padding: '1.25rem' }}>
+                <div style={{ color: 'var(--f1-red)', fontSize: '0.72rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '0.35rem' }}>SUNDAY</div>
+                <h3 style={{ fontSize: '1.1rem', fontWeight: 800, margin: '0 0 0.5rem', color: '#fff' }}>The Grand Prix</h3>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.86rem', lineHeight: 1.5, margin: 0 }}>
+                  305 km race distance (approx. 2 hours max). Drivers must complete at least one pit stop and run two different dry compounds.
                 </p>
               </div>
             </div>
@@ -481,42 +493,56 @@ export const LearnPage: React.FC = () => {
         </section>
       )}
 
-      {/* TAB 4: OFFICIALS & STEWARDS */}
-      {activeTab === 'officials' && (
+      {/* TAB 4: ACTIVE AERO */}
+      {activeTab === 'aero' && (
         <section style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-          {officialsTopic && renderStructuredTopicCard(officialsTopic)}
+          {activeAeroTopic && renderStructuredTopicCard(activeAeroTopic)}
         </section>
       )}
 
-      {/* TAB 5: FLAGS & SAFETY */}
-      {activeTab === 'flags' && (
+      {/* TAB 5: OVERTAKE MODE */}
+      {activeTab === 'overtake' && (
         <section style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-          {flagsTopic && renderStructuredTopicCard(flagsTopic)}
+          {overtakeTopic && renderStructuredTopicCard(overtakeTopic)}
         </section>
       )}
 
-      {/* TAB 6: TYRES & STRATEGY */}
+      {/* TAB 6: HYBRID POWER UNIT */}
+      {activeTab === 'powerunit' && (
+        <section style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+          {powerUnitTopic && renderStructuredTopicCard(powerUnitTopic)}
+        </section>
+      )}
+
+      {/* TAB 7: TYRES & STRATEGY */}
       {activeTab === 'tyres' && (
         <section style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
           {tyresTopic && renderStructuredTopicCard(tyresTopic)}
         </section>
       )}
 
-      {/* TAB 7: DRS & AERO */}
-      {activeTab === 'drs' && (
+      {/* TAB 8: FLAGS & SAFETY */}
+      {activeTab === 'flags' && (
         <section style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-          {drsTopic && renderStructuredTopicCard(drsTopic)}
+          {flagsTopic && renderStructuredTopicCard(flagsTopic)}
         </section>
       )}
 
-      {/* TAB 8: POINTS SYSTEM */}
+      {/* TAB 9: OFFICIALS & STEWARDS */}
+      {activeTab === 'officials' && (
+        <section style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+          {officialsTopic && renderStructuredTopicCard(officialsTopic)}
+        </section>
+      )}
+
+      {/* TAB 10: POINTS SYSTEM */}
       {activeTab === 'points' && (
         <section style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
           {pointsTopic && renderStructuredTopicCard(pointsTopic)}
         </section>
       )}
 
-      {/* TAB 9: MOTORSPORT GLOSSARY */}
+      {/* TAB 11: MOTORSPORT GLOSSARY */}
       {activeTab === 'glossary' && (
         <section style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>

@@ -12,7 +12,7 @@ export const LoginPage: React.FC = () => {
   const redirectParam = searchParams.get('redirect');
 
   useEffect(() => {
-    document.title = 'Sign In | F1 Community Prediction League';
+    document.title = 'Sign In | The Grid';
     if (isAuthenticated) {
       navigate(intendedRoute || redirectParam || '/');
     }
@@ -20,13 +20,13 @@ export const LoginPage: React.FC = () => {
 
   return (
     <AuthLayout
-      badgeText="2026 World Championship"
+      badgeText="THE GRID • F1 COMMUNITY HUB"
       title={
         <>
           Enter The <span>Grid</span>
         </>
       }
-      subtitle="Sign in with your racer tag or email to manage your predictions, track telemetry, and climb the leaderboard."
+      subtitle="Sign in with Google or your racer credentials to access Prediction Bench, track points, and build your racing identity."
     >
       <AuthCard>
         <LoginForm

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 
 export const NavbarBrand: React.FC = () => {
   return (
-    <Link to="/" className="navbar-brand" aria-label="F1 Prediction Home">
+    <Link to="/" className="navbar-brand" aria-label="The Grid - F1 Community Hub">
       {/* F1 Logo Tile */}
       <div className="navbar-brand__logo">
         <span className="navbar-brand__logo-text">F1</span>
@@ -11,8 +11,8 @@ export const NavbarBrand: React.FC = () => {
 
       {/* Brand Title Row + Subtitle */}
       <div className="navbar-brand__text">
-        <span className="navbar-brand__title">PREDICTION</span>
-        <span className="navbar-brand__subtitle">COMMUNITY LEAGUE</span>
+        <span className="navbar-brand__title">THE GRID</span>
+        <span className="navbar-brand__subtitle">THE F1 COMMUNITY HUB</span>
       </div>
     </Link>
   );

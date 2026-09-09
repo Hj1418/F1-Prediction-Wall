@@ -36,6 +36,10 @@ export const LeaderboardPage: React.FC = () => {
   const [selectedRoundId, setSelectedRoundId] = useState<string>('');
 
   useEffect(() => {
+    document.title = 'Championship Standings | Prediction Bench • The Grid';
+  }, []);
+
+  useEffect(() => {
     async function loadMeta() {
       try {
         const [wList, rList] = await Promise.all([
@@ -118,13 +122,13 @@ export const LeaderboardPage: React.FC = () => {
       >
         <div>
           <div style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--f1-red)', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
-            COMMUNITY CHAMPIONSHIP
+            THE GRID • PREDICTION BENCH
           </div>
           <h1 style={{ fontSize: '2.25rem', fontWeight: 900, textTransform: 'uppercase', marginTop: '0.2rem' }}>
-            Leaderboards & Standings
+            Championship Standings
           </h1>
           <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.3rem' }}>
-            Compete with friends and fellow Formula 1 fans across the season.
+            Global member standings calculated from official FIA race results across the season.
           </p>
         </div>
 
@@ -193,6 +197,7 @@ export const LeaderboardPage: React.FC = () => {
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
             <UserInitialsAvatar
               name={userEntry.displayName}
+              imageUrl={userEntry.avatarUrl}
               size={46}
             />
             <div>
@@ -378,6 +383,7 @@ export const LeaderboardPage: React.FC = () => {
                         >
                           <UserInitialsAvatar
                             name={entry.displayName}
+                            imageUrl={entry.avatarUrl}
                             size={32}
                             showBorder={false}
                           />

@@ -13,7 +13,6 @@ import {
   X,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { getInitials } from '../../utils/getInitials';
 import { UserInitialsAvatar } from '../common/UserInitialsAvatar';
 
 interface UserProfileMenuProps {
@@ -65,11 +64,11 @@ export const UserProfileMenu: React.FC<UserProfileMenuProps> = ({
           <Link
             to="/register"
             className="auth-btn auth-btn--register"
-            title="Join the F1 Community Prediction League"
-            aria-label="Join the F1 Community Prediction League"
+            title="Join The Grid"
+            aria-label="Join The Grid"
           >
             <UserPlus size={13} className="auth-btn__icon" />
-            <span className="auth-btn__text-full">JOIN THE LEAGUE</span>
+            <span className="auth-btn__text-full">JOIN THE GRID</span>
             <span className="auth-btn__text-short">JOIN</span>
           </Link>
         </>
@@ -83,9 +82,10 @@ export const UserProfileMenu: React.FC<UserProfileMenuProps> = ({
             aria-expanded={isOpen}
             type="button"
           >
-            {/* Circular Initials Avatar */}
+            {/* Circular Initials / Profile Avatar */}
             <UserInitialsAvatar
               name={userDisplayName}
+              imageUrl={currentUser?.avatarUrl}
               size="sm"
               className="shrink-0"
               showBorder={false}
@@ -109,18 +109,26 @@ export const UserProfileMenu: React.FC<UserProfileMenuProps> = ({
         {/* Profile Dropdown Menu */}
         {isOpen && (
           <div className="user-dropdown" role="menu">
-            {/* Header with name, handle and stats */}
-            <div className="user-dropdown__header">
-              <div className="user-dropdown__header-name">{currentUser?.displayName}</div>
-              <div className="user-dropdown__header-handle">@{currentUser?.username}</div>
-              <div className="user-dropdown__header-stats">
-                <span style={{ fontSize: '0.72rem', fontFamily: 'var(--font-mono)', color: 'var(--telemetry-yellow)', fontWeight: 700 }}>
-                  {currentUser?.totalPoints ?? 0} PTS
-                </span>
-                <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>•</span>
-                <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
-                  Rank P{currentUser?.seasonRank || 1}
-                </span>
+            {/* Header with avatar, name, handle and stats */}
+            <div className="user-dropdown__header" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <UserInitialsAvatar
+                name={userDisplayName}
+                imageUrl={currentUser?.avatarUrl}
+                size="md"
+                showBorder={false}
+              />
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <div className="user-dropdown__header-name">{currentUser?.displayName}</div>
+                <div className="user-dropdown__header-handle">@{currentUser?.username}</div>
+                <div className="user-dropdown__header-stats">
+                  <span style={{ fontSize: '0.72rem', fontFamily: 'var(--font-mono)', color: 'var(--telemetry-yellow)', fontWeight: 700 }}>
+                    {currentUser?.totalPoints ?? 0} PTS
+                  </span>
+                  <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>•</span>
+                  <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
+                    Rank P{currentUser?.seasonRank || 1}
+                  </span>
+                </div>
               </div>
             </div>
 

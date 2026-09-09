@@ -10,7 +10,7 @@ interface AuthLayoutProps {
 }
 
 export const AuthLayout: React.FC<AuthLayoutProps> = ({
-  badgeText = '2026 Season • F1 Prediction League',
+  badgeText = 'THE GRID • F1 COMMUNITY HUB',
   title,
   subtitle,
   children,
@@ -38,7 +38,7 @@ export const AuthLayout: React.FC<AuthLayoutProps> = ({
         <main>{children}</main>
 
         <footer className="auth-page-footer">
-          Formula 1 Community Hub <span>•</span> Grid Live Telemetry <span>•</span> 2026
+          The Grid <span>•</span> The F1 Community Hub <span>•</span> Prediction Bench
         </footer>
       </div>
     </div>

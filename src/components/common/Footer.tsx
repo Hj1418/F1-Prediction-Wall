@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Mail, MessageCircle, HelpCircle, Home, Calendar, Trophy, Target } from 'lucide-react';
+import { Mail, MessageCircle, HelpCircle, Home, Calendar, Trophy, Target, BookOpen, MapPin } from 'lucide-react';
 
 export const Footer: React.FC = () => {
   const linkStyle: React.CSSProperties = {
@@ -60,13 +60,12 @@ export const Footer: React.FC = () => {
                   F1
                 </span>
               </div>
-              <span style={{ fontWeight: 900, fontSize: '1rem', letterSpacing: '0.04em', color: '#fff' }}>
-                PREDICTION LEAGUE
+              <span style={{ fontWeight: 900, fontSize: '1.05rem', letterSpacing: '0.04em', color: '#fff' }}>
+                THE GRID
               </span>
             </div>
             <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.5, maxWidth: '320px' }}>
-              The community-driven Formula 1 prediction platform. Predict race results, compete with friends, and climb
-              the championship leaderboard.
+              Your place to learn, follow, explore and experience Formula 1. Understand the sport, follow race weekends, explore circuits, and compete with the community on Prediction Bench.
             </p>
           </div>
 
@@ -83,17 +82,23 @@ export const Footer: React.FC = () => {
                 marginBottom: '0.85rem',
               }}
             >
-              Quick Links
+              The Platform
             </h4>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
               <Link to="/" style={linkStyle} onMouseEnter={e => (e.currentTarget.style.color = '#fff')} onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-secondary)')}>
                 <Home size={13} /> Home
               </Link>
+              <Link to="/learn" style={linkStyle} onMouseEnter={e => (e.currentTarget.style.color = '#fff')} onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-secondary)')}>
+                <BookOpen size={13} /> Learn F1
+              </Link>
               <Link to="/races" style={linkStyle} onMouseEnter={e => (e.currentTarget.style.color = '#fff')} onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-secondary)')}>
                 <Calendar size={13} /> Race Weekends
               </Link>
+              <Link to="/circuits" style={linkStyle} onMouseEnter={e => (e.currentTarget.style.color = '#fff')} onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-secondary)')}>
+                <MapPin size={13} /> Circuits
+              </Link>
               <Link to="/predictions" style={linkStyle} onMouseEnter={e => (e.currentTarget.style.color = '#fff')} onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-secondary)')}>
-                <Target size={13} /> Predictions
+                <Target size={13} /> Prediction Bench
               </Link>
               <Link to="/leaderboard" style={linkStyle} onMouseEnter={e => (e.currentTarget.style.color = '#fff')} onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-secondary)')}>
                 <Trophy size={13} /> Leaderboard
@@ -158,7 +163,7 @@ export const Footer: React.FC = () => {
             gap: '0.75rem',
           }}
         >
-          <div>© {new Date().getFullYear()} F1 Prediction League. Not affiliated with Formula 1 or the FIA.</div>
+          <div>© {new Date().getFullYear()} The Grid. Not affiliated with Formula 1 or the FIA.</div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
             <span>Privacy Policy</span>
             <span>Terms of Use</span>

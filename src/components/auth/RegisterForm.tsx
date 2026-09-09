@@ -78,20 +78,8 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess, onStepCha
     try {
       const user = await loginWithGoogle();
       if (user) {
-        if (user.isNewUser) {
-          // Present polished Racing Identity onboarding screen
-          setSignedInUser(user);
-          setDisplayName(user.displayName || '');
-          const initialTag = (user.username || '').toLowerCase();
-          setUsername(initialTag);
-          setUsernameStatus('available');
-          setUsernameMessage(`@${initialTag} is assigned to you`);
-          if (user.favouriteDriver) setFavouriteDriver(user.favouriteDriver);
-          if (user.favouriteConstructor) setFavouriteConstructor(user.favouriteConstructor);
-        } else {
-          // Returning user who already completed onboarding goes directly to destination
-          onSuccess(user);
-        }
+        // First-time users trigger the global lightweight "Welcome to The Grid" modal via AuthContext
+        onSuccess(user);
       }
     } catch (err: unknown) {
       if (err instanceof Error) {

@@ -12,6 +12,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
 import { StatusBadge } from '../components/common/StatusBadge';
+import { UserInitialsAvatar } from '../components/common/UserInitialsAvatar';
 import {
   Shield,
   PlusCircle,
@@ -61,6 +62,10 @@ export const AdminDashboardPage: React.FC = () => {
       setLoadingUsers(false);
     }
   };
+
+  useEffect(() => {
+    document.title = 'Race Control & Administration | The Grid';
+  }, []);
 
   useEffect(() => {
     if (isAdmin && (activeTab === 'users' || adminUsers.length === 0)) {
@@ -273,10 +278,10 @@ export const AdminDashboardPage: React.FC = () => {
           </div>
           <div>
             <div style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--f1-red)', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
-              RACE CONTROL & STEWARDS PANEL
+              THE GRID • RACE CONTROL & STEWARDS PANEL
             </div>
             <h1 style={{ fontSize: '2rem', fontWeight: 900, textTransform: 'uppercase' }}>
-              Admin Dashboard
+              Race Control
             </h1>
           </div>
         </div>
@@ -963,7 +968,7 @@ export const AdminDashboardPage: React.FC = () => {
                 USERS
               </h2>
               <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginTop: '0.25rem', marginBottom: 0 }}>
-                Registered users in the F1 Community Prediction League.
+                Registered members on The Grid.
               </p>
             </div>
 
@@ -1087,31 +1092,12 @@ export const AdminDashboardPage: React.FC = () => {
                       >
                         <td style={{ padding: '1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                            {u.avatarUrl ? (
-                              <img
-                                src={u.avatarUrl}
-                                alt={u.displayName}
-                                style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover' }}
-                                onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
-                              />
-                            ) : (
-                              <div
-                                style={{
-                                  width: 32,
-                                  height: 32,
-                                  borderRadius: '50%',
-                                  background: 'rgba(255, 255, 255, 0.1)',
-                                  color: 'var(--text-secondary)',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  fontSize: '0.75rem',
-                                  fontWeight: 800,
-                                }}
-                              >
-                                {(u.displayName || u.username || 'U').substring(0, 2).toUpperCase()}
-                              </div>
-                            )}
+                            <UserInitialsAvatar
+                              name={u.displayName || u.username}
+                              imageUrl={u.avatarUrl}
+                              size={32}
+                              showBorder={false}
+                            />
                             <div>
                               <div>{u.displayName || u.username || 'Anonymous Racer'}</div>
                               {u.username && (

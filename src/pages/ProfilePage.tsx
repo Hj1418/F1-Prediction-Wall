@@ -56,6 +56,7 @@ export const ProfilePage: React.FC = () => {
         setDrivers(dList);
 
         if (u) {
+          document.title = `${u.displayName || u.username} (@${u.username}) | The Grid Profile`;
           setSelectedFavDriver(u.favouriteDriver || '');
           setSelectedFavConstructor(u.favouriteConstructor || 'ferrari');
           setSelectedBio(u.bio || '');
@@ -175,6 +176,7 @@ export const ProfilePage: React.FC = () => {
               <div style={{ position: 'relative' }}>
                 <UserInitialsAvatar
                   name={profileUser.displayName}
+                  imageUrl={profileUser.avatarUrl}
                   size={90}
                   style={{
                     border: '3px solid var(--f1-red)',
