@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Mail, MessageCircle, HelpCircle, Home, Calendar, Trophy, Target, BookOpen, MapPin } from 'lucide-react';
+import { Mail, MessageCircle, HelpCircle, Home, Calendar, Trophy, Target, BookOpen, MapPin, Compass } from 'lucide-react';
 
 export const Footer: React.FC = () => {
   const linkStyle: React.CSSProperties = {
@@ -57,7 +57,7 @@ export const Footer: React.FC = () => {
                     color: '#fff',
                   }}
                 >
-                  F1
+                  TG
                 </span>
               </div>
               <span style={{ fontWeight: 900, fontSize: '1.05rem', letterSpacing: '0.04em', color: '#fff' }}>
@@ -65,7 +65,7 @@ export const Footer: React.FC = () => {
               </span>
             </div>
             <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.5, maxWidth: '320px' }}>
-              Your place to learn, follow, explore and experience Formula 1. Understand the sport, follow race weekends, explore circuits, and compete with the community on Prediction Bench.
+              Your place to learn, follow, explore and experience motorsport. Understand racing categories, follow race weekends, explore circuits, and compete with the community on Prediction Bench.
             </p>
           </div>
 
@@ -89,10 +89,13 @@ export const Footer: React.FC = () => {
                 <Home size={13} /> Home
               </Link>
               <Link to="/learn" style={linkStyle} onMouseEnter={e => (e.currentTarget.style.color = '#fff')} onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-secondary)')}>
-                <BookOpen size={13} /> Learn F1
+                <BookOpen size={13} /> Learn Motorsport
               </Link>
               <Link to="/races" style={linkStyle} onMouseEnter={e => (e.currentTarget.style.color = '#fff')} onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-secondary)')}>
                 <Calendar size={13} /> Race Weekends
+              </Link>
+              <Link to="/championships" style={linkStyle} onMouseEnter={e => (e.currentTarget.style.color = '#fff')} onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-secondary)')}>
+                <Compass size={13} /> Explore Championships
               </Link>
               <Link to="/circuits" style={linkStyle} onMouseEnter={e => (e.currentTarget.style.color = '#fff')} onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-secondary)')}>
                 <MapPin size={13} /> Circuits
@@ -119,19 +122,19 @@ export const Footer: React.FC = () => {
                 marginBottom: '0.85rem',
               }}
             >
-              Contact Us
+              Community & Support
             </h4>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
               <a
-                href="mailto:support@f1predictionwall.com"
+                href="mailto:support@thegridmotorsport.com"
                 style={linkStyle}
                 onMouseEnter={e => (e.currentTarget.style.color = '#fff')}
                 onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-secondary)')}
               >
-                <Mail size={13} /> support@f1predictionwall.com
+                <Mail size={13} /> support@thegridmotorsport.com
               </a>
               <a
-                href="mailto:feedback@f1predictionwall.com"
+                href="mailto:feedback@thegridmotorsport.com"
                 style={linkStyle}
                 onMouseEnter={e => (e.currentTarget.style.color = '#fff')}
                 onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-secondary)')}
@@ -139,7 +142,7 @@ export const Footer: React.FC = () => {
                 <MessageCircle size={13} /> Send Feedback
               </a>
               <a
-                href="mailto:help@f1predictionwall.com"
+                href="mailto:help@thegridmotorsport.com"
                 style={linkStyle}
                 onMouseEnter={e => (e.currentTarget.style.color = '#fff')}
                 onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-secondary)')}
@@ -163,7 +166,7 @@ export const Footer: React.FC = () => {
             gap: '0.75rem',
           }}
         >
-          <div>© {new Date().getFullYear()} The Grid. Not affiliated with Formula 1 or the FIA.</div>
+          <div>© {new Date().getFullYear()} The Grid. An open motorsport platform. Not affiliated with Formula 1, the FIA, or any motorsport governing body.</div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
             <span>Privacy Policy</span>
             <span>Terms of Use</span>
@@ -174,3 +177,5 @@ export const Footer: React.FC = () => {
     </footer>
   );
 };
+
+export default Footer;

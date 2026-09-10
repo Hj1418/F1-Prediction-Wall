@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
+import { Search } from 'lucide-react';
+import { useApp } from '../../context/AppContext';
 import { api } from '../../services/apiClient';
 import { RaceStatusStrip } from './RaceStatusStrip';
 import { NavbarBrand } from './NavbarBrand';
@@ -10,6 +12,7 @@ import { MobileNavigation } from './MobileNavigation';
 import './Navbar.css';
 
 export const Navbar: React.FC = () => {
+  const { openSearch } = useApp();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeRoundLink, setActiveRoundLink] = useState<string>('/predictions');
   const location = useLocation();
@@ -65,6 +68,17 @@ export const Navbar: React.FC = () => {
           <NavbarBrand />
           <NavbarLinks />
           <div className="navbar-right">
+            <button
+              type="button"
+              className="navbar-search-btn"
+              onClick={openSearch}
+              aria-label="Search motorsport"
+              title="Search The Grid (Cmd+K / Ctrl+K)"
+            >
+              <Search size={14} className="navbar-search-btn__icon" />
+              <span className="navbar-search-btn__text">Search</span>
+              <kbd className="navbar-search-btn__kbd">⌘K</kbd>
+            </button>
             <PredictionCTA />
             <UserProfileMenu
               mobileMenuOpen={mobileMenuOpen}

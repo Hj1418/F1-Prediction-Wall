@@ -1,158 +1,124 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { api } from '../services/apiClient';
-import { RaceWeekend, PredictionRound, LeaderboardEntry, Driver, getCircuitName, Session } from '../types';
-import { StatusBadge } from '../components/common/StatusBadge';
-import { CountdownTimer } from '../components/common/CountdownTimer';
-import { UserInitialsAvatar } from '../components/common/UserInitialsAvatar';
-import { getCircuitMetadata, getCircuitAssetUrl, CIRCUIT_SOURCE_MAPPING } from '../services/circuits/circuitRegistry';
+import {
+  Compass,
+  Search,
+  Calendar,
+  Zap,
+  Flag,
+  ChevronRight,
+  BookOpen,
+  ArrowRight,
+  Shield,
+  Layers,
+  MapPin,
+  Trophy,
+  Clock,
+  Sparkles,
+} from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
 import {
-  Calendar,
-  Zap,
-  Trophy,
-  ChevronRight,
-  BookOpen,
-  MapPin,
-  Crown,
-  LogIn,
-  ExternalLink,
-  MapPinOff,
-} from 'lucide-react';
+  DEFAULT_HOME_SNAPSHOT,
+  HomeSnapshot,
+  getHomeSnapshot,
+} from '../services/home/homeSnapshotService';
 
 export const HomePage: React.FC = () => {
-  const { dataVersion } = useApp();
-  const { isAuthenticated, setAuthModalOpen } = useAuth();
-  const [activeWeekend, setActiveWeekend] = useState<RaceWeekend | null>(null);
-  const [circuitImgError, setCircuitImgError] = useState(false);
-  const [currentRound, setCurrentRound] = useState<PredictionRound | null>(null);
-  const [seasonLeaderboard, setSeasonLeaderboard] = useState<LeaderboardEntry[]>([]);
-  const [drivers, setDrivers] = useState<Driver[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { openSearch } = useApp();
+  const { currentUser, isAuthenticated, setAuthModalOpen } = useAuth();
+  const [snapshot, setSnapshot] = useState<HomeSnapshot>(DEFAULT_HOME_SNAPSHOT);
 
   useEffect(() => {
-    document.title = 'The Grid | The F1 Community Hub';
+    document.title = 'The Grid | Your Motorsport Starting Point';
   }, []);
 
+  // Background fetch for live updates without ever blocking initial render
   useEffect(() => {
-    async function loadHomeData() {
-      try {
-        setLoading(true);
-        const [weekends, dList, lboard] = await Promise.all([
-          api.getRaceWeekends(),
-          api.getDrivers(),
-          api.getLeaderboard('season'),
-        ]);
-
-        setDrivers(dList);
-        setSeasonLeaderboard(lboard);
-
-        const currentW =
-          weekends.find(w => w.status === 'ACTIVE') ||
-          weekends.find(w => w.status === 'UPCOMING') ||
-          weekends[0];
-        setActiveWeekend(currentW);
-        setCircuitImgError(false);
-
-        if (currentW) {
-          const rounds = await api.getPredictionRounds(currentW.raceWeekendId);
-          const openR =
-            rounds.find(r => r.status === 'OPEN') ||
-            rounds.find(r => r.status === 'UPCOMING') ||
-            rounds[0];
-          setCurrentRound(openR);
-        }
-      } catch (err) {
-        console.error('Failed to load homepage data', err);
-      } finally {
-        setLoading(false);
+    let isMounted = true;
+    getHomeSnapshot().then(data => {
+      if (isMounted) {
+        setSnapshot(data);
       }
-    }
+    }).catch(err => {
+      console.warn('Background snapshot fetch error:', err);
+    });
 
-    loadHomeData();
-  }, [dataVersion]);
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
-  if (loading) {
-    return (
-      <div className="container" style={{ padding: '5rem 0', textAlign: 'center' }}>
-        <div
-          className="live-pulse"
-          style={{ width: '14px', height: '14px', backgroundColor: 'var(--f1-red)', margin: '0 auto 1rem' }}
-        />
-        <div style={{ fontFamily: 'var(--font-mono)', letterSpacing: '0.1em', color: 'var(--text-secondary)' }}>
-          LOADING RACE INFORMATION...
-        </div>
-      </div>
-    );
-  }
-
-  const topThree = seasonLeaderboard.slice(0, 3);
-  const circuitMeta = activeWeekend ? getCircuitMetadata(activeWeekend.circuit) : null;
-  const circuitKey = circuitMeta ? circuitMeta.circuitId : 'monza';
-  const mapping = CIRCUIT_SOURCE_MAPPING[circuitKey];
-  const circuitSvgUrl = getCircuitAssetUrl(mapping ? mapping.assetFile : `${circuitKey}.svg`);
-
-  const startDateStr = activeWeekend
-    ? new Date(activeWeekend.startDate).toLocaleDateString([], { month: 'short', day: 'numeric' })
-    : '';
-  const endDateStr = activeWeekend
-    ? new Date(activeWeekend.endDate).toLocaleDateString([], { month: 'short', day: 'numeric' })
-    : '';
-
-  // Next session determination
-  const sortedSessions: Session[] = (activeWeekend?.sessions || []).slice().sort((a, b) => {
-    return new Date(a.startTime).getTime() - new Date(b.startTime).getTime();
-  });
-
-  const nowMs = Date.now();
-  const nextSession =
-    sortedSessions.find(s => new Date(s.startTime).getTime() > nowMs) ||
-    sortedSessions[sortedSessions.length - 1];
+  const {
+    nextRace,
+    championshipChips,
+    racingNowOrNext,
+    indianMotorsport,
+    understandIn30Seconds,
+    predictionHighlight,
+  } = snapshot;
 
   return (
-    <div className="homepage-root" style={{ paddingBottom: '4rem' }}>
-      {/* 0. THE GRID PLATFORM HERO & FOUR PILLARS */}
+    <div className="homepage-root" style={{ paddingBottom: '5rem' }}>
+      {/* ===================================================================
+          1. HERO: The Front Door to All Motorsport
+          =================================================================== */}
       <section
         style={{
           background: 'radial-gradient(ellipse at 50% -10%, rgba(225, 6, 0, 0.22) 0%, var(--bg-base) 70%)',
           borderBottom: '1px solid var(--border-subtle)',
-          padding: '3.5rem 0 2.5rem 0',
+          padding: '4rem 1.25rem 3rem 1.25rem',
           position: 'relative',
           overflow: 'hidden',
+          textAlign: 'center',
         }}
       >
-        <div className="container" style={{ textAlign: 'center', position: 'relative', zIndex: 1 }}>
-          {/* Top pill badge */}
+        <div style={{ maxWidth: '960px', margin: '0 auto', position: 'relative', zIndex: 1 }}>
+          {/* Motorsport Category Ribbon */}
           <div
             style={{
               display: 'inline-flex',
               alignItems: 'center',
-              gap: '0.5rem',
-              padding: '0.35rem 0.9rem',
+              gap: '0.6rem',
+              padding: '0.35rem 1rem',
               borderRadius: '9999px',
-              background: 'rgba(225, 6, 0, 0.12)',
-              border: '1px solid rgba(225, 6, 0, 0.35)',
-              color: 'var(--f1-red)',
+              background: 'rgba(255, 255, 255, 0.05)',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              color: 'var(--text-secondary)',
               fontSize: '0.74rem',
               fontWeight: 800,
-              letterSpacing: '0.12em',
+              letterSpacing: '0.1em',
               textTransform: 'uppercase',
-              marginBottom: '1rem',
+              marginBottom: '1.25rem',
               fontFamily: 'var(--font-mono)',
             }}
           >
-            <span className="live-pulse" />
-            <span>THE F1 COMMUNITY HUB</span>
+            <span style={{ color: 'var(--f1-red)' }}>F1</span>
+            <span style={{ opacity: 0.3 }}>•</span>
+            <span>F2</span>
+            <span style={{ opacity: 0.3 }}>•</span>
+            <span>F3</span>
+            <span style={{ opacity: 0.3 }}>•</span>
+            <span style={{ color: '#00d2be' }}>FE</span>
+            <span style={{ opacity: 0.3 }}>•</span>
+            <span style={{ color: '#0090d0' }}>WEC</span>
+            <span style={{ opacity: 0.3 }}>•</span>
+            <span style={{ color: '#d97706' }}>GT</span>
+            <span style={{ opacity: 0.3 }}>•</span>
+            <span style={{ color: '#ea580c' }}>WRC</span>
+            <span style={{ opacity: 0.3 }}>•</span>
+            <span style={{ color: '#dc2626' }}>MotoGP</span>
+            <span style={{ opacity: 0.3 }}>•</span>
+            <span style={{ color: '#ff9933' }}>INDIA 🇮🇳</span>
           </div>
 
           <h1
             style={{
-              fontSize: 'clamp(2.4rem, 5vw, 3.8rem)',
+              fontSize: 'clamp(2.5rem, 5.5vw, 4rem)',
               fontWeight: 900,
-              letterSpacing: '-0.03em',
+              letterSpacing: '-0.035em',
               lineHeight: 1.1,
-              margin: '0 0 0.75rem 0',
+              margin: '0 0 1rem 0',
               color: '#ffffff',
             }}
           >
@@ -161,938 +127,602 @@ export const HomePage: React.FC = () => {
 
           <p
             style={{
-              fontSize: 'clamp(1rem, 2vw, 1.25rem)',
+              fontSize: 'clamp(1.05rem, 2vw, 1.25rem)',
               color: 'var(--text-secondary)',
-              maxWidth: '680px',
-              margin: '0 auto 1.25rem auto',
-              lineHeight: 1.5,
-              fontWeight: 500,
+              maxWidth: '650px',
+              margin: '0 auto 2rem auto',
+              lineHeight: 1.55,
             }}
           >
-            Your place to learn, follow, explore and experience Formula 1.
+            Your motorsport starting point. Explore 10 championships, upcoming events,
+            deep racecraft mechanics, and compete on Prediction Bench.
           </p>
 
-          {/* Core product loop pill */}
+          {/* Hero Action Buttons */}
           <div
             style={{
-              display: 'inline-flex',
+              display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
+              gap: '0.85rem',
               flexWrap: 'wrap',
-              gap: '0.5rem',
-              background: 'rgba(255, 255, 255, 0.04)',
-              border: '1px solid var(--border-subtle)',
-              borderRadius: '30px',
-              padding: '0.4rem 1.1rem',
-              marginBottom: '2rem',
-              fontSize: '0.78rem',
-              fontFamily: 'var(--font-mono)',
-              color: 'var(--text-secondary)',
             }}
           >
-            <span style={{ color: '#fff', fontWeight: 700 }}>Learn</span>
-            <span style={{ color: 'var(--f1-red)' }}>→</span>
-            <span style={{ color: '#fff', fontWeight: 700 }}>Understand</span>
-            <span style={{ color: 'var(--f1-red)' }}>→</span>
-            <span style={{ color: '#fff', fontWeight: 700 }}>Predict</span>
-            <span style={{ color: 'var(--f1-red)' }}>→</span>
-            <span style={{ color: '#fff', fontWeight: 700 }}>Compete</span>
-            <span style={{ color: 'var(--f1-red)' }}>→</span>
-            <span style={{ color: 'var(--telemetry-green, #00e676)', fontWeight: 700 }}>Learn More</span>
-          </div>
-
-          {/* Dual CTAs */}
-          <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem', flexWrap: 'wrap', marginBottom: '2.75rem' }}>
             <Link
-              to="/learn"
-              className="btn btn-secondary"
+              to="/championships"
               style={{
-                padding: '0.85rem 1.6rem',
-                fontSize: '0.95rem',
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: '0.55rem',
+                gap: '0.5rem',
+                padding: '0.75rem 1.4rem',
                 borderRadius: '8px',
-                border: '1px solid var(--border-medium)',
+                backgroundColor: 'var(--f1-red)',
+                color: '#ffffff',
+                fontWeight: 800,
+                fontSize: '0.85rem',
+                textTransform: 'uppercase',
+                letterSpacing: '0.04em',
+                textDecoration: 'none',
+                transition: 'all 0.2s ease',
+                boxShadow: '0 0 20px rgba(225, 6, 0, 0.4)',
               }}
             >
-              <BookOpen size={18} />
-              <span>Explore Learn F1</span>
+              <Compass size={16} />
+              <span>Explore What's Happening</span>
             </Link>
 
-            <Link
-              to={currentRound ? `/predict/${currentRound.roundId}` : '/predictions'}
-              className="btn btn-primary"
+            <button
+              type="button"
+              onClick={openSearch}
               style={{
-                padding: '0.85rem 1.6rem',
-                fontSize: '0.95rem',
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: '0.55rem',
+                gap: '0.6rem',
+                padding: '0.75rem 1.4rem',
                 borderRadius: '8px',
+                background: 'rgba(255, 255, 255, 0.06)',
+                border: '1px solid rgba(255, 255, 255, 0.15)',
+                color: '#ffffff',
+                fontWeight: 700,
+                fontSize: '0.85rem',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
               }}
             >
-              <Zap size={18} />
-              <span>Enter Prediction Bench</span>
+              <Search size={16} style={{ color: 'var(--f1-red)' }} />
+              <span>Search The Grid</span>
+              <kbd style={{ fontSize: '0.65rem', padding: '0.15rem 0.4rem', borderRadius: '4px', background: 'rgba(255, 255, 255, 0.1)', border: '1px solid rgba(255, 255, 255, 0.15)', color: 'var(--text-muted)', fontFamily: 'monospace' }}>⌘K</kbd>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <div className="container" style={{ maxWidth: '1240px', margin: '0 auto', padding: '0 1.25rem' }}>
+        {/* ===================================================================
+            2. NEXT UP: Featured Upcoming Race Weekend
+            =================================================================== */}
+        <section style={{ marginTop: '2.5rem' }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              marginBottom: '1rem',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'var(--f1-red)', boxShadow: '0 0 10px var(--f1-red)' }} />
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', fontWeight: 800, color: 'var(--f1-red)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+                NEXT UP IN MOTORSPORT
+              </span>
+            </div>
+            <Link
+              to="/races"
+              style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+            >
+              <span>Full Calendar</span>
+              <ChevronRight size={14} />
             </Link>
           </div>
 
-          {/* The Four Pillars Grid */}
+          <div
+            style={{
+              background: 'linear-gradient(135deg, rgba(225, 6, 0, 0.08) 0%, rgba(22, 27, 34, 0.95) 100%)',
+              border: '1px solid rgba(225, 6, 0, 0.25)',
+              borderRadius: '14px',
+              padding: '1.75rem',
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+              gap: '1.5rem',
+              alignItems: 'center',
+            }}
+          >
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.5rem' }}>
+                <span style={{ fontSize: '1.3rem' }}>{nextRace.flag}</span>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                  ROUND {nextRace.roundNumber} • FORMULA 1
+                </span>
+              </div>
+              <h2 style={{ fontSize: '1.75rem', fontWeight: 900, textTransform: 'uppercase', color: '#ffffff', margin: '0 0 0.35rem 0', letterSpacing: '-0.02em' }}>
+                {nextRace.grandPrixName}
+              </h2>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', margin: '0 0 1rem 0' }}>
+                {nextRace.circuitName} • {nextRace.city}, {nextRace.country} • <strong style={{ color: '#fff' }}>{nextRace.dates}</strong>
+              </p>
+
+              <Link
+                to={`/races/${nextRace.roundNumber}`}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.45rem',
+                  padding: '0.55rem 1.1rem',
+                  borderRadius: '6px',
+                  backgroundColor: 'var(--f1-red)',
+                  color: '#ffffff',
+                  fontWeight: 800,
+                  fontSize: '0.8rem',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.04em',
+                  textDecoration: 'none',
+                }}
+              >
+                <span>View Race Weekend</span>
+                <ArrowRight size={14} />
+              </Link>
+            </div>
+
+            {/* Session Breakdown Cards */}
+            <div style={{ display: 'flex', gap: '0.65rem', flexWrap: 'wrap' }}>
+              {nextRace.sessions.map((s, idx) => (
+                <div
+                  key={idx}
+                  style={{
+                    flex: '1 1 90px',
+                    background: s.isKeySession ? 'rgba(225, 6, 0, 0.14)' : 'rgba(255, 255, 255, 0.04)',
+                    border: s.isKeySession ? '1px solid rgba(225, 6, 0, 0.4)' : '1px solid rgba(255, 255, 255, 0.08)',
+                    borderRadius: '8px',
+                    padding: '0.85rem',
+                    textAlign: 'center',
+                  }}
+                >
+                  <div style={{ fontSize: '0.7rem', fontWeight: 800, color: s.isKeySession ? 'var(--f1-red)' : 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                    {s.day}
+                  </div>
+                  <div style={{ fontSize: '0.85rem', fontWeight: 800, color: '#ffffff', marginTop: '0.2rem' }}>
+                    {s.name}
+                  </div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: '0.2rem', fontFamily: 'var(--font-mono)' }}>
+                    {s.time}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ===================================================================
+            3. ALL MOTORSPORT: Horizontal Series Chips
+            =================================================================== */}
+        <section style={{ marginTop: '3.5rem' }}>
+          <div style={{ marginBottom: '1rem' }}>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem', fontWeight: 800, color: 'var(--text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+              RACING ACROSS THE GRID
+            </span>
+            <h2 style={{ fontSize: '1.4rem', fontWeight: 900, textTransform: 'uppercase', margin: '0.2rem 0 0 0', color: '#fff' }}>
+              10 Global & Domestic Championships
+            </h2>
+          </div>
+
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-              gap: '1rem',
-              textAlign: 'left',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
+              gap: '0.75rem',
             }}
           >
-            {/* Pillar 1: LEARN */}
-            <Link
-              to="/learn"
-              style={{
-                textDecoration: 'none',
-                background: 'var(--bg-surface)',
-                border: '1px solid var(--border-subtle)',
-                borderRadius: '12px',
-                padding: '1.25rem',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '0.6rem',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div
-                  style={{
-                    width: '36px',
-                    height: '36px',
-                    borderRadius: '8px',
-                    background: 'rgba(56, 189, 248, 0.12)',
-                    color: '#38bdf8',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <BookOpen size={18} />
-                </div>
-                <span style={{ fontSize: '0.7rem', fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#38bdf8', letterSpacing: '0.08em' }}>
-                  PILLAR 01
-                </span>
-              </div>
-              <div>
-                <h3 style={{ fontSize: '1.05rem', fontWeight: 900, margin: '0 0 0.25rem 0', color: '#fff' }}>
-                  LEARN
-                </h3>
-                <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '0.35rem' }}>
-                  Understand how F1 works.
-                </div>
-                <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: 0, lineHeight: 1.45 }}>
-                  Technical regulations, Active Aero (X-Mode & Z-Mode), 2026 Hybrid Power Units (400 kW ICE + 350 kW MGU-K), and tyre strategies.
-                </p>
-              </div>
-            </Link>
-
-            {/* Pillar 2: FOLLOW */}
-            <Link
-              to="/weekends"
-              style={{
-                textDecoration: 'none',
-                background: 'var(--bg-surface)',
-                border: '1px solid var(--border-subtle)',
-                borderRadius: '12px',
-                padding: '1.25rem',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '0.6rem',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div
-                  style={{
-                    width: '36px',
-                    height: '36px',
-                    borderRadius: '8px',
-                    background: 'rgba(34, 197, 94, 0.12)',
-                    color: '#00e676',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <Calendar size={18} />
-                </div>
-                <span style={{ fontSize: '0.7rem', fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#00e676', letterSpacing: '0.08em' }}>
-                  PILLAR 02
-                </span>
-              </div>
-              <div>
-                <h3 style={{ fontSize: '1.05rem', fontWeight: 900, margin: '0 0 0.25rem 0', color: '#fff' }}>
-                  FOLLOW
-                </h3>
-                <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '0.35rem' }}>
-                  Stay on top of race weekends.
-                </div>
-                <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: 0, lineHeight: 1.45 }}>
-                  Real-time countdown clocks, local session timetables (Practice, Qualifying, Sprint, and Race), and live event status.
-                </p>
-              </div>
-            </Link>
-
-            {/* Pillar 3: EXPLORE */}
-            <Link
-              to="/circuits"
-              style={{
-                textDecoration: 'none',
-                background: 'var(--bg-surface)',
-                border: '1px solid var(--border-subtle)',
-                borderRadius: '12px',
-                padding: '1.25rem',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '0.6rem',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div
-                  style={{
-                    width: '36px',
-                    height: '36px',
-                    borderRadius: '8px',
-                    background: 'rgba(168, 85, 247, 0.12)',
-                    color: '#c084fc',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <MapPin size={18} />
-                </div>
-                <span style={{ fontSize: '0.7rem', fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#c084fc', letterSpacing: '0.08em' }}>
-                  PILLAR 03
-                </span>
-              </div>
-              <div>
-                <h3 style={{ fontSize: '1.05rem', fontWeight: 900, margin: '0 0 0.25rem 0', color: '#fff' }}>
-                  EXPLORE
-                </h3>
-                <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '0.35rem' }}>
-                  Discover circuits, drivers and teams.
-                </div>
-                <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: 0, lineHeight: 1.45 }}>
-                  Inspect all 24 world circuits, 11 constructors (including Cadillac), 22 race seats, and rich track telemetry.
-                </p>
-              </div>
-            </Link>
-
-            {/* Pillar 4: COMPETE */}
-            <Link
-              to="/predictions"
-              style={{
-                textDecoration: 'none',
-                background: 'var(--bg-surface)',
-                border: '1px solid var(--border-subtle)',
-                borderRadius: '12px',
-                padding: '1.25rem',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '0.6rem',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div
-                  style={{
-                    width: '36px',
-                    height: '36px',
-                    borderRadius: '8px',
-                    background: 'rgba(234, 179, 8, 0.12)',
-                    color: '#eab308',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <Trophy size={18} />
-                </div>
-                <span style={{ fontSize: '0.7rem', fontFamily: 'var(--font-mono)', fontWeight: 800, color: '#eab308', letterSpacing: '0.08em' }}>
-                  PILLAR 04
-                </span>
-              </div>
-              <div>
-                <h3 style={{ fontSize: '1.05rem', fontWeight: 900, margin: '0 0 0.25rem 0', color: '#fff' }}>
-                  COMPETE
-                </h3>
-                <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '0.35rem' }}>
-                  Predict via Prediction Bench.
-                </div>
-                <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: 0, lineHeight: 1.45 }}>
-                  Lock in your podium and pole predictions, battle friends on the leaderboard, and build your motorsport legacy.
-                </p>
-              </div>
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* 1. RACE STATUS HEADER BANNER */}
-      <section
-        style={{
-          background: 'var(--bg-base)',
-          borderBottom: '1px solid var(--border-subtle)',
-          padding: '0.65rem 0',
-        }}
-      >
-        <div className="container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <span
-              style={{
-                fontFamily: 'var(--font-mono)',
-                fontSize: '0.72rem',
-                fontWeight: 800,
-                color: 'var(--f1-red)',
-                letterSpacing: '0.12em',
-                textTransform: 'uppercase',
-              }}
-            >
-              2026 FIA FORMULA ONE WORLD CHAMPIONSHIP
-            </span>
-            <span style={{ color: 'var(--text-muted)' }}>•</span>
-            <span
-              style={{
-                fontFamily: 'var(--font-mono)',
-                fontSize: '0.72rem',
-                color: 'var(--telemetry-green, #00e676)',
-                fontWeight: 800,
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.35rem',
-              }}
-            >
-              <span className="live-pulse" /> ROUND {activeWeekend?.roundNumber || (activeWeekend as any)?.round || 13} OF 24
-            </span>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Status:</span>
-            <StatusBadge status={activeWeekend?.status || 'UPCOMING'} />
-          </div>
-        </div>
-      </section>
-
-      {/* 2. NEXT RACE HERO SECTION */}
-      {activeWeekend && (
-        <section
-          style={{
-            background: 'linear-gradient(180deg, var(--bg-surface) 0%, var(--bg-base) 100%)',
-            borderBottom: '1px solid var(--border-subtle)',
-            padding: '2.5rem 0 3rem 0',
-          }}
-        >
-          <div className="container">
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
-                gap: '2.5rem',
-                alignItems: 'center',
-              }}
-            >
-              {/* Left Column: Grand Prix Identity */}
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
-                  <span style={{ fontSize: '2.5rem' }}>{activeWeekend.flag}</span>
-                  <div>
-                    <div style={{ fontSize: '0.8rem', color: 'var(--f1-red)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                      {activeWeekend.country} GRAND PRIX
-                    </div>
-                    <h1
-                      style={{
-                        fontSize: 'clamp(1.8rem, 3.5vw, 2.6rem)',
-                        fontWeight: 900,
-                        lineHeight: 1.15,
-                        margin: 0,
-                        color: '#fff',
-                        letterSpacing: '-0.02em',
-                      }}
-                    >
-                      {activeWeekend.raceName}
-                    </h1>
-                  </div>
-                </div>
-
-                <div style={{ fontSize: '1rem', color: 'var(--text-secondary)', marginBottom: '1.25rem' }}>
-                  {getCircuitName(activeWeekend.circuit)} • {startDateStr} – {endDateStr}
-                </div>
-
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.6rem', marginBottom: '1.5rem' }}>
-                  <span
-                    style={{
-                      background: activeWeekend.weekendType === 'SPRINT' ? 'rgba(255, 128, 0, 0.15)' : 'rgba(0, 210, 190, 0.12)',
-                      color: activeWeekend.weekendType === 'SPRINT' ? '#ff9500' : 'var(--telemetry-cyan, #00e5ff)',
-                      border: `1px solid ${activeWeekend.weekendType === 'SPRINT' ? 'rgba(255, 128, 0, 0.3)' : 'rgba(0, 210, 190, 0.3)'}`,
-                      padding: '0.35rem 0.75rem',
-                      borderRadius: '6px',
-                      fontWeight: 800,
-                      fontSize: '0.75rem',
-                      fontFamily: 'var(--font-mono)',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '0.4rem',
-                      textTransform: 'uppercase',
-                    }}
-                  >
-                    <Zap size={13} />
-                    {activeWeekend.weekendType === 'SPRINT' ? 'SPRINT WEEKEND' : 'STANDARD GRAND PRIX'}
-                  </span>
-
-                  <Link
-                    to={`/races/${activeWeekend.roundNumber || activeWeekend.raceWeekendId}`}
-                    style={{
-                      textDecoration: 'none',
-                      color: 'var(--text-secondary)',
-                      background: 'var(--bg-surface-elevated)',
-                      border: '1px solid var(--border-subtle)',
-                      padding: '0.35rem 0.75rem',
-                      borderRadius: '6px',
-                      fontSize: '0.75rem',
-                      fontFamily: 'var(--font-mono)',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '0.35rem',
-                    }}
-                  >
-                    <Calendar size={13} /> Weekend Hub <ChevronRight size={12} />
-                  </Link>
-                </div>
-
-                {/* Primary Action Buttons */}
-                <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-                  <Link
-                    to={currentRound ? `/predict/${currentRound.roundId}` : `/predictions`}
-                    className="btn btn-primary"
-                    style={{ padding: '0.75rem 1.25rem', fontSize: '0.9rem' }}
-                  >
-                    <Zap size={16} /> Enter Predictions
-                  </Link>
-
-                  <Link
-                    to={`/circuits/${circuitKey}`}
-                    className="btn btn-secondary"
-                    style={{ padding: '0.75rem 1.25rem', fontSize: '0.9rem' }}
-                  >
-                    <MapPin size={16} /> Circuit Profile
-                  </Link>
-                </div>
-              </div>
-
-              {/* Right Column: Countdown Card to Next Competitive Session */}
-              <div
+            {championshipChips.map(champ => (
+              <Link
+                key={champ.id}
+                to={champ.url}
                 style={{
-                  background: 'var(--bg-surface-card)',
-                  border: '1px solid var(--border-subtle)',
-                  borderRadius: '14px',
-                  padding: '1.75rem',
                   display: 'flex',
-                  flexDirection: 'column',
-                  gap: '1.25rem',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '0.85rem 1rem',
+                  borderRadius: '10px',
+                  background: 'var(--bg-surface)',
+                  border: '1px solid var(--border-subtle)',
+                  textDecoration: 'none',
+                  transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.borderColor = `${champ.badgeColor}66`;
+                  e.currentTarget.style.boxShadow = `0 6px 20px -4px ${champ.badgeColor}22`;
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.transform = 'none';
+                  e.currentTarget.style.borderColor = 'var(--border-subtle)';
+                  e.currentTarget.style.boxShadow = 'none';
                 }}
               >
-                <div>
-                  <div style={{ fontSize: '0.72rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.25rem' }}>
-                    NEXT SESSION COUNTDOWN
-                  </div>
-                  <h3 style={{ fontSize: '1.3rem', fontWeight: 800, margin: 0, color: '#fff' }}>
-                    {nextSession ? nextSession.name : 'Grand Prix Race'}
-                  </h3>
-                  <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginTop: '0.25rem', fontFamily: 'var(--font-mono)' }}>
-                    {nextSession ? new Date(nextSession.startTime).toLocaleString([], { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Scheduled'}
-                  </div>
-                </div>
-
-                {nextSession && (
-                  <div style={{ padding: '0.5rem 0' }}>
-                    <CountdownTimer targetDate={nextSession.startTime} prefix="Session Starts In" />
-                  </div>
-                )}
-
-                <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '0.85rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                    Prediction Lock: <strong style={{ color: '#fff' }}>At Qualifying Start</strong>
-                  </span>
-                  <Link
-                    to="/races"
-                    style={{ textDecoration: 'none', color: 'var(--f1-red)', fontSize: '0.78rem', fontWeight: 700 }}
-                  >
-                    Full Timetable →
-                  </Link>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* 3. NEXT SESSION & TIMETABLE BREAKDOWN */}
-      {sortedSessions.length > 0 && (
-        <section className="container" style={{ marginTop: '2.5rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '1rem' }}>
-            <div>
-              <div style={{ fontSize: '0.72rem', fontWeight: 800, color: 'var(--f1-red)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-                SESSION TIMETABLE
-              </div>
-              <h2 style={{ fontSize: '1.4rem', fontWeight: 800, margin: '0.2rem 0 0', color: '#fff' }}>
-                Race Weekend Schedule (Your Local Time)
-              </h2>
-            </div>
-            <Link to="/weekends" style={{ color: 'var(--text-secondary)', fontSize: '0.82rem', textDecoration: 'none' }}>
-              All 24 Weekends →
-            </Link>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.75rem' }}>
-            {sortedSessions.map(session => {
-              const sessionDate = new Date(session.startTime);
-              const isPast = sessionDate.getTime() < nowMs;
-              const isCurrent = session.status === 'LIVE' || session.status === 'ONGOING';
-
-              return (
-                <div
-                  key={session.id || session.name}
-                  style={{
-                    background: isCurrent ? 'rgba(35, 134, 54, 0.08)' : 'var(--bg-surface)',
-                    border: isCurrent ? '1px solid #238636' : '1px solid var(--border-subtle)',
-                    borderRadius: '10px',
-                    padding: '1rem',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '0.4rem',
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--text-muted)' }}>
-                      {sessionDate.toLocaleDateString([], { weekday: 'short' }).toUpperCase()}
-                    </span>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
                     <span
                       style={{
                         fontSize: '0.68rem',
-                        fontWeight: 700,
-                        padding: '0.15rem 0.4rem',
+                        fontWeight: 900,
+                        padding: '0.15rem 0.45rem',
                         borderRadius: '4px',
-                        background: isCurrent ? 'rgba(35, 134, 54, 0.2)' : isPast ? 'rgba(255, 255, 255, 0.05)' : 'rgba(31, 111, 235, 0.15)',
-                        color: isCurrent ? '#00e676' : isPast ? 'var(--text-muted)' : '#58a6ff',
+                        backgroundColor: `${champ.badgeColor}22`,
+                        color: champ.badgeColor,
+                        border: `1px solid ${champ.badgeColor}44`,
                       }}
                     >
-                      {isCurrent ? 'LIVE' : isPast ? 'COMPLETED' : 'UPCOMING'}
+                      {champ.shortName}
+                    </span>
+                    <span style={{ fontSize: '0.88rem', fontWeight: 800, color: '#ffffff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {champ.fullName}
                     </span>
                   </div>
-
-                  <div style={{ fontWeight: 800, fontSize: '0.92rem', color: '#fff' }}>
-                    {session.name}
-                  </div>
-
-                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
-                    {sessionDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  <div style={{ fontSize: '0.73rem', color: 'var(--text-muted)', marginTop: '0.35rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    Next: {champ.nextEventBrief}
                   </div>
                 </div>
-              );
-            })}
+                <ChevronRight size={15} style={{ color: 'var(--text-muted)', flexShrink: 0, marginLeft: '0.5rem' }} />
+              </Link>
+            ))}
           </div>
         </section>
-      )}
 
-      {/* 4. LEARN F1 EDUCATIONAL TEASER */}
-      <section className="container" style={{ marginTop: '3rem' }}>
-        <div
-          style={{
-            background: 'linear-gradient(135deg, rgba(225, 6, 0, 0.08) 0%, var(--bg-surface) 100%)',
-            border: '1px solid rgba(225, 6, 0, 0.25)',
-            borderRadius: '16px',
-            padding: '2rem',
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
-            gap: '2rem',
-            alignItems: 'center',
-          }}
-        >
-          <div>
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', color: 'var(--f1-red)', fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.4rem' }}>
-              <BookOpen size={15} />
-              <span>LEARN F1 ACADEMY</span>
+        {/* ===================================================================
+            4. RACING NOW / NEXT: Schedule Snapshot Across Disciplines
+            =================================================================== */}
+        <section style={{ marginTop: '3.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+            <div>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem', fontWeight: 800, color: 'var(--text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+                GLOBAL CALENDAR RADAR
+              </span>
+              <h2 style={{ fontSize: '1.4rem', fontWeight: 900, textTransform: 'uppercase', margin: '0.2rem 0 0 0', color: '#fff' }}>
+                Racing Now & Upcoming
+              </h2>
             </div>
-            <h2 style={{ fontSize: '1.7rem', fontWeight: 900, color: '#fff', margin: '0 0 0.5rem', lineHeight: 1.25 }}>
-              Master the Rules, Strategy & Formats
-            </h2>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.92rem', lineHeight: 1.55, margin: '0 0 1.25rem' }}>
-              Whether you are a newcomer or a seasoned race fan, explore our comprehensive guides to knockout qualifying, Pirelli tire compound strategies, official flag rules, and 2026 technical regulations freely without needing an account.
-            </p>
-            <Link
-              to="/learn"
-              className="btn btn-primary"
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1.25rem' }}
-            >
-              <BookOpen size={16} /> Explore Learn F1
+            <Link to="/championships" style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+              <span>All Championships</span>
+              <ChevronRight size={14} />
             </Link>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.75rem' }}>
-            <div style={{ background: 'var(--bg-base)', border: '1px solid var(--border-subtle)', borderRadius: '8px', padding: '1rem' }}>
-              <div style={{ fontWeight: 800, fontSize: '0.85rem', color: '#fff', marginBottom: '0.2rem' }}>Weekend Anatomy</div>
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.75rem', margin: 0 }}>Standard 3-practice vs Sprint 1-practice formats.</p>
-            </div>
-            <div style={{ background: 'var(--bg-base)', border: '1px solid var(--border-subtle)', borderRadius: '8px', padding: '1rem' }}>
-              <div style={{ fontWeight: 800, fontSize: '0.85rem', color: '#fff', marginBottom: '0.2rem' }}>Knockout Qualifying</div>
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.75rem', margin: 0 }}>Q1, Q2, and Q3 progression to Pole Position.</p>
-            </div>
-            <div style={{ background: 'var(--bg-base)', border: '1px solid var(--border-subtle)', borderRadius: '8px', padding: '1rem' }}>
-              <div style={{ fontWeight: 800, fontSize: '0.85rem', color: '#fff', marginBottom: '0.2rem' }}>Tyres & Strategy</div>
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.75rem', margin: 0 }}>Soft, Medium, Hard compounds, Undercut vs Overcut.</p>
-            </div>
-            <div style={{ background: 'var(--bg-base)', border: '1px solid var(--border-subtle)', borderRadius: '8px', padding: '1rem' }}>
-              <div style={{ fontWeight: 800, fontSize: '0.85rem', color: '#fff', marginBottom: '0.2rem' }}>Motorsport Glossary</div>
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.75rem', margin: 0 }}>Demystifying 50+ technical concepts and jargon.</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* 5. EXPLORE THE SPORT — CIRCUIT SNAPSHOT & TELEMETRY */}
-      {circuitMeta && (
-        <section className="container" style={{ marginTop: '3rem' }}>
-          <div
-            style={{
-              background: 'var(--bg-surface)',
-              border: '1px solid var(--border-subtle)',
-              borderRadius: '16px',
-              padding: '1.75rem',
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.5rem' }}>
-              <div>
-                <div style={{ fontSize: '0.72rem', fontWeight: 800, color: 'var(--f1-red)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-                  EXPLORE THE SPORT • CIRCUIT SNAPSHOT
-                </div>
-                <h2 style={{ fontSize: '1.4rem', fontWeight: 800, margin: '0.2rem 0 0', color: '#fff' }}>
-                  {circuitMeta.name}
-                </h2>
-                <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
-                  {circuitMeta.locality}, {circuitMeta.country}
-                </div>
-              </div>
-
+          <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: '12px', overflow: 'hidden' }}>
+            {racingNowOrNext.map((ev, idx) => (
               <Link
-                to={`/circuits/${circuitKey}`}
-                className="btn btn-outline btn-sm"
-                style={{ textDecoration: 'none' }}
-              >
-                Inspect Circuit Layout →
-              </Link>
-            </div>
-
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-                gap: '2rem',
-                alignItems: 'center',
-              }}
-            >
-              {/* Circuit Vector Track */}
-              <div
+                key={idx}
+                to={ev.url}
                 style={{
-                  background: 'var(--bg-base)',
-                  border: '1px solid var(--border-subtle)',
-                  borderRadius: '10px',
-                  padding: '1.5rem',
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'center',
-                  minHeight: '220px',
-                  position: 'relative',
-                  overflow: 'hidden',
+                  justifyContent: 'space-between',
+                  padding: '0.9rem 1.25rem',
+                  borderBottom: idx < racingNowOrNext.length - 1 ? '1px solid var(--border-subtle)' : 'none',
+                  textDecoration: 'none',
+                  color: 'inherit',
+                  transition: 'background 0.15s ease',
+                  flexWrap: 'wrap',
+                  gap: '0.75rem',
                 }}
+                onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.03)')}
+                onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
               >
-                {circuitImgError ? (
-                  <div
-                    className="circuit-map-fallback"
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', minWidth: '220px' }}>
+                  <span
                     style={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      padding: '1.5rem',
-                      color: 'var(--text-muted)',
+                      fontSize: '0.68rem',
+                      fontWeight: 900,
+                      padding: '0.2rem 0.5rem',
+                      borderRadius: '4px',
+                      backgroundColor: `${ev.badgeColor}22`,
+                      color: ev.badgeColor,
+                      border: `1px solid ${ev.badgeColor}44`,
+                      minWidth: '52px',
                       textAlign: 'center',
                     }}
                   >
-                    <MapPinOff size={28} style={{ opacity: 0.6, marginBottom: '0.5rem', color: 'var(--f1-red)' }} />
-                    <span style={{ fontSize: '0.85rem', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>
-                      CIRCUIT MAP UNAVAILABLE
-                    </span>
-                    <span style={{ fontSize: '0.75rem', marginTop: '0.25rem', opacity: 0.8 }}>
-                      Circuit layout is currently unavailable.
-                    </span>
+                    {ev.badge}
+                  </span>
+                  <div>
+                    <div style={{ fontSize: '0.88rem', fontWeight: 800, color: '#ffffff' }}>
+                      {ev.eventName}
+                    </div>
+                    <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+                      {ev.circuit} • {ev.location}
+                    </div>
                   </div>
-                ) : (
-                  <img
-                    src={circuitSvgUrl}
-                    alt={circuitMeta.name}
-                    onError={() => setCircuitImgError(true)}
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#fff', fontFamily: 'var(--font-mono)' }}>
+                      {ev.dates}
+                    </div>
+                    {ev.statusTag && (
+                      <span style={{ fontSize: '0.65rem', fontWeight: 800, color: ev.badgeColor, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                        {ev.statusTag}
+                      </span>
+                    )}
+                  </div>
+                  <ChevronRight size={15} style={{ color: 'var(--text-muted)' }} />
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
+
+        {/* ===================================================================
+            5. INDIAN MOTORSPORT: Dedicated Domestic Ecosystem Spotlight
+            =================================================================== */}
+        <section style={{ marginTop: '3.5rem' }}>
+          <div
+            style={{
+              background: 'linear-gradient(135deg, rgba(255, 153, 51, 0.08) 0%, rgba(22, 27, 34, 0.98) 100%)',
+              border: '1px solid rgba(255, 153, 51, 0.3)',
+              borderRadius: '14px',
+              padding: '1.75rem',
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+              gap: '1.5rem',
+              alignItems: 'center',
+            }}
+          >
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                <span style={{ fontSize: '1.2rem' }}>🇮🇳</span>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', fontWeight: 800, color: '#ff9933', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                  NATIONAL MOTORSPORT ECOSYSTEM
+                </span>
+              </div>
+              <h2 style={{ fontSize: '1.6rem', fontWeight: 900, textTransform: 'uppercase', color: '#ffffff', margin: '0 0 0.5rem 0' }}>
+                Indian Motorsport
+              </h2>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', lineHeight: 1.5, margin: '0 0 1.25rem 0' }}>
+                {indianMotorsport.headline}
+              </p>
+
+              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '1.25rem' }}>
+                {indianMotorsport.keySeries.map((s, i) => (
+                  <span
+                    key={i}
                     style={{
-                      maxHeight: '200px',
-                      maxWidth: '100%',
-                      objectFit: 'contain',
-                      filter: 'drop-shadow(0 0 14px rgba(225, 6, 0, 0.25))',
+                      fontSize: '0.72rem',
+                      fontWeight: 700,
+                      padding: '0.2rem 0.55rem',
+                      borderRadius: '4px',
+                      background: 'rgba(255, 255, 255, 0.06)',
+                      border: '1px solid rgba(255, 255, 255, 0.1)',
+                      color: 'var(--text-secondary)',
                     }}
-                  />
-                )}
+                  >
+                    {s}
+                  </span>
+                ))}
               </div>
 
-              {/* Telemetry Highlights */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.75rem' }}>
-                  <div style={{ background: 'var(--bg-base)', border: '1px solid var(--border-subtle)', borderRadius: '8px', padding: '0.75rem' }}>
-                    <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Length</div>
-                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.15rem', fontWeight: 800, color: '#fff' }}>
-                      {circuitMeta.lengthKm} KM
-                    </div>
-                  </div>
-                  <div style={{ background: 'var(--bg-base)', border: '1px solid var(--border-subtle)', borderRadius: '8px', padding: '0.75rem' }}>
-                    <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Corners</div>
-                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.15rem', fontWeight: 800, color: '#fff' }}>
-                      {circuitMeta.turns} TURNS
-                    </div>
-                  </div>
-                  <div style={{ background: 'var(--bg-base)', border: '1px solid var(--border-subtle)', borderRadius: '8px', padding: '0.75rem' }}>
-                    <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>DRS Zones</div>
-                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.15rem', fontWeight: 800, color: 'var(--f1-red)' }}>
-                      {circuitMeta.drsZones}
-                    </div>
-                  </div>
+              <Link
+                to={indianMotorsport.url}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.45rem',
+                  padding: '0.6rem 1.2rem',
+                  borderRadius: '6px',
+                  backgroundColor: '#ff9933',
+                  color: '#0d1117',
+                  fontWeight: 900,
+                  fontSize: '0.8rem',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.04em',
+                  textDecoration: 'none',
+                }}
+              >
+                <span>Explore Indian Motorsport</span>
+                <ArrowRight size={14} />
+              </Link>
+            </div>
+
+            {/* Quick Metrics Pillar */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.75rem' }}>
+              <div style={{ background: 'rgba(0, 0, 0, 0.3)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '8px', padding: '1rem', textAlign: 'center' }}>
+                <div style={{ fontSize: '1.75rem', fontWeight: 900, color: '#ff9933', fontFamily: 'var(--font-mono)' }}>
+                  {indianMotorsport.seriesCount}
                 </div>
-
-                {circuitMeta.lapRecord && (
-                  <div style={{ background: 'rgba(255, 255, 255, 0.03)', border: '1px solid var(--border-subtle)', borderRadius: '8px', padding: '0.75rem 1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div>
-                      <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Lap Record</div>
-                      <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#fff' }}>
-                        {circuitMeta.lapRecord.driver} ({circuitMeta.lapRecord.year})
-                      </div>
-                    </div>
-                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.1rem', fontWeight: 800, color: 'var(--telemetry-purple, #9d4edd)' }}>
-                      {circuitMeta.lapRecord.time}
-                    </div>
-                  </div>
-                )}
-
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '0.25rem' }}>
-                  <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                    Speed profile: <strong style={{ color: '#fff' }}>{circuitMeta.trackCharacter?.speed || 'High'}</strong>
-                  </span>
-                  <Link to="/circuits" style={{ fontSize: '0.8rem', color: 'var(--f1-red)', textDecoration: 'none', fontWeight: 700 }}>
-                    Browse All 24 Circuits →
-                  </Link>
+                <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>
+                  Championships
                 </div>
+              </div>
 
-                {/* Contextual Educational Bridge */}
-                <div
-                  style={{
-                    marginTop: '0.5rem',
-                    padding: '0.75rem 1rem',
-                    background: 'var(--bg-base)',
-                    borderRadius: '8px',
-                    border: '1px solid var(--border-subtle)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '0.4rem',
-                  }}
-                >
-                  <div style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--f1-red)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                    WHY THIS TRACK IS UNIQUE
-                  </div>
-                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.82rem', margin: 0, lineHeight: 1.45 }}>
-                    {circuitMeta.whySpecial || 'High-speed straights and violent braking zones demand extreme aerodynamic efficiency and low drag.'}
-                  </p>
-                  <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', marginTop: '0.35rem', paddingTop: '0.45rem', borderTop: '1px solid var(--border-subtle)' }}>
-                    <Link to="/learn" style={{ fontSize: '0.74rem', color: '#58a6ff', textDecoration: 'none', fontWeight: 700 }}>
-                      • Learn: Low-Downforce Aero &amp; X-Mode →
-                    </Link>
-                    <Link to="/learn" style={{ fontSize: '0.74rem', color: '#58a6ff', textDecoration: 'none', fontWeight: 700 }}>
-                      • Learn: Heavy Braking &amp; ERS Recovery →
-                    </Link>
-                    <a
-                      href={circuitMeta.officialCircuitUrl || 'https://www.formula1.com/en/racing/2026.html'}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={{ fontSize: '0.74rem', color: 'var(--text-muted)', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '0.2rem', marginLeft: 'auto' }}
-                    >
-                      <span>Official F1 Track Guide</span>
-                      <ExternalLink size={11} />
-                    </a>
-                  </div>
+              <div style={{ background: 'rgba(0, 0, 0, 0.3)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '8px', padding: '1rem', textAlign: 'center' }}>
+                <div style={{ fontSize: '1.75rem', fontWeight: 900, color: '#ffffff', fontFamily: 'var(--font-mono)' }}>
+                  {indianMotorsport.circuitsCount}
+                </div>
+                <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>
+                  Permanent Tracks
+                </div>
+              </div>
+
+              <div style={{ background: 'rgba(0, 0, 0, 0.3)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '8px', padding: '1rem', textAlign: 'center', gridColumn: 'span 2' }}>
+                <div style={{ fontSize: '1.75rem', fontWeight: 900, color: '#10b981', fontFamily: 'var(--font-mono)' }}>
+                  12 PTS
+                </div>
+                <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>
+                  Domestic FIA Super Licence Points (F4 India)
                 </div>
               </div>
             </div>
           </div>
         </section>
-      )}
 
-      {/* 6. COMMUNITY / LEADERBOARD & PREDICTION PROMPT */}
-      <section className="container" style={{ marginTop: '3rem' }}>
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
-            gap: '2rem',
-          }}
-        >
-          {/* Top 3 Season Podium */}
-          <div className="race-card" style={{ padding: '1.75rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
-              <div>
-                <div style={{ fontSize: '0.72rem', fontWeight: 800, color: 'var(--f1-red)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-                  2026 COMMUNITY STANDINGS
-                </div>
-                <h3 style={{ fontSize: '1.25rem', fontWeight: 900, textTransform: 'uppercase', marginTop: '0.2rem' }}>
-                  Season Leaderboard
-                </h3>
-              </div>
-              <Link to="/leaderboard" className="btn btn-outline btn-sm">
-                Full Standings →
-              </Link>
+        {/* ===================================================================
+            6. UNDERSTAND MOTORSPORT: Learn in 30 Seconds
+            =================================================================== */}
+        <section style={{ marginTop: '3.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+            <div>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem', fontWeight: 800, color: 'var(--text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+                MOTORSPORT CURRICULUM
+              </span>
+              <h2 style={{ fontSize: '1.4rem', fontWeight: 900, textTransform: 'uppercase', margin: '0.2rem 0 0 0', color: '#fff' }}>
+                Understand Motorsport in 30 Seconds
+              </h2>
             </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              {topThree.map((player, idx) => {
-                const fav = drivers.find(d => d.id === player.favouriteDriver);
-                let rankColor = idx === 0 ? '#eab308' : idx === 1 ? '#cbd5e1' : '#d97706';
-
-                return (
-                  <Link
-                    key={player.userId}
-                    to={`/profile/${player.username}`}
-                    style={{
-                      textDecoration: 'none',
-                      color: 'inherit',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      padding: '0.75rem 1rem',
-                      borderRadius: 'var(--radius-md)',
-                      background: 'var(--bg-surface-elevated)',
-                      border: '1px solid var(--border-subtle)',
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                      <div
-                        style={{
-                          width: '28px',
-                          height: '28px',
-                          borderRadius: '4px',
-                          backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                          color: rankColor,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontFamily: 'var(--font-mono)',
-                          fontWeight: 900,
-                          fontSize: '0.9rem',
-                        }}
-                      >
-                        {idx + 1}
-                      </div>
-
-                      <UserInitialsAvatar
-                        name={player.displayName}
-                        imageUrl={player.avatarUrl}
-                        size={34}
-                        showBorder={false}
-                      />
-
-                      <div>
-                        <div style={{ fontWeight: 800, fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                          {player.displayName}
-                          {idx === 0 && <Crown size={13} color="#eab308" />}
-                        </div>
-                        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                          @{player.username} {fav && `• ${fav.code}`}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div style={{ textAlign: 'right' }}>
-                      <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, fontSize: '1.1rem', color: '#fff' }}>
-                        {player.totalPoints} <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>PTS</span>
-                      </div>
-                      <div style={{ fontSize: '0.68rem', color: 'var(--telemetry-green, #00e676)', fontFamily: 'var(--font-mono)' }}>
-                        {player.exactP1Count} Exact P1s
-                      </div>
-                    </div>
-                  </Link>
-                );
-              })}
-            </div>
+            <Link to="/learn" style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+              <span>Explore Learn Hub</span>
+              <ChevronRight size={14} />
+            </Link>
           </div>
 
-          {/* Prediction Bench Competition Card */}
-          <div className="race-card" style={{ padding: '1.75rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
-                <Trophy size={20} color="var(--f1-red)" />
-                <div>
-                  <div style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--f1-red)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-                    INTERACTIVE COMPETITION
-                  </div>
-                  <h3 style={{ fontSize: '1.25rem', fontWeight: 900, textTransform: 'uppercase', margin: 0 }}>
-                    PREDICTION BENCH
-                  </h3>
-                </div>
-              </div>
-
-              <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', lineHeight: 1.5, marginBottom: '1.25rem' }}>
-                Prediction Bench is The Grid's interactive prediction engine. Test your strategy foresight: pick the Pole Sitter, Podium Finishers (P1, P2, P3), and Fastest Lap before sessions lock.
-              </p>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.82rem', marginBottom: '1.5rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.4rem 0', borderBottom: '1px solid var(--border-subtle)' }}>
-                  <span>Exact Podium Finishers</span>
-                  <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, color: 'var(--telemetry-green, #00e676)' }}>10 PTS each</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.4rem 0', borderBottom: '1px solid var(--border-subtle)' }}>
-                  <span>Pole Position & Fastest Lap</span>
-                  <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, color: 'var(--telemetry-green, #00e676)' }}>5 PTS each</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.4rem 0' }}>
-                  <span>Podium Driver (Any Position)</span>
-                  <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, color: 'var(--telemetry-yellow, #ffd600)' }}>5 PTS each</span>
-                </div>
-              </div>
-            </div>
-
-            {isAuthenticated ? (
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+              gap: '1rem',
+            }}
+          >
+            {understandIn30Seconds.map(topic => (
               <Link
-                to={currentRound ? `/predict/${currentRound.roundId}` : '/predictions'}
-                className="btn btn-primary"
-                style={{ width: '100%', justifyContent: 'center', padding: '0.8rem', fontSize: '0.9rem' }}
+                key={topic.id}
+                to={topic.learnUrl}
+                style={{
+                  background: 'var(--bg-surface)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: '10px',
+                  padding: '1.15rem',
+                  textDecoration: 'none',
+                  color: 'inherit',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'space-between',
+                  transition: 'all 0.15s ease',
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.borderColor = `${topic.badgeColor}55`;
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.borderColor = 'var(--border-subtle)';
+                  e.currentTarget.style.transform = 'none';
+                }}
               >
-                <Zap size={16} /> Enter Prediction Bench
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                    <span
+                      style={{
+                        fontSize: '0.65rem',
+                        fontWeight: 900,
+                        padding: '0.15rem 0.45rem',
+                        borderRadius: '4px',
+                        backgroundColor: `${topic.badgeColor}22`,
+                        color: topic.badgeColor,
+                        border: `1px solid ${topic.badgeColor}44`,
+                        textTransform: 'uppercase',
+                      }}
+                    >
+                      {topic.badge}
+                    </span>
+                    <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                      30s read
+                    </span>
+                  </div>
+
+                  <h3 style={{ fontSize: '0.95rem', fontWeight: 800, color: '#ffffff', margin: '0 0 0.5rem 0' }}>
+                    {topic.title}
+                  </h3>
+                  <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.45, margin: '0 0 0.5rem 0' }}>
+                    {topic.quickAnswer}
+                  </p>
+                </div>
+
+                <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.05)', paddingTop: '0.5rem', marginTop: '0.5rem', fontSize: '0.73rem', color: 'var(--text-muted)' }}>
+                  <strong style={{ color: 'rgba(255, 255, 255, 0.7)' }}>Why it matters:</strong> {topic.whyItMatters}
+                </div>
               </Link>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                <button
-                  type="button"
-                  onClick={() => setAuthModalOpen(true)}
-                  className="btn btn-primary"
-                  style={{ width: '100%', justifyContent: 'center', padding: '0.8rem', fontSize: '0.9rem' }}
-                >
-                  <LogIn size={16} /> Sign in to Predict
-                </button>
-                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textAlign: 'center' }}>
-                  Google Sign-In enables your prediction entry & leaderboard rank
+            ))}
+          </div>
+        </section>
+
+        {/* ===================================================================
+            7. PREDICTION BENCH: Competition & Community
+            =================================================================== */}
+        <section style={{ marginTop: '3.5rem' }}>
+          <div
+            style={{
+              background: 'linear-gradient(135deg, rgba(22, 27, 34, 0.95) 0%, rgba(13, 17, 23, 0.98) 100%)',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: '14px',
+              padding: '2rem 1.5rem',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '1.5rem',
+            }}
+          >
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.35rem' }}>
+                <Zap size={16} style={{ color: 'var(--f1-red)' }} />
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', fontWeight: 800, color: 'var(--f1-red)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                  PREDICTION BENCH
                 </span>
               </div>
-            )}
+              <h2 style={{ fontSize: '1.5rem', fontWeight: 900, textTransform: 'uppercase', color: '#ffffff', margin: '0 0 0.35rem 0' }}>
+                Think You Know Racing?
+              </h2>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', margin: '0 0 0.5rem 0', maxWidth: '520px' }}>
+                Make your predictions for the {predictionHighlight.roundName}. Predict pole position, top-3 podium finishers, and fastest lap.
+              </p>
+              <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                {predictionHighlight.deadlineNotice}
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+              {isAuthenticated ? (
+                <div style={{ textAlign: 'right', marginRight: '0.5rem' }}>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontFamily: 'var(--font-mono)' }}>
+                    Your Score
+                  </div>
+                  <div style={{ fontSize: '1.1rem', fontWeight: 900, color: 'var(--telemetry-yellow)' }}>
+                    {currentUser?.totalPoints ?? 0} PTS
+                  </div>
+                </div>
+              ) : null}
+
+              <Link
+                to={predictionHighlight.url}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  padding: '0.75rem 1.4rem',
+                  borderRadius: '8px',
+                  backgroundColor: 'var(--f1-red)',
+                  color: '#ffffff',
+                  fontWeight: 800,
+                  fontSize: '0.85rem',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.04em',
+                  textDecoration: 'none',
+                  boxShadow: '0 0 20px rgba(225, 6, 0, 0.35)',
+                }}
+              >
+                <span>Make Your Prediction</span>
+                <ArrowRight size={15} />
+              </Link>
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      </div>
     </div>
   );
 };

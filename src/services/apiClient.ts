@@ -12,6 +12,7 @@ import {
   ApiResponse,
 } from '../types';
 import { mockApi } from './mockApi';
+import { clientCache, TTL } from './cache/clientCache';
 
 const isTestEnv = typeof window === 'undefined';
 
@@ -30,50 +31,56 @@ export const api = {
   isLive: isLiveBackend,
 
   async getDrivers(): Promise<Driver[]> {
-    return mockApi.getDrivers();
+    return clientCache.getOrFetch('f1_drivers_list', () => mockApi.getDrivers(), {
+      ttlMs: TTL.LONG,
+    });
   },
 
   async getConstructors(): Promise<Constructor[]> {
-    return mockApi.getConstructors();
+    return clientCache.getOrFetch('f1_constructors_list', () => mockApi.getConstructors(), {
+      ttlMs: TTL.LONG,
+    });
   },
 
   async getRaceWeekends(season: number = 2026): Promise<RaceWeekend[]> {
-    let list: RaceWeekend[] = [];
-    if (isLiveBackend) {
-      try {
-        const res = await fetch(`${API_BASE_URL}?action=getRaceWeekends&season=${season}`);
-        const json: ApiResponse<RaceWeekend[]> = await res.json();
-        if (json.success && json.data && json.data.length > 0) {
-          list = json.data;
+    return clientCache.getOrFetch(`f1_weekends_${season}`, async () => {
+      let list: RaceWeekend[] = [];
+      if (isLiveBackend) {
+        try {
+          const res = await fetch(`${API_BASE_URL}?action=getRaceWeekends&season=${season}`);
+          const json: ApiResponse<RaceWeekend[]> = await res.json();
+          if (json.success && json.data && json.data.length > 0) {
+            list = json.data;
+          }
+        } catch (e) {
+          console.warn('Live API request failed, falling back to mockApi', e);
         }
-      } catch (e) {
-        console.warn('Live API request failed, falling back to mockApi', e);
       }
-    }
-    if (list.length === 0) {
-      list = await mockApi.getRaceWeekends();
-    }
-
-    if (season) {
-      const filtered = list.filter(w => Number(w.season) === season);
-      if (filtered.length > 0) list = filtered;
-    }
-
-    // Evaluate live status relative to current timestamp (e.g. Monza active on 2026-09-04)
-    const now = new Date().getTime();
-    return list.map(w => {
-      const startMs = new Date(w.startDate).getTime();
-      const endMs = new Date(w.endDate).getTime();
-      let status: 'UPCOMING' | 'ACTIVE' | 'COMPLETED' = w.status as any;
-      if (now > endMs) {
-        status = 'COMPLETED';
-      } else if (now >= startMs - 24 * 3600 * 1000 && now <= endMs) {
-        status = 'ACTIVE';
-      } else {
-        status = 'UPCOMING';
+      if (list.length === 0) {
+        list = await mockApi.getRaceWeekends();
       }
-      return { ...w, status };
-    });
+
+      if (season) {
+        const filtered = list.filter(w => Number(w.season) === season);
+        if (filtered.length > 0) list = filtered;
+      }
+
+      // Evaluate live status relative to current timestamp (e.g. Monza active on 2026-09-04)
+      const now = new Date().getTime();
+      return list.map(w => {
+        const startMs = new Date(w.startDate).getTime();
+        const endMs = new Date(w.endDate).getTime();
+        let status: 'UPCOMING' | 'ACTIVE' | 'COMPLETED' = w.status as any;
+        if (now > endMs) {
+          status = 'COMPLETED';
+        } else if (now >= startMs - 24 * 3600 * 1000 && now <= endMs) {
+          status = 'ACTIVE';
+        } else {
+          status = 'UPCOMING';
+        }
+        return { ...w, status };
+      });
+    }, { ttlMs: TTL.SHORT });
   },
 
   async getWeekendById(id: string): Promise<RaceWeekend | null> {

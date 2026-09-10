@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, BookOpen, CalendarDays, MapPin, CircleDot, Trophy } from 'lucide-react';
+import { Home, BookOpen, CalendarDays, Compass, MapPin, CircleDot, Trophy } from 'lucide-react';
 
 interface NavItem {
   label: string;
@@ -11,9 +11,9 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { label: 'HOME', path: '/', icon: Home },
-  { label: 'LEARN F1', path: '/learn', icon: BookOpen, matchPrefixes: ['/learn'] },
-  { label: 'RACE WEEKENDS', path: '/races', icon: CalendarDays, matchPrefixes: ['/races', '/weekends', '/schedule'] },
-  { label: 'CIRCUITS', path: '/circuits', icon: MapPin, matchPrefixes: ['/circuits'] },
+  { label: 'LEARN', path: '/learn', icon: BookOpen, matchPrefixes: ['/learn'] },
+  { label: 'RACES', path: '/races', icon: CalendarDays, matchPrefixes: ['/races', '/weekends', '/schedule'] },
+  { label: 'EXPLORE', path: '/championships', icon: Compass, matchPrefixes: ['/championships', '/explore', '/circuits'] },
   { label: 'PREDICTIONS', path: '/predictions', icon: CircleDot, matchPrefixes: ['/predictions', '/predict'] },
   { label: 'LEADERBOARD', path: '/leaderboard', icon: Trophy, matchPrefixes: ['/leaderboard'] },
 ];
@@ -44,7 +44,7 @@ export const NavbarLinks: React.FC = () => {
             className={`nav-link ${active ? 'nav-link--active' : ''}`}
             aria-current={active ? 'page' : undefined}
           >
-            <Icon size={15} className="nav-link__icon" />
+            <Icon size={14} className="nav-link__icon" />
             <span>{item.label}</span>
           </Link>
         );
@@ -52,3 +52,5 @@ export const NavbarLinks: React.FC = () => {
     </nav>
   );
 };
+
+export default NavbarLinks;

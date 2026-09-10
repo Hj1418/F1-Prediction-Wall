@@ -13,13 +13,17 @@ import {
   ExternalLink,
   Wind,
   Scale,
+  Compass,
+  Layers,
+  Award,
+  Activity,
 } from 'lucide-react';
 import { STRUCTURED_TOPICS, StructuredTopic } from '../services/educational/officialContent';
 import { OfficialUpdatesSection } from '../components/common/OfficialUpdatesSection';
 
 interface GlossaryTerm {
   term: string;
-  category: 'Strategy' | 'Rules' | 'Technical' | 'Driving';
+  category: 'Strategy' | 'Rules' | 'Technical' | 'Driving' | 'Motorsport';
   definition: string;
 }
 
@@ -28,6 +32,36 @@ const GLOSSARY_TERMS: GlossaryTerm[] = [
     term: 'Active Aerodynamics (X-Mode & Z-Mode)',
     category: 'Technical',
     definition: '2026 movable wing system replacing traditional DRS. Straight mode (X-Mode) minimizes drag on straights for efficiency; Corner mode (Z-Mode) maximizes downforce through corners.',
+  },
+  {
+    term: 'Attack Mode (Formula E)',
+    category: 'Motorsport',
+    definition: 'Mandatory high-power mode in Formula E. Drivers must steer offline through designated timing loops off the racing line to unlock an extra 50 kW of electric power.',
+  },
+  {
+    term: 'Balance of Performance (BoP)',
+    category: 'Motorsport',
+    definition: 'Regulatory system in endurance (WEC) and GT racing adjusting vehicle minimum weight, power output, and ballast to ensure diverse engine configurations compete on equal terms.',
+  },
+  {
+    term: 'Pace Notes (Rally)',
+    category: 'Motorsport',
+    definition: 'Detailed shorthand descriptive notes read by a rally co-driver at machine-gun pace to warn the driver of upcoming corner radius, blind crests, and road hazards.',
+  },
+  {
+    term: 'FIA Superlicense',
+    category: 'Rules',
+    definition: 'The qualification license required to drive in Formula 1. Drivers must earn at least 40 Superlicense points across junior championships (such as F2, F3, and F4) over three seasons.',
+  },
+  {
+    term: 'Hypercar (WEC)',
+    category: 'Motorsport',
+    definition: 'The premier class of endurance sports prototype racing. Includes bespoke Le Mans Hypercars (LMH) and standardized Le Mans Daytona h (LMDh) hybrid race cars competing for overall 24h of Le Mans victory.',
+  },
+  {
+    term: 'Highside vs Lowside (MotoGP)',
+    category: 'Driving',
+    definition: 'Two primary crash types in motorcycle racing. A lowside occurs when tyres lose grip and slide out; a highside occurs when a sliding rear tyre abruptly regains grip and violently flips the rider over the bike.',
   },
   {
     term: 'Overtake Mode / Manual Override',
@@ -98,7 +132,22 @@ const GLOSSARY_TERMS: GlossaryTerm[] = [
 
 export const LearnPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<
-    'overview' | 'weekend' | 'qualifying' | 'aero' | 'overtake' | 'powerunit' | 'tyres' | 'flags' | 'officials' | 'points' | 'glossary'
+    | 'overview'
+    | 'weekend'
+    | 'qualifying'
+    | 'aero'
+    | 'overtake'
+    | 'powerunit'
+    | 'tyres'
+    | 'flags'
+    | 'officials'
+    | 'points'
+    | 'ladder'
+    | 'endurance'
+    | 'electric'
+    | 'rally'
+    | 'motogp'
+    | 'glossary'
   >('overview');
   const [weekendFormat, setWeekendFormat] = useState<'standard' | 'sprint'>('standard');
   const [glossaryFilter, setGlossaryFilter] = useState('');
@@ -313,6 +362,11 @@ export const LearnPage: React.FC = () => {
           { id: 'flags', label: 'Flags & Safety', icon: Flag },
           { id: 'officials', label: 'Officials & Stewards', icon: Scale },
           { id: 'points', label: 'Points System', icon: Trophy },
+          { id: 'ladder', label: 'Feeder Ladder (F4–F1)', icon: Layers },
+          { id: 'endurance', label: 'Endurance & WEC', icon: Activity },
+          { id: 'electric', label: 'Formula E (Electric)', icon: Zap },
+          { id: 'rally', label: 'Rally & Stages (WRC)', icon: Compass },
+          { id: 'motogp', label: 'MotoGP (Bikes)', icon: Award },
           { id: 'glossary', label: 'Glossary', icon: HelpCircle },
         ].map(tab => {
           const Icon = tab.icon;
@@ -617,6 +671,276 @@ export const LearnPage: React.FC = () => {
                 </p>
               </div>
             ))}
+          </div>
+        </section>
+      )}
+
+      {/* TAB: FEEDER LADDER (F4 -> F3 -> F2 -> F1) */}
+      {activeTab === 'ladder' && (
+        <section style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+          <div>
+            <div style={{ color: 'var(--f1-red)', fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '0.5rem', fontFamily: 'var(--font-mono)' }}>
+              THE SINGLE-SEATER PYRAMID
+            </div>
+            <h2 style={{ fontSize: '1.6rem', fontWeight: 900, margin: '0 0 0.5rem', color: '#fff' }}>
+              The Road to Formula 1: F4 → F3 → F2 → F1
+            </h2>
+            <p style={{ color: 'var(--text-secondary)', lineHeight: 1.6, fontSize: '0.92rem', maxWidth: '800px', margin: 0 }}>
+              Reaching Formula 1 requires navigating the official FIA single-seater ladder. Each tier increases in horsepower, aerodynamic grip, operational complexity, and tyre degradation challenges while drivers accumulate the 40 Superlicense points needed to race in F1.
+            </p>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.25rem' }}>
+            {/* Step 1: F4 */}
+            <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: '12px', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', fontWeight: 800, color: '#10b981' }}>STEP 01 • GRASSROOTS</span>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Age 15+</span>
+              </div>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: 800, margin: 0, color: '#fff' }}>Formula 4</h3>
+              <p style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', lineHeight: 1.5, margin: 0 }}>
+                The first step out of karting into carbon-fibre single-seaters. National championships across Europe, Americas, and India (F4 Indian Championship) use standardized 160 bhp turbo engines to teach racecraft, car setup, and data acquisition on a controlled budget.
+              </p>
+              <div style={{ background: 'var(--bg-base)', padding: '0.65rem 0.85rem', borderRadius: '6px', fontSize: '0.75rem', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
+                ~160 bhp • 570 kg • 240 km/h top speed
+              </div>
+            </div>
+
+            {/* Step 2: F3 */}
+            <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: '12px', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', fontWeight: 800, color: '#e03a3e' }}>STEP 02 • JUNIOR PINNACLE</span>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>30 Cars Grid</span>
+              </div>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: 800, margin: 0, color: '#fff' }}>FIA Formula 3</h3>
+              <p style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', lineHeight: 1.5, margin: 0 }}>
+                A ruthless 30-car spec grid supporting F1 Grands Prix. Powered by a 380 bhp 3.4L V6 engine, drivers must adapt to significant aerodynamic downforce, high-speed slipstreaming battles, and a top-12 reverse grid Sprint format.
+              </p>
+              <div style={{ background: 'var(--bg-base)', padding: '0.65rem 0.85rem', borderRadius: '6px', fontSize: '0.75rem', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
+                380 bhp • 698 kg • 300 km/h top speed
+              </div>
+            </div>
+
+            {/* Step 3: F2 */}
+            <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: '12px', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', fontWeight: 800, color: '#0090d0' }}>STEP 03 • FINAL AUDITION</span>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Spec 620 bhp</span>
+              </div>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: 800, margin: 0, color: '#fff' }}>FIA Formula 2</h3>
+              <p style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', lineHeight: 1.5, margin: 0 }}>
+                The immediate feeder series to Formula 1. Identical Dallara chassis powered by a 620 bhp Mecachrome turbo engine. Features mandatory pit stops with compound changes, extreme Pirelli thermal tyre degradation, and top-10 reverse grid Sprints.
+              </p>
+              <div style={{ background: 'var(--bg-base)', padding: '0.65rem 0.85rem', borderRadius: '6px', fontSize: '0.75rem', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
+                620 bhp • 795 kg • 335 km/h top speed
+              </div>
+            </div>
+
+            {/* Step 4: F1 */}
+            <div style={{ background: 'var(--bg-surface)', border: '1px solid rgba(225, 6, 0, 0.4)', borderRadius: '12px', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', fontWeight: 800, color: 'var(--f1-red)' }}>STEP 04 • THE PINNACLE</span>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>22 World Seats</span>
+              </div>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: 800, margin: 0, color: '#fff' }}>Formula 1</h3>
+              <p style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', lineHeight: 1.5, margin: 0 }}>
+                Custom constructor prototypes. Unlike spec feeder series, F1 teams engineer their own chassis and aerodynamic wings. Powered by 2026 hybrid powertrains pairing 400 kW V6 combustion with 350 kW MGU-K electrical boost and Active Aerodynamics.
+              </p>
+              <div style={{ background: 'var(--bg-base)', padding: '0.65rem 0.85rem', borderRadius: '6px', fontSize: '0.75rem', fontFamily: 'var(--font-mono)', color: 'var(--f1-red)' }}>
+                ~1000+ bhp combined • 768 kg • 350+ km/h
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* TAB: ENDURANCE & WEC */}
+      {activeTab === 'endurance' && (
+        <section style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+          <div>
+            <div style={{ color: '#2563eb', fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '0.5rem', fontFamily: 'var(--font-mono)' }}>
+              FIA WORLD ENDURANCE CHAMPIONSHIP
+            </div>
+            <h2 style={{ fontSize: '1.6rem', fontWeight: 900, margin: '0 0 0.5rem', color: '#fff' }}>
+              Endurance & Multi-Class Racing
+            </h2>
+            <p style={{ color: 'var(--text-secondary)', lineHeight: 1.6, fontSize: '0.92rem', maxWidth: '800px', margin: 0 }}>
+              Endurance racing is not a sprint — it is a test of engineering reliability, team pit operations, and driver stamina over 6 to 24 continuous hours, headlined by the legendary 24 Hours of Le Mans.
+            </p>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.25rem' }}>
+            <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: '12px', padding: '1.5rem' }}>
+              <h3 style={{ fontSize: '1.15rem', fontWeight: 800, margin: '0 0 0.5rem', color: '#fff' }}>
+                Multi-Class Traffic Management
+              </h3>
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.55 }}>
+                Two very different car classes race on the same tarmac simultaneously:
+              </p>
+              <ul style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', lineHeight: 1.6, margin: '0.5rem 0 0 1.25rem' }}>
+                <li><strong style={{ color: '#38bdf8' }}>Hypercar (LMH / LMDh)</strong>: 670 bhp top-tier sports prototypes with hybrid all-wheel drive fighting for outright race victories.</li>
+                <li><strong style={{ color: '#f59e0b' }}>LMGT3</strong>: Production-derived customer sportscars (Ferrari 296, Porsche 911, Corvette Z06) competing in their own private class battle.</li>
+              </ul>
+              <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '0.75rem', lineHeight: 1.5 }}>
+                Hypercar drivers must lap 15–20 LMGT3 cars every few laps through tight chicanes and blind curves without losing momentum or causing collisions.
+              </p>
+            </div>
+
+            <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: '12px', padding: '1.5rem' }}>
+              <h3 style={{ fontSize: '1.15rem', fontWeight: 800, margin: '0 0 0.5rem', color: '#fff' }}>
+                Driver Stints & Balance of Performance (BoP)
+              </h3>
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.55 }}>
+                Teams field crews of 3 drivers who swap seats during fuel and tyre stops. Regulations dictate minimum and maximum driving times per stint so no single driver exhausts themselves.
+              </p>
+              <div style={{ background: 'var(--bg-base)', padding: '0.85rem', borderRadius: '8px', border: '1px solid var(--border-subtle)', marginTop: '0.75rem' }}>
+                <strong style={{ color: '#fff', fontSize: '0.82rem' }}>What is BoP?</strong>
+                <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', margin: '0.35rem 0 0', lineHeight: 1.45 }}>
+                  Balance of Performance mathematically adjusts vehicle ballast weights, maximum kilowatt output, and stint energy allowances to guarantee equal competitive potential between V6 hybrids, V8 twins, and naturally aspirated V8 prototypes.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* TAB: FORMULA E (ELECTRIC) */}
+      {activeTab === 'electric' && (
+        <section style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+          <div>
+            <div style={{ color: '#00d2be', fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '0.5rem', fontFamily: 'var(--font-mono)' }}>
+              ABB FIA FORMULA E WORLD CHAMPIONSHIP
+            </div>
+            <h2 style={{ fontSize: '1.6rem', fontWeight: 900, margin: '0 0 0.5rem', color: '#fff' }}>
+              Electric Innovation & Street Racing
+            </h2>
+            <p style={{ color: 'var(--text-secondary)', lineHeight: 1.6, fontSize: '0.92rem', maxWidth: '800px', margin: 0 }}>
+              Formula E races battery-electric open-wheelers exclusively on temporary city street circuits. Without gearboxes or fuel tanks, the battle is decided by energy management, software efficiency, and regenerative braking.
+            </p>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.25rem' }}>
+            <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: '12px', padding: '1.5rem' }}>
+              <h3 style={{ fontSize: '1.15rem', fontWeight: 800, margin: '0 0 0.5rem', color: '#fff' }}>
+                Attack Mode: Mario Kart in Real Life
+              </h3>
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.55 }}>
+                Every driver is mandated to activate Attack Mode twice during the race. To trigger it, a driver must deliberately steer off the racing line through an "Activation Zone" with timing sensors on the outer perimeter of a corner.
+              </p>
+              <ul style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', lineHeight: 1.6, margin: '0.5rem 0 0 1.25rem' }}>
+                <li>Temporarily unlocks an extra <strong style={{ color: '#00d2be' }}>50 kW of electric power</strong> (350 kW total).</li>
+                <li>The driver loses track position when steering off-line, but gains immense straight-line acceleration to overtake rivals over the next few minutes.</li>
+              </ul>
+            </div>
+
+            <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: '12px', padding: '1.5rem' }}>
+              <h3 style={{ fontSize: '1.15rem', fontWeight: 800, margin: '0 0 0.5rem', color: '#fff' }}>
+                600 kW Extreme Energy Regeneration
+              </h3>
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.55 }}>
+                Formula E cars have no rear hydraulic brakes — all rear stopping power is provided by the electric motor acting as a massive generator.
+              </p>
+              <div style={{ background: 'var(--bg-base)', padding: '0.85rem', borderRadius: '8px', border: '1px solid var(--border-subtle)', marginTop: '0.75rem' }}>
+                <strong style={{ color: '#fff', fontSize: '0.82rem' }}>Over 40% Energy Harvesting:</strong>
+                <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', margin: '0.35rem 0 0', lineHeight: 1.45 }}>
+                  More than 40% of the energy consumed to finish a 45-minute race is regenerated under braking during the race itself. If a driver defends too aggressively without "lifting and coasting", their battery will hit 0% before the chequered flag.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* TAB: RALLY & WRC */}
+      {activeTab === 'rally' && (
+        <section style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+          <div>
+            <div style={{ color: '#f97316', fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '0.5rem', fontFamily: 'var(--font-mono)' }}>
+              FIA WORLD RALLY CHAMPIONSHIP
+            </div>
+            <h2 style={{ fontSize: '1.6rem', fontWeight: 900, margin: '0 0 0.5rem', color: '#fff' }}>
+              Point-to-Point Racing Against the Clock
+            </h2>
+            <p style={{ color: 'var(--text-secondary)', lineHeight: 1.6, fontSize: '0.92rem', maxWidth: '800px', margin: 0 }}>
+              Rallying is the ultimate motorsport test of adaptability. Cars do not race side-by-side on smooth circuits; they blast individually through forests, mountains, snowdrifts, and gravel paths at 180 km/h with inches of margin to cliffs and trees.
+            </p>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.25rem' }}>
+            <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: '12px', padding: '1.5rem' }}>
+              <h3 style={{ fontSize: '1.15rem', fontWeight: 800, margin: '0 0 0.5rem', color: '#fff' }}>
+                The Co-Driver & Pace Notes System
+              </h3>
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.55 }}>
+                A rally driver cannot memorize 300 km of public backroads. Instead, the co-driver in the passenger seat reads "Pace Notes" written during low-speed reconnaissance runs.
+              </p>
+              <div style={{ background: 'var(--bg-base)', padding: '0.85rem', borderRadius: '8px', border: '1px solid var(--border-subtle)', marginTop: '0.75rem', fontFamily: 'var(--font-mono)', fontSize: '0.78rem', color: 'var(--telemetry-cyan, #00e5ff)' }}>
+                "Right 5 over crest into Left 3 tightens, don't cut, rock inside!"
+              </div>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.5rem', lineHeight: 1.45 }}>
+                Numbers 1 to 6 denote corner severity (1 = hairpin 1st gear, 6 = flat-out 6th gear). Absolute trust between driver and co-driver is vital for survival.
+              </p>
+            </div>
+
+            <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: '12px', padding: '1.5rem' }}>
+              <h3 style={{ fontSize: '1.15rem', fontWeight: 800, margin: '0 0 0.5rem', color: '#fff' }}>
+                Service Park: Mechanical Miracles
+              </h3>
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.55 }}>
+                Between stages, battered Rally1 machines return to the central Service Park. Mechanics are given strictly timed 15, 30, or 45-minute windows to replace entire suspensions, gearboxes, or damaged radiators.
+              </p>
+              <div style={{ background: 'var(--bg-base)', padding: '0.85rem', borderRadius: '8px', border: '1px solid var(--border-subtle)', marginTop: '0.75rem' }}>
+                <strong style={{ color: '#fff', fontSize: '0.82rem' }}>Super Sunday & Power Stage:</strong>
+                <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', margin: '0.35rem 0 0', lineHeight: 1.45 }}>
+                  The rally concludes with the televised "Wolf Power Stage", where the top five fastest drivers through that final stage earn 5-4-3-2-1 bonus championship points.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* TAB: MOTOGP (BIKES) */}
+      {activeTab === 'motogp' && (
+        <section style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+          <div>
+            <div style={{ color: '#dc2626', fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '0.5rem', fontFamily: 'var(--font-mono)' }}>
+              FIM MOTOGP WORLD CHAMPIONSHIP
+            </div>
+            <h2 style={{ fontSize: '1.6rem', fontWeight: 900, margin: '0 0 0.5rem', color: '#fff' }}>
+              Two-Wheeled Prototype Royalty
+            </h2>
+            <p style={{ color: 'var(--text-secondary)', lineHeight: 1.6, fontSize: '0.92rem', maxWidth: '800px', margin: 0 }}>
+              MotoGP is the pinnacle of motorcycle racing. Prototype bikes produced by Ducati, KTM, Aprilia, Yamaha, and Honda produce over 300 horsepower while weighing only 157 kg, reaching top speeds exceeding 366 km/h.
+            </p>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.25rem' }}>
+            <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: '12px', padding: '1.5rem' }}>
+              <h3 style={{ fontSize: '1.15rem', fontWeight: 800, margin: '0 0 0.5rem', color: '#fff' }}>
+                Physics of 65° Lean Angles
+              </h3>
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.55 }}>
+                Riders do not sit statically on the bike. Through corners, they hang entirely off the side, dragging knees, elbows, and shoulders along the asphalt at 160 km/h.
+              </p>
+              <ul style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', lineHeight: 1.6, margin: '0.5rem 0 0 1.25rem' }}>
+                <li>At 65° lean, the contact patch between tyre and tarmac is barely the size of a credit card.</li>
+                <li>Aerodynamic winglets and ride height devices lower the bike's rear geometry on straights to prevent high-speed wheelies under acceleration.</li>
+              </ul>
+            </div>
+
+            <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: '12px', padding: '1.5rem' }}>
+              <h3 style={{ fontSize: '1.15rem', fontWeight: 800, margin: '0 0 0.5rem', color: '#fff' }}>
+                Saturday Sprint & Sunday Grand Prix
+              </h3>
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.55 }}>
+                Every single MotoGP weekend features two distinct races:
+              </p>
+              <ul style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', lineHeight: 1.6, margin: '0.5rem 0 0 1.25rem' }}>
+                <li><strong style={{ color: '#fff' }}>Saturday Sprint (50% distance)</strong>: Flat-out aggression with half championship points (12 for P1 down to 1 for P9). Tyre saving is disregarded.</li>
+                <li><strong style={{ color: 'var(--f1-red)' }}>Sunday Grand Prix (100% distance)</strong>: Full race distance awarding 25 points for victory, requiring precision fuel and tyre wear management.</li>
+              </ul>
+            </div>
           </div>
         </section>
       )}

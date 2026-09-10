@@ -15,6 +15,7 @@ import {
   getCircuitAssetUrl,
   CIRCUIT_SOURCE_MAPPING,
 } from '../services/circuits/circuitRegistry';
+import { getCrossChampionshipHostings } from '../services/circuits/crossChampionshipVenues';
 import { CircuitMetadata } from '../types';
 
 export const CircuitsPage: React.FC = () => {
@@ -50,6 +51,10 @@ export const CircuitsPage: React.FC = () => {
     const mapping = CIRCUIT_SOURCE_MAPPING[activeCircuit.circuitId];
     return getCircuitAssetUrl(mapping ? mapping.assetFile : `${activeCircuit.circuitId}.svg`);
   }, [activeCircuit]);
+
+  const crossHostings = useMemo(() => {
+    return getCrossChampionshipHostings(activeCircuit.circuitId);
+  }, [activeCircuit.circuitId]);
 
   useEffect(() => {
     document.title = `${activeCircuit.name} | Circuits Directory • The Grid`;
@@ -224,6 +229,63 @@ export const CircuitsPage: React.FC = () => {
               <p style={{ color: 'var(--text-secondary)', fontSize: '0.86rem', lineHeight: 1.5, margin: 0 }}>
                 {activeCircuit.whySpecial}
               </p>
+            </div>
+          )}
+
+          {/* Cross-Championship Global Hosting */}
+          {crossHostings.length > 0 && (
+            <div style={{ background: 'rgba(255, 255, 255, 0.03)', border: '1px solid var(--border-subtle)', borderRadius: '8px', padding: '1rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+                <div style={{ fontSize: '0.72rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                  GLOBAL MOTORSPORT HOSTING • {crossHostings.length} CHAMPIONSHIPS
+                </div>
+                <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Shared World Venue</span>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '0.6rem' }}>
+                {crossHostings.map((h, i) => (
+                  <Link
+                    key={i}
+                    to={h.url}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '0.65rem 0.85rem',
+                      borderRadius: '6px',
+                      background: 'var(--bg-base)',
+                      border: '1px solid var(--border-subtle)',
+                      textDecoration: 'none',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', minWidth: 0 }}>
+                      <span
+                        style={{
+                          fontSize: '0.65rem',
+                          fontWeight: 800,
+                          padding: '0.15rem 0.4rem',
+                          borderRadius: '4px',
+                          background: `${h.badgeColor}22`,
+                          color: h.badgeColor,
+                          border: `1px solid ${h.badgeColor}44`,
+                          flexShrink: 0,
+                        }}
+                      >
+                        {h.badge}
+                      </span>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {h.championshipName}
+                        </div>
+                        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {h.eventName}
+                        </div>
+                      </div>
+                    </div>
+                    <ArrowRight size={14} style={{ color: 'var(--text-muted)', flexShrink: 0, marginLeft: '0.5rem' }} />
+                  </Link>
+                ))}
+              </div>
             </div>
           )}
 

@@ -14,6 +14,10 @@ interface AppContextType {
   removeToast: (id: string) => void;
   dataVersion: number;
   triggerDataRefresh: () => void;
+  searchOpen: boolean;
+  openSearch: () => void;
+  closeSearch: () => void;
+  toggleSearch: () => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -22,6 +26,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [season, setSeason] = useState(2026);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [dataVersion, setDataVersion] = useState(0);
+  const [searchOpen, setSearchOpen] = useState(false);
 
   const removeToast = useCallback((id: string) => {
     setToasts(prev => prev.filter(t => t.id !== id));
@@ -40,6 +45,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setDataVersion(v => v + 1);
   }, []);
 
+  const openSearch = useCallback(() => {
+    setSearchOpen(true);
+  }, []);
+
+  const closeSearch = useCallback(() => {
+    setSearchOpen(false);
+  }, []);
+
+  const toggleSearch = useCallback(() => {
+    setSearchOpen(prev => !prev);
+  }, []);
+
   return (
     <AppContext.Provider
       value={{
@@ -50,6 +67,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         removeToast,
         dataVersion,
         triggerDataRefresh,
+        searchOpen,
+        openSearch,
+        closeSearch,
+        toggleSearch,
       }}
     >
       {children}

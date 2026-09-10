@@ -4,6 +4,7 @@ import {
   Home,
   BookOpen,
   CalendarDays,
+  Compass,
   MapPin,
   CircleDot,
   Trophy,
@@ -15,8 +16,10 @@ import {
   UserPlus,
   Zap,
   Flag,
+  Search,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { useApp } from '../../context/AppContext';
 import { UserInitialsAvatar } from '../common/UserInitialsAvatar';
 
 interface MobileNavigationProps {
@@ -31,6 +34,7 @@ export const MobileNavigation: React.FC<MobileNavigationProps> = ({
   activeRoundLink = '/predictions',
 }) => {
   const { currentUser, isAuthenticated, isAdmin, logout } = useAuth();
+  const { openSearch } = useApp();
   const location = useLocation();
 
   if (!isOpen) return null;
@@ -39,8 +43,9 @@ export const MobileNavigation: React.FC<MobileNavigationProps> = ({
 
   const navItems = [
     { label: 'Home', path: '/', icon: Home, matchPrefix: '/' },
-    { label: 'Learn F1', path: '/learn', icon: BookOpen, matchPrefix: '/learn' },
+    { label: 'Learn', path: '/learn', icon: BookOpen, matchPrefix: '/learn' },
     { label: 'Race Weekends', path: '/races', icon: CalendarDays, matchPrefix: '/races' },
+    { label: 'Explore Championships', path: '/championships', icon: Compass, matchPrefix: '/championships' },
     { label: 'Circuits', path: '/circuits', icon: MapPin, matchPrefix: '/circuits' },
     { label: 'Predictions', path: '/predictions', icon: CircleDot, matchPrefix: '/predictions' },
     { label: 'Leaderboard', path: '/leaderboard', icon: Trophy, matchPrefix: '/leaderboard' },
@@ -98,6 +103,36 @@ export const MobileNavigation: React.FC<MobileNavigationProps> = ({
           </p>
         </div>
       )}
+
+      {/* Search Trigger */}
+      <button
+        type="button"
+        onClick={() => {
+          onClose();
+          openSearch();
+        }}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          width: '100%',
+          padding: '0.75rem 1rem',
+          borderRadius: '8px',
+          background: 'rgba(255, 255, 255, 0.05)',
+          border: '1px solid rgba(255, 255, 255, 0.1)',
+          color: '#ffffff',
+          fontSize: '0.85rem',
+          fontWeight: 600,
+          cursor: 'pointer',
+          marginBottom: '0.75rem',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+          <Search size={16} style={{ color: 'var(--f1-red)' }} />
+          <span>Search Motorsport...</span>
+        </div>
+        <kbd style={{ fontSize: '0.65rem', padding: '0.15rem 0.4rem', borderRadius: '4px', background: 'rgba(255, 255, 255, 0.1)', border: '1px solid rgba(255, 255, 255, 0.15)', color: 'var(--text-muted)', fontFamily: 'monospace' }}>⌘K</kbd>
+      </button>
 
       {/* 2. Predict Now CTA */}
       <Link

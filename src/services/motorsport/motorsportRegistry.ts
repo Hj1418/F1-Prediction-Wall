@@ -1,0 +1,353 @@
+/**
+ * The Grid — Motorsport Championship Registry
+ * 
+ * Architectural Invariant:
+ * "Small, static, and lightweight. Don't build the database into the browser."
+ * Contains essential category taxonomy, beginner explanations, vehicle specs,
+ * and format architectures without loading massive historical tables.
+ */
+
+import { Championship, MotorsportCategory, MotorsportCategoryId } from '../../types/motorsport';
+
+export const MOTORSPORT_CATEGORIES: MotorsportCategory[] = [
+  {
+    id: 'all',
+    label: 'All Motorsport',
+    shortDescription: 'The entire racing universe across 4 wheels, 2 wheels, and all disciplines.',
+    tagline: 'From Formula 1 to endurance, rally and bikes.',
+  },
+  {
+    id: 'open_wheel',
+    label: 'Open Wheel',
+    shortDescription: 'Pure single-seater racing. Purpose-built aerodynamic chassis with exposed wheels.',
+    tagline: 'The pinnacle ladder: F4 → F3 → F2 → F1.',
+  },
+  {
+    id: 'endurance',
+    label: 'Endurance & SportsCar',
+    shortDescription: 'Multi-class endurance racing testing reliability, team strategy, and driver rotations.',
+    tagline: '6 Hours to 24 Hours of Le Mans.',
+  },
+  {
+    id: 'electric',
+    label: 'Electric Innovation',
+    shortDescription: '100% battery-electric formula racing on challenging city street circuits.',
+    tagline: 'Gen3 Evo technology and strategic energy management.',
+  },
+  {
+    id: 'touring_gt',
+    label: 'GT & Sports Racing',
+    shortDescription: 'Production-derived GT3 machinery competing under strict Balance of Performance.',
+    tagline: 'Customer racing featuring Porsche, Ferrari, BMW, Aston Martin.',
+  },
+  {
+    id: 'rally',
+    label: 'Rally & Off-Road',
+    shortDescription: 'Man and machine against the clock across gravel, snow, and asphalt stages.',
+    tagline: 'High-speed pace notes with no run-off room.',
+  },
+  {
+    id: 'motorcycle',
+    label: 'Motorcycle Racing',
+    shortDescription: 'Two-wheeled prototype competition reaching 360+ km/h with 60° lean angles.',
+    tagline: 'The rawest test of physical bravery and balance.',
+  },
+  {
+    id: 'national_indian',
+    label: 'Indian Motorsport',
+    shortDescription: 'Growing domestic ecosystem powered by FMSCI, Indian Racing League, and grassroots karting.',
+    tagline: 'From Kari Motor Speedway & MMRT to Buddh International Circuit.',
+  },
+];
+
+export const CHAMPIONSHIPS_REGISTRY: Championship[] = [
+  {
+    id: 'f1',
+    name: 'FIA Formula One World Championship',
+    shortName: 'Formula 1',
+    category: 'open_wheel',
+    tier: 'Premier World Championship',
+    governingBody: 'FIA',
+    tagline: 'The pinnacle of motorsport and automotive engineering.',
+    badgeColor: '#e10600',
+    vehicleType: 'Formula 1 Single-Seater (Regulated Ground Effect & Active Aero)',
+    powertrain: '1.6L V6 Turbo Hybrid + 350 kW MGU-K (100% Sustainable Fuel)',
+    topSpeed: '350+ km/h',
+    formatType: 'grand_prix',
+    formatDescription: 'Three Practice Sessions, Three-Part Knockout Qualifying (Q1, Q2, Q3), and a ~305 km Sunday Grand Prix (with 6 Sprint weekends).',
+    beginnerOverview: 'Formula 1 is the highest class of international racing. 11 constructors design their own high-downforce chassis and race across 24 global circuits. Drivers score points down to 10th place, competing for both the Drivers’ and Constructors’ World Championships.',
+    keyFeatures: [
+      'Active Aerodynamics (X-Mode for low-drag straights, Z-Mode for high-downforce corners)',
+      'Overtake Mode offering up to 350 kW electrical deploy to battle rival cars',
+      'Mandatory two-compound tyre pit stops in dry Grands Prix',
+      'Cost cap financial regulations leveling the playing field',
+    ],
+    scoringSummary: 'P1 (25 pts), P2 (18), P3 (15) down to P10 (1 pt). +1 bonus point for Fastest Lap inside top 10.',
+    officialUrl: 'https://www.formula1.com',
+    isF1StartingPoint: true,
+  },
+  {
+    id: 'f2',
+    name: 'FIA Formula 2 Championship',
+    shortName: 'Formula 2',
+    category: 'open_wheel',
+    tier: 'Feeder Ladder',
+    governingBody: 'FIA',
+    tagline: 'The primary stepping stone to Formula 1.',
+    badgeColor: '#0090d0',
+    vehicleType: 'Spec Dallara F2 2024 single-seater',
+    powertrain: '3.4L Mecachrome V6 Single-Turbo (620 bhp)',
+    topSpeed: '335 km/h',
+    formatType: 'sprint_and_feature',
+    formatDescription: 'One Free Practice, one 30-minute Qualifying session, a reverse-top-10 Saturday Sprint Race (120 km), and a Sunday Feature Race (170 km) with a mandatory pit stop.',
+    beginnerOverview: 'F2 is a spec championship: every driver races identical cars and engines. Success is determined almost entirely by driver skill, tyre management, and racecraft, making it the ultimate audition ground for future F1 talent.',
+    keyFeatures: [
+      'Identical Dallara chassis and Mecachrome engines for all 22 drivers',
+      'Reverse grid for the top 10 qualifiers in Saturday Sprint race',
+      'Mandatory pit stop using two dry tyre compounds in Sunday Feature race',
+      'Runs alongside F1 on Grand Prix race weekends',
+    ],
+    scoringSummary: 'Sprint: P1 (10 pts) to P8 (1 pt). Feature: P1 (25 pts) to P10 (1 pt). +2 pts for Pole, +1 for fastest lap.',
+    officialUrl: 'https://www.fiaformula2.com',
+  },
+  {
+    id: 'f3',
+    name: 'FIA Formula 3 Championship',
+    shortName: 'Formula 3',
+    category: 'open_wheel',
+    tier: 'Feeder Ladder',
+    governingBody: 'FIA',
+    tagline: 'Intense junior open-wheel warfare featuring 30 hungry young racers.',
+    badgeColor: '#e03a3e',
+    vehicleType: 'Spec Dallara F3 2025 single-seater',
+    powertrain: '3.4L Naturally Aspirated V6 (380 bhp)',
+    topSpeed: '300 km/h',
+    formatType: 'sprint_and_feature',
+    formatDescription: 'One 45-minute Practice, one 30-minute Qualifying, a reverse-top-12 Saturday Sprint Race (40 min), and a Sunday Feature Race (45 min).',
+    beginnerOverview: 'With 30 identical cars on track at once, F3 is notoriously chaotic and exciting. Junior drivers fresh from national F4 championships learn high-downforce racing, slipstream tactics, and Pirelli tyre degradation.',
+    keyFeatures: [
+      'Huge 30-car grid ensuring constant wheel-to-wheel battling',
+      'Reverse-top-12 grid for Saturday Sprint provides immense overtaking action',
+      'Strictly identical machinery with no in-season aerodynamic developments',
+    ],
+    scoringSummary: 'Sprint: P1 (10 pts) to P10 (1 pt). Feature: P1 (25 pts) to P10 (1 pt). +2 pts for Pole.',
+    officialUrl: 'https://www.fiaformula3.com',
+  },
+  {
+    id: 'f4',
+    name: 'FIA Formula 4 Categories',
+    shortName: 'Formula 4',
+    category: 'open_wheel',
+    tier: 'Feeder Ladder',
+    governingBody: 'FIA / National ASNs',
+    tagline: 'The first global step from karting into carbon-fibre single-seaters.',
+    badgeColor: '#10b981',
+    vehicleType: 'FIA Homologated F4 Carbon Monocoque with Halo (Tatuus / Mygale)',
+    powertrain: '1.3L – 1.4L Turbocharged 4-cylinder (~160–180 bhp)',
+    topSpeed: '240 km/h',
+    formatType: 'sprint_and_feature',
+    formatDescription: 'Multiple sprint races (usually 20–25 minutes each) across national championships (Italian F4, British F4, F4 Indian Championship, etc.).',
+    beginnerOverview: 'Designed to bridge the gap between karting and professional formula racing for drivers as young as 15. Standardized safety and cost-caps ensure young drivers learn fundamental vehicle dynamics and racecraft.',
+    keyFeatures: [
+      'Low running costs and strictly capped engine and chassis pricing',
+      'Global FIA certification with national championships across Europe, Americas, Asia, and India',
+      'First real exposure to wings, slicks, downforce, and telemetry data analysis',
+    ],
+    scoringSummary: 'Standard FIA points system (25-18-15-12-10-8-6-4-2-1) across 3 sprint races per weekend.',
+    officialUrl: 'https://www.fia.com/fia-formula-4',
+  },
+  {
+    id: 'wec',
+    name: 'FIA World Endurance Championship',
+    shortName: 'FIA WEC',
+    category: 'endurance',
+    tier: 'Endurance & SportsCar',
+    governingBody: 'FIA / ACO',
+    tagline: 'The ultimate test of endurance, teamwork, and multi-class racing.',
+    badgeColor: '#2563eb',
+    vehicleType: 'Hypercar (LMH & LMDh Prototypes) + LMGT3 (Customer GT3 cars)',
+    powertrain: 'Hybrid & Non-Hybrid Prototypes (~670 bhp) + Production V8/Flat-6 GT3s',
+    topSpeed: '345 km/h at Circuit de la Sarthe',
+    formatType: 'endurance',
+    formatDescription: 'Timed endurance races ranging from 6 Hours, 8 Hours, 1812 km (Qatar), to the crown jewel 24 Hours of Le Mans. Two classes share the track simultaneously.',
+    beginnerOverview: 'WEC races are not sprints — they are multi-hour strategic marathons where teams of 3 drivers share a single car, rotating stints during lightning-fast fuel and tyre stops. Faster Hypercars must constantly navigate heavy traffic around slower LMGT3 cars.',
+    keyFeatures: [
+      'Multi-Class Racing: 2 distinct categories (Hypercar and LMGT3) racing at the same time',
+      'The 24 Hours of Le Mans: The greatest endurance race in the world, running day and night',
+      'Balance of Performance (BoP) strictly equalizing different engine layouts and aero concepts',
+      'Driver categorization (Platinum, Gold, Silver, Bronze) guaranteeing amateur-pro collaboration in LMGT3',
+    ],
+    scoringSummary: 'Scaled points depending on race length (standard 25 for 6h; 38 for 8h/1812km; 50 for 24 Hours of Le Mans).',
+    officialUrl: 'https://www.fiawec.com',
+  },
+  {
+    id: 'formula-e',
+    name: 'ABB FIA Formula E World Championship',
+    shortName: 'Formula E',
+    category: 'electric',
+    tier: 'Electric Innovation',
+    governingBody: 'FIA',
+    tagline: 'All-electric street racing in the heart of the world’s greatest cities.',
+    badgeColor: '#00d2be',
+    vehicleType: 'Spark Gen3 Evo all-electric open-wheeler (All-Wheel Drive acceleration)',
+    powertrain: 'Twin powertrain (250 kW front regen + 350 kW rear drive, delivering up to 600 kW regen)',
+    topSpeed: '322 km/h (0-100 km/h in 1.82s)',
+    formatType: 'double_header',
+    formatDescription: 'Practice, head-to-head knockout duel qualifying, and a fast-paced 45-minute timed race on tight temporary street circuits, often held as double-headers.',
+    beginnerOverview: 'Formula E brings motorsport into dense urban centers with zero tailpipe emissions. Rather than managing fuel or engine wear, drivers must strategically balance battery state of charge (SoC) and regenerate kinetic energy while defending position at 300+ km/h.',
+    keyFeatures: [
+      'Attack Mode: Drivers go off-line through an activation zone to unlock an extra 50 kW power burst',
+      'Duel Qualifying: 1-on-1 knockout bracket to determine Julius Baer Pole Position',
+      'Extreme Regenerative Braking: Over 40% of the energy used during the race is regenerated under braking',
+      'Gen3 Evo AWD launch making it 30% faster from 0-100 km/h than a modern F1 car',
+    ],
+    scoringSummary: 'P1 (25 pts) to P10 (1 pt). +3 pts for Pole Position, +1 pt for Fastest Lap inside top 10.',
+    officialUrl: 'https://www.fiaformulae.com',
+  },
+  {
+    id: 'gt-world-challenge',
+    name: 'Fanatec GT World Challenge',
+    shortName: 'GT World Challenge',
+    category: 'touring_gt',
+    tier: 'Endurance & SportsCar',
+    governingBody: 'SRO Motorsports Group / FIA',
+    tagline: 'The global benchmark for customer GT3 sportscar racing.',
+    badgeColor: '#f59e0b',
+    vehicleType: 'Homologated FIA GT3 Race Cars (Ferrari 296, Porsche 911 GT3 R, BMW M4, Aston Martin Vantage)',
+    powertrain: 'Production-derived Turbo/NA engines (~500–550 bhp capped by BoP)',
+    topSpeed: '290 km/h',
+    formatType: 'endurance',
+    formatDescription: 'Split between Sprint Cup (two 1-hour races with mandatory mid-race driver change) and Endurance Cup (3-hour to 24-hour races like the CrowdStrike 24 Hours of Spa).',
+    beginnerOverview: 'GT3 racing features high-end supercars you can actually recognize from showrooms, modified into aggressive winged race machines. The championship runs regional series across Europe, America, Asia, and Australia.',
+    keyFeatures: [
+      'World-famous marques competing under strict SRO Balance of Performance',
+      'Driver categories creating fiercely contested Pro, Gold, Silver, and Bronze cups',
+      'The 24 Hours of Spa: 70+ GT3 machines tackling the Ardennes forest through rain and night',
+    ],
+    scoringSummary: 'Standard FIA points for Sprint Cup; elevated points scales for Endurance rounds.',
+    officialUrl: 'https://www.gt-world-challenge.com',
+  },
+  {
+    id: 'wrc',
+    name: 'FIA World Rally Championship',
+    shortName: 'WRC Rally',
+    category: 'rally',
+    tier: 'Off-Road Rally',
+    governingBody: 'FIA',
+    tagline: 'Full-throttle courage against the elements on gravel, snow, and asphalt.',
+    badgeColor: '#f97316',
+    vehicleType: 'Rally1 4WD Spaceframe (Lightweight 1,180 kg specification)',
+    powertrain: '1.6L Direct Injection Turbo on 100% Sustainable Fuel (~380 bhp, 35mm restrictor; hybrid units removed by FIA for cost control)',
+    topSpeed: '200+ km/h through narrow tree-lined forest tracks',
+    formatType: 'rally_stages',
+    formatDescription: 'A 3-to-4 day event split into 15–25 Special Stages against the clock, covering 300+ competitive kilometers with no wheel-to-wheel contact.',
+    beginnerOverview: 'Unlike circuit racing, rally cars don’t race side-by-side. Instead, cars start one by one at 2-minute intervals. The driver relies entirely on spoken "pace notes" read at machine-gun pace by their co-driver in the passenger seat to navigate blind crests and hairpin turns.',
+    keyFeatures: [
+      'Pace Notes: Detailed codes describing corner sharpness (e.g. "Right 3 over crest into Left 5 tightens")',
+      'Extreme Terrains: Sub-zero snow in Sweden, rocky boulders in Greece, mud in Kenya, tarmac in Monte Carlo',
+      '100% Sustainable Fuel: Powered by non-fossil hydrocarbon fuels in lightweight 1,180 kg chassis',
+      'Service Parks: Mechanics have strictly timed 15 or 45-minute windows to rebuild battered cars',
+      'Wolf Power Stage: Final stage offering up to 5 bonus championship points broadcast live',
+    ],
+    scoringSummary: 'Super Sunday structure: Saturday classification points (18-15-13...), Sunday points (7-6-5...), plus Power Stage (5-4-3-2-1).',
+    officialUrl: 'https://www.wrc.com',
+  },
+  {
+    id: 'motogp',
+    name: 'FIM MotoGP World Championship',
+    shortName: 'MotoGP',
+    category: 'motorcycle',
+    tier: 'Premier Motorcycle',
+    governingBody: 'FIM / Dorna Sports',
+    tagline: 'The pinnacle of two-wheeled prototype racing: 360 km/h with elbows on the tarmac.',
+    badgeColor: '#dc2626',
+    vehicleType: 'Bespoke Prototype Racing Motorcycle (Ducati, KTM, Aprilia, Yamaha, Honda)',
+    powertrain: '1000cc 4-cylinder 4-stroke prototype engine (Over 300 bhp, 157 kg minimum weight)',
+    topSpeed: '366.1 km/h (Mugello / Lusail)',
+    formatType: 'sprint_and_feature',
+    formatDescription: 'Friday Practice, Saturday Qualifying (Q1 and Q2), Saturday half-distance Sprint Race, and Sunday full-length Grand Prix.',
+    beginnerOverview: 'MotoGP is the ultimate exhibition of human balance and physical bravery. There are no seatbelts, no roll cages, and no power steering. Riders drag their knees and elbows along the tarmac at 65° lean angles while fighting prototype bikes with immense power-to-weight ratios.',
+    keyFeatures: [
+      'Extreme Leaning: Riders drag their elbows through corners with tyre contact patches the size of a credit card',
+      'Saturday Sprint: Fast, aggressive half-distance race awarding half championship points',
+      'Ride Height Devices & Winglets: Aerodynamic bodywork generating downforce to combat wheelies on acceleration',
+      'Feeder Ladder: Moto3 (250cc) → Moto2 (765cc spec Triumph) → MotoGP (1000cc prototype)',
+    ],
+    scoringSummary: 'Sprint: P1 (12 pts) to P9 (1 pt). Grand Prix: P1 (25 pts) to P15 (1 pt).',
+    officialUrl: 'https://www.motogp.com',
+  },
+  {
+    id: 'indian-motorsport',
+    name: 'Indian Motorsport Ecosystem',
+    shortName: 'Indian Motorsport',
+    category: 'national_indian',
+    tier: 'National Championship',
+    governingBody: 'FMSCI (Federation of Motor Sports Clubs of India)',
+    tagline: 'A thriving ecosystem of grassroots single-seaters, touring cars, and rally.',
+    badgeColor: '#ff9933',
+    vehicleType: 'Indian Racing League Wolf GB08 Thunder / FIA F4 India / INRC Rally Cars',
+    powertrain: 'Wolf Aprilia 1.0L / Abarth 1.4L Turbo / Spec Naturally Aspirated Engines',
+    topSpeed: '260+ km/h',
+    formatType: 'grand_prix',
+    formatDescription: 'Multi-round weekend events including Sprint races, city street circuits (Chennai Formula Racing Circuit), and permanent track fixtures.',
+    beginnerOverview: 'India has a proud motorsport heritage pioneered by Formula 1 drivers Narain Karthikeyan and Karun Chandhok, alongside world championship entries like Force India and Mahindra Racing. Today, the domestic calendar is headlined by the Indian Racing Festival (IRL + F4 India), INRC (Indian National Rally Championship), and national karting championships.',
+    keyFeatures: [
+      'Indian Racing Festival: City street circuits (Chennai Street Circuit) bringing racing directly to urban crowds',
+      'Iconic Venues: Buddh International Circuit (F1 homologated), Madras International Circuit (MMRT), Kari Motor Speedway',
+      'FIA F4 Indian Championship: Direct pathway earning FIA Superlicense points for domestic young talents',
+      'INRC (Indian National Rally Championship): High-speed dirt and tarmac rally stages across South and Western India',
+    ],
+    scoringSummary: 'Standard FIA points for F4 India; dedicated team/franchise points in Indian Racing League.',
+    officialUrl: 'https://www.fmsci.co.in',
+  },
+];
+
+export const FORMAT_COMPARISONS = [
+  {
+    formatType: 'grand_prix',
+    title: 'Formula 1 Grand Prix',
+    structure: 'Championship → Season → Grand Prix Weekend → Practice / Knockout Quali → ~305 km Race',
+    focus: 'Pure qualifying pace, high downforce aerodynamics, and single-driver sprint execution.',
+    championshipExample: 'Formula 1, F4 India',
+  },
+  {
+    formatType: 'endurance',
+    title: 'Endurance & Multi-Class',
+    structure: 'Championship → Season → Timed Event (6h to 24h) → Multiple Classes → 3 Drivers Per Car',
+    focus: 'Car reliability, constant traffic navigation, and balanced stint strategies between teammates.',
+    championshipExample: 'FIA WEC, GT World Challenge',
+  },
+  {
+    formatType: 'rally_stages',
+    title: 'Point-to-Point Rally Stages',
+    structure: 'Championship → Season → Multi-day Rally → 15–25 Special Stages against the Clock',
+    focus: 'Navigating blind crests and natural hazards relying exclusively on co-driver pace notes.',
+    championshipExample: 'World Rally Championship (WRC)',
+  },
+  {
+    formatType: 'sprint_and_feature',
+    title: 'Sprint + Feature / Double Race',
+    structure: 'Championship → Qualifying → Saturday Sprint (short) → Sunday Feature / GP (full points)',
+    focus: 'Aggressive reverse-grid battles and rapid adaptation across two distinct race distances.',
+    championshipExample: 'Formula 2, Formula 3, MotoGP',
+  },
+];
+
+export function getAllChampionships(): Championship[] {
+  return CHAMPIONSHIPS_REGISTRY;
+}
+
+export function getChampionshipById(id: string): Championship | undefined {
+  return CHAMPIONSHIPS_REGISTRY.find(c => c.id === id);
+}
+
+export function getChampionshipsByCategory(categoryId: MotorsportCategoryId): Championship[] {
+  if (categoryId === 'all') {
+    return CHAMPIONSHIPS_REGISTRY;
+  }
+  return CHAMPIONSHIPS_REGISTRY.filter(c => c.category === categoryId);
+}
+
+export function getMotorsportCategories(): MotorsportCategory[] {
+  return MOTORSPORT_CATEGORIES;
+}

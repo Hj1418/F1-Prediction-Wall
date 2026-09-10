@@ -286,6 +286,57 @@
   flex-shrink: 0;
 }
 
+/* ── Universal Search Trigger ── */
+.navbar-search-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0 0.75rem;
+  height: 36px;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.navbar-search-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+.navbar-search-btn__icon {
+  color: var(--f1-red, #e10600);
+}
+
+.navbar-search-btn__kbd {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.65rem;
+  padding: 0.1rem 0.35rem;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: var(--text-muted);
+}
+
+@media (max-width: 1024px) {
+  .navbar-search-btn__text,
+  .navbar-search-btn__kbd {
+    display: none;
+  }
+  .navbar-search-btn {
+    padding: 0 0.55rem;
+  }
+}
+
 .navbar-actions {
   display: flex;
   align-items: center;
