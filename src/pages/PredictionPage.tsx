@@ -159,7 +159,7 @@ export const PredictionPage: React.FC = () => {
     }
 
     // Validate required fields
-    for (const field of round.predictionFields) {
+    for (const field of (round.predictionFields || [])) {
       if (field.required && !formData[field.id]) {
         showToast(`Please complete the required field: ${field.label}`, 'error');
         return;
@@ -476,7 +476,7 @@ export const PredictionPage: React.FC = () => {
               gap: '1.5rem',
             }}
           >
-            {round.predictionFields.map(field => {
+            {(round.predictionFields || []).map(field => {
               const currentValue = formData[field.id];
               const selectedDriver = field.type === 'driver' && currentValue ? getDriverById(currentValue) : null;
               const officialVal = officialResult?.resultData?.[field.id];
