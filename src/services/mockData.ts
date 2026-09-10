@@ -270,16 +270,8 @@ export const F1_DRIVERS_2026: Driver[] = [
   },
 ];
 
-export const DEFAULT_SCORING_RULES: ScoringRules = {
-  exactP1: 15,
-  exactP2: 10,
-  exactP3: 10,
-  podiumWrongPosition: 5,
-  fastestLap: 10,
-  driverOfTheDay: 10,
-  wildCard: 15,
-  perfectPodiumBonus: 10,
-};
+export { DEFAULT_SCORING_RULES } from './schedule/predictionRoundGenerator';
+import { getDefaultPredictionFields, DEFAULT_SCORING_RULES } from './schedule/predictionRoundGenerator';
 
 export const INITIAL_USERS: User[] = [
   {
@@ -374,25 +366,11 @@ export const INITIAL_PREDICTION_ROUNDS: PredictionRound[] = [
     sessionId: '2026_13_QUALIFYING',
     roundType: 'QUALIFYING',
     title: 'Qualifying Prediction',
-    description: 'Predict the top 3 qualifiers for the Italian Grand Prix at Monza.',
+    description: 'Predict the top 3 qualifiers, pole margin, red flags, and qualifying wildcards.',
     opensAt: '2026-09-03T14:00:00Z',
     closesAt: '2026-09-05T13:55:00Z',
     status: 'OPEN',
-    predictionFields: [
-      { id: 'p1', label: 'Pole Position (P1)', type: 'driver', required: true },
-      { id: 'p2', label: 'Second Place (P2)', type: 'driver', required: true },
-      { id: 'p3', label: 'Third Place (P3)', type: 'driver', required: true },
-      {
-        id: 'wildCard',
-        label: 'Wild Card: Will pole lap time be under 1m 20.000s?',
-        type: 'option',
-        required: false,
-        options: [
-          { value: 'YES', label: 'Yes - Under 1:20.000' },
-          { value: 'NO', label: 'No - 1:20.000 or slower' },
-        ],
-      },
-    ],
+    predictionFields: getDefaultPredictionFields('QUALIFYING'),
     scoringRules: DEFAULT_SCORING_RULES,
   },
   {
@@ -401,27 +379,11 @@ export const INITIAL_PREDICTION_ROUNDS: PredictionRound[] = [
     sessionId: '2026_13_RACE',
     roundType: 'GRAND_PRIX',
     title: 'Grand Prix Race Prediction',
-    description: 'Submit your podium, fastest lap, and bonus predictions for the Italian Grand Prix.',
+    description: 'Submit podium, fastest lap, driver of the day, safety car, VSC, red flag, and race wildcards.',
     opensAt: '2026-09-05T15:00:00Z',
     closesAt: '2026-09-06T12:55:00Z',
     status: 'UPCOMING',
-    predictionFields: [
-      { id: 'p1', label: 'Race Winner (P1)', type: 'driver', required: true },
-      { id: 'p2', label: 'Second Place (P2)', type: 'driver', required: true },
-      { id: 'p3', label: 'Third Place (P3)', type: 'driver', required: true },
-      { id: 'fastestLap', label: 'Fastest Lap', type: 'driver', required: false, helperText: 'Driver who sets the fastest official lap' },
-      { id: 'driverOfTheDay', label: 'Driver of the Day', type: 'driver', required: false, helperText: 'Official F1 fan vote winner' },
-      {
-        id: 'wildCard',
-        label: 'Wild Card: Will there be a Safety Car during the Grand Prix?',
-        type: 'option',
-        required: false,
-        options: [
-          { value: 'YES', label: 'Yes - Full Safety Car deployed' },
-          { value: 'NO', label: 'No - Clean green flag race / VSC only' },
-        ],
-      },
-    ],
+    predictionFields: getDefaultPredictionFields('GRAND_PRIX'),
     scoringRules: DEFAULT_SCORING_RULES,
   },
 ];

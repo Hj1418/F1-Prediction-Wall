@@ -612,98 +612,134 @@ export const AdminDashboardPage: React.FC = () => {
             {activeRound && (
               <form onSubmit={handleSaveResultAndCalculate}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1.5rem' }}>
-                  {/* P1 */}
-                  <div>
-                    <label className="form-label">Official Winner (P1)</label>
-                    <select
-                      className="form-select"
-                      value={resultForm.p1 || ''}
-                      onChange={e => setResultForm(prev => ({ ...prev, p1: e.target.value }))}
-                    >
-                      {drivers.map(d => (
-                        <option key={d.id} value={d.id}>
-                          #{d.number} {d.firstName} {d.lastName} ({d.team})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                  {(activeRound.predictionFields && activeRound.predictionFields.length > 0) ? (
+                    activeRound.predictionFields.map(field => {
+                      if (field.type === 'driver') {
+                        return (
+                          <div key={field.id}>
+                            <label className="form-label">{field.label}</label>
+                            <select
+                              className="form-select"
+                              value={resultForm[field.id] || ''}
+                              onChange={e => setResultForm(prev => ({ ...prev, [field.id]: e.target.value }))}
+                            >
+                              <option value="">Select Driver...</option>
+                              {drivers.map(d => (
+                                <option key={d.id} value={d.id}>
+                                  #{d.number} {d.firstName} {d.lastName} ({d.team})
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        );
+                      }
 
-                  {/* P2 */}
-                  <div>
-                    <label className="form-label">Official Second (P2)</label>
-                    <select
-                      className="form-select"
-                      value={resultForm.p2 || ''}
-                      onChange={e => setResultForm(prev => ({ ...prev, p2: e.target.value }))}
-                    >
-                      {drivers.map(d => (
-                        <option key={d.id} value={d.id}>
-                          #{d.number} {d.firstName} {d.lastName} ({d.team})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* P3 */}
-                  <div>
-                    <label className="form-label">Official Third (P3)</label>
-                    <select
-                      className="form-select"
-                      value={resultForm.p3 || ''}
-                      onChange={e => setResultForm(prev => ({ ...prev, p3: e.target.value }))}
-                    >
-                      {drivers.map(d => (
-                        <option key={d.id} value={d.id}>
-                          #{d.number} {d.firstName} {d.lastName} ({d.team})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Fastest Lap */}
-                  <div>
-                    <label className="form-label">Fastest Lap Driver</label>
-                    <select
-                      className="form-select"
-                      value={resultForm.fastestLap || ''}
-                      onChange={e => setResultForm(prev => ({ ...prev, fastestLap: e.target.value }))}
-                    >
-                      {drivers.map(d => (
-                        <option key={d.id} value={d.id}>
-                          #{d.number} {d.firstName} {d.lastName} ({d.team})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Driver of the Day */}
-                  <div>
-                    <label className="form-label">Driver of the Day</label>
-                    <select
-                      className="form-select"
-                      value={resultForm.driverOfTheDay || ''}
-                      onChange={e => setResultForm(prev => ({ ...prev, driverOfTheDay: e.target.value }))}
-                    >
-                      {drivers.map(d => (
-                        <option key={d.id} value={d.id}>
-                          #{d.number} {d.firstName} {d.lastName} ({d.team})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Wildcard */}
-                  <div>
-                    <label className="form-label">Wild Card Outcome</label>
-                    <select
-                      className="form-select"
-                      value={resultForm.wildCard || 'YES'}
-                      onChange={e => setResultForm(prev => ({ ...prev, wildCard: e.target.value }))}
-                    >
-                      <option value="YES">YES</option>
-                      <option value="NO">NO</option>
-                    </select>
-                  </div>
+                      // Option or boolean field (Safety Car, VSC, Red Flag, Wildcards, etc.)
+                      return (
+                        <div key={field.id}>
+                          <label className="form-label">{field.label}</label>
+                          <select
+                            className="form-select"
+                            value={resultForm[field.id] ?? (field.options?.[0]?.value || 'YES')}
+                            onChange={e => setResultForm(prev => ({ ...prev, [field.id]: e.target.value }))}
+                          >
+                            {(field.options || [
+                              { value: 'YES', label: 'YES' },
+                              { value: 'NO', label: 'NO' },
+                            ]).map(opt => (
+                              <option key={opt.value} value={opt.value}>
+                                {opt.label}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <>
+                      <div>
+                        <label className="form-label">Official Winner (P1)</label>
+                        <select
+                          className="form-select"
+                          value={resultForm.p1 || ''}
+                          onChange={e => setResultForm(prev => ({ ...prev, p1: e.target.value }))}
+                        >
+                          {drivers.map(d => (
+                            <option key={d.id} value={d.id}>
+                              #{d.number} {d.firstName} {d.lastName} ({d.team})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="form-label">Official Second (P2)</label>
+                        <select
+                          className="form-select"
+                          value={resultForm.p2 || ''}
+                          onChange={e => setResultForm(prev => ({ ...prev, p2: e.target.value }))}
+                        >
+                          {drivers.map(d => (
+                            <option key={d.id} value={d.id}>
+                              #{d.number} {d.firstName} {d.lastName} ({d.team})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="form-label">Official Third (P3)</label>
+                        <select
+                          className="form-select"
+                          value={resultForm.p3 || ''}
+                          onChange={e => setResultForm(prev => ({ ...prev, p3: e.target.value }))}
+                        >
+                          {drivers.map(d => (
+                            <option key={d.id} value={d.id}>
+                              #{d.number} {d.firstName} {d.lastName} ({d.team})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="form-label">Fastest Lap Driver</label>
+                        <select
+                          className="form-select"
+                          value={resultForm.fastestLap || ''}
+                          onChange={e => setResultForm(prev => ({ ...prev, fastestLap: e.target.value }))}
+                        >
+                          {drivers.map(d => (
+                            <option key={d.id} value={d.id}>
+                              #{d.number} {d.firstName} {d.lastName} ({d.team})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="form-label">Driver of the Day</label>
+                        <select
+                          className="form-select"
+                          value={resultForm.driverOfTheDay || ''}
+                          onChange={e => setResultForm(prev => ({ ...prev, driverOfTheDay: e.target.value }))}
+                        >
+                          {drivers.map(d => (
+                            <option key={d.id} value={d.id}>
+                              #{d.number} {d.firstName} {d.lastName} ({d.team})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="form-label">Wild Card Outcome</label>
+                        <select
+                          className="form-select"
+                          value={resultForm.wildCard || 'YES'}
+                          onChange={e => setResultForm(prev => ({ ...prev, wildCard: e.target.value }))}
+                        >
+                          <option value="YES">YES</option>
+                          <option value="NO">NO</option>
+                        </select>
+                      </div>
+                    </>
+                  )}
                 </div>
 
                 <button

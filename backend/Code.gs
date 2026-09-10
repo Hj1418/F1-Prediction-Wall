@@ -810,13 +810,26 @@ function computeScore(pred, official) {
   b.fastestLap = (pred.fastestLap && pred.fastestLap === official.fastestLap) ? 10 : 0;
   b.driverOfTheDay = (pred.driverOfTheDay && pred.driverOfTheDay === official.driverOfTheDay) ? 10 : 0;
 
-  if (pred.wildCard !== undefined && official.wildCard !== undefined) {
-    b.wildCard = (String(pred.wildCard).toUpperCase() === String(official.wildCard).toUpperCase()) ? 15 : 0;
-  } else {
-    b.wildCard = 0;
+  // Evaluate all dynamic wildcard & option fields (safetyCar, virtualSafetyCar, redFlag, etc.)
+  var standardFields = ['p1', 'p2', 'p3', 'perfectPodiumBonus', 'fastestLap', 'driverOfTheDay'];
+  for (var key in pred) {
+    if (standardFields.indexOf(key) !== -1) continue;
+    if (pred[key] !== undefined && official[key] !== undefined) {
+      var pts = (key === 'wildCard') ? 15 : 10;
+      if (String(pred[key]).trim().toUpperCase() === String(official[key]).trim().toUpperCase()) {
+        b[key] = pts;
+      } else {
+        b[key] = 0;
+      }
+    }
   }
 
-  total = b.p1 + b.p2 + b.p3 + b.perfectPodiumBonus + b.fastestLap + b.driverOfTheDay + b.wildCard;
+  total = (b.p1 || 0) + (b.p2 || 0) + (b.p3 || 0) + (b.perfectPodiumBonus || 0) + (b.fastestLap || 0) + (b.driverOfTheDay || 0);
+  for (var k in b) {
+    if (standardFields.indexOf(k) === -1) {
+      total += (b[k] || 0);
+    }
+  }
   return { breakdown: b, totalScore: total };
 }
 

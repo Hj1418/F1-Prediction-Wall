@@ -114,6 +114,44 @@ export const PredictionPage: React.FC = () => {
     );
   }
 
+  // Field category badge helper
+  const getFieldBadge = (fieldId: string) => {
+    if (['p1', 'p2', 'p3'].includes(fieldId)) {
+      return { label: 'PODIUM POSITION', color: '#ffb800', bg: 'rgba(255, 184, 0, 0.1)', icon: '🏆' };
+    }
+    if (fieldId === 'fastestLap') {
+      return { label: 'FASTEST LAP', color: '#b966ff', bg: 'rgba(185, 102, 255, 0.1)', icon: '⚡' };
+    }
+    if (fieldId === 'driverOfTheDay') {
+      return { label: 'DRIVER OF THE DAY', color: '#00e676', bg: 'rgba(0, 230, 118, 0.1)', icon: '⭐' };
+    }
+    if (fieldId === 'safetyCar') {
+      return { label: 'SAFETY CAR', color: '#ffcc00', bg: 'rgba(255, 204, 0, 0.12)', icon: '🟨' };
+    }
+    if (fieldId === 'virtualSafetyCar') {
+      return { label: 'VIRTUAL SAFETY CAR', color: '#ff9800', bg: 'rgba(255, 152, 0, 0.12)', icon: '🟪' };
+    }
+    if (fieldId === 'redFlag') {
+      return { label: 'RED FLAG', color: '#ff3b30', bg: 'rgba(255, 59, 48, 0.15)', icon: '🚩' };
+    }
+    if (fieldId === 'rainSession' || fieldId === 'rainIntermediates') {
+      return { label: 'WEATHER INTEL', color: '#00d2ff', bg: 'rgba(0, 210, 255, 0.1)', icon: '🌧️' };
+    }
+    if (fieldId === 'poleMargin' || fieldId === 'winningMargin') {
+      return { label: 'TIMING MARGIN', color: '#a78bfa', bg: 'rgba(167, 139, 250, 0.1)', icon: '⏱️' };
+    }
+    if (fieldId === 'retirementsOverUnder' || fieldId === 'sprintDnf') {
+      return { label: 'RETIREMENTS (DNFs)', color: '#fb923c', bg: 'rgba(251, 146, 60, 0.1)', icon: '🔥' };
+    }
+    if (fieldId === 'lap1Leader') {
+      return { label: 'LAP 1 BATTLE', color: '#f43f5e', bg: 'rgba(244, 63, 94, 0.1)', icon: '🏁' };
+    }
+    if (fieldId === 'q1Elimination') {
+      return { label: 'QUALIFYING SHOCK', color: '#e879f9', bg: 'rgba(232, 121, 249, 0.1)', icon: '⚠️' };
+    }
+    return { label: 'WILD CARD', color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.1)', icon: '🎲' };
+  };
+
   const isLocked = round.status === 'LOCKED';
   const isScored = round.status === 'SCORED';
   const isOpen = round.status === 'OPEN';
@@ -495,23 +533,52 @@ export const PredictionPage: React.FC = () => {
                   }}
                 >
                   <div>
-                    {/* Field Header */}
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                      <label className="form-label" style={{ marginBottom: 0 }}>
+                    {/* Category Badge & Score */}
+                    {(() => {
+                      const badge = getFieldBadge(field.id);
+                      return (
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.65rem' }}>
+                          <span
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '0.35rem',
+                              padding: '0.2rem 0.6rem',
+                              borderRadius: '999px',
+                              background: badge.bg,
+                              border: `1px solid ${badge.color}40`,
+                              color: badge.color,
+                              fontSize: '0.68rem',
+                              fontWeight: 800,
+                              letterSpacing: '0.06em',
+                              fontFamily: 'var(--font-mono)',
+                            }}
+                          >
+                            <span>{badge.icon}</span>
+                            <span>{badge.label}</span>
+                          </span>
+
+                          {isScored && userScore?.breakdown?.[field.id] !== undefined && (
+                            <span
+                              style={{
+                                fontFamily: 'var(--font-mono)',
+                                fontWeight: 800,
+                                fontSize: '0.75rem',
+                                color: (userScore.breakdown[field.id] || 0) > 0 ? 'var(--telemetry-green)' : '#f87171',
+                              }}
+                            >
+                              +{(userScore.breakdown[field.id] || 0)} PTS
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })()}
+
+                    {/* Field Label */}
+                    <div style={{ marginBottom: '0.4rem' }}>
+                      <label className="form-label" style={{ marginBottom: 0, fontSize: '0.95rem', fontWeight: 700 }}>
                         {field.label} {field.required && <span style={{ color: 'var(--f1-red)' }}>*</span>}
                       </label>
-                      {isScored && userScore?.breakdown?.[field.id] !== undefined && (
-                        <span
-                          style={{
-                            fontFamily: 'var(--font-mono)',
-                            fontWeight: 800,
-                            fontSize: '0.75rem',
-                            color: (userScore.breakdown[field.id] || 0) > 0 ? 'var(--telemetry-green)' : '#f87171',
-                          }}
-                        >
-                          +{(userScore.breakdown[field.id] || 0)} PTS
-                        </span>
-                      )}
                     </div>
 
                     {field.helperText && (

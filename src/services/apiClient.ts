@@ -14,7 +14,7 @@ import {
 } from '../types';
 import { mockApi } from './mockApi';
 import { clientCache, TTL } from './cache/clientCache';
-import { DEFAULT_SCORING_RULES } from './schedule/predictionRoundGenerator';
+import { DEFAULT_SCORING_RULES, getDefaultPredictionFields } from './schedule/predictionRoundGenerator';
 
 const isTestEnv = typeof window === 'undefined';
 
@@ -28,76 +28,6 @@ const API_BASE_URL =
 export const isLiveBackend = Boolean(API_BASE_URL && API_BASE_URL.startsWith('http') && !isTestEnv);
 
 const isProd = typeof import.meta !== 'undefined' && Boolean(import.meta.env?.PROD);
-
-/**
- * Returns default prediction fields for a round type.
- * The live backend (Google Apps Script) stores round metadata but not
- * the predictionFields definition. This function hydrates them client-side
- * based on roundType so the prediction form always has field definitions.
- */
-function getDefaultPredictionFields(roundType: string): PredictionFieldConfig[] {
-  const QUALI_PODIUM: PredictionFieldConfig[] = [
-    { id: 'p1', label: 'Pole Position (P1)', type: 'driver', required: true },
-    { id: 'p2', label: 'Second Place (P2)', type: 'driver', required: true },
-    { id: 'p3', label: 'Third Place (P3)', type: 'driver', required: true },
-  ];
-  const RACE_PODIUM: PredictionFieldConfig[] = [
-    { id: 'p1', label: 'Race Winner (P1)', type: 'driver', required: true },
-    { id: 'p2', label: 'Second Place (P2)', type: 'driver', required: true },
-    { id: 'p3', label: 'Third Place (P3)', type: 'driver', required: true },
-  ];
-
-  switch (roundType) {
-    case 'QUALIFYING':
-    case 'SPRINT_QUALIFYING':
-      return [
-        ...QUALI_PODIUM,
-        {
-          id: 'wildCard',
-          label: 'Wild Card: Will pole margin be under 0.100s?',
-          type: 'option',
-          required: false,
-          options: [
-            { value: 'YES', label: 'Yes (Gap < 0.100s)' },
-            { value: 'NO', label: 'No (Gap >= 0.100s)' },
-          ],
-        },
-      ];
-    case 'SPRINT':
-      return [
-        ...RACE_PODIUM,
-        { id: 'fastestLap', label: 'Fastest Lap', type: 'driver', required: false },
-        {
-          id: 'wildCard',
-          label: 'Wild Card: Will any driver DNF in the Sprint?',
-          type: 'option',
-          required: false,
-          options: [
-            { value: 'YES', label: 'Yes - At least 1 retirement' },
-            { value: 'NO', label: 'No - All cars finish' },
-          ],
-        },
-      ];
-    case 'GRAND_PRIX':
-    case 'RACE':
-    default:
-      return [
-        ...RACE_PODIUM,
-        { id: 'fastestLap', label: 'Fastest Lap', type: 'driver', required: false },
-        { id: 'driverOfTheDay', label: 'Driver of the Day', type: 'driver', required: false },
-        {
-          id: 'wildCard',
-          label: 'Wild Card: Will there be a Safety Car or VSC deployed?',
-          type: 'option',
-          required: false,
-          options: [
-            { value: 'YES', label: 'Yes - Full SC or VSC deployed' },
-            { value: 'NO', label: 'No - Clean Green Flag Race' },
-          ],
-        },
-      ];
-  }
-}
 
 /**
  * Ensures a PredictionRound from the live API has predictionFields and scoringRules.

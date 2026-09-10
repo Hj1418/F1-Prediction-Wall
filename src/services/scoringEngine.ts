@@ -106,16 +106,21 @@ export class ScoringEngine {
       totalScore += breakdown.driverOfTheDay;
     }
 
-    // Evaluate Wildcard
-    if (predictionData.wildCard !== undefined && resultData.wildCard !== undefined) {
-      const predNorm = String(predictionData.wildCard).trim().toUpperCase();
-      const resNorm = String(resultData.wildCard).trim().toUpperCase();
-      if (predNorm === resNorm) {
-        breakdown.wildCard = defaultRules.wildCard;
-      } else {
-        breakdown.wildCard = 0;
+    // Evaluate all Wildcards & Dynamic fields (safetyCar, virtualSafetyCar, redFlag, poleMargin, winningMargin, etc.)
+    const coreFields = ['p1', 'p2', 'p3', 'perfectPodiumBonus', 'fastestLap', 'driverOfTheDay'];
+    for (const [key, predVal] of Object.entries(predictionData)) {
+      if (coreFields.includes(key)) continue;
+      if (predVal !== undefined && resultData[key] !== undefined) {
+        const predNorm = String(predVal).trim().toUpperCase();
+        const resNorm = String(resultData[key]).trim().toUpperCase();
+        const pts = defaultRules[key] ?? defaultRules.wildCard ?? 10;
+        if (predNorm === resNorm) {
+          breakdown[key] = pts;
+        } else {
+          breakdown[key] = 0;
+        }
+        totalScore += breakdown[key] || 0;
       }
-      totalScore += breakdown.wildCard;
     }
 
     return { breakdown, totalScore };

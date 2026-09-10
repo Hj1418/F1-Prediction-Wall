@@ -684,7 +684,14 @@ export class MockApiService {
       const totalPoints = userScores.reduce((acc, s) => acc + s.totalScore, 0);
       const exactP1Count = userScores.filter(s => s.breakdown.p1 === 15).length;
       const perfectPodiumCount = userScores.filter(s => (s.breakdown.perfectPodiumBonus || 0) > 0).length;
-      const wildcardsCorrect = userScores.filter(s => (s.breakdown.wildCard || 0) > 0).length;
+      const coreKeys = ['p1', 'p2', 'p3', 'fastestLap', 'driverOfTheDay', 'perfectPodiumBonus'];
+      const wildcardsCorrect = userScores.reduce((acc, s) => {
+        let count = 0;
+        for (const [k, v] of Object.entries(s.breakdown || {})) {
+          if (!coreKeys.includes(k) && (v || 0) > 0) count++;
+        }
+        return acc + count;
+      }, 0);
 
       user.totalPoints = totalPoints;
       user.exactP1Count = exactP1Count;
