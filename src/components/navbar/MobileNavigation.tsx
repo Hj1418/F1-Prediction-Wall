@@ -131,7 +131,6 @@ export const MobileNavigation: React.FC<MobileNavigationProps> = ({
           <Search size={16} style={{ color: 'var(--f1-red)' }} />
           <span>Search Motorsport...</span>
         </div>
-        <kbd style={{ fontSize: '0.65rem', padding: '0.15rem 0.4rem', borderRadius: '4px', background: 'rgba(255, 255, 255, 0.1)', border: '1px solid rgba(255, 255, 255, 0.15)', color: 'var(--text-muted)', fontFamily: 'monospace' }}>⌘K</kbd>
       </button>
 
       {/* 2. Predict Now CTA */}

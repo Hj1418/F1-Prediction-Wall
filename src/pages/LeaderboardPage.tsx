@@ -140,6 +140,11 @@ export const LeaderboardPage: React.FC = () => {
             padding: '0.3rem',
             borderRadius: 'var(--radius-sm)',
             border: '1px solid var(--border-subtle)',
+            maxWidth: '100%',
+            overflowX: 'auto',
+            whiteSpace: 'nowrap',
+            WebkitOverflowScrolling: 'touch',
+            scrollbarWidth: 'none',
           }}
         >
           <button
@@ -149,6 +154,7 @@ export const LeaderboardPage: React.FC = () => {
               background: tab === 'season' ? 'var(--f1-red)' : 'transparent',
               color: tab === 'season' ? '#fff' : 'var(--text-secondary)',
               border: 'none',
+              flexShrink: 0,
             }}
           >
             <Trophy size={14} /> Season Overall
@@ -160,6 +166,7 @@ export const LeaderboardPage: React.FC = () => {
               background: tab === 'weekend' ? 'var(--f1-red)' : 'transparent',
               color: tab === 'weekend' ? '#fff' : 'var(--text-secondary)',
               border: 'none',
+              flexShrink: 0,
             }}
           >
             <Calendar size={14} /> This Weekend
@@ -171,6 +178,7 @@ export const LeaderboardPage: React.FC = () => {
               background: tab === 'round' ? 'var(--f1-red)' : 'transparent',
               color: tab === 'round' ? '#fff' : 'var(--text-secondary)',
               border: 'none',
+              flexShrink: 0,
             }}
           >
             <Layers size={14} /> Session Round
@@ -237,13 +245,13 @@ export const LeaderboardPage: React.FC = () => {
 
       {/* Selector controls for weekend / round */}
       {tab === 'weekend' && (
-        <div style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+        <div style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
           <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
-            Select Grand Prix:
+            Select Race Weekend:
           </span>
           <select
             className="form-select"
-            style={{ maxWidth: '320px' }}
+            style={{ maxWidth: '100%', minWidth: 'min(100%, 280px)' }}
             value={selectedWeekendId}
             onChange={e => {
               setSelectedWeekendId(e.target.value);
@@ -260,13 +268,13 @@ export const LeaderboardPage: React.FC = () => {
       )}
 
       {tab === 'round' && (
-        <div style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+        <div style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
           <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
             Select Prediction Round:
           </span>
           <select
             className="form-select"
-            style={{ maxWidth: '380px' }}
+            style={{ maxWidth: '100%', minWidth: 'min(100%, 280px)' }}
             value={selectedRoundId}
             onChange={e => {
               setSelectedRoundId(e.target.value);

@@ -350,7 +350,22 @@ export const LearnPage: React.FC = () => {
       </header>
 
       {/* Navigation Sub-Tabs */}
-      <nav aria-label="Learn F1 Topics" style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '2rem', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '0.75rem' }}>
+      <nav
+        aria-label="Learn F1 Topics"
+        style={{
+          display: 'flex',
+          gap: '0.5rem',
+          overflowX: 'auto',
+          whiteSpace: 'nowrap',
+          flexWrap: 'nowrap',
+          maxWidth: '100%',
+          marginBottom: '2rem',
+          borderBottom: '1px solid var(--border-subtle)',
+          paddingBottom: '0.75rem',
+          WebkitOverflowScrolling: 'touch',
+          scrollbarWidth: 'none',
+        }}
+      >
         {[
           { id: 'overview', label: 'The Championship', icon: Trophy },
           { id: 'weekend', label: 'Weekend Anatomy', icon: Timer },
@@ -388,6 +403,7 @@ export const LearnPage: React.FC = () => {
                 fontWeight: 700,
                 cursor: 'pointer',
                 transition: 'all 0.15s ease',
+                flexShrink: 0,
               }}
             >
               <Icon size={16} style={{ color: isActive ? 'var(--f1-red)' : 'var(--text-muted)' }} />
@@ -400,7 +416,7 @@ export const LearnPage: React.FC = () => {
       {/* TAB 1: THE CHAMPIONSHIP */}
       {activeTab === 'overview' && (
         <section style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.25rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: '1.25rem' }}>
             <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: '12px', padding: '1.5rem' }}>
               <div style={{ color: 'var(--f1-red)', fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '0.5rem' }}>
                 THE PINNACLE OF MOTORSPORT

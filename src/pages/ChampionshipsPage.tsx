@@ -109,7 +109,9 @@ export const ChampionshipsPage: React.FC = () => {
             style={{
               display: 'inline-flex',
               alignItems: 'center',
-              gap: '1.25rem',
+              justifyContent: 'center',
+              flexWrap: 'wrap',
+              gap: '0.6rem 1rem',
               padding: '0.5rem 1.25rem',
               borderRadius: '30px',
               background: 'var(--bg-surface)',
@@ -117,6 +119,8 @@ export const ChampionshipsPage: React.FC = () => {
               fontSize: '0.8rem',
               fontFamily: 'var(--font-mono)',
               color: 'var(--text-secondary)',
+              maxWidth: '100%',
+              boxSizing: 'border-box',
             }}
           >
             <span><strong style={{ color: '#fff' }}>10+</strong> Championships</span>
@@ -134,6 +138,7 @@ export const ChampionshipsPage: React.FC = () => {
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
+                justifyContent: 'center',
                 gap: '0.65rem',
                 padding: '0.6rem 1.25rem',
                 borderRadius: '8px',
@@ -144,11 +149,15 @@ export const ChampionshipsPage: React.FC = () => {
                 fontWeight: 600,
                 cursor: 'pointer',
                 transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+                maxWidth: '100%',
+                boxSizing: 'border-box',
               }}
             >
-              <Search size={15} style={{ color: 'var(--f1-red)' }} />
-              <span>Search drivers, teams, circuits & regulations across all 10 series...</span>
-              <kbd style={{ fontSize: '0.65rem', padding: '0.15rem 0.4rem', borderRadius: '4px', background: 'rgba(255, 255, 255, 0.1)', border: '1px solid rgba(255, 255, 255, 0.15)', color: 'var(--text-muted)', fontFamily: 'monospace' }}>⌘K</kbd>
+              <Search size={15} style={{ color: 'var(--f1-red)', flexShrink: 0 }} />
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                Search drivers, teams, circuits & regulations...
+              </span>
+              <kbd className="hero-search-kbd" style={{ fontSize: '0.65rem', padding: '0.15rem 0.4rem', borderRadius: '4px', background: 'rgba(255, 255, 255, 0.1)', border: '1px solid rgba(255, 255, 255, 0.15)', color: 'var(--text-muted)', fontFamily: 'monospace', flexShrink: 0 }}>⌘K</kbd>
             </button>
           </div>
         </div>

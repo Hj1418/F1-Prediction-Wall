@@ -337,6 +337,12 @@
   }
 }
 
+@media (max-width: 768px) {
+  .hero-search-kbd {
+    display: none !important;
+  }
+}
+
 .navbar-actions {
   display: flex;
   align-items: center;

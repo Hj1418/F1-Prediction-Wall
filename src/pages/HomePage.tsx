@@ -80,7 +80,7 @@ export const HomePage: React.FC = () => {
               display: 'inline-flex',
               alignItems: 'center',
               gap: '0.6rem',
-              padding: '0.35rem 1rem',
+              padding: '0.35rem 0.85rem',
               borderRadius: '9999px',
               background: 'rgba(255, 255, 255, 0.05)',
               border: '1px solid rgba(255, 255, 255, 0.1)',
@@ -91,6 +91,12 @@ export const HomePage: React.FC = () => {
               textTransform: 'uppercase',
               marginBottom: '1.25rem',
               fontFamily: 'var(--font-mono)',
+              maxWidth: '100%',
+              overflowX: 'auto',
+              whiteSpace: 'nowrap',
+              WebkitOverflowScrolling: 'touch',
+              scrollbarWidth: 'none',
+              boxSizing: 'border-box',
             }}
           >
             <span style={{ color: 'var(--f1-red)' }}>F1</span>
@@ -153,6 +159,7 @@ export const HomePage: React.FC = () => {
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
+                justifyContent: 'center',
                 gap: '0.5rem',
                 padding: '0.75rem 1.4rem',
                 borderRadius: '8px',
@@ -165,6 +172,7 @@ export const HomePage: React.FC = () => {
                 textDecoration: 'none',
                 transition: 'all 0.2s ease',
                 boxShadow: '0 0 20px rgba(225, 6, 0, 0.4)',
+                minWidth: 'min(100%, 240px)',
               }}
             >
               <Compass size={16} />
@@ -177,6 +185,7 @@ export const HomePage: React.FC = () => {
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
+                justifyContent: 'center',
                 gap: '0.6rem',
                 padding: '0.75rem 1.4rem',
                 borderRadius: '8px',
@@ -187,11 +196,12 @@ export const HomePage: React.FC = () => {
                 fontSize: '0.85rem',
                 cursor: 'pointer',
                 transition: 'all 0.2s ease',
+                minWidth: 'min(100%, 220px)',
               }}
             >
               <Search size={16} style={{ color: 'var(--f1-red)' }} />
               <span>Search The Grid</span>
-              <kbd style={{ fontSize: '0.65rem', padding: '0.15rem 0.4rem', borderRadius: '4px', background: 'rgba(255, 255, 255, 0.1)', border: '1px solid rgba(255, 255, 255, 0.15)', color: 'var(--text-muted)', fontFamily: 'monospace' }}>⌘K</kbd>
+              <kbd className="hero-search-kbd" style={{ fontSize: '0.65rem', padding: '0.15rem 0.4rem', borderRadius: '4px', background: 'rgba(255, 255, 255, 0.1)', border: '1px solid rgba(255, 255, 255, 0.15)', color: 'var(--text-muted)', fontFamily: 'monospace' }}>⌘K</kbd>
             </button>
           </div>
         </div>
@@ -230,9 +240,9 @@ export const HomePage: React.FC = () => {
               background: 'linear-gradient(135deg, rgba(225, 6, 0, 0.08) 0%, rgba(22, 27, 34, 0.95) 100%)',
               border: '1px solid rgba(225, 6, 0, 0.25)',
               borderRadius: '14px',
-              padding: '1.75rem',
+              padding: 'clamp(1rem, 3.5vw, 1.75rem)',
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))',
               gap: '1.5rem',
               alignItems: 'center',
             }}
@@ -244,7 +254,7 @@ export const HomePage: React.FC = () => {
                   ROUND {nextRace.roundNumber} • FORMULA 1
                 </span>
               </div>
-              <h2 style={{ fontSize: '1.75rem', fontWeight: 900, textTransform: 'uppercase', color: '#ffffff', margin: '0 0 0.35rem 0', letterSpacing: '-0.02em' }}>
+              <h2 style={{ fontSize: 'clamp(1.35rem, 4.5vw, 1.75rem)', fontWeight: 900, textTransform: 'uppercase', color: '#ffffff', margin: '0 0 0.35rem 0', letterSpacing: '-0.02em' }}>
                 {nextRace.grandPrixName}
               </h2>
               <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', margin: '0 0 1rem 0' }}>
@@ -469,9 +479,9 @@ export const HomePage: React.FC = () => {
               background: 'linear-gradient(135deg, rgba(255, 153, 51, 0.08) 0%, rgba(22, 27, 34, 0.98) 100%)',
               border: '1px solid rgba(255, 153, 51, 0.3)',
               borderRadius: '14px',
-              padding: '1.75rem',
+              padding: 'clamp(1rem, 3.5vw, 1.75rem)',
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))',
               gap: '1.5rem',
               alignItems: 'center',
             }}

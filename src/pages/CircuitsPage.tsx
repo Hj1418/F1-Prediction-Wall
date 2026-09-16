@@ -82,11 +82,11 @@ export const CircuitsPage: React.FC = () => {
           background: 'linear-gradient(180deg, var(--bg-surface) 0%, var(--bg-surface-elevated) 100%)',
           border: '1px solid var(--border-subtle)',
           borderRadius: '16px',
-          padding: '1.75rem',
+          padding: 'clamp(1rem, 3vw, 1.75rem)',
           marginBottom: '2.5rem',
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
-          gap: '2rem',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))',
+          gap: '1.5rem',
           alignItems: 'center',
         }}
       >
@@ -151,7 +151,7 @@ export const CircuitsPage: React.FC = () => {
           </div>
 
           {/* Key telemetry pills */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.75rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 80px), 1fr))', gap: '0.65rem' }}>
             <div style={{ background: 'var(--bg-base)', border: '1px solid var(--border-subtle)', borderRadius: '8px', padding: '0.75rem' }}>
               <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Track Length</div>
               <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.2rem', fontWeight: 800, color: '#fff' }}>
