@@ -287,6 +287,94 @@ async function runTests() {
   );
 
   // ==========================================
+  // 8. DECOUPLED ROUND STATE VERIFICATION
+  // ==========================================
+  console.log('\n8. Decoupled Round State & "Scored" Bug Elimination:');
+
+  const { evaluateRoundState } = await import('../src/utils/raceLifecycle');
+
+  // Case 1: Upcoming round (Baku 2026)
+  const upcomingRoundTest = {
+    opensAt: new Date(now + 7 * 24 * oneHour).toISOString(),
+    closesAt: new Date(now + 9 * 24 * oneHour).toISOString(),
+    roundStatus: 'UPCOMING' as const,
+  };
+  const evaluatedUpcoming = evaluateRoundState(upcomingRoundTest, false, now);
+  assert(evaluatedUpcoming.predictionStatus === 'NOT_OPEN', 'Upcoming round prediction status is NOT_OPEN');
+  assert(evaluatedUpcoming.scoringStatus === 'NOT_SCORED', 'Upcoming round scoring status is strictly NOT_SCORED');
+  assert(evaluatedUpcoming.displayStatusText.startsWith('Opens '), 'Upcoming round displays "Opens [Date]", never "Scored"');
+  assert(!evaluatedUpcoming.displayStatusText.includes('Scored'), 'Upcoming round strictly excludes "Scored" text');
+  assert(!evaluatedUpcoming.canPredict, 'Upcoming round cannot be predicted before open');
+  assert(evaluatedUpcoming.actionButtonText === 'View Session Details', 'Upcoming round action button is "View Session Details"');
+
+  // Case 2: Open round
+  const openRoundTest = {
+    opensAt: new Date(now - 1 * oneHour).toISOString(),
+    closesAt: new Date(now + 2 * oneHour).toISOString(),
+    roundStatus: 'OPEN' as const,
+  };
+  const evaluatedOpen = evaluateRoundState(openRoundTest, false, now);
+  assert(evaluatedOpen.predictionStatus === 'OPEN', 'Open round prediction status is OPEN');
+  assert(evaluatedOpen.canPredict, 'Open round allows prediction');
+  assert(evaluatedOpen.actionButtonText === 'MAKE PREDICTION', 'Open round displays "MAKE PREDICTION"');
+
+  // Case 3: Locked round
+  const lockedRoundTest = {
+    closesAt: new Date(now - 30 * 60 * 1000).toISOString(),
+    roundStatus: 'LOCKED' as const,
+  };
+  const evaluatedLocked = evaluateRoundState(lockedRoundTest, false, now);
+  assert(evaluatedLocked.predictionStatus === 'LOCKED', 'Locked round prediction status is LOCKED');
+  assert(evaluatedLocked.displayStatusText.includes('Predictions Locked'), 'Locked round displays "Predictions Locked"');
+
+  // Case 4: Finished without official results or scoring
+  const finishedNoResults = {
+    sessionStartTime: new Date(now - 3 * oneHour).toISOString(),
+    sessionEndTime: new Date(now - 1 * oneHour).toISOString(),
+    sessionStatus: 'COMPLETED' as const,
+  };
+  const evaluatedFinished = evaluateRoundState(finishedNoResults, false, now);
+  assert(evaluatedFinished.sessionStatus === 'FINISHED', 'Session status is FINISHED');
+  assert(evaluatedFinished.scoringStatus === 'NOT_SCORED', 'Unscored finished session is NOT_SCORED');
+  assert(!evaluatedFinished.displayStatusText.includes('Scored'), 'Unscored finished session does NOT display "Scored"');
+
+  // Case 5: Scored round
+  const scoredRoundTest = {
+    roundStatus: 'SCORED' as const,
+    isScored: true,
+  };
+  const evaluatedScored = evaluateRoundState(scoredRoundTest, false, now);
+  assert(evaluatedScored.scoringStatus === 'SCORED', 'Scored round scoring status is SCORED');
+  assert(evaluatedScored.displayStatusText === 'Scored', 'Scored round displays "Scored"');
+
+  // ==========================================
+  // 9. DEDUPLICATION ARCHITECTURE VERIFICATION
+  // ==========================================
+  console.log('\n9. Request Deduplication & Shared Cache Verification:');
+
+  const navbarPath = path.resolve('src/components/navbar/Navbar.tsx');
+  const navbarCode = fs.readFileSync(navbarPath, 'utf8');
+
+  assert(
+    !navbarCode.includes('api.getPredictionRounds()'),
+    'Navbar does NOT make a duplicate independent fetch for getPredictionRounds'
+  );
+
+  assert(
+    navbarCode.includes('onActiveRoundChange={setActiveRoundLink}'),
+    'Navbar receives activeRoundLink from PredictionCTA without duplicate network request'
+  );
+
+  // Test clientCache filtering optimization
+  clientCache.set('f1_prediction_rounds_all', [
+    { roundId: 'r1', raceWeekendId: '2026_15', title: 'Round 1' },
+    { roundId: 'r2', raceWeekendId: '2026_16', title: 'Round 2' },
+  ], 60000);
+
+  const filtered = await api.getPredictionRounds('2026_15');
+  assert(filtered.length === 1 && filtered[0].roundId === 'r1', 'getPredictionRounds(raceWeekendId) filters cached season rounds without network request');
+
+  // ==========================================
   // SUMMARY
   // ==========================================
   console.log(`\n==========================================`);

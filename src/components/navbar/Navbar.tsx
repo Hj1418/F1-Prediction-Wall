@@ -30,33 +30,6 @@ export const Navbar: React.FC = () => {
     setMobileMenuOpen(false);
   }, [location.pathname]);
 
-  // Fetch active prediction round for mobile drawer CTA
-  useEffect(() => {
-    let mounted = true;
-    const fetchActiveRound = async () => {
-      try {
-        const rounds = await api.getPredictionRounds();
-        if (!mounted || !rounds || rounds.length === 0) return;
-        const targetRound =
-          rounds.find(r => r.status === 'OPEN') ||
-          rounds.find(r => r.status === 'UPCOMING') ||
-          rounds[0];
-
-        if (targetRound) {
-          setActiveRoundLink(`/predict/${targetRound.roundId}`);
-        } else {
-          setActiveRoundLink('/predictions');
-        }
-      } catch (e) {
-        console.warn('Navbar: Failed to load active round', e);
-      }
-    };
-    fetchActiveRound();
-    return () => {
-      mounted = false;
-    };
-  }, []);
-
   return (
     <header className="navbar-header">
       {/* Level 1: Race Status Strip */}
@@ -79,7 +52,7 @@ export const Navbar: React.FC = () => {
               <span className="navbar-search-btn__text">Search</span>
               <kbd className="navbar-search-btn__kbd">⌘K</kbd>
             </button>
-            <PredictionCTA />
+            <PredictionCTA onActiveRoundChange={setActiveRoundLink} />
             <UserProfileMenu
               mobileMenuOpen={mobileMenuOpen}
               onToggleMobileMenu={handleToggleMobile}

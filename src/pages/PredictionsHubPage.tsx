@@ -7,6 +7,7 @@ import { RaceWeekend, PredictionRound, Prediction } from '../types';
 import { StatusBadge } from '../components/common/StatusBadge';
 import { CountdownTimer } from '../components/common/CountdownTimer';
 import { LoadingState } from '../components/common/LoadingState';
+import { evaluateRoundState } from '../utils/raceLifecycle';
 import {
   Calendar,
   CheckCircle2,
@@ -35,14 +36,18 @@ export const PredictionsHubPage: React.FC = () => {
     document.title = 'Prediction Bench | The Grid';
   }, []);
 
+  // 1. Stable weekend & round metadata loading (does not re-query on auth changes)
   useEffect(() => {
-    async function loadHubData() {
+    let mounted = true;
+    async function loadMetadata() {
       try {
         setLoading(true);
         const [weekends, allRounds] = await Promise.all([
           api.getRaceWeekends(),
           api.getPredictionRounds(),
         ]);
+
+        if (!mounted) return;
 
         const activeW = weekends.find(w => w.status === 'ACTIVE') || weekends.find(w => w.status === 'UPCOMING') || weekends[0];
         setCurrentWeekend(activeW || null);
@@ -53,31 +58,62 @@ export const PredictionsHubPage: React.FC = () => {
         if (activeW) {
           const weekendRounds = allRounds.filter(r => r.raceWeekendId === activeW.raceWeekendId);
           setCurrentRounds(weekendRounds);
-
-          if (currentUser?.userId) {
-            const [predMap, hist] = await Promise.all([
-              api.getUserWeekendPredictions(currentUser.userId, activeW.raceWeekendId),
-              api.getUserPredictionsHistory(currentUser.userId),
-            ]);
-            setUserPredictions(predMap || {});
-            setUserHistory(hist || []);
-          }
         }
       } catch (err) {
-        console.error('Failed to load predictions hub data', err);
+        console.error('Failed to load predictions hub metadata', err);
       } finally {
-        setLoading(false);
+        if (mounted) {
+          setLoading(false);
+        }
       }
     }
 
-    loadHubData();
-  }, [currentUser?.userId, dataVersion]);
+    loadMetadata();
+    return () => {
+      mounted = false;
+    };
+  }, [dataVersion]);
+
+  // 2. User predictions loading (runs when auth state resolves without reloading entire page)
+  useEffect(() => {
+    let mounted = true;
+    async function loadUserData() {
+      if (!currentWeekend || !currentUser?.userId) {
+        setUserPredictions({});
+        setUserHistory([]);
+        return;
+      }
+
+      try {
+        const [predMap, hist] = await Promise.all([
+          api.getUserWeekendPredictions(currentUser.userId, currentWeekend.raceWeekendId),
+          api.getUserPredictionsHistory(currentUser.userId),
+        ]);
+
+        if (!mounted) return;
+        setUserPredictions(predMap || {});
+        setUserHistory(hist || []);
+      } catch (err) {
+        console.warn('Failed to load user predictions in hub', err);
+      }
+    }
+
+    loadUserData();
+    return () => {
+      mounted = false;
+    };
+  }, [currentUser?.userId, currentWeekend?.raceWeekendId, dataVersion]);
 
   if (loading) {
     return <LoadingState message="LOADING YOUR PREDICTIONS..." />;
   }
 
   const isGuest = !currentUser || currentUser.userId.startsWith('guest');
+
+  const hasOpenRounds = currentRounds.some(r => r.status === 'OPEN');
+  const allUpcoming = currentRounds.length > 0 && currentRounds.every(r => r.status === 'UPCOMING');
+  const allLocked = currentRounds.length > 0 && currentRounds.every(r => r.status === 'LOCKED');
+  const allScored = currentRounds.length > 0 && currentRounds.every(r => r.status === 'SCORED');
 
   return (
     <div className="container" style={{ padding: '3rem 1.25rem 5rem 1.25rem' }}>
@@ -94,12 +130,31 @@ export const PredictionsHubPage: React.FC = () => {
         </p>
       </div>
 
-      {/* 1. PREDICTIONS OPEN */}
+      {/* 1. WEEKEND PREDICTIONS SECTION */}
       <section style={{ marginBottom: '3.5rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '1.25rem' }}>
-          <span className="live-pulse" style={{ backgroundColor: 'var(--telemetry-green)' }} />
+          {hasOpenRounds ? (
+            <span className="live-pulse" style={{ backgroundColor: 'var(--telemetry-green)' }} />
+          ) : allUpcoming ? (
+            <Clock size={18} color="var(--telemetry-cyan)" />
+          ) : allLocked ? (
+            <Lock size={18} color="#f87171" />
+          ) : allScored ? (
+            <Trophy size={18} color="var(--telemetry-yellow)" />
+          ) : (
+            <Sparkles size={18} color="var(--telemetry-purple)" />
+          )}
+
           <h2 style={{ fontSize: '1.35rem', fontWeight: 900, textTransform: 'uppercase', margin: 0 }}>
-            Predictions Open
+            {hasOpenRounds
+              ? 'Predictions Open'
+              : allUpcoming
+              ? 'Upcoming Predictions'
+              : allLocked
+              ? 'Predictions Locked'
+              : allScored
+              ? 'Round Results & Scores'
+              : 'Weekend Predictions'}
           </h2>
           {currentWeekend && (
             <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
@@ -118,8 +173,7 @@ export const PredictionsHubPage: React.FC = () => {
           >
             {currentRounds.map(round => {
               const userPred = userPredictions[round.roundId];
-              const isLocked = round.status === 'LOCKED';
-              const isOpen = round.status === 'OPEN';
+              const state = evaluateRoundState(round, Boolean(userPred));
 
               return (
                 <div
@@ -127,7 +181,9 @@ export const PredictionsHubPage: React.FC = () => {
                   className="race-card"
                   style={{
                     padding: '1.5rem',
-                    border: isOpen ? '1px solid rgba(0, 230, 118, 0.4)' : '1px solid var(--border-subtle)',
+                    border: state.canPredict
+                      ? '1px solid rgba(0, 230, 118, 0.4)'
+                      : '1px solid var(--border-subtle)',
                     display: 'flex',
                     flexDirection: 'column',
                     justifyContent: 'space-between',
@@ -152,12 +208,22 @@ export const PredictionsHubPage: React.FC = () => {
                   <div>
                     {/* Countdown or status */}
                     <div style={{ marginBottom: '1rem' }}>
-                      {isOpen ? (
+                      {state.canPredict ? (
                         <CountdownTimer targetDate={round.closesAt} prefix="Closes in" />
+                      ) : state.predictionStatus === 'NOT_OPEN' ? (
+                        <div style={{ fontSize: '0.82rem', color: 'var(--telemetry-cyan)', fontFamily: 'var(--font-mono)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                          <Clock size={14} />
+                          {state.displayStatusText}
+                        </div>
+                      ) : state.scoringStatus === 'SCORED' ? (
+                        <div style={{ fontSize: '0.82rem', color: 'var(--telemetry-purple)', fontFamily: 'var(--font-mono)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                          <CheckCircle2 size={14} />
+                          Scored
+                        </div>
                       ) : (
-                        <div style={{ fontSize: '0.82rem', color: isLocked ? '#f87171' : 'var(--telemetry-purple)', fontFamily: 'var(--font-mono)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                          {isLocked ? <Lock size={14} /> : <CheckCircle2 size={14} />}
-                          {isLocked ? 'Predictions Locked' : 'Scored'}
+                        <div style={{ fontSize: '0.82rem', color: '#f87171', fontFamily: 'var(--font-mono)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                          <Lock size={14} />
+                          {state.displayStatusText}
                         </div>
                       )}
                     </div>
@@ -166,21 +232,21 @@ export const PredictionsHubPage: React.FC = () => {
                     <Link
                       to={`/predict/${round.roundId}`}
                       onClick={e => {
-                        if (!isAuthenticated && isOpen) {
+                        if (!isAuthenticated && state.canPredict) {
                           e.preventDefault();
                           openLoginModal(`/predict/${round.roundId}`);
                         }
                       }}
-                      className={`btn ${isOpen ? 'btn-primary' : 'btn-secondary'} btn-sm`}
+                      className={`btn ${state.canPredict ? 'btn-primary' : 'btn-secondary'} btn-sm`}
                       style={{ width: '100%', justifyContent: 'center', gap: '0.4rem', fontSize: '0.85rem' }}
                     >
-                      {isOpen ? (
+                      {state.canPredict ? (
                         <>
                           <Zap size={14} /> {userPred ? 'UPDATE PREDICTION' : 'MAKE PREDICTION'}
                         </>
                       ) : (
                         <>
-                          <ArrowRight size={14} /> View Picks & Telemetry
+                          <ArrowRight size={14} /> {state.actionButtonText}
                         </>
                       )}
                     </Link>

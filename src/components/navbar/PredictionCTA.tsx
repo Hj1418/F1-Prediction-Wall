@@ -10,7 +10,11 @@ interface PredictionCTAState {
   mode: 'open' | 'upcoming' | 'locked';
 }
 
-export const PredictionCTA: React.FC = () => {
+interface PredictionCTAProps {
+  onActiveRoundChange?: (link: string) => void;
+}
+
+export const PredictionCTA: React.FC<PredictionCTAProps> = ({ onActiveRoundChange }) => {
   const { isAuthenticated, openLoginModal } = useAuth();
   const navigate = useNavigate();
   const [ctaState, setCtaState] = useState<PredictionCTAState>({
@@ -28,21 +32,25 @@ export const PredictionCTA: React.FC = () => {
 
         const openRound = rounds.find(r => r.status === 'OPEN');
         if (openRound) {
+          const targetLink = `/predict/${openRound.roundId}`;
           setCtaState({
             label: 'PREDICT NOW',
-            link: `/predict/${openRound.roundId}`,
+            link: targetLink,
             mode: 'open',
           });
+          onActiveRoundChange?.(targetLink);
           return;
         }
 
         const upcomingRound = rounds.find(r => r.status === 'UPCOMING');
         if (upcomingRound) {
+          const targetLink = `/predict/${upcomingRound.roundId}`;
           setCtaState({
             label: 'NEXT PREDICTION',
-            link: `/predict/${upcomingRound.roundId}`,
+            link: targetLink,
             mode: 'upcoming',
           });
+          onActiveRoundChange?.(targetLink);
           return;
         }
 
@@ -52,6 +60,7 @@ export const PredictionCTA: React.FC = () => {
           link: '/predictions',
           mode: 'locked',
         });
+        onActiveRoundChange?.('/predictions');
       } catch (err) {
         console.warn('PredictionCTA: Failed to load prediction rounds', err);
       }
@@ -61,7 +70,7 @@ export const PredictionCTA: React.FC = () => {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [onActiveRoundChange]);
 
   const { label, link, mode } = ctaState;
 

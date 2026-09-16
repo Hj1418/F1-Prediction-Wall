@@ -86,6 +86,13 @@ class ClientCache {
   }
 
   /**
+   * Retrieve active in-flight promise if one is currently pending
+   */
+  getInFlight<T>(key: string): Promise<T> | null {
+    return (this.inFlight.get(key) as Promise<T>) || null;
+  }
+
+  /**
    * Set value in cache with designated TTL and optional persistent storage
    */
   set<T>(key: string, value: T, ttlMs: number = TTL.MEDIUM, persist: boolean = false): void {

@@ -92,19 +92,60 @@ export const api = {
   },
 
   async getWeekendById(id: string): Promise<RaceWeekend | null> {
-    if (isLiveBackend) {
+    // 1. Check if season weekends are already in memory cache
+    const cachedSeason = clientCache.get<RaceWeekend[]>('f1_weekends_2026');
+    if (cachedSeason) {
+      const match = cachedSeason.find(w => w.raceWeekendId === id || w.id === id);
+      if (match) return match;
+    }
+
+    // 2. Check if season weekends are currently in flight
+    const inFlightSeason = clientCache.getInFlight<RaceWeekend[]>('f1_weekends_2026');
+    if (inFlightSeason) {
       try {
-        const res = await fetch(`${API_BASE_URL}?action=getWeekendDetails&raceWeekendId=${encodeURIComponent(id)}`);
-        const json: ApiResponse<RaceWeekend> = await res.json();
-        if (json.success && json.data) return json.data;
-      } catch (e) {
-        console.error('Live API getWeekendById failed:', e);
+        const seasonList = await inFlightSeason;
+        const match = seasonList.find(w => w.raceWeekendId === id || w.id === id);
+        if (match) return match;
+      } catch {
+        // Fallback to direct query
       }
     }
-    return isProd ? null : mockApi.getWeekendById(id);
+
+    // 3. Fallback to cached individual fetch
+    return clientCache.getOrFetch(`f1_weekend_${id}`, async () => {
+      if (isLiveBackend) {
+        try {
+          const res = await fetch(`${API_BASE_URL}?action=getWeekendDetails&raceWeekendId=${encodeURIComponent(id)}`);
+          const json: ApiResponse<RaceWeekend> = await res.json();
+          if (json.success && json.data) return json.data;
+        } catch (e) {
+          console.error('Live API getWeekendById failed:', e);
+        }
+      }
+      return isProd ? null : mockApi.getWeekendById(id);
+    }, { ttlMs: TTL.SHORT });
   },
 
   async getPredictionRounds(raceWeekendId?: string, forceRefresh: boolean = false): Promise<PredictionRound[]> {
+    // 1. If requesting for a specific raceWeekendId, check if all rounds are already cached
+    if (raceWeekendId && !forceRefresh) {
+      const cachedAll = clientCache.get<PredictionRound[]>('f1_prediction_rounds_all');
+      if (cachedAll) {
+        return cachedAll.filter(r => r.raceWeekendId === raceWeekendId);
+      }
+
+      // Check if all rounds fetch is currently in-flight
+      const inFlightAll = clientCache.getInFlight<PredictionRound[]>('f1_prediction_rounds_all');
+      if (inFlightAll) {
+        try {
+          const allRounds = await inFlightAll;
+          return allRounds.filter(r => r.raceWeekendId === raceWeekendId);
+        } catch {
+          // Fall back to scoped fetch
+        }
+      }
+    }
+
     const cacheKey = `f1_prediction_rounds_${raceWeekendId || 'all'}`;
     return clientCache.getOrFetch(
       cacheKey,
@@ -126,16 +167,34 @@ export const api = {
   },
 
   async getPredictionRoundById(roundId: string): Promise<PredictionRound | null> {
-    if (isLiveBackend) {
-      try {
-        const res = await fetch(`${API_BASE_URL}?action=getPredictionRound&roundId=${encodeURIComponent(roundId)}`);
-        const json: ApiResponse<PredictionRound> = await res.json();
-        if (json.success && json.data) return hydratePredictionRound(json.data);
-      } catch (e) {
-        console.error('Live API getPredictionRoundById failed:', e);
-      }
+    // Check if season rounds are in cache or in flight
+    const cachedAll = clientCache.get<PredictionRound[]>('f1_prediction_rounds_all');
+    if (cachedAll) {
+      const found = cachedAll.find(r => r.roundId === roundId || r.id === roundId);
+      if (found) return found;
     }
-    return isProd ? null : mockApi.getPredictionRoundById(roundId);
+
+    const inFlightAll = clientCache.getInFlight<PredictionRound[]>('f1_prediction_rounds_all');
+    if (inFlightAll) {
+      try {
+        const allRounds = await inFlightAll;
+        const found = allRounds.find(r => r.roundId === roundId || r.id === roundId);
+        if (found) return found;
+      } catch {}
+    }
+
+    return clientCache.getOrFetch(`f1_round_${roundId}`, async () => {
+      if (isLiveBackend) {
+        try {
+          const res = await fetch(`${API_BASE_URL}?action=getPredictionRound&roundId=${encodeURIComponent(roundId)}`);
+          const json: ApiResponse<PredictionRound> = await res.json();
+          if (json.success && json.data) return hydratePredictionRound(json.data);
+        } catch (e) {
+          console.error('Live API getPredictionRoundById failed:', e);
+        }
+      }
+      return isProd ? null : mockApi.getPredictionRoundById(roundId);
+    }, { ttlMs: TTL.SHORT });
   },
 
   async getUserPrediction(roundId: string, userId: string): Promise<Prediction | null> {
