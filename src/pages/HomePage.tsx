@@ -5,16 +5,9 @@ import {
   Search,
   Calendar,
   Zap,
-  Flag,
   ChevronRight,
   BookOpen,
   ArrowRight,
-  Shield,
-  Layers,
-  MapPin,
-  Trophy,
-  Clock,
-  Sparkles,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
@@ -23,11 +16,13 @@ import {
   HomeSnapshot,
   getHomeSnapshot,
 } from '../services/home/homeSnapshotService';
+import { getAllChampionships } from '../services/motorsport/motorsportRegistry';
 
 export const HomePage: React.FC = () => {
   const { openSearch } = useApp();
-  const { currentUser, isAuthenticated, setAuthModalOpen } = useAuth();
+  const { currentUser, isAuthenticated } = useAuth();
   const [snapshot, setSnapshot] = useState<HomeSnapshot>(DEFAULT_HOME_SNAPSHOT);
+  const [activeLearnTab, setActiveLearnTab] = useState<'topics' | 'thirty_seconds'>('topics');
 
   useEffect(() => {
     document.title = 'The Grid | Your Motorsport Starting Point';
@@ -36,13 +31,15 @@ export const HomePage: React.FC = () => {
   // Background fetch for live updates without ever blocking initial render
   useEffect(() => {
     let isMounted = true;
-    getHomeSnapshot().then(data => {
-      if (isMounted) {
-        setSnapshot(data);
-      }
-    }).catch(err => {
-      console.warn('Background snapshot fetch error:', err);
-    });
+    getHomeSnapshot()
+      .then(data => {
+        if (isMounted) {
+          setSnapshot(data);
+        }
+      })
+      .catch(err => {
+        console.warn('Background snapshot fetch error:', err);
+      });
 
     return () => {
       isMounted = false;
@@ -51,12 +48,15 @@ export const HomePage: React.FC = () => {
 
   const {
     nextRace,
-    championshipChips,
     racingNowOrNext,
     indianMotorsport,
+    featuredLearnTopics,
     understandIn30Seconds,
+    discoverMoreItems,
     predictionHighlight,
   } = snapshot;
+
+  const championships = getAllChampionships();
 
   return (
     <div className="homepage-root" style={{ paddingBottom: '5rem' }}>
@@ -105,6 +105,8 @@ export const HomePage: React.FC = () => {
             <span style={{ opacity: 0.3 }}>•</span>
             <span>F3</span>
             <span style={{ opacity: 0.3 }}>•</span>
+            <span>F4</span>
+            <span style={{ opacity: 0.3 }}>•</span>
             <span style={{ color: '#00d2be' }}>FE</span>
             <span style={{ opacity: 0.3 }}>•</span>
             <span style={{ color: '#0090d0' }}>WEC</span>
@@ -120,7 +122,7 @@ export const HomePage: React.FC = () => {
 
           <h1
             style={{
-              fontSize: 'clamp(2.5rem, 5.5vw, 4rem)',
+              fontSize: 'clamp(2.5rem, 5.5vw, 4.2rem)',
               fontWeight: 900,
               letterSpacing: '-0.035em',
               lineHeight: 1.1,
@@ -135,14 +137,46 @@ export const HomePage: React.FC = () => {
             style={{
               fontSize: 'clamp(1.05rem, 2vw, 1.25rem)',
               color: 'var(--text-secondary)',
-              maxWidth: '650px',
-              margin: '0 auto 2rem auto',
+              maxWidth: '700px',
+              margin: '0 auto 1.5rem auto',
               lineHeight: 1.55,
             }}
           >
-            Your motorsport starting point. Explore 10 championships, upcoming events,
-            deep racecraft mechanics, and compete on Prediction Bench.
+            Your motorsport starting point. Explore championships, upcoming events, drivers, teams, circuits and beginner-friendly motorsport knowledge — all in one place.
           </p>
+
+          {/* 4 Core Platform Pillars */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '1.25rem',
+              flexWrap: 'wrap',
+              marginBottom: '2rem',
+              fontFamily: 'var(--font-mono)',
+              fontSize: '0.78rem',
+              fontWeight: 800,
+              letterSpacing: '0.1em',
+              color: 'var(--text-muted)',
+            }}
+          >
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', color: '#00d2be' }}>
+              <BookOpen size={13} /> LEARN
+            </span>
+            <span style={{ opacity: 0.4 }}>/</span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', color: '#ffd600' }}>
+              <Calendar size={13} /> FOLLOW
+            </span>
+            <span style={{ opacity: 0.4 }}>/</span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', color: '#3b82f6' }}>
+              <Compass size={13} /> EXPLORE
+            </span>
+            <span style={{ opacity: 0.4 }}>/</span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', color: 'var(--f1-red)' }}>
+              <Zap size={13} /> COMPETE
+            </span>
+          </div>
 
           {/* Hero Action Buttons */}
           <div
@@ -201,7 +235,20 @@ export const HomePage: React.FC = () => {
             >
               <Search size={16} style={{ color: 'var(--f1-red)' }} />
               <span>Search The Grid</span>
-              <kbd className="hero-search-kbd" style={{ fontSize: '0.65rem', padding: '0.15rem 0.4rem', borderRadius: '4px', background: 'rgba(255, 255, 255, 0.1)', border: '1px solid rgba(255, 255, 255, 0.15)', color: 'var(--text-muted)', fontFamily: 'monospace' }}>⌘K</kbd>
+              <kbd
+                className="hero-search-kbd"
+                style={{
+                  fontSize: '0.65rem',
+                  padding: '0.15rem 0.4rem',
+                  borderRadius: '4px',
+                  background: 'rgba(255, 255, 255, 0.1)',
+                  border: '1px solid rgba(255, 255, 255, 0.15)',
+                  color: 'var(--text-muted)',
+                  fontFamily: 'monospace',
+                }}
+              >
+                ⌘K
+              </kbd>
             </button>
           </div>
         </div>
@@ -209,32 +256,60 @@ export const HomePage: React.FC = () => {
 
       <div className="container" style={{ maxWidth: '1240px', margin: '0 auto', padding: '0 1.25rem' }}>
         {/* ===================================================================
-            2. NEXT UP: Featured Upcoming Race Weekend
+            2. WHAT'S HAPPENING / NEXT UP: Multi-Category Racing Radar
             =================================================================== */}
-        <section style={{ marginTop: '2.5rem' }}>
+        <section style={{ marginTop: '2.75rem' }}>
           <div
             style={{
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
               marginBottom: '1rem',
+              flexWrap: 'wrap',
+              gap: '0.5rem',
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'var(--f1-red)', boxShadow: '0 0 10px var(--f1-red)' }} />
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', fontWeight: 800, color: 'var(--f1-red)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+              <div
+                style={{
+                  width: '8px',
+                  height: '8px',
+                  borderRadius: '50%',
+                  backgroundColor: 'var(--f1-red)',
+                  boxShadow: '0 0 10px var(--f1-red)',
+                }}
+              />
+              <span
+                style={{
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '0.75rem',
+                  fontWeight: 800,
+                  color: 'var(--f1-red)',
+                  letterSpacing: '0.1em',
+                  textTransform: 'uppercase',
+                }}
+              >
                 NEXT UP IN MOTORSPORT
               </span>
             </div>
             <Link
               to="/races"
-              style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+              style={{
+                fontSize: '0.8rem',
+                color: 'var(--text-secondary)',
+                textDecoration: 'none',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.25rem',
+                fontWeight: 700,
+              }}
             >
               <span>Full Calendar</span>
               <ChevronRight size={14} />
             </Link>
           </div>
 
+          {/* Primary Featured Event Card */}
           <div
             style={{
               background: 'linear-gradient(135deg, rgba(225, 6, 0, 0.08) 0%, rgba(22, 27, 34, 0.95) 100%)',
@@ -245,19 +320,37 @@ export const HomePage: React.FC = () => {
               gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))',
               gap: '1.5rem',
               alignItems: 'center',
+              marginBottom: '1.5rem',
             }}
           >
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.5rem' }}>
                 <span style={{ fontSize: '1.3rem' }}>{nextRace.flag}</span>
-                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                <span
+                  style={{
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: '0.75rem',
+                    color: 'var(--text-muted)',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.06em',
+                  }}
+                >
                   ROUND {nextRace.roundNumber} • FORMULA 1
                 </span>
               </div>
-              <h2 style={{ fontSize: 'clamp(1.35rem, 4.5vw, 1.75rem)', fontWeight: 900, textTransform: 'uppercase', color: '#ffffff', margin: '0 0 0.35rem 0', letterSpacing: '-0.02em' }}>
+              <h2
+                style={{
+                  fontSize: 'clamp(1.35rem, 4.5vw, 1.75rem)',
+                  fontWeight: 900,
+                  textTransform: 'uppercase',
+                  color: '#ffffff',
+                  margin: '0 0 0.35rem 0',
+                  letterSpacing: '-0.02em',
+                }}
+              >
                 {nextRace.grandPrixName}
               </h2>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', margin: '0 0 1rem 0' }}>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', margin: '0 0 1.25rem 0' }}>
                 {nextRace.circuitName} • {nextRace.city}, {nextRace.country} • <strong style={{ color: '#fff' }}>{nextRace.dates}</strong>
               </p>
 
@@ -267,7 +360,7 @@ export const HomePage: React.FC = () => {
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: '0.45rem',
-                  padding: '0.55rem 1.1rem',
+                  padding: '0.6rem 1.2rem',
                   borderRadius: '6px',
                   backgroundColor: 'var(--f1-red)',
                   color: '#ffffff',
@@ -297,7 +390,14 @@ export const HomePage: React.FC = () => {
                     textAlign: 'center',
                   }}
                 >
-                  <div style={{ fontSize: '0.7rem', fontWeight: 800, color: s.isKeySession ? 'var(--f1-red)' : 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                  <div
+                    style={{
+                      fontSize: '0.7rem',
+                      fontWeight: 800,
+                      color: s.isKeySession ? 'var(--f1-red)' : 'var(--text-muted)',
+                      fontFamily: 'var(--font-mono)',
+                    }}
+                  >
                     {s.day}
                   </div>
                   <div style={{ fontSize: '0.85rem', fontWeight: 800, color: '#ffffff', marginTop: '0.2rem' }}>
@@ -310,103 +410,43 @@ export const HomePage: React.FC = () => {
               ))}
             </div>
           </div>
-        </section>
 
-        {/* ===================================================================
-            3. ALL MOTORSPORT: Horizontal Series Chips
-            =================================================================== */}
-        <section style={{ marginTop: '3.5rem' }}>
-          <div style={{ marginBottom: '1rem' }}>
-            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem', fontWeight: 800, color: 'var(--text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-              RACING ACROSS THE GRID
-            </span>
-            <h2 style={{ fontSize: '1.4rem', fontWeight: 900, textTransform: 'uppercase', margin: '0.2rem 0 0 0', color: '#fff' }}>
-              10 Global & Domestic Championships
-            </h2>
-          </div>
-
+          {/* Multi-Category Upcoming Radar Grid */}
           <div
             style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
-              gap: '0.75rem',
+              background: 'var(--bg-surface)',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: '12px',
+              overflow: 'hidden',
             }}
           >
-            {championshipChips.map(champ => (
-              <Link
-                key={champ.id}
-                to={champ.url}
+            <div
+              style={{
+                padding: '0.75rem 1.25rem',
+                borderBottom: '1px solid var(--border-subtle)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                background: 'rgba(255, 255, 255, 0.02)',
+              }}
+            >
+              <span
                 style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: '0.85rem 1rem',
-                  borderRadius: '10px',
-                  background: 'var(--bg-surface)',
-                  border: '1px solid var(--border-subtle)',
-                  textDecoration: 'none',
-                  transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
-                }}
-                onMouseEnter={e => {
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                  e.currentTarget.style.borderColor = `${champ.badgeColor}66`;
-                  e.currentTarget.style.boxShadow = `0 6px 20px -4px ${champ.badgeColor}22`;
-                }}
-                onMouseLeave={e => {
-                  e.currentTarget.style.transform = 'none';
-                  e.currentTarget.style.borderColor = 'var(--border-subtle)';
-                  e.currentTarget.style.boxShadow = 'none';
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '0.72rem',
+                  fontWeight: 800,
+                  color: 'var(--text-muted)',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.08em',
                 }}
               >
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
-                    <span
-                      style={{
-                        fontSize: '0.68rem',
-                        fontWeight: 900,
-                        padding: '0.15rem 0.45rem',
-                        borderRadius: '4px',
-                        backgroundColor: `${champ.badgeColor}22`,
-                        color: champ.badgeColor,
-                        border: `1px solid ${champ.badgeColor}44`,
-                      }}
-                    >
-                      {champ.shortName}
-                    </span>
-                    <span style={{ fontSize: '0.88rem', fontWeight: 800, color: '#ffffff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {champ.fullName}
-                    </span>
-                  </div>
-                  <div style={{ fontSize: '0.73rem', color: 'var(--text-muted)', marginTop: '0.35rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    Next: {champ.nextEventBrief}
-                  </div>
-                </div>
-                <ChevronRight size={15} style={{ color: 'var(--text-muted)', flexShrink: 0, marginLeft: '0.5rem' }} />
-              </Link>
-            ))}
-          </div>
-        </section>
-
-        {/* ===================================================================
-            4. RACING NOW / NEXT: Schedule Snapshot Across Disciplines
-            =================================================================== */}
-        <section style={{ marginTop: '3.5rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
-            <div>
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem', fontWeight: 800, color: 'var(--text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-                GLOBAL CALENDAR RADAR
+                UPCOMING EVENTS ACROSS DISCIPLINES
               </span>
-              <h2 style={{ fontSize: '1.4rem', fontWeight: 900, textTransform: 'uppercase', margin: '0.2rem 0 0 0', color: '#fff' }}>
-                Racing Now & Upcoming
-              </h2>
+              <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                {racingNowOrNext.length} Events Tracked
+              </span>
             </div>
-            <Link to="/championships" style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-              <span>All Championships</span>
-              <ChevronRight size={14} />
-            </Link>
-          </div>
 
-          <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: '12px', overflow: 'hidden' }}>
             {racingNowOrNext.map((ev, idx) => (
               <Link
                 key={idx}
@@ -415,7 +455,7 @@ export const HomePage: React.FC = () => {
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
-                  padding: '0.9rem 1.25rem',
+                  padding: '0.85rem 1.25rem',
                   borderBottom: idx < racingNowOrNext.length - 1 ? '1px solid var(--border-subtle)' : 'none',
                   textDecoration: 'none',
                   color: 'inherit',
@@ -426,7 +466,7 @@ export const HomePage: React.FC = () => {
                 onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.03)')}
                 onMouseLeave={e => (e.currentTarget.style.backgroundColor = 'transparent')}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', minWidth: '220px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', minWidth: 'min(100%, 240px)' }}>
                   <span
                     style={{
                       fontSize: '0.68rem',
@@ -436,8 +476,9 @@ export const HomePage: React.FC = () => {
                       backgroundColor: `${ev.badgeColor}22`,
                       color: ev.badgeColor,
                       border: `1px solid ${ev.badgeColor}44`,
-                      minWidth: '52px',
+                      minWidth: '54px',
                       textAlign: 'center',
+                      fontFamily: 'var(--font-mono)',
                     }}
                   >
                     {ev.badge}
@@ -471,6 +512,409 @@ export const HomePage: React.FC = () => {
         </section>
 
         {/* ===================================================================
+            3. EXPLORE MOTORSPORT: Supported Championships Registry
+            =================================================================== */}
+        <section style={{ marginTop: '3.5rem' }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'flex-end',
+              justifyContent: 'space-between',
+              marginBottom: '1.25rem',
+              flexWrap: 'wrap',
+              gap: '0.5rem',
+            }}
+          >
+            <div>
+              <span
+                style={{
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '0.72rem',
+                  fontWeight: 800,
+                  color: 'var(--text-muted)',
+                  letterSpacing: '0.1em',
+                  textTransform: 'uppercase',
+                }}
+              >
+                MOTORSPORT UNIVERSE
+              </span>
+              <h2 style={{ fontSize: '1.5rem', fontWeight: 900, textTransform: 'uppercase', margin: '0.2rem 0 0.35rem 0', color: '#fff' }}>
+                Explore Motorsport
+              </h2>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', margin: 0, maxWidth: '680px' }}>
+                From Formula 1 to rally, endurance racing and motorcycles — discover the championships, drivers, teams and circuits that make motorsport what it is.
+              </p>
+            </div>
+            <Link
+              to="/championships"
+              style={{
+                fontSize: '0.8rem',
+                color: 'var(--text-secondary)',
+                textDecoration: 'none',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.25rem',
+                fontWeight: 700,
+              }}
+            >
+              <span>All 10 Championships</span>
+              <ChevronRight size={14} />
+            </Link>
+          </div>
+
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))',
+              gap: '1rem',
+            }}
+          >
+            {championships.map(champ => {
+              const targetUrl = champ.id === 'indian-motorsport' ? '/indian-motorsport' : `/championships/${champ.id}`;
+              return (
+                <Link
+                  key={champ.id}
+                  to={targetUrl}
+                  style={{
+                    background: 'var(--bg-surface)',
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: '12px',
+                    padding: '1.15rem',
+                    textDecoration: 'none',
+                    color: 'inherit',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                    transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+                    position: 'relative',
+                    overflow: 'hidden',
+                  }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.borderColor = `${champ.badgeColor}66`;
+                    e.currentTarget.style.boxShadow = `0 8px 24px -6px ${champ.badgeColor}22`;
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.transform = 'none';
+                    e.currentTarget.style.borderColor = 'var(--border-subtle)';
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
+                >
+                  {/* Subtle Top Accent Glow */}
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      height: '3px',
+                      backgroundColor: champ.badgeColor,
+                      opacity: 0.8,
+                    }}
+                  />
+
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.65rem' }}>
+                      <span
+                        style={{
+                          fontSize: '0.68rem',
+                          fontWeight: 900,
+                          padding: '0.2rem 0.5rem',
+                          borderRadius: '4px',
+                          backgroundColor: `${champ.badgeColor}22`,
+                          color: champ.badgeColor,
+                          border: `1px solid ${champ.badgeColor}44`,
+                          fontFamily: 'var(--font-mono)',
+                        }}
+                      >
+                        {champ.shortName}
+                      </span>
+                      <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>
+                        {champ.tier}
+                      </span>
+                    </div>
+
+                    <h3 style={{ fontSize: '1.05rem', fontWeight: 900, color: '#ffffff', margin: '0 0 0.35rem 0' }}>
+                      {champ.name}
+                    </h3>
+                    <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.45, margin: '0 0 0.85rem 0' }}>
+                      {champ.tagline}
+                    </p>
+                  </div>
+
+                  <div
+                    style={{
+                      borderTop: '1px solid rgba(255, 255, 255, 0.06)',
+                      paddingTop: '0.75rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      fontSize: '0.75rem',
+                      color: 'var(--text-muted)',
+                    }}
+                  >
+                    <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '190px' }}>
+                      {champ.vehicleType.split('(')[0].trim()}
+                    </span>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.2rem', color: champ.badgeColor, fontWeight: 800 }}>
+                      Explore <ChevronRight size={13} />
+                    </span>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        </section>
+
+        {/* ===================================================================
+            4. LEARN MOTORSPORT: Global Educational Curriculum & Guides
+            =================================================================== */}
+        <section style={{ marginTop: '3.5rem' }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'flex-end',
+              justifyContent: 'space-between',
+              marginBottom: '1.25rem',
+              flexWrap: 'wrap',
+              gap: '0.75rem',
+            }}
+          >
+            <div>
+              <span
+                style={{
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '0.72rem',
+                  fontWeight: 800,
+                  color: 'var(--text-muted)',
+                  letterSpacing: '0.1em',
+                  textTransform: 'uppercase',
+                }}
+              >
+                KNOWLEDGE ARCHITECTURE
+              </span>
+              <h2 style={{ fontSize: '1.5rem', fontWeight: 900, textTransform: 'uppercase', margin: '0.2rem 0 0.35rem 0', color: '#fff' }}>
+                Learn Motorsport
+              </h2>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', margin: 0, maxWidth: '680px' }}>
+                New to motorsport? Start with the basics, understand how different racing disciplines work, and build your knowledge one topic at a time.
+              </p>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <div
+                style={{
+                  display: 'inline-flex',
+                  background: 'rgba(255, 255, 255, 0.05)',
+                  borderRadius: '6px',
+                  padding: '0.2rem',
+                  border: '1px solid var(--border-subtle)',
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() => setActiveLearnTab('topics')}
+                  style={{
+                    border: 'none',
+                    background: activeLearnTab === 'topics' ? 'var(--f1-red)' : 'transparent',
+                    color: activeLearnTab === 'topics' ? '#ffffff' : 'var(--text-secondary)',
+                    padding: '0.35rem 0.75rem',
+                    borderRadius: '4px',
+                    fontSize: '0.74rem',
+                    fontWeight: 800,
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  Core Topics
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveLearnTab('thirty_seconds')}
+                  style={{
+                    border: 'none',
+                    background: activeLearnTab === 'thirty_seconds' ? 'var(--f1-red)' : 'transparent',
+                    color: activeLearnTab === 'thirty_seconds' ? '#ffffff' : 'var(--text-secondary)',
+                    padding: '0.35rem 0.75rem',
+                    borderRadius: '4px',
+                    fontSize: '0.74rem',
+                    fontWeight: 800,
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  30s Insights
+                </button>
+              </div>
+
+              <Link
+                to="/learn"
+                style={{
+                  fontSize: '0.8rem',
+                  color: 'var(--text-secondary)',
+                  textDecoration: 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.25rem',
+                  fontWeight: 700,
+                  marginLeft: '0.5rem',
+                }}
+              >
+                <span>Explore Learn</span>
+                <ChevronRight size={14} />
+              </Link>
+            </div>
+          </div>
+
+          {activeLearnTab === 'topics' ? (
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))',
+                gap: '1rem',
+              }}
+            >
+              {featuredLearnTopics.map(topic => (
+                <Link
+                  key={topic.id}
+                  to={topic.learnUrl}
+                  style={{
+                    background: 'var(--bg-surface)',
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: '10px',
+                    padding: '1.2rem',
+                    textDecoration: 'none',
+                    color: 'inherit',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                    transition: 'all 0.2s ease',
+                  }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.borderColor = `${topic.badgeColor}55`;
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.borderColor = 'var(--border-subtle)';
+                    e.currentTarget.style.transform = 'none';
+                  }}
+                >
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.6rem' }}>
+                      <span
+                        style={{
+                          fontSize: '0.65rem',
+                          fontWeight: 900,
+                          padding: '0.15rem 0.45rem',
+                          borderRadius: '4px',
+                          backgroundColor: `${topic.badgeColor}22`,
+                          color: topic.badgeColor,
+                          border: `1px solid ${topic.badgeColor}44`,
+                          textTransform: 'uppercase',
+                          fontFamily: 'var(--font-mono)',
+                        }}
+                      >
+                        {topic.badge}
+                      </span>
+                      <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                        {topic.category}
+                      </span>
+                    </div>
+
+                    <h3 style={{ fontSize: '1rem', fontWeight: 800, color: '#ffffff', margin: '0 0 0.45rem 0' }}>
+                      {topic.title}
+                    </h3>
+                    <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.45, margin: '0 0 0.65rem 0' }}>
+                      {topic.shortExplanation}
+                    </p>
+                  </div>
+
+                  <div
+                    style={{
+                      borderTop: '1px solid rgba(255, 255, 255, 0.05)',
+                      paddingTop: '0.6rem',
+                      marginTop: '0.6rem',
+                      fontSize: '0.73rem',
+                      color: 'var(--text-muted)',
+                    }}
+                  >
+                    <strong style={{ color: 'rgba(255, 255, 255, 0.75)' }}>Key takeaway:</strong> {topic.keyTakeaway}
+                  </div>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))',
+                gap: '1rem',
+              }}
+            >
+              {understandIn30Seconds.map(topic => (
+                <Link
+                  key={topic.id}
+                  to={topic.learnUrl}
+                  style={{
+                    background: 'var(--bg-surface)',
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: '10px',
+                    padding: '1.2rem',
+                    textDecoration: 'none',
+                    color: 'inherit',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                    transition: 'all 0.15s ease',
+                  }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.borderColor = `${topic.badgeColor}55`;
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.borderColor = 'var(--border-subtle)';
+                    e.currentTarget.style.transform = 'none';
+                  }}
+                >
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                      <span
+                        style={{
+                          fontSize: '0.65rem',
+                          fontWeight: 900,
+                          padding: '0.15rem 0.45rem',
+                          borderRadius: '4px',
+                          backgroundColor: `${topic.badgeColor}22`,
+                          color: topic.badgeColor,
+                          border: `1px solid ${topic.badgeColor}44`,
+                          textTransform: 'uppercase',
+                        }}
+                      >
+                        {topic.badge}
+                      </span>
+                      <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                        30s read
+                      </span>
+                    </div>
+
+                    <h3 style={{ fontSize: '0.95rem', fontWeight: 800, color: '#ffffff', margin: '0 0 0.45rem 0' }}>
+                      {topic.title}
+                    </h3>
+                    <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.45, margin: '0 0 0.5rem 0' }}>
+                      {topic.quickAnswer}
+                    </p>
+                  </div>
+
+                  <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.05)', paddingTop: '0.5rem', marginTop: '0.5rem', fontSize: '0.73rem', color: 'var(--text-muted)' }}>
+                    <strong style={{ color: 'rgba(255, 255, 255, 0.7)' }}>Why it matters:</strong> {topic.whyItMatters}
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
+        </section>
+
+        {/* ===================================================================
             5. INDIAN MOTORSPORT: Dedicated Domestic Ecosystem Spotlight
             =================================================================== */}
         <section style={{ marginTop: '3.5rem' }}>
@@ -497,7 +941,7 @@ export const HomePage: React.FC = () => {
                 Indian Motorsport
               </h2>
               <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', lineHeight: 1.5, margin: '0 0 1.25rem 0' }}>
-                {indianMotorsport.headline}
+                Discover the racing scene closer to home — from national championships and circuits to the pathway for drivers looking to progress through Indian motorsport.
               </p>
 
               <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '1.25rem' }}>
@@ -563,7 +1007,7 @@ export const HomePage: React.FC = () => {
 
               <div style={{ background: 'rgba(0, 0, 0, 0.3)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '8px', padding: '1rem', textAlign: 'center', gridColumn: 'span 2' }}>
                 <div style={{ fontSize: '1.75rem', fontWeight: 900, color: '#10b981', fontFamily: 'var(--font-mono)' }}>
-                  12 PTS
+                  {indianMotorsport.maxSuperLicencePoints} PTS
                 </div>
                 <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>
                   Domestic FIA Super Licence Points (F4 India)
@@ -574,95 +1018,7 @@ export const HomePage: React.FC = () => {
         </section>
 
         {/* ===================================================================
-            6. UNDERSTAND MOTORSPORT: Learn in 30 Seconds
-            =================================================================== */}
-        <section style={{ marginTop: '3.5rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
-            <div>
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem', fontWeight: 800, color: 'var(--text-muted)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-                MOTORSPORT CURRICULUM
-              </span>
-              <h2 style={{ fontSize: '1.4rem', fontWeight: 900, textTransform: 'uppercase', margin: '0.2rem 0 0 0', color: '#fff' }}>
-                Understand Motorsport in 30 Seconds
-              </h2>
-            </div>
-            <Link to="/learn" style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-              <span>Explore Learn Hub</span>
-              <ChevronRight size={14} />
-            </Link>
-          </div>
-
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-              gap: '1rem',
-            }}
-          >
-            {understandIn30Seconds.map(topic => (
-              <Link
-                key={topic.id}
-                to={topic.learnUrl}
-                style={{
-                  background: 'var(--bg-surface)',
-                  border: '1px solid var(--border-subtle)',
-                  borderRadius: '10px',
-                  padding: '1.15rem',
-                  textDecoration: 'none',
-                  color: 'inherit',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'space-between',
-                  transition: 'all 0.15s ease',
-                }}
-                onMouseEnter={e => {
-                  e.currentTarget.style.borderColor = `${topic.badgeColor}55`;
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                }}
-                onMouseLeave={e => {
-                  e.currentTarget.style.borderColor = 'var(--border-subtle)';
-                  e.currentTarget.style.transform = 'none';
-                }}
-              >
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                    <span
-                      style={{
-                        fontSize: '0.65rem',
-                        fontWeight: 900,
-                        padding: '0.15rem 0.45rem',
-                        borderRadius: '4px',
-                        backgroundColor: `${topic.badgeColor}22`,
-                        color: topic.badgeColor,
-                        border: `1px solid ${topic.badgeColor}44`,
-                        textTransform: 'uppercase',
-                      }}
-                    >
-                      {topic.badge}
-                    </span>
-                    <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
-                      30s read
-                    </span>
-                  </div>
-
-                  <h3 style={{ fontSize: '0.95rem', fontWeight: 800, color: '#ffffff', margin: '0 0 0.5rem 0' }}>
-                    {topic.title}
-                  </h3>
-                  <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.45, margin: '0 0 0.5rem 0' }}>
-                    {topic.quickAnswer}
-                  </p>
-                </div>
-
-                <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.05)', paddingTop: '0.5rem', marginTop: '0.5rem', fontSize: '0.73rem', color: 'var(--text-muted)' }}>
-                  <strong style={{ color: 'rgba(255, 255, 255, 0.7)' }}>Why it matters:</strong> {topic.whyItMatters}
-                </div>
-              </Link>
-            ))}
-          </div>
-        </section>
-
-        {/* ===================================================================
-            7. PREDICTION BENCH: Competition & Community
+            6. PREDICTION BENCH: Engagement & Community Competition
             =================================================================== */}
         <section style={{ marginTop: '3.5rem' }}>
           <div
@@ -684,12 +1040,35 @@ export const HomePage: React.FC = () => {
                 <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', fontWeight: 800, color: 'var(--f1-red)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
                   PREDICTION BENCH
                 </span>
+                <span
+                  style={{
+                    fontSize: '0.65rem',
+                    fontWeight: 900,
+                    padding: '0.15rem 0.45rem',
+                    borderRadius: '4px',
+                    backgroundColor:
+                      predictionHighlight.status === 'OPEN'
+                        ? 'rgba(0, 230, 118, 0.15)'
+                        : predictionHighlight.status === 'LOCKED'
+                        ? 'rgba(239, 68, 68, 0.15)'
+                        : 'rgba(255, 255, 255, 0.1)',
+                    color:
+                      predictionHighlight.status === 'OPEN'
+                        ? '#00e676'
+                        : predictionHighlight.status === 'LOCKED'
+                        ? '#ef4444'
+                        : 'var(--text-secondary)',
+                    fontFamily: 'var(--font-mono)',
+                  }}
+                >
+                  {predictionHighlight.status}
+                </span>
               </div>
               <h2 style={{ fontSize: '1.5rem', fontWeight: 900, textTransform: 'uppercase', color: '#ffffff', margin: '0 0 0.35rem 0' }}>
                 Think You Know Racing?
               </h2>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', margin: '0 0 0.5rem 0', maxWidth: '520px' }}>
-                Make your predictions for the {predictionHighlight.roundName}. Predict pole position, top-3 podium finishers, and fastest lap.
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', margin: '0 0 0.5rem 0', maxWidth: '540px' }}>
+                Put your motorsport knowledge to the test. Make your predictions for the {predictionHighlight.roundName}. Predict pole position, top-3 podium finishers, and fastest lap.
               </p>
               <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
                 {predictionHighlight.deadlineNotice}
@@ -708,28 +1087,167 @@ export const HomePage: React.FC = () => {
                 </div>
               ) : null}
 
-              <Link
-                to={predictionHighlight.url}
+              {predictionHighlight.status === 'OPEN' ? (
+                <Link
+                  to={predictionHighlight.url}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    padding: '0.75rem 1.4rem',
+                    borderRadius: '8px',
+                    backgroundColor: 'var(--f1-red)',
+                    color: '#ffffff',
+                    fontWeight: 800,
+                    fontSize: '0.85rem',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.04em',
+                    textDecoration: 'none',
+                    boxShadow: '0 0 20px rgba(225, 6, 0, 0.35)',
+                  }}
+                >
+                  <span>Make Your Prediction</span>
+                  <ArrowRight size={15} />
+                </Link>
+              ) : (
+                <Link
+                  to="/predictions"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    padding: '0.75rem 1.4rem',
+                    borderRadius: '8px',
+                    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                    border: '1px solid var(--border-subtle)',
+                    color: '#ffffff',
+                    fontWeight: 800,
+                    fontSize: '0.85rem',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.04em',
+                    textDecoration: 'none',
+                  }}
+                >
+                  <span>Explore Prediction Bench</span>
+                  <ArrowRight size={15} />
+                </Link>
+              )}
+            </div>
+          </div>
+        </section>
+
+        {/* ===================================================================
+            7. DISCOVER MORE / CONTENT: Curated Motorsport Knowledge Paths
+            =================================================================== */}
+        <section style={{ marginTop: '3.5rem' }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'flex-end',
+              justifyContent: 'space-between',
+              marginBottom: '1.25rem',
+              flexWrap: 'wrap',
+              gap: '0.5rem',
+            }}
+          >
+            <div>
+              <span
                 style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '0.5rem',
-                  padding: '0.75rem 1.4rem',
-                  borderRadius: '8px',
-                  backgroundColor: 'var(--f1-red)',
-                  color: '#ffffff',
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '0.72rem',
                   fontWeight: 800,
-                  fontSize: '0.85rem',
+                  color: 'var(--text-muted)',
+                  letterSpacing: '0.1em',
                   textTransform: 'uppercase',
-                  letterSpacing: '0.04em',
-                  textDecoration: 'none',
-                  boxShadow: '0 0 20px rgba(225, 6, 0, 0.35)',
                 }}
               >
-                <span>Make Your Prediction</span>
-                <ArrowRight size={15} />
-              </Link>
+                DEEPER CONTEXT
+              </span>
+              <h2 style={{ fontSize: '1.5rem', fontWeight: 900, textTransform: 'uppercase', margin: '0.2rem 0 0.35rem 0', color: '#fff' }}>
+                More to Explore
+              </h2>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', margin: 0, maxWidth: '680px' }}>
+                Deepen your motorsport journey with circuit guides, racecraft engineering, driver pathways, and official regulations.
+              </p>
             </div>
+          </div>
+
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))',
+              gap: '1rem',
+            }}
+          >
+            {discoverMoreItems.map(item => (
+              <Link
+                key={item.id}
+                to={item.url}
+                style={{
+                  background: 'var(--bg-surface)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: '10px',
+                  padding: '1.2rem',
+                  textDecoration: 'none',
+                  color: 'inherit',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'space-between',
+                  transition: 'all 0.2s ease',
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.borderColor = `${item.tagColor}55`;
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.borderColor = 'var(--border-subtle)';
+                  e.currentTarget.style.transform = 'none';
+                }}
+              >
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.6rem' }}>
+                    <span
+                      style={{
+                        fontSize: '0.65rem',
+                        fontWeight: 900,
+                        padding: '0.15rem 0.45rem',
+                        borderRadius: '4px',
+                        backgroundColor: `${item.tagColor}22`,
+                        color: item.tagColor,
+                        border: `1px solid ${item.tagColor}44`,
+                        textTransform: 'uppercase',
+                        fontFamily: 'var(--font-mono)',
+                      }}
+                    >
+                      {item.tag}
+                    </span>
+                  </div>
+
+                  <h3 style={{ fontSize: '1rem', fontWeight: 800, color: '#ffffff', margin: '0 0 0.4rem 0' }}>
+                    {item.title}
+                  </h3>
+                  <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.45, margin: '0 0 0.85rem 0' }}>
+                    {item.description}
+                  </p>
+                </div>
+
+                <div
+                  style={{
+                    borderTop: '1px solid rgba(255, 255, 255, 0.05)',
+                    paddingTop: '0.65rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    fontSize: '0.75rem',
+                    color: item.tagColor,
+                    fontWeight: 800,
+                  }}
+                >
+                  <span>{item.actionText}</span>
+                  <ChevronRight size={13} />
+                </div>
+              </Link>
+            ))}
           </div>
         </section>
       </div>

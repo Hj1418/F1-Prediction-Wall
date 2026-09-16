@@ -22,6 +22,10 @@ export async function getChampionshipDetail(
     cacheKey,
     async () => {
       switch (normalizedId) {
+        case 'f1': {
+          const { f1Data } = await import('./data/f1Data');
+          return f1Data;
+        }
         case 'f2': {
           const { f2Data } = await import('./data/f2Data');
           return f2Data;
@@ -81,6 +85,6 @@ export async function getIndianMotorsportEcosystem() {
  * Returns whether a championship has rich deep data ready
  */
 export function isChampionshipDataReady(championshipId: string): boolean {
-  const readyIds = ['f2', 'f3', 'f4', 'formula-e', 'wec', 'gt-world-challenge', 'wrc', 'motogp', 'indian-motorsport'];
+  const readyIds = ['f1', 'f2', 'f3', 'f4', 'formula-e', 'wec', 'gt-world-challenge', 'wrc', 'motogp', 'indian-motorsport'];
   return readyIds.includes(championshipId.toLowerCase().trim());
 }

@@ -1,0 +1,224 @@
+{
+  "season": 2026,
+  "calendar": [
+    {
+      "season": "2026",
+      "round": "1",
+      "url": "https://en.wikipedia.org/wiki/2026_Australian_Grand_Prix",
+      "raceName": "Australian Grand Prix",
+      "Circuit": {
+        "circuitId": "albert_park",
+        "url": "https://en.wikipedia.org/wiki/Albert_Park_Circuit",
+        "circuitName": "Albert Park Grand Prix Circuit",
+        "Location": {
+          "lat": "-37.8497",
+          "long": "144.968",
+          "locality": "Melbourne",
+          "country": "Australia"
+        }
+      },
+      "date": "2026-03-15",
+      "time": "05:00:00Z",
+      "FirstPractice": { "date": "2026-03-13", "time": "01:30:00Z" },
+      "SecondPractice": { "date": "2026-03-13", "time": "05:00:00Z" },
+      "ThirdPractice": { "date": "2026-03-14", "time": "01:30:00Z" },
+      "Qualifying": { "date": "2026-03-14", "time": "05:00:00Z" }
+    },
+    {
+      "season": "2026",
+      "round": "2",
+      "url": "https://en.wikipedia.org/wiki/2026_Chinese_Grand_Prix",
+      "raceName": "Chinese Grand Prix",
+      "Circuit": {
+        "circuitId": "shanghai",
+        "url": "https://en.wikipedia.org/wiki/Shanghai_International_Circuit",
+        "circuitName": "Shanghai International Circuit",
+        "Location": {
+          "lat": "31.3389",
+          "long": "121.22",
+          "locality": "Shanghai",
+          "country": "China"
+        }
+      },
+      "date": "2026-03-22",
+      "time": "07:00:00Z",
+      "FirstPractice": { "date": "2026-03-20", "time": "03:30:00Z" },
+      "SprintQualifying": { "date": "2026-03-20", "time": "07:30:00Z" },
+      "Sprint": { "date": "2026-03-21", "time": "03:00:00Z" },
+      "Qualifying": { "date": "2026-03-21", "time": "07:00:00Z" }
+    }
+  ],
+  "drivers": [
+    {
+      "driverId": "norris",
+      "permanentNumber": "4",
+      "code": "NOR",
+      "givenName": "Lando",
+      "familyName": "Norris",
+      "nationality": "British",
+      "team": "mclaren"
+    },
+    {
+      "driverId": "piastri",
+      "permanentNumber": "81",
+      "code": "PIA",
+      "givenName": "Oscar",
+      "familyName": "Piastri",
+      "nationality": "Australian",
+      "team": "mclaren"
+    },
+    {
+      "driverId": "max_verstappen",
+      "permanentNumber": "1",
+      "code": "VER",
+      "givenName": "Max",
+      "familyName": "Verstappen",
+      "nationality": "Dutch",
+      "team": "red_bull"
+    },
+    {
+      "driverId": "leclerc",
+      "permanentNumber": "16",
+      "code": "LEC",
+      "givenName": "Charles",
+      "familyName": "Leclerc",
+      "nationality": "Monegasque",
+      "team": "ferrari"
+    },
+    {
+      "driverId": "hamilton",
+      "permanentNumber": "44",
+      "code": "HAM",
+      "givenName": "Lewis",
+      "familyName": "Hamilton",
+      "nationality": "British",
+      "team": "ferrari"
+    }
+  ],
+  "teams": [
+    {
+      "constructorId": "mclaren",
+      "name": "McLaren",
+      "nationality": "British",
+      "color": "#ff8000"
+    },
+    {
+      "constructorId": "ferrari",
+      "name": "Ferrari",
+      "nationality": "Italian",
+      "color": "#e10600"
+    },
+    {
+      "constructorId": "red_bull",
+      "name": "Red Bull Racing",
+      "nationality": "Austrian",
+      "color": "#1e41ff"
+    }
+  ],
+  "raceResultProvisional": {
+    "publishedAt": "2026-03-15T07:15:00Z",
+    "Results": [
+      {
+        "position": "1",
+        "grid": "1",
+        "Driver": { "driverId": "norris", "code": "NOR", "givenName": "Lando", "familyName": "Norris" },
+        "Constructor": { "constructorId": "mclaren", "name": "McLaren" },
+        "laps": "58",
+        "status": "Finished",
+        "time": "1:25:34.120",
+        "points": 25,
+        "FastestLap": { "rank": "1" }
+      },
+      {
+        "position": "2",
+        "grid": "2",
+        "Driver": { "driverId": "max_verstappen", "code": "VER", "givenName": "Max", "familyName": "Verstappen" },
+        "Constructor": { "constructorId": "red_bull", "name": "Red Bull Racing" },
+        "laps": "58",
+        "status": "Finished",
+        "time": "+3.421s",
+        "points": 18
+      },
+      {
+        "position": "3",
+        "grid": "3",
+        "Driver": { "driverId": "leclerc", "code": "LEC", "givenName": "Charles", "familyName": "Leclerc" },
+        "Constructor": { "constructorId": "ferrari", "name": "Ferrari" },
+        "laps": "58",
+        "status": "Finished",
+        "time": "+4.110s",
+        "points": 15
+      },
+      {
+        "position": "4",
+        "grid": "4",
+        "Driver": { "driverId": "hamilton", "code": "HAM", "givenName": "Lewis", "familyName": "Hamilton" },
+        "Constructor": { "constructorId": "ferrari", "name": "Ferrari" },
+        "laps": "58",
+        "status": "Finished",
+        "time": "+8.905s",
+        "points": 12
+      }
+    ]
+  },
+  "raceResultAmended": {
+    "publishedAt": "2026-03-15T09:30:00Z",
+    "stewardNotes": "Car 1 (Verstappen) penalized 5 seconds post-race for repeated track limit violations. Classification updated.",
+    "Results": [
+      {
+        "position": "1",
+        "grid": "1",
+        "Driver": { "driverId": "norris", "code": "NOR", "givenName": "Lando", "familyName": "Norris" },
+        "Constructor": { "constructorId": "mclaren", "name": "McLaren" },
+        "laps": "58",
+        "status": "Finished",
+        "time": "1:25:34.120",
+        "points": 25,
+        "FastestLap": { "rank": "1" }
+      },
+      {
+        "position": "2",
+        "grid": "3",
+        "Driver": { "driverId": "leclerc", "code": "LEC", "givenName": "Charles", "familyName": "Leclerc" },
+        "Constructor": { "constructorId": "ferrari", "name": "Ferrari" },
+        "laps": "58",
+        "status": "Finished",
+        "time": "+4.110s",
+        "points": 18
+      },
+      {
+        "position": "3",
+        "grid": "2",
+        "Driver": { "driverId": "max_verstappen", "code": "VER", "givenName": "Max", "familyName": "Verstappen" },
+        "Constructor": { "constructorId": "red_bull", "name": "Red Bull Racing" },
+        "laps": "58",
+        "status": "Finished",
+        "time": "+8.421s",
+        "points": 15,
+        "notes": "Includes 5s post-race time penalty for track limits"
+      },
+      {
+        "position": "4",
+        "grid": "4",
+        "Driver": { "driverId": "hamilton", "code": "HAM", "givenName": "Lewis", "familyName": "Hamilton" },
+        "Constructor": { "constructorId": "ferrari", "name": "Ferrari" },
+        "laps": "58",
+        "status": "Finished",
+        "time": "+8.905s",
+        "points": 12
+      }
+    ]
+  },
+  "standings": {
+    "drivers": [
+      { "position": 1, "driverId": "norris", "driverName": "Lando Norris", "driverCode": "NOR", "teamId": "mclaren", "teamName": "McLaren", "points": 26, "wins": 1, "podiums": 1 },
+      { "position": 2, "driverId": "leclerc", "driverName": "Charles Leclerc", "driverCode": "LEC", "teamId": "ferrari", "teamName": "Ferrari", "points": 18, "wins": 0, "podiums": 1 },
+      { "position": 3, "driverId": "verstappen", "driverName": "Max Verstappen", "driverCode": "VER", "teamId": "red_bull", "teamName": "Red Bull Racing", "points": 15, "wins": 0, "podiums": 1 }
+    ],
+    "constructors": [
+      { "position": 1, "teamId": "mclaren", "teamName": "McLaren", "points": 26, "wins": 1, "podiums": 1 },
+      { "position": 2, "teamId": "ferrari", "teamName": "Ferrari", "points": 30, "wins": 0, "podiums": 1 },
+      { "position": 3, "teamId": "red_bull", "teamName": "Red Bull Racing", "points": 15, "wins": 0, "podiums": 1 }
+    ]
+  }
+}

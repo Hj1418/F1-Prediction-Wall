@@ -172,6 +172,7 @@ export async function getUniversalSearchIndex(): Promise<SearchResultItem[]> {
     // 2. Dynamically load detailed datasets in parallel
     try {
       const [
+        f1Module,
         f2Module,
         f3Module,
         f4Module,
@@ -182,6 +183,7 @@ export async function getUniversalSearchIndex(): Promise<SearchResultItem[]> {
         motogpModule,
         indiaModule,
       ] = await Promise.all([
+        import('./data/f1Data'),
         import('./data/f2Data'),
         import('./data/f3Data'),
         import('./data/f4Data'),
@@ -194,6 +196,7 @@ export async function getUniversalSearchIndex(): Promise<SearchResultItem[]> {
       ]);
 
       const datasets = [
+        { id: 'f1', name: 'Formula 1', data: f1Module.f1Data, badge: 'F1', badgeColor: '#e10600' },
         { id: 'f2', name: 'Formula 2', data: f2Module.f2Data, badge: 'F2', badgeColor: '#0090d0' },
         { id: 'f3', name: 'Formula 3', data: f3Module.f3Data, badge: 'F3', badgeColor: '#e10600' },
         { id: 'f4', name: 'Formula 4', data: f4Module.f4Data, badge: 'F4', badgeColor: '#10b981' },
@@ -374,84 +377,32 @@ export async function getUniversalSearchIndex(): Promise<SearchResultItem[]> {
         }
       }
 
-      // Add Top F1 Drivers & Teams
-      items.push(
-        {
-          id: 'driver-f1-verstappen',
-          title: 'Max Verstappen #1',
-          subtitle: 'Driver • Red Bull Racing • Formula 1',
-          category: 'driver',
-          championshipId: 'f1',
-          championshipName: 'Formula 1',
-          badge: 'F1',
-          badgeColor: '#e10600',
-          url: '/championships/f1',
-          keywords: ['verstappen', 'max', 'red bull', 'champion', 'f1'],
-        },
-        {
-          id: 'driver-f1-hamilton',
-          title: 'Lewis Hamilton #44',
-          subtitle: 'Driver • Scuderia Ferrari • Formula 1',
-          category: 'driver',
-          championshipId: 'f1',
-          championshipName: 'Formula 1',
-          badge: 'F1',
-          badgeColor: '#e10600',
-          url: '/championships/f1',
-          keywords: ['hamilton', 'lewis', 'ferrari', 'champion', 'f1'],
-        },
-        {
-          id: 'driver-f1-norris',
-          title: 'Lando Norris #4',
-          subtitle: 'Driver • McLaren F1 Team • Formula 1',
-          category: 'driver',
-          championshipId: 'f1',
-          championshipName: 'Formula 1',
-          badge: 'F1',
-          badgeColor: '#e10600',
-          url: '/championships/f1',
-          keywords: ['norris', 'lando', 'mclaren', 'f1'],
-        },
-        {
-          id: 'driver-f1-leclerc',
-          title: 'Charles Leclerc #16',
-          subtitle: 'Driver • Scuderia Ferrari • Formula 1',
-          category: 'driver',
-          championshipId: 'f1',
-          championshipName: 'Formula 1',
-          badge: 'F1',
-          badgeColor: '#e10600',
-          url: '/championships/f1',
-          keywords: ['leclerc', 'charles', 'ferrari', 'f1'],
-        },
-        {
-          id: 'team-f1-ferrari',
-          title: 'Scuderia Ferrari HP',
-          subtitle: 'Constructor • Ferrari 066/12 • Formula 1',
-          category: 'team',
-          championshipId: 'f1',
-          championshipName: 'Formula 1',
-          badge: 'F1',
-          badgeColor: '#e10600',
-          url: '/championships/f1',
-          keywords: ['ferrari', 'scuderia', 'maranello', 'hamilton', 'leclerc', 'f1'],
-        },
-        {
-          id: 'team-f1-mclaren',
-          title: 'McLaren Formula 1 Team',
-          subtitle: 'Constructor • Mercedes-AMG • Formula 1',
-          category: 'team',
-          championshipId: 'f1',
-          championshipName: 'Formula 1',
-          badge: 'F1',
-          badgeColor: '#e10600',
-          url: '/championships/f1',
-          keywords: ['mclaren', 'norris', 'piastri', 'papaya', 'f1'],
-        }
-      );
-
       // Add Core Technical Concepts
       items.push(
+        {
+          id: 'concept-super-licence',
+          title: 'FIA Super Licence & 40-Point System',
+          subtitle: 'Mandatory FIA Appendix L qualification system to compete in Formula 1 via feeder ladder championships',
+          category: 'concept',
+          championshipId: 'f2',
+          championshipName: 'Single-Seater Feeder Pyramid',
+          badge: 'Licence',
+          badgeColor: '#eab308',
+          url: '/championships/f2#feature',
+          keywords: ['super licence', 'points', 'f2', 'f3', 'feeder ladder', 'eligibility', 'fia appendix l', '40 points'],
+        },
+        {
+          id: 'concept-concessions',
+          title: 'MotoGP FIM Concession Ranking (Tiers A–D)',
+          subtitle: 'Performance rebalancing system adjusting wildcards, engine updates, test tyres, and private testing days',
+          category: 'concept',
+          championshipId: 'motogp',
+          championshipName: 'MotoGP',
+          badge: 'Concessions',
+          badgeColor: '#dc2626',
+          url: '/championships/motogp#overview',
+          keywords: ['concessions', 'yamaha', 'honda', 'ducati', 'ktm', 'aprilia', 'wildcards', 'testing'],
+        },
         {
           id: 'concept-active-aero',
           title: 'Active Aerodynamics (X-Mode & Z-Mode)',
@@ -595,3 +546,5 @@ export async function searchMotorsport(
   scored.sort((a, b) => b.score - a.score);
   return scored.slice(0, limit).map(s => s.item);
 }
+
+export const searchUniversal = searchMotorsport;

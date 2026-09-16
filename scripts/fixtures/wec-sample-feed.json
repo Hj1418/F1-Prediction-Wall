@@ -1,0 +1,175 @@
+{
+  "season": 2026,
+  "calendar": [
+    {
+      "roundNumber": 1,
+      "officialTitle": "Qatar 1812 km",
+      "circuitName": "Lusail International Circuit",
+      "location": "Lusail",
+      "country": "Qatar",
+      "flag": "🇶🇦",
+      "duration": "1812 km (~10 Hours)",
+      "startDate": "2026-02-26",
+      "endDate": "2026-02-28",
+      "dates": "Feb 26 – Feb 28",
+      "status": "COMPLETED"
+    },
+    {
+      "roundNumber": 2,
+      "officialTitle": "TotalEnergies 6 Hours of Spa-Francorchamps",
+      "circuitName": "Circuit de Spa-Francorchamps",
+      "location": "Stavelot",
+      "country": "Belgium",
+      "flag": "🇧🇪",
+      "duration": "6 Hours",
+      "startDate": "2026-05-07",
+      "endDate": "2026-05-09",
+      "dates": "May 07 – May 09",
+      "status": "UPCOMING"
+    },
+    {
+      "roundNumber": 3,
+      "officialTitle": "24 Hours of Le Mans (94th Edition)",
+      "circuitName": "Circuit de la Sarthe",
+      "location": "Le Mans",
+      "country": "France",
+      "flag": "🇫🇷",
+      "duration": "24 Hours (Double Points)",
+      "startDate": "2026-06-10",
+      "endDate": "2026-06-14",
+      "dates": "Jun 10 – Jun 14",
+      "status": "UPCOMING"
+    },
+    {
+      "roundNumber": 4,
+      "officialTitle": "Bapco Energies 8 Hours of Bahrain (Season Finale)",
+      "circuitName": "Bahrain International Circuit",
+      "location": "Sakhir",
+      "country": "Bahrain",
+      "flag": "🇧🇭",
+      "duration": "8 Hours (1.5x Points)",
+      "startDate": "2026-11-05",
+      "endDate": "2026-11-07",
+      "dates": "Nov 05 – Nov 07",
+      "status": "UPCOMING"
+    }
+  ],
+  "drivers": [
+    {
+      "rank": 1,
+      "driverName": "Kévin Estre",
+      "driverCode": "EST",
+      "carNumber": 6,
+      "teamName": "Porsche Penske Motorsport",
+      "nationality": "FRA",
+      "points": 152,
+      "wins": 2,
+      "podiums": 6,
+      "racingClass": "Hypercar",
+      "driverGrade": "Platinum",
+      "coDrivers": ["André Lotterer", "Laurens Vanthoor"]
+    },
+    {
+      "rank": 2,
+      "driverName": "Antonio Fuoco",
+      "driverCode": "FUO",
+      "carNumber": 50,
+      "teamName": "Ferrari AF Corse",
+      "nationality": "ITA",
+      "points": 141,
+      "wins": 2,
+      "podiums": 5,
+      "racingClass": "Hypercar",
+      "driverGrade": "Platinum",
+      "coDrivers": ["Miguel Molina", "Nicklas Nielsen"]
+    },
+    {
+      "rank": 3,
+      "driverName": "Kamui Kobayashi",
+      "driverCode": "KOB",
+      "carNumber": 7,
+      "teamName": "Toyota Gazoo Racing",
+      "nationality": "JPN",
+      "points": 128,
+      "wins": 2,
+      "podiums": 4,
+      "racingClass": "Hypercar",
+      "driverGrade": "Platinum",
+      "coDrivers": ["Mike Conway", "Nyck de Vries"]
+    },
+    {
+      "rank": 1,
+      "driverName": "Klaus Bachler",
+      "driverCode": "BAC",
+      "carNumber": 92,
+      "teamName": "Manthey PureRxcing",
+      "nationality": "AUT",
+      "points": 139,
+      "wins": 2,
+      "podiums": 5,
+      "racingClass": "LMGT3",
+      "driverGrade": "Platinum",
+      "coDrivers": ["Alex Malykhin (Bronze)", "Joel Sturm (Silver)"]
+    },
+    {
+      "rank": 2,
+      "driverName": "Alessio Rovera",
+      "driverCode": "ROV",
+      "carNumber": 55,
+      "teamName": "Vista AF Corse",
+      "nationality": "ITA",
+      "points": 118,
+      "wins": 2,
+      "podiums": 4,
+      "racingClass": "LMGT3",
+      "driverGrade": "Platinum",
+      "coDrivers": ["François Heriau (Bronze)", "Simon Mann (Silver)"]
+    },
+    {
+      "rank": 3,
+      "driverName": "Valentino Rossi",
+      "driverCode": "ROS",
+      "carNumber": 46,
+      "teamName": "Team WRT",
+      "nationality": "ITA",
+      "points": 102,
+      "wins": 1,
+      "podiums": 4,
+      "racingClass": "LMGT3",
+      "driverGrade": "Silver",
+      "coDrivers": ["Ahmad Al Harthy (Bronze)", "Maxime Martin (Platinum)"]
+    }
+  ],
+  "teams": [
+    {
+      "rank": 1,
+      "teamName": "Porsche Penske Motorsport",
+      "points": 188,
+      "wins": 3,
+      "podiums": 10,
+      "racingClass": "Hypercar",
+      "carModel": "Porsche 963 (LMDh)",
+      "drivers": ["K. Estre / A. Lotterer / L. Vanthoor", "M. Campbell / M. Christensen / F. Makowiecki"]
+    },
+    {
+      "rank": 2,
+      "teamName": "Ferrari AF Corse",
+      "points": 174,
+      "wins": 3,
+      "podiums": 9,
+      "racingClass": "Hypercar",
+      "carModel": "Ferrari 499P (LMH)",
+      "drivers": ["A. Fuoco / M. Molina / N. Nielsen", "A. Pier Guidi / J. Calado / A. Giovinazzi"]
+    },
+    {
+      "rank": 1,
+      "teamName": "Manthey PureRxcing",
+      "points": 139,
+      "wins": 2,
+      "podiums": 5,
+      "racingClass": "LMGT3",
+      "carModel": "Porsche 911 GT3 R LMGT3",
+      "drivers": ["A. Malykhin (B)", "J. Sturm (S)", "K. Bachler (P)"]
+    }
+  ]
+}

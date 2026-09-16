@@ -732,6 +732,31 @@ export const IndianMotorsportPage: React.FC = () => {
                 {currentCircuit.description}
               </p>
 
+              {currentCircuit.id === 'bic' && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                  <Link
+                    to="/circuits/buddh"
+                    style={{
+                      backgroundColor: 'rgba(255, 153, 51, 0.12)',
+                      border: '1px solid rgba(255, 153, 51, 0.4)',
+                      color: '#ff9933',
+                      padding: '0.45rem 1rem',
+                      borderRadius: '8px',
+                      fontWeight: 800,
+                      fontSize: '0.78rem',
+                      fontFamily: 'var(--font-mono)',
+                      textDecoration: 'none',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.4rem',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    VIEW FULL CIRCUIT GUIDE (VECTOR MAP & TELEMETRY) <ChevronRight size={14} />
+                  </Link>
+                </div>
+              )}
+
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.25rem' }}>
                 <div
                   style={{

@@ -1,0 +1,366 @@
+{
+  "f2": {
+    "season": 2026,
+    "calendar": [
+      {
+        "season": "2026",
+        "roundNumber": 1,
+        "officialTitle": "FIA F2 Bahrain Grand Prix Weekend",
+        "circuitName": "Bahrain International Circuit",
+        "circuitId": "bahrain",
+        "location": "Sakhir",
+        "country": "Bahrain",
+        "flag": "🇧🇭",
+        "startDate": "2026-02-27",
+        "endDate": "2026-03-01",
+        "dates": "Feb 27 – Mar 01",
+        "status": "COMPLETED"
+      },
+      {
+        "season": "2026",
+        "roundNumber": 2,
+        "officialTitle": "FIA F2 British Grand Prix Weekend",
+        "circuitName": "Silverstone Circuit",
+        "circuitId": "silverstone",
+        "location": "Silverstone",
+        "country": "United Kingdom",
+        "flag": "🇬🇧",
+        "startDate": "2026-07-03",
+        "endDate": "2026-07-05",
+        "dates": "Jul 03 – Jul 05",
+        "status": "UPCOMING"
+      },
+      {
+        "season": "2026",
+        "roundNumber": 3,
+        "officialTitle": "FIA F2 Italian Grand Prix Weekend",
+        "circuitName": "Autodromo Nazionale Monza",
+        "circuitId": "monza",
+        "location": "Monza",
+        "country": "Italy",
+        "flag": "🇮🇹",
+        "startDate": "2026-09-04",
+        "endDate": "2026-09-06",
+        "dates": "Sep 04 – Sep 06",
+        "status": "UPCOMING"
+      }
+    ],
+    "drivers": [
+      {
+        "driverName": "Arvid Lindblad",
+        "driverCode": "LIN",
+        "carNumber": 4,
+        "teamName": "Prema Racing",
+        "nationality": "British",
+        "juniorAcademy": "Red Bull Junior Team",
+        "rank": 1
+      },
+      {
+        "driverName": "Gabriele Mini",
+        "driverCode": "MIN",
+        "carNumber": 7,
+        "teamName": "Prema Racing",
+        "nationality": "Italian",
+        "juniorAcademy": "Alpine Academy",
+        "rank": 2
+      },
+      {
+        "driverName": "Luke Browning",
+        "driverCode": "BRO",
+        "carNumber": 9,
+        "teamName": "Hitech Pulse-Eight",
+        "nationality": "British",
+        "juniorAcademy": "Williams Racing Driver Academy",
+        "rank": 3
+      },
+      {
+        "driverName": "Oliver Goethe",
+        "driverCode": "GOE",
+        "carNumber": 11,
+        "teamName": "MP Motorsport",
+        "nationality": "Danish-Brazilian",
+        "juniorAcademy": "McLaren Driver Development",
+        "rank": 4
+      },
+      {
+        "driverName": "Kush Maini",
+        "driverCode": "MAI",
+        "carNumber": 12,
+        "teamName": "Invicta Racing",
+        "nationality": "Indian",
+        "rank": 5
+      },
+      {
+        "driverName": "Alex Dunne",
+        "driverCode": "DUN",
+        "carNumber": 22,
+        "teamName": "ART Grand Prix",
+        "nationality": "Irish",
+        "juniorAcademy": "Red Bull Junior Team",
+        "rank": 6
+      },
+      {
+        "driverName": "Dino Beganovic",
+        "driverCode": "BEG",
+        "carNumber": 14,
+        "teamName": "Rodin Motorsport",
+        "nationality": "Swedish",
+        "juniorAcademy": "Ferrari Driver Academy",
+        "rank": 7
+      },
+      {
+        "driverName": "Rafael Camara",
+        "driverCode": "CAM",
+        "carNumber": 16,
+        "teamName": "Campos Racing",
+        "nationality": "Brazilian",
+        "juniorAcademy": "Ferrari Driver Academy",
+        "rank": 8
+      },
+      {
+        "driverName": "Tuukka Taponen",
+        "driverCode": "TAP",
+        "carNumber": 18,
+        "teamName": "DAMS",
+        "nationality": "Finnish",
+        "juniorAcademy": "Mercedes Junior Team",
+        "rank": 9
+      },
+      {
+        "driverName": "Mari Boya",
+        "driverCode": "BOY",
+        "carNumber": 20,
+        "teamName": "Trident",
+        "nationality": "Spanish",
+        "juniorAcademy": "Aston Martin Driver Development",
+        "rank": 10
+      },
+      {
+        "driverName": "Josep Maria Marti",
+        "driverCode": "MAR",
+        "carNumber": 21,
+        "teamName": "Campos Racing",
+        "nationality": "Spanish",
+        "rank": 11
+      },
+      {
+        "driverName": "Charlie Wurz",
+        "driverCode": "WUR",
+        "carNumber": 25,
+        "teamName": "ART Grand Prix",
+        "nationality": "Austrian",
+        "rank": 12
+      }
+    ],
+    "qualifyingResult": [
+      "Arvid Lindblad",
+      "Gabriele Mini",
+      "Luke Browning",
+      "Oliver Goethe",
+      "Kush Maini",
+      "Alex Dunne",
+      "Dino Beganovic",
+      "Rafael Camara",
+      "Tuukka Taponen",
+      "Mari Boya",
+      "Josep Maria Marti",
+      "Charlie Wurz"
+    ],
+    "standings": {
+      "driversStandings": [
+        { "rank": 1, "driverName": "Arvid Lindblad", "driverCode": "LIN", "teamName": "Prema Racing", "points": 98, "wins": 2, "podiums": 5 },
+        { "rank": 2, "driverName": "Gabriele Mini", "driverCode": "MIN", "teamName": "Prema Racing", "points": 85, "wins": 1, "podiums": 4 },
+        { "rank": 3, "driverName": "Luke Browning", "driverCode": "BRO", "teamName": "Hitech Pulse-Eight", "points": 72, "wins": 1, "podiums": 3 }
+      ],
+      "teamsStandings": [
+        { "rank": 1, "teamName": "Prema Racing", "points": 183, "wins": 3, "podiums": 9 },
+        { "rank": 2, "teamName": "Hitech Pulse-Eight", "points": 108, "wins": 1, "podiums": 4 }
+      ]
+    }
+  },
+  "f3": {
+    "season": 2026,
+    "calendar": [
+      {
+        "season": "2026",
+        "roundNumber": 1,
+        "officialTitle": "FIA F3 Australian Grand Prix Weekend",
+        "circuitName": "Albert Park Grand Prix Circuit",
+        "circuitId": "albert_park",
+        "location": "Melbourne",
+        "country": "Australia",
+        "flag": "🇦🇺",
+        "startDate": "2026-03-13",
+        "endDate": "2026-03-15",
+        "dates": "Mar 13 – Mar 15",
+        "status": "COMPLETED"
+      },
+      {
+        "season": "2026",
+        "roundNumber": 2,
+        "officialTitle": "FIA F3 Belgian Grand Prix Weekend",
+        "circuitName": "Circuit de Spa-Francorchamps",
+        "circuitId": "spa",
+        "location": "Stavelot",
+        "country": "Belgium",
+        "flag": "🇧🇪",
+        "startDate": "2026-07-24",
+        "endDate": "2026-07-26",
+        "dates": "Jul 24 – Jul 26",
+        "status": "UPCOMING"
+      },
+      {
+        "season": "2026",
+        "roundNumber": 3,
+        "officialTitle": "FIA F3 Italian Grand Prix Weekend",
+        "circuitName": "Autodromo Nazionale Monza",
+        "circuitId": "monza",
+        "location": "Monza",
+        "country": "Italy",
+        "flag": "🇮🇹",
+        "startDate": "2026-09-04",
+        "endDate": "2026-09-06",
+        "dates": "Sep 04 – Sep 06",
+        "status": "UPCOMING"
+      }
+    ],
+    "drivers": [
+      {
+        "driverName": "Noel Leon",
+        "driverCode": "LEO",
+        "carNumber": 1,
+        "teamName": "Prema Racing",
+        "nationality": "Mexican",
+        "juniorAcademy": "Red Bull Junior Team",
+        "rank": 1
+      },
+      {
+        "driverName": "Nikola Tsolov",
+        "driverCode": "TSO",
+        "carNumber": 2,
+        "teamName": "ART Grand Prix",
+        "nationality": "Bulgarian",
+        "juniorAcademy": "Alpine Academy",
+        "rank": 2
+      },
+      {
+        "driverName": "Laurens van Hoepen",
+        "driverCode": "VHO",
+        "carNumber": 3,
+        "teamName": "ART Grand Prix",
+        "nationality": "Dutch",
+        "juniorAcademy": "Ferrari Driver Academy",
+        "rank": 3
+      },
+      {
+        "driverName": "Tim Tramnitz",
+        "driverCode": "TRA",
+        "carNumber": 5,
+        "teamName": "MP Motorsport",
+        "nationality": "German",
+        "rank": 4
+      },
+      {
+        "driverName": "Brando Badoer",
+        "driverCode": "BAD",
+        "carNumber": 6,
+        "teamName": "Prema Racing",
+        "nationality": "Italian",
+        "juniorAcademy": "Red Bull Junior Team",
+        "rank": 5
+      },
+      {
+        "driverName": "Callum Voisin",
+        "driverCode": "VOI",
+        "carNumber": 8,
+        "teamName": "Rodin Motorsport",
+        "nationality": "British",
+        "juniorAcademy": "McLaren Driver Development",
+        "rank": 6
+      },
+      {
+        "driverName": "Martinius Stenshorne",
+        "driverCode": "STE",
+        "carNumber": 10,
+        "teamName": "Trident",
+        "nationality": "Norwegian",
+        "juniorAcademy": "Red Bull Junior Team",
+        "rank": 7
+      },
+      {
+        "driverName": "Sophia Floersch",
+        "driverCode": "FLO",
+        "carNumber": 15,
+        "teamName": "Van Amersfoort Racing",
+        "nationality": "German",
+        "rank": 8
+      },
+      {
+        "driverName": "Driver Alpha",
+        "driverCode": "ALP",
+        "carNumber": 23,
+        "teamName": "Campos Racing",
+        "nationality": "French",
+        "rank": 9
+      },
+      {
+        "driverName": "Driver Beta",
+        "driverCode": "BET",
+        "carNumber": 24,
+        "teamName": "Hitech Pulse-Eight",
+        "nationality": "Brazilian",
+        "rank": 10
+      },
+      {
+        "driverName": "Driver Gamma",
+        "driverCode": "GAM",
+        "carNumber": 27,
+        "teamName": "DAMS",
+        "nationality": "Japanese",
+        "rank": 11
+      },
+      {
+        "driverName": "Driver Delta",
+        "driverCode": "DEL",
+        "carNumber": 29,
+        "teamName": "Invicta Racing",
+        "nationality": "Canadian",
+        "rank": 12
+      },
+      {
+        "driverName": "Driver Epsilon",
+        "driverCode": "EPS",
+        "carNumber": 30,
+        "teamName": "Trident",
+        "nationality": "American",
+        "rank": 13
+      }
+    ],
+    "qualifyingResult": [
+      "Noel Leon",
+      "Nikola Tsolov",
+      "Laurens van Hoepen",
+      "Tim Tramnitz",
+      "Brando Badoer",
+      "Callum Voisin",
+      "Martinius Stenshorne",
+      "Sophia Floersch",
+      "Driver Alpha",
+      "Driver Beta",
+      "Driver Gamma",
+      "Driver Delta",
+      "Driver Epsilon"
+    ],
+    "standings": {
+      "driversStandings": [
+        { "rank": 1, "driverName": "Noel Leon", "driverCode": "LEO", "teamName": "Prema Racing", "points": 76, "wins": 2, "podiums": 4 },
+        { "rank": 2, "driverName": "Nikola Tsolov", "driverCode": "TSO", "teamName": "ART Grand Prix", "points": 65, "wins": 1, "podiums": 3 },
+        { "rank": 3, "driverName": "Laurens van Hoepen", "driverCode": "VHO", "teamName": "ART Grand Prix", "points": 58, "wins": 1, "podiums": 2 }
+      ],
+      "teamsStandings": [
+        { "rank": 1, "teamName": "ART Grand Prix", "points": 123, "wins": 2, "podiums": 5 },
+        { "rank": 2, "teamName": "Prema Racing", "points": 110, "wins": 2, "podiums": 6 }
+      ]
+    }
+  }
+}

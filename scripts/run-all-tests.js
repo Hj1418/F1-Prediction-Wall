@@ -13,7 +13,17 @@ try {
   execSync('npx tsx scripts/verify-avatar.ts', { stdio: 'inherit' });
   execSync('npx tsx scripts/verify-motorsport-foundation.ts', { stdio: 'inherit' });
   execSync('npx tsx scripts/verify-phase8a.ts', { stdio: 'inherit' });
-  console.log('🏆 ALL UNIT, INTEGRATION, AUTH, ADMIN, BETA, RACING IDENTITY, AVATAR, FOUNDATION & PHASE 8A TESTS PASSED PERFECTLY!\n');
+  execSync('npx tsx scripts/verify-phase8b.ts', { stdio: 'inherit' });
+  execSync('npx tsx scripts/verify-phase8b2.ts', { stdio: 'inherit' });
+  execSync('npx tsx scripts/verify-phase8c.ts', { stdio: 'inherit' });
+  execSync('npx tsx scripts/verify-phase8d.ts', { stdio: 'inherit' });
+  execSync('npx tsx scripts/verify-phase8e.ts', { stdio: 'inherit' });
+  execSync('npx tsx scripts/verify-phase8f.ts', { stdio: 'inherit' });
+  execSync('npx tsx scripts/verify-phase9.ts', { stdio: 'inherit' });
+  execSync('npx tsx scripts/verify-phase9-2.ts', { stdio: 'inherit' });
+  execSync('npx tsx scripts/verify-phase9-3.ts', { stdio: 'inherit' });
+  execSync('npx tsx scripts/verify-phase10.ts', { stdio: 'inherit' });
+  console.log('🏆 ALL UNIT, INTEGRATION, AUTH, ADMIN, BETA, RACING IDENTITY, AVATAR, FOUNDATION, PHASE 8A-8F, 9.1-9.3 & PHASE 10 TESTS PASSED PERFECTLY!\n');
 } catch (err) {
   console.error('Test execution failed');
   process.exit(1);

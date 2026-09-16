@@ -138,7 +138,19 @@ export const WeekendDashboardPage: React.FC = () => {
                     {weekend.raceName}
                   </h1>
                   <div style={{ fontSize: '1rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
-                    {getCircuitName(weekend.circuit)}, {weekend.country} • Round {weekend.roundNumber || (weekend as any).round} of {weekend.season || 2026}
+                    <Link
+                      to={`/circuits/${circuitMeta.id}`}
+                      style={{
+                        color: '#ffffff',
+                        textDecoration: 'none',
+                        fontWeight: 700,
+                        borderBottom: '1px dashed var(--border-medium)',
+                      }}
+                      title={`View ${circuitMeta.name} in Global Circuits Directory`}
+                    >
+                      {getCircuitName(weekend.circuit)}
+                    </Link>
+                    {', '}{weekend.country} • Round {weekend.roundNumber || (weekend as any).round} of {weekend.season || 2026}
                   </div>
                 </div>
               </div>
@@ -184,18 +196,39 @@ export const WeekendDashboardPage: React.FC = () => {
             <div
               style={{
                 display: 'flex',
+                flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'center',
                 padding: '1.25rem',
                 background: 'radial-gradient(circle at center, rgba(225, 6, 0, 0.08) 0%, rgba(8, 10, 15, 0.85) 75%)',
                 borderRadius: 'var(--radius-lg)',
                 border: '1px solid var(--border-subtle)',
-                height: '240px',
-                maxHeight: '240px',
-                overflow: 'hidden',
+                minHeight: '260px',
+                position: 'relative',
               }}
             >
               <CircuitMap circuit={weekend.circuit} variant="standalone" />
+              <Link
+                to={`/circuits/${circuitMeta.id}`}
+                style={{
+                  marginTop: '0.75rem',
+                  fontSize: '0.75rem',
+                  fontFamily: 'var(--font-mono)',
+                  fontWeight: 800,
+                  color: 'var(--f1-red)',
+                  textDecoration: 'none',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.35rem',
+                  padding: '0.3rem 0.75rem',
+                  borderRadius: '9999px',
+                  background: 'rgba(225, 6, 0, 0.08)',
+                  border: '1px solid rgba(225, 6, 0, 0.25)',
+                  transition: 'background 0.2s ease',
+                }}
+              >
+                VIEW CIRCUIT GUIDE <ArrowRight size={12} />
+              </Link>
             </div>
           </div>
         </div>

@@ -109,6 +109,7 @@ export interface User {
   avatarUrl: string;
   favouriteDriver: string;
   favouriteConstructor?: string;
+  favouriteChampionship?: string;
   bio?: string;
   passwordHash?: string;
   role: UserRole;
@@ -301,3 +302,5 @@ export interface ApiResponse<T> {
   data: T | null;
   message: string | null;
 }
+
+export * from './dataContract';

@@ -7,6 +7,9 @@
  *  Instant T0 first-frame render with background reconciliation."
  */
 
+import { clientCache } from '../cache/clientCache';
+import { PredictionRound } from '../../types';
+
 export interface NextRaceSessionSummary {
   name: string;
   day: string;
@@ -85,6 +88,27 @@ export interface ThirtySecondLearnTopic {
   learnUrl: string;
 }
 
+export interface FeaturedLearnTopic {
+  id: string;
+  title: string;
+  badge: string;
+  badgeColor: string;
+  category: string;
+  shortExplanation: string;
+  keyTakeaway: string;
+  learnUrl: string;
+}
+
+export interface DiscoverMoreItem {
+  id: string;
+  title: string;
+  tag: string;
+  tagColor: string;
+  description: string;
+  url: string;
+  actionText: string;
+}
+
 export interface PredictionBenchHighlight {
   roundId: string;
   roundName: string;
@@ -103,14 +127,124 @@ export interface HomeSnapshot {
   indianMotorsport: IndianMotorsportSummary;
   watchVideos: WatchVideoCard[];
   understandIn30Seconds: ThirtySecondLearnTopic[];
+  featuredLearnTopics: FeaturedLearnTopic[];
+  discoverMoreItems: DiscoverMoreItem[];
   predictionHighlight: PredictionBenchHighlight;
 }
+
+/**
+ * Featured Beginner & Intermediate Learning Cards
+ */
+export const DEFAULT_FEATURED_LEARN_TOPICS: FeaturedLearnTopic[] = [
+  {
+    id: 'how-motorsport-works',
+    title: 'How Motorsport Works',
+    badge: 'Disciplines',
+    badgeColor: '#3b82f6',
+    category: 'Structure & Disciplines',
+    shortExplanation: 'From single-seater apex prototypes to multi-class 24-hour endurance, rally stages, and bikes — racing spans diverse technical rules and physics.',
+    keyTakeaway: 'Open-wheel tests pure aero; endurance tests car reliability; rally tests pace-note trust; bikes test extreme physics.',
+    learnUrl: '/championships',
+  },
+  {
+    id: 'race-weekends',
+    title: 'Understanding Race Weekends',
+    badge: 'Weekend',
+    badgeColor: '#00d2be',
+    category: 'Weekend Format',
+    shortExplanation: 'How practice sessions, knockout qualifying shootouts, sprint races, and Sunday Grands Prix fit together across standard and sprint schedules.',
+    keyTakeaway: 'Fridays dial in aerodynamic setup; Saturdays set the grid under Parc Fermé; Sundays award maximum championship points.',
+    learnUrl: '/learn#topics',
+  },
+  {
+    id: 'flags-safety',
+    title: 'Flags & Safety Protocols',
+    badge: 'Safety',
+    badgeColor: '#eab308',
+    category: 'Race Control',
+    shortExplanation: 'Green, yellow, red, and blue marshal signals, alongside Safety Car (SC) and Virtual Safety Car (VSC) delta management.',
+    keyTakeaway: 'Drivers must respect electronic light panels instantly. Ignoring yellow flags or VSC deltas triggers immediate time penalties.',
+    learnUrl: '/learn#topics',
+  },
+  {
+    id: 'qualifying-explained',
+    title: 'Qualifying Shootouts Explained',
+    badge: 'Quali',
+    badgeColor: '#e10600',
+    category: 'Grid Order',
+    shortExplanation: 'Knockout elimination rounds (Q1, Q2, Q3) where the slowest cars drop out until the top 10 battle on fresh soft tyres for Pole Position.',
+    keyTakeaway: 'P1 provides clean aerodynamic air, strategic race control into Turn 1, and avoids mid-pack opening lap incidents.',
+    learnUrl: '/learn#topics',
+  },
+  {
+    id: 'tyres-strategy',
+    title: 'Tyres, Degradation & Pit Strategy',
+    badge: 'Strategy',
+    badgeColor: '#10b981',
+    category: 'Pit Strategy',
+    shortExplanation: 'Soft, Medium, and Hard tyre compounds degrade at different thermal rates. Drivers must pit for mandatory compound switches.',
+    keyTakeaway: 'Pitting early (undercut) gains track position on fresh rubber; extending a stint (overcut) exploits clean air and tyre offset.',
+    learnUrl: '/learn#topics',
+  },
+  {
+    id: 'motorsport-terminology',
+    title: 'Motorsport Terminology',
+    badge: 'Glossary',
+    badgeColor: '#a855f7',
+    category: '50+ Terms',
+    shortExplanation: 'Master essential racing jargon: Active Aero, Attack Mode, Balance of Performance (BoP), Apex, Parc Fermé, Box Box, and Delta Times.',
+    keyTakeaway: 'Understanding motorsport vocabulary unlocks broadcast commentary and race engineer team radio communications.',
+    learnUrl: '/learn#glossary',
+  },
+];
+
+/**
+ * Curated discovery paths across the platform
+ */
+export const DEFAULT_DISCOVER_MORE: DiscoverMoreItem[] = [
+  {
+    id: 'circuit-guides',
+    title: 'Global Circuit Guides',
+    tag: 'Circuits',
+    tagColor: '#e10600',
+    description: 'Explore 25+ iconic circuits across F1, MotoGP, WEC, and Indian tracks with corner layouts, track DNA, and elevation.',
+    url: '/circuits',
+    actionText: 'Explore Circuits',
+  },
+  {
+    id: 'tech-2026',
+    title: '2026 Racecraft & Tech Regulations',
+    tag: 'Technical',
+    tagColor: '#3b82f6',
+    description: 'Deep dive into Active Aerodynamics (X-Mode & Z-Mode), 350 kW MGU-K hybrid deployment, and Manual Override passing assist.',
+    url: '/learn#topics',
+    actionText: 'Read Tech Guide',
+  },
+  {
+    id: 'driver-ladder',
+    title: 'Driver Development Ladders',
+    tag: 'Pathways',
+    tagColor: '#ff9933',
+    description: 'Trace the progression pathway from grassroots karting through Formula 4, Formula 3, Formula 2, and premier world championship seats.',
+    url: '/indian-motorsport#pathway',
+    actionText: 'View Pathway',
+  },
+  {
+    id: 'governance',
+    title: 'Official Governance & Rulebooks',
+    tag: 'Regulations',
+    tagColor: '#10b981',
+    description: 'Access direct, verified references to official FIA sporting regulations, technical directives, and International Sporting Code bulletins.',
+    url: '/learn#official-updates',
+    actionText: 'Review Rulebooks',
+  },
+];
 
 /**
  * Instantaneous static baseline snapshot: ensures 0 ms first-frame render.
  */
 export const DEFAULT_HOME_SNAPSHOT: HomeSnapshot = {
-  heroTagline: 'One place to discover motorsport.',
+  heroTagline: 'Your motorsport starting point.',
   nextRace: {
     roundNumber: 16,
     officialTitle: 'Formula 1 Gran Premio de España 2026',
@@ -248,6 +382,8 @@ export const DEFAULT_HOME_SNAPSHOT: HomeSnapshot = {
       learnUrl: '/learn#topics',
     },
   ],
+  featuredLearnTopics: DEFAULT_FEATURED_LEARN_TOPICS,
+  discoverMoreItems: DEFAULT_DISCOVER_MORE,
   predictionHighlight: {
     roundId: '2026-16-spain',
     roundName: 'Spanish Grand Prix',
@@ -259,10 +395,55 @@ export const DEFAULT_HOME_SNAPSHOT: HomeSnapshot = {
   },
 };
 
-/**
- * Returns home snapshot immediately from static cache, optionally reconciling live API data in background.
- */
 export async function getHomeSnapshot(): Promise<HomeSnapshot> {
-  // Synchronous guarantee: always returns DEFAULT_HOME_SNAPSHOT immediately
-  return DEFAULT_HOME_SNAPSHOT;
+  const snapshot: HomeSnapshot = { ...DEFAULT_HOME_SNAPSHOT };
+
+  try {
+    // Check if prediction rounds are already in client cache
+    const cachedRounds = clientCache.get<PredictionRound[]>('f1_prediction_rounds_all');
+    if (cachedRounds && cachedRounds.length > 0) {
+      const openRound = cachedRounds.find(r => r.status === 'OPEN');
+      if (openRound) {
+        snapshot.predictionHighlight = {
+          roundId: openRound.roundId,
+          roundName: openRound.title || 'Next Prediction Round',
+          grandPrix: openRound.description || 'Grand Prix Weekend',
+          status: 'OPEN',
+          deadlineNotice: openRound.closesAt ? `Predictions lock: ${new Date(openRound.closesAt).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}` : 'Predictions lock before qualifying',
+          totalPointsAvailable: 60,
+          url: `/predict/${openRound.roundId}`,
+        };
+      } else {
+        const upcomingRound = cachedRounds.find(r => r.status === 'UPCOMING');
+        if (upcomingRound) {
+          snapshot.predictionHighlight = {
+            roundId: upcomingRound.roundId,
+            roundName: upcomingRound.title || 'Upcoming Prediction Round',
+            grandPrix: upcomingRound.description || 'Grand Prix Weekend',
+            status: 'UPCOMING',
+            deadlineNotice: upcomingRound.opensAt ? `Opens: ${new Date(upcomingRound.opensAt).toLocaleDateString()}` : 'Opens soon',
+            totalPointsAvailable: 60,
+            url: `/predict/${upcomingRound.roundId}`,
+          };
+        } else {
+          const lockedRound = cachedRounds.find(r => r.status === 'LOCKED');
+          if (lockedRound) {
+            snapshot.predictionHighlight = {
+              roundId: lockedRound.roundId,
+              roundName: lockedRound.title || 'Locked Prediction Round',
+              grandPrix: lockedRound.description || 'Grand Prix Weekend',
+              status: 'LOCKED',
+              deadlineNotice: 'Predictions locked. Race weekend in progress.',
+              totalPointsAvailable: 60,
+              url: '/predictions',
+            };
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('Home snapshot reconciliation error:', err);
+  }
+
+  return snapshot;
 }

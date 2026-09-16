@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" width="500" height="500" viewBox="0 0 500 500" preserveAspectRatio="xMidYMid meet">
+    <desc>Buddh International Circuit Track Layout (5.125 km)</desc>
+    <!-- Outer track outline -->
+    <path d="M 120 380 
+             L 240 380 
+             C 270 380 295 365 305 345 
+             L 340 280 
+             C 350 260 375 255 395 270 
+             L 430 295 
+             C 455 315 480 300 480 270 
+             L 480 180 
+             C 480 150 460 135 435 145 
+             L 370 170 
+             C 345 180 325 170 315 150 
+             L 290 90 
+             C 280 65 255 50 225 50 
+             L 150 50 
+             C 120 50 95 70 85 95 
+             L 45 200 
+             C 35 225 45 255 70 270 
+             L 140 310 
+             C 160 320 165 345 150 365 
+             Z" 
+          style="fill:none;stroke:#ffffff;stroke-width:18;stroke-linejoin:round;stroke-linecap:round;stroke-opacity:1"/>
+    <!-- Inner track line -->
+    <path d="M 120 380 
+             L 240 380 
+             C 270 380 295 365 305 345 
+             L 340 280 
+             C 350 260 375 255 395 270 
+             L 430 295 
+             C 455 315 480 300 480 270 
+             L 480 180 
+             C 480 150 460 135 435 145 
+             L 370 170 
+             C 345 180 325 170 315 150 
+             L 290 90 
+             C 280 65 255 50 225 50 
+             L 150 50 
+             C 120 50 95 70 85 95 
+             L 45 200 
+             C 35 225 45 255 70 270 
+             L 140 310 
+             C 160 320 165 345 150 365 
+             Z" 
+          style="fill:none;stroke:#080a0f;stroke-width:4;stroke-linejoin:round;stroke-linecap:round;stroke-opacity:0.9"/>
+    <!-- Start / Finish mark -->
+    <path d="M 170 370 L 170 390" style="fill:none;stroke:#e10600;stroke-width:6;stroke-linecap:round"/>
+</svg>

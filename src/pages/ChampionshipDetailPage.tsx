@@ -8,10 +8,8 @@ import {
   Gauge,
   Award,
   ExternalLink,
-  ChevronRight,
   Shield,
   Layers,
-  Sparkles,
   HelpCircle,
   Clock,
   Flag,
@@ -21,6 +19,10 @@ import {
 import { getChampionshipDetail } from '../services/motorsport/championshipDataService';
 import { ChampionshipDetailData } from '../types/motorsportDetail';
 import { PageLoadingFallback } from '../components/common/PageLoadingFallback';
+import { CompetitorProfileModal, CompetitorProfileData } from '../components/competitor/CompetitorProfileModal';
+import { TeamProfileModal, TeamProfileData } from '../components/team/TeamProfileModal';
+import { SourceProvenanceBadge } from '../components/common/SourceProvenanceBadge';
+import { FeederLadderView } from '../components/feeder/FeederLadderView';
 
 type DetailTab = 'overview' | 'calendar' | 'standings' | 'teams' | 'feature';
 
@@ -32,6 +34,8 @@ export const ChampionshipDetailPage: React.FC = () => {
   const [standingsSubTab, setStandingsSubTab] = useState<'drivers' | 'teams'>('drivers');
   const [selectedClass, setSelectedClass] = useState<string>('all');
   const [prevChampionshipId, setPrevChampionshipId] = useState(championshipId);
+  const [selectedCompetitor, setSelectedCompetitor] = useState<CompetitorProfileData | null>(null);
+  const [selectedTeam, setSelectedTeam] = useState<TeamProfileData | null>(null);
 
   if (prevChampionshipId !== championshipId) {
     setPrevChampionshipId(championshipId);
@@ -81,6 +85,88 @@ export const ChampionshipDetailPage: React.FC = () => {
     }
     return null;
   }, [data]);
+
+  const handleSelectTeamByName = (teamName: string) => {
+    if (!data) return;
+    const found = data.teamsStandings.find(t =>
+      t.teamName.toLowerCase().includes(teamName.toLowerCase()) ||
+      teamName.toLowerCase().includes(t.teamName.toLowerCase())
+    );
+    if (found) {
+      setSelectedTeam({
+        id: found.teamName,
+        name: found.teamName,
+        championshipId: data.id,
+        championshipName: data.name,
+        championshipBadge: data.shortName || data.name,
+        championshipColor: data.heroBadgeColor,
+        carModel: found.carModel,
+        manufacturer: found.manufacturer || found.carModel?.split(' ')[0] || found.teamName.split(' ')[0],
+        country: found.country,
+        countryFlag: found.flag,
+        primaryColor: found.primaryColor,
+        rank: found.rank,
+        points: found.points,
+        wins: found.wins,
+        podiums: found.podiums,
+        drivers: found.drivers,
+      });
+    } else {
+      // Fallback if not directly matched in standings
+      setSelectedTeam({
+        id: teamName,
+        name: teamName,
+        championshipId: data.id,
+        championshipName: data.name,
+        championshipBadge: data.shortName || data.name,
+        championshipColor: data.heroBadgeColor,
+        primaryColor: data.heroBadgeColor,
+      });
+    }
+  };
+
+  const handleSelectCompetitorByName = (competitorName: string) => {
+    if (!data) return;
+    const found = data.driversStandings.find(d =>
+      d.driverName.toLowerCase().includes(competitorName.toLowerCase()) ||
+      competitorName.toLowerCase().includes(d.driverName.toLowerCase())
+    );
+    if (found) {
+      setSelectedCompetitor({
+        id: found.driverCode || found.driverName,
+        name: found.driverName,
+        code: found.driverCode,
+        number: found.carNumber,
+        nationality: found.nationality,
+        teamName: found.teamName,
+        championshipId: data.id,
+        championshipName: data.name,
+        championshipBadge: data.shortName || data.name,
+        championshipColor: data.heroBadgeColor,
+        competitorLabel: data.competitorLabel,
+        rank: found.rank,
+        points: found.points,
+        wins: found.wins,
+        podiums: found.podiums,
+        juniorAcademy: found.juniorAcademy,
+        academyColor: found.academyColor,
+        driverGrade: found.driverGrade,
+        coDrivers: found.coDrivers,
+      });
+    } else {
+      // Fallback if not found in driversStandings
+      setSelectedCompetitor({
+        id: competitorName,
+        name: competitorName,
+        teamName: '',
+        championshipId: data.id,
+        championshipName: data.name,
+        championshipBadge: data.shortName || data.name,
+        championshipColor: data.heroBadgeColor,
+        competitorLabel: data.competitorLabel,
+      });
+    }
+  };
 
   const navTabs = React.useMemo(() => {
     if (!data) return [];
@@ -191,67 +277,6 @@ export const ChampionshipDetailPage: React.FC = () => {
   // Indian Motorsport dedicated ecosystem redirect
   if (championshipId?.toLowerCase() === 'indian-motorsport') {
     return <Navigate to="/indian-motorsport" replace />;
-  }
-
-  // F1 special redirect banner
-  if (championshipId?.toLowerCase() === 'f1') {
-    return (
-      <div className="container" style={{ padding: '4rem 1rem', textAlign: 'center' }}>
-        <div
-          style={{
-            maxWidth: '650px',
-            margin: '0 auto',
-            padding: '2.5rem',
-            backgroundColor: 'var(--bg-surface)',
-            border: '1px solid rgba(225, 6, 0, 0.4)',
-            borderRadius: '16px',
-            boxShadow: '0 0 30px rgba(225, 6, 0, 0.15)',
-          }}
-        >
-          <div style={{ color: 'var(--f1-red)', marginBottom: '1rem' }}>
-            <Sparkles size={36} />
-          </div>
-          <h2 style={{ fontSize: '1.75rem', fontWeight: 900, marginBottom: '0.75rem', color: '#fff' }}>
-            Formula 1 Is The Active Core Hub
-          </h2>
-          <p style={{ color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: '2rem' }}>
-            Formula 1 features our complete live race weekend tracker, interactive Prediction Bench,
-            circuit telemetry, and real-time championship leaderboards.
-          </p>
-          <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
-            <Link
-              to="/races"
-              style={{
-                backgroundColor: 'var(--f1-red)',
-                color: '#fff',
-                padding: '0.65rem 1.5rem',
-                borderRadius: '8px',
-                fontWeight: 800,
-                textDecoration: 'none',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-              }}
-            >
-              GO TO F1 GRAND PRIX HUB <ChevronRight size={16} />
-            </Link>
-            <Link
-              to="/championships"
-              style={{
-                backgroundColor: 'rgba(255, 255, 255, 0.08)',
-                color: '#fff',
-                padding: '0.65rem 1.5rem',
-                borderRadius: '8px',
-                fontWeight: 700,
-                textDecoration: 'none',
-              }}
-            >
-              Back to Explore
-            </Link>
-          </div>
-        </div>
-      </div>
-    );
   }
 
   // Not found or not yet implemented
@@ -385,6 +410,10 @@ export const ChampionshipDetailPage: React.FC = () => {
               >
                 {data.seasonYear} SEASON
               </span>
+              <SourceProvenanceBadge
+                customAttribution={data.governingBody}
+                customSourceId={`${data.id}-official`}
+              />
             </div>
 
             {/* Title */}
@@ -439,6 +468,103 @@ export const ChampionshipDetailPage: React.FC = () => {
           </div>
         </div>
       </section>
+
+      {/* F1 Dedicated Platform Ecosystem Launchpad */}
+      {data.id === 'f1' && (
+        <section
+          style={{
+            backgroundColor: 'rgba(225, 6, 0, 0.04)',
+            borderBottom: '1px solid rgba(225, 6, 0, 0.2)',
+            padding: '0.85rem 0',
+          }}
+        >
+          <div className="container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <span style={{ fontSize: '0.75rem', fontFamily: 'var(--font-mono)', fontWeight: 800, color: 'var(--f1-red)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                THE GRID • F1 ECOSYSTEM:
+              </span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <Link
+                to="/predictions"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.35rem',
+                  fontSize: '0.78rem',
+                  fontWeight: 800,
+                  fontFamily: 'var(--font-mono)',
+                  padding: '0.35rem 0.75rem',
+                  borderRadius: '6px',
+                  backgroundColor: 'var(--bg-surface)',
+                  border: '1px solid var(--border-subtle)',
+                  color: '#fff',
+                  textDecoration: 'none',
+                }}
+              >
+                PREDICTION BENCH →
+              </Link>
+              <Link
+                to="/races"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.35rem',
+                  fontSize: '0.78rem',
+                  fontWeight: 800,
+                  fontFamily: 'var(--font-mono)',
+                  padding: '0.35rem 0.75rem',
+                  borderRadius: '6px',
+                  backgroundColor: 'var(--bg-surface)',
+                  border: '1px solid var(--border-subtle)',
+                  color: 'var(--text-secondary)',
+                  textDecoration: 'none',
+                }}
+              >
+                RACE WEEKENDS
+              </Link>
+              <Link
+                to="/leaderboard"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.35rem',
+                  fontSize: '0.78rem',
+                  fontWeight: 800,
+                  fontFamily: 'var(--font-mono)',
+                  padding: '0.35rem 0.75rem',
+                  borderRadius: '6px',
+                  backgroundColor: 'var(--bg-surface)',
+                  border: '1px solid var(--border-subtle)',
+                  color: 'var(--text-secondary)',
+                  textDecoration: 'none',
+                }}
+              >
+                LEADERBOARD
+              </Link>
+              <Link
+                to="/circuits"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.35rem',
+                  fontSize: '0.78rem',
+                  fontWeight: 800,
+                  fontFamily: 'var(--font-mono)',
+                  padding: '0.35rem 0.75rem',
+                  borderRadius: '6px',
+                  backgroundColor: 'var(--bg-surface)',
+                  border: '1px solid var(--border-subtle)',
+                  color: 'var(--text-secondary)',
+                  textDecoration: 'none',
+                }}
+              >
+                CIRCUITS GUIDE
+              </Link>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* 2. QUICK STATS RIBBON */}
       <section
@@ -975,9 +1101,33 @@ export const ChampionshipDetailPage: React.FC = () => {
                     {filteredDrivers.map(driver => (
                       <tr
                         key={`${driver.racingClass || 'all'}-${driver.carNumber}-${driver.driverName}`}
+                        onClick={() => {
+                          setSelectedCompetitor({
+                            id: driver.driverCode || driver.driverName,
+                            name: driver.driverName,
+                            code: driver.driverCode,
+                            number: driver.carNumber,
+                            nationality: driver.nationality,
+                            teamName: driver.teamName,
+                            championshipId: data.id,
+                            championshipName: data.name,
+                            championshipBadge: data.shortName || data.name,
+                            championshipColor: data.heroBadgeColor,
+                            competitorLabel: data.competitorLabel,
+                            rank: driver.rank,
+                            points: driver.points,
+                            wins: driver.wins,
+                            podiums: driver.podiums,
+                            juniorAcademy: driver.juniorAcademy,
+                            academyColor: driver.academyColor,
+                            driverGrade: driver.driverGrade,
+                            coDrivers: driver.coDrivers,
+                          });
+                        }}
                         style={{
                           borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
                           transition: 'background-color 0.15s ease',
+                          cursor: 'pointer',
                         }}
                       >
                         <td style={{ padding: '0.85rem 1.25rem', fontWeight: 900, fontFamily: 'var(--font-mono)' }}>
@@ -1059,7 +1209,43 @@ export const ChampionshipDetailPage: React.FC = () => {
                           </td>
                         )}
                         <td style={{ padding: '0.85rem 1.25rem', color: 'var(--text-secondary)' }}>
-                          {driver.teamName}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const teamData = data.teamsStandings.find(t => t.teamName.toLowerCase().includes(driver.teamName.toLowerCase()) || driver.teamName.toLowerCase().includes(t.teamName.toLowerCase()));
+                              setSelectedTeam({
+                                id: driver.teamName,
+                                name: driver.teamName,
+                                championshipId: data.id,
+                                championshipName: data.name,
+                                championshipBadge: data.shortName || data.name,
+                                championshipColor: data.heroBadgeColor,
+                                carModel: teamData?.carModel,
+                                manufacturer: teamData?.carModel?.split(' ')[0] || driver.teamName.split(' ')[0],
+                                country: teamData?.country,
+                                countryFlag: teamData?.flag,
+                                primaryColor: teamData?.primaryColor,
+                                rank: teamData?.rank,
+                                points: teamData?.points,
+                                wins: teamData?.wins,
+                                podiums: teamData?.podiums,
+                                drivers: teamData?.drivers,
+                              });
+                            }}
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              color: '#60a5fa',
+                              cursor: 'pointer',
+                              padding: 0,
+                              textAlign: 'left',
+                              fontSize: '0.85rem',
+                              fontWeight: 600,
+                            }}
+                          >
+                            {driver.teamName}
+                          </button>
                         </td>
                         <td style={{ padding: '0.85rem 1.25rem' }}>
                           {driver.juniorAcademy ? (
@@ -1123,9 +1309,14 @@ export const ChampionshipDetailPage: React.FC = () => {
                     {filteredTeams.map(team => (
                       <tr
                         key={`${team.racingClass || 'all'}-${team.teamName}`}
+                        onClick={() => handleSelectTeamByName(team.teamName)}
                         style={{
                           borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
+                          cursor: 'pointer',
+                          transition: 'background-color 0.15s ease',
                         }}
+                        onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.03)')}
+                        onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
                       >
                         <td style={{ padding: '0.85rem 1.25rem', fontWeight: 900, fontFamily: 'var(--font-mono)' }}>
                           <span
@@ -1178,7 +1369,31 @@ export const ChampionshipDetailPage: React.FC = () => {
                           </td>
                         )}
                         <td style={{ padding: '0.85rem 1.25rem', color: 'var(--text-secondary)', fontSize: '0.82rem' }}>
-                          {team.drivers.join(' • ')}
+                          {team.drivers.map((drvName, dIdx) => (
+                            <span key={dIdx}>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleSelectCompetitorByName(drvName);
+                                }}
+                                style={{
+                                  background: 'none',
+                                  border: 'none',
+                                  color: '#93c5fd',
+                                  cursor: 'pointer',
+                                  padding: 0,
+                                  fontSize: 'inherit',
+                                  fontWeight: 600,
+                                }}
+                                onMouseEnter={(e) => (e.currentTarget.style.textDecoration = 'underline')}
+                                onMouseLeave={(e) => (e.currentTarget.style.textDecoration = 'none')}
+                              >
+                                {drvName}
+                              </button>
+                              {dIdx < team.drivers.length - 1 && ' • '}
+                            </span>
+                          ))}
                         </td>
                         <td style={{ padding: '0.85rem 1.25rem', textAlign: 'center', fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>
                           {team.wins}
@@ -1244,7 +1459,24 @@ export const ChampionshipDetailPage: React.FC = () => {
                         <div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
                             <span style={{ fontSize: '1.2rem' }}>{team.flag}</span>
-                            <strong style={{ fontSize: '1rem', color: '#fff' }}>{team.teamName}</strong>
+                            <button
+                              type="button"
+                              onClick={() => handleSelectTeamByName(team.teamName)}
+                              style={{
+                                background: 'none',
+                                border: 'none',
+                                padding: 0,
+                                fontSize: '1rem',
+                                fontWeight: 800,
+                                color: '#fff',
+                                cursor: 'pointer',
+                                textAlign: 'left',
+                              }}
+                              onMouseEnter={(e) => (e.currentTarget.style.color = '#60a5fa')}
+                              onMouseLeave={(e) => (e.currentTarget.style.color = '#fff')}
+                            >
+                              {team.teamName}
+                            </button>
                             {team.racingClass && (
                               <span
                                 style={{
@@ -1288,6 +1520,7 @@ export const ChampionshipDetailPage: React.FC = () => {
                           teamDrivers.map(drv => (
                             <div
                               key={`${drv.carNumber}-${drv.driverName}`}
+                              onClick={() => handleSelectCompetitorByName(drv.driverName)}
                               style={{
                                 backgroundColor: 'rgba(255, 255, 255, 0.02)',
                                 border: '1px solid rgba(255, 255, 255, 0.05)',
@@ -1296,7 +1529,11 @@ export const ChampionshipDetailPage: React.FC = () => {
                                 display: 'flex',
                                 flexDirection: 'column',
                                 gap: '0.25rem',
+                                cursor: 'pointer',
+                                transition: 'all 0.15s ease',
                               }}
+                              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.06)')}
+                              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.02)')}
                             >
                               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
@@ -1358,12 +1595,59 @@ export const ChampionshipDetailPage: React.FC = () => {
                             </div>
                           ))
                         ) : (
-                          <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                            {team.drivers.join(', ')}
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                            {team.drivers.map((drvName, dIdx) => (
+                              <button
+                                key={dIdx}
+                                type="button"
+                                onClick={() => handleSelectCompetitorByName(drvName)}
+                                style={{
+                                  background: 'rgba(255, 255, 255, 0.02)',
+                                  border: '1px solid rgba(255, 255, 255, 0.05)',
+                                  padding: '0.45rem 0.65rem',
+                                  borderRadius: '6px',
+                                  color: '#ffffff',
+                                  fontSize: '0.8rem',
+                                  textAlign: 'left',
+                                  cursor: 'pointer',
+                                  fontWeight: 600,
+                                }}
+                              >
+                                {drvName}
+                              </button>
+                            ))}
                           </div>
                         )}
                       </div>
                     </div>
+
+                    <button
+                      type="button"
+                      onClick={() => handleSelectTeamByName(team.teamName)}
+                      style={{
+                        padding: '0.5rem',
+                        backgroundColor: 'rgba(255, 255, 255, 0.04)',
+                        border: '1px solid var(--border-subtle)',
+                        borderRadius: '6px',
+                        color: 'var(--text-secondary)',
+                        fontSize: '0.75rem',
+                        fontWeight: 700,
+                        fontFamily: 'var(--font-mono)',
+                        cursor: 'pointer',
+                        textAlign: 'center',
+                        transition: 'all 0.15s ease',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.08)';
+                        e.currentTarget.style.color = '#fff';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.04)';
+                        e.currentTarget.style.color = 'var(--text-secondary)';
+                      }}
+                    >
+                      VIEW TEAM DOSSIER →
+                    </button>
                   </div>
                 );
               })}
@@ -1491,7 +1775,82 @@ export const ChampionshipDetailPage: React.FC = () => {
             )}
 
             {/* VARIANT B: Feeder Ladder & FIA Super Licence Guide (for single-seater ladder) */}
-            {data.superLicencePoints && (
+            {['f2', 'f3', 'f4'].includes(data.id) ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
+                <FeederLadderView
+                  currentTierId={data.id}
+                  onSelectCompetitor={(name: string) => handleSelectCompetitorByName(name)}
+                />
+
+                {/* National Series (if present, like F4 India, Italian F4, British F4) */}
+                {data.nationalSeries && data.nationalSeries.length > 0 && (
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                      <Flag size={20} style={{ color: data.heroBadgeColor }} />
+                      <h2 style={{ fontSize: '1.35rem', fontWeight: 900, margin: 0, color: '#fff' }}>
+                        Premier National Championships & Indian Motorsport Pathway
+                      </h2>
+                    </div>
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', marginBottom: '1.25rem' }}>
+                      Regional FIA-certified F4 categories provide grassroots racing across Europe, Asia, and India.
+                    </p>
+
+                    <div
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))',
+                        gap: '1.25rem',
+                      }}
+                    >
+                      {data.nationalSeries.map((series, sIdx) => {
+                        const isIndia = series.name.includes('India');
+                        return (
+                          <div
+                            key={sIdx}
+                            style={{
+                              backgroundColor: 'var(--bg-surface)',
+                              border: isIndia ? '1px solid rgba(234, 179, 8, 0.45)' : '1px solid var(--border-subtle)',
+                              borderRadius: '12px',
+                              padding: '1.25rem',
+                              boxShadow: isIndia ? '0 0 20px rgba(234, 179, 8, 0.1)' : 'none',
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                              <span style={{ fontSize: '1.3rem' }}>{series.flag}</span>
+                              <span
+                                style={{
+                                  fontSize: '0.7rem',
+                                  fontFamily: 'var(--font-mono)',
+                                  fontWeight: 800,
+                                  color: isIndia ? '#eab308' : 'var(--text-muted)',
+                                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                                  padding: '0.15rem 0.45rem',
+                                  borderRadius: '4px',
+                                }}
+                              >
+                                +{series.superLicencePoints} SL POINTS
+                              </span>
+                            </div>
+                            <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: '#fff', margin: '0 0 0.35rem 0' }}>
+                              {series.name}
+                            </h3>
+                            <div style={{ fontSize: '0.75rem', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
+                              {series.region} • {series.carSpecs}
+                            </div>
+                            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.5, margin: '0 0 0.75rem 0' }}>
+                              {series.description}
+                            </p>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                              <strong>Circuits:</strong> {series.keyCircuits.join(', ')}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : data.superLicencePoints ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
                 {/* Visual Stepping Stone Ladder */}
                 {data.ladderPyramidTiers && data.ladderPyramidTiers.length > 0 && (
@@ -1700,10 +2059,30 @@ export const ChampionshipDetailPage: React.FC = () => {
                   </div>
                 )}
               </div>
-            )}
+            ) : null}
           </div>
         )}
       </main>
+
+      {/* Reusable Competitor Profile Modal */}
+      {selectedCompetitor && (
+        <CompetitorProfileModal
+          isOpen={!!selectedCompetitor}
+          competitor={selectedCompetitor}
+          onClose={() => setSelectedCompetitor(null)}
+          onSelectTeam={(teamName) => handleSelectTeamByName(teamName)}
+        />
+      )}
+
+      {/* Reusable Team Profile Modal */}
+      {selectedTeam && (
+        <TeamProfileModal
+          isOpen={!!selectedTeam}
+          team={selectedTeam}
+          onClose={() => setSelectedTeam(null)}
+          onSelectCompetitor={(compName) => handleSelectCompetitorByName(compName)}
+        />
+      )}
     </div>
   );
 };

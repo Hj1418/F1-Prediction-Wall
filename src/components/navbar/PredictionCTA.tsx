@@ -44,9 +44,9 @@ export const PredictionCTA: React.FC<PredictionCTAProps> = ({ onActiveRoundChang
 
         const upcomingRound = rounds.find(r => r.status === 'UPCOMING');
         if (upcomingRound) {
-          const targetLink = `/predict/${upcomingRound.roundId}`;
+          const targetLink = '/predictions';
           setCtaState({
-            label: 'NEXT PREDICTION',
+            label: 'PREDICTION BENCH',
             link: targetLink,
             mode: 'upcoming',
           });

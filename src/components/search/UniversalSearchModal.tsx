@@ -177,6 +177,48 @@ export const UniversalSearchModal: React.FC<UniversalSearchModalProps> = ({ isOp
           })}
         </div>
 
+        {/* Quick query suggested pills */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.4rem',
+            padding: '0.45rem 1.25rem',
+            borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
+            background: 'rgba(255, 255, 255, 0.02)',
+            overflowX: 'auto',
+            whiteSpace: 'nowrap',
+            scrollbarWidth: 'none',
+          }}
+        >
+          <span style={{ fontSize: '0.68rem', fontWeight: 800, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase' }}>
+            SUGGESTED:
+          </span>
+          {['Spa', 'Buddh', 'Bagnaia', 'Active Aero', 'Attack Mode', 'F4 India', 'Undercut', 'Monza'].map(tag => (
+            <button
+              key={tag}
+              type="button"
+              onClick={() => {
+                setQuery(tag);
+                inputRef.current?.focus();
+              }}
+              style={{
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                background: query.toLowerCase() === tag.toLowerCase() ? 'rgba(225, 6, 0, 0.2)' : 'rgba(255, 255, 255, 0.05)',
+                color: query.toLowerCase() === tag.toLowerCase() ? '#ffffff' : 'var(--text-secondary)',
+                borderRadius: '4px',
+                padding: '0.2rem 0.5rem',
+                fontSize: '0.72rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              {tag}
+            </button>
+          ))}
+        </div>
+
         {/* Results list */}
         <div className="search-results-list" ref={resultsContainerRef} role="listbox">
           {loading && results.length === 0 ? (

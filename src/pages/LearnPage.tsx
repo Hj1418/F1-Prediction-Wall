@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   BookOpen,
   Flag,
@@ -25,6 +26,11 @@ interface GlossaryTerm {
   term: string;
   category: 'Strategy' | 'Rules' | 'Technical' | 'Driving' | 'Motorsport';
   definition: string;
+  relatedLink?: {
+    label: string;
+    url: string;
+    badge?: string;
+  };
 }
 
 const GLOSSARY_TERMS: GlossaryTerm[] = [
@@ -32,41 +38,81 @@ const GLOSSARY_TERMS: GlossaryTerm[] = [
     term: 'Active Aerodynamics (X-Mode & Z-Mode)',
     category: 'Technical',
     definition: '2026 movable wing system replacing traditional DRS. Straight mode (X-Mode) minimizes drag on straights for efficiency; Corner mode (Z-Mode) maximizes downforce through corners.',
+    relatedLink: {
+      label: 'Formula 1 Active Aero Dossier',
+      url: '/championships/f1#feature',
+      badge: 'F1',
+    },
   },
   {
     term: 'Attack Mode (Formula E)',
     category: 'Motorsport',
     definition: 'Mandatory high-power mode in Formula E. Drivers must steer offline through designated timing loops off the racing line to unlock an extra 50 kW of electric power.',
+    relatedLink: {
+      label: 'Formula E Gen3 Evo Guide',
+      url: '/championships/formula-e#feature',
+      badge: 'FE',
+    },
   },
   {
     term: 'Balance of Performance (BoP)',
     category: 'Motorsport',
     definition: 'Regulatory system in endurance (WEC) and GT racing adjusting vehicle minimum weight, power output, and ballast to ensure diverse engine configurations compete on equal terms.',
+    relatedLink: {
+      label: 'FIA WEC Hypercar Regulations',
+      url: '/championships/wec#overview',
+      badge: 'WEC',
+    },
   },
   {
     term: 'Pace Notes (Rally)',
     category: 'Motorsport',
     definition: 'Detailed shorthand descriptive notes read by a rally co-driver at machine-gun pace to warn the driver of upcoming corner radius, blind crests, and road hazards.',
+    relatedLink: {
+      label: 'WRC Rally Guide',
+      url: '/championships/wrc#overview',
+      badge: 'WRC',
+    },
   },
   {
-    term: 'FIA Superlicense',
+    term: 'FIA Super Licence',
     category: 'Rules',
-    definition: 'The qualification license required to drive in Formula 1. Drivers must earn at least 40 Superlicense points across junior championships (such as F2, F3, and F4) over three seasons.',
+    definition: 'The qualification license required to drive in Formula 1. Drivers must earn at least 40 Super Licence points across junior championships (such as F2, F3, and F4) over three seasons.',
+    relatedLink: {
+      label: 'Feeder Ladder & 40-Pt Simulator',
+      url: '/championships/f2#feature',
+      badge: 'Feeder',
+    },
   },
   {
-    term: 'Hypercar (WEC)',
+    term: 'Hypercar (LMH & LMDh)',
     category: 'Motorsport',
     definition: 'The premier class of endurance sports prototype racing. Includes bespoke Le Mans Hypercars (LMH) and standardized Le Mans Daytona h (LMDh) hybrid race cars competing for overall 24h of Le Mans victory.',
+    relatedLink: {
+      label: 'WEC Standings & Lineups',
+      url: '/championships/wec#standings',
+      badge: 'WEC',
+    },
   },
   {
     term: 'Highside vs Lowside (MotoGP)',
     category: 'Driving',
     definition: 'Two primary crash types in motorcycle racing. A lowside occurs when tyres lose grip and slide out; a highside occurs when a sliding rear tyre abruptly regains grip and violently flips the rider over the bike.',
+    relatedLink: {
+      label: 'MotoGP Guide & Concessions',
+      url: '/championships/motogp#overview',
+      badge: 'MotoGP',
+    },
   },
   {
     term: 'Overtake Mode / Manual Override',
     category: 'Technical',
     definition: 'The 2026 electrical passing assist. When an attacking car is within 1.000s of a rival at the activation point, the driver receives an additional 0.5 MJ of MGU-K electrical boost up to 337 km/h.',
+    relatedLink: {
+      label: 'F1 2026 Technical Specs',
+      url: '/championships/f1#feature',
+      badge: 'F1',
+    },
   },
   {
     term: 'Apex',
@@ -101,10 +147,10 @@ const GLOSSARY_TERMS: GlossaryTerm[] = [
   {
     term: 'Dirty Air',
     category: 'Technical',
-    definition: 'Turbulent, disrupted airflow shed behind a Formula 1 car that robs trailing cars of aerodynamic downforce and accelerates tyre degradation.',
+    definition: 'Turbulent, disrupted airflow shed behind a race car that robs trailing cars of aerodynamic downforce and accelerates tyre degradation.',
   },
   {
-    term: 'Slipstream',
+    term: 'Slipstream / Tow',
     category: 'Driving',
     definition: 'Tucking closely behind a rival car down high-speed straights where air resistance is lower, allowing higher acceleration and overtaking momentum.',
   },
@@ -128,6 +174,166 @@ const GLOSSARY_TERMS: GlossaryTerm[] = [
     category: 'Rules',
     definition: 'Defined by the white lines bordering the circuit surface. If all four wheels cross completely over the white boundary, lap times are deleted and warnings/penalties are applied.',
   },
+  {
+    term: 'Oversteer vs Understeer',
+    category: 'Driving',
+    definition: 'Handling imbalances. Understeer ("push") occurs when front tyres lose grip and car resists turning; Oversteer ("loose") occurs when rear tyres lose grip and rear slides out.',
+  },
+  {
+    term: 'Trail Braking',
+    category: 'Driving',
+    definition: 'An advanced driving technique where the driver gradually bleeds off brake pressure while turning towards the apex, transferring weight onto front tyres for sharper turn-in.',
+  },
+  {
+    term: 'Wheelspin',
+    category: 'Driving',
+    definition: 'When engine torque exceeds rear tyre grip under acceleration, spinning tyres uncontrollably, destroying surface rubber and losing forward acceleration.',
+  },
+  {
+    term: 'Brake Bias',
+    category: 'Technical',
+    definition: 'The cockpit-adjustable ratio of braking force distributed between front and rear axles, tuned dynamically per corner to balance braking stability with turn-in bite.',
+  },
+  {
+    term: 'Blistering vs Graining',
+    category: 'Technical',
+    definition: 'Tyre wear failure modes. Graining occurs when cold rubber tears and balls up on the tread surface; Blistering occurs when internal carcass overheating vaporizes rubber underneath the tread.',
+  },
+  {
+    term: 'Telemetry',
+    category: 'Technical',
+    definition: 'Real-time wireless data transmission streaming hundreds of sensor channels (throttle, brake, tyre surface temp, g-force, steering angle) to pit wall engineers.',
+  },
+  {
+    term: 'Ride-Height & Holeshot Device (MotoGP)',
+    category: 'Technical',
+    definition: 'Mechanical suspension lowering mechanisms on MotoGP prototypes that compress rear linkages to lower the center of gravity, preventing wheelies on starts and straightaways.',
+  },
+  {
+    term: 'Multiclass Racing (WEC / IMSA)',
+    category: 'Motorsport',
+    definition: 'Simultaneous competition on the same track between top-tier prototypes (Hypercars) and production-based sportscars (LMGT3), requiring non-stop high-speed traffic management.',
+  },
+  {
+    term: 'Driver Categorization (Platinum to Bronze)',
+    category: 'Rules',
+    definition: 'The FIA rating system ranking drivers by age, career record, and pace. Endurance and GT pro-am entries mandate specific combinations of amateur (Bronze/Silver) and pro (Gold/Platinum) drivers.',
+  },
+  {
+    term: 'Reverse Grid (F2 / F3 / IRL)',
+    category: 'Rules',
+    definition: 'Sprint race format where the top qualifying drivers (top 10 in F2, top 12 in F3) are reversed on the starting grid, forcing title contenders to overtake through the field.',
+  },
+  {
+    term: 'Power Stage (WRC)',
+    category: 'Motorsport',
+    definition: 'The televised final stage of a World Rally Championship rally, awarding bonus 5-4-3-2-1 championship points to the five fastest crews through that stage.',
+  },
+  {
+    term: 'Super Special Stage (SSS)',
+    category: 'Motorsport',
+    definition: 'A short, purpose-built head-to-head rally stage held inside stadiums or showgrounds with parallel tracks for spectator entertainment.',
+  },
+  {
+    term: 'Scrutineering',
+    category: 'Rules',
+    definition: 'Official technical inspection before and after racing sessions to verify vehicles comply strictly with safety equipment, weight, fuel, and aerodynamic dimension regulations.',
+  },
+  {
+    term: 'Jump Start (False Start)',
+    category: 'Rules',
+    definition: 'Moving forward from the grid box before start lights extinguish. Transponders embedded in the asphalt trigger automatic 5s or drive-through penalties.',
+  },
+  {
+    term: '107% Rule',
+    category: 'Rules',
+    definition: 'Sporting regulation mandating any driver who fails to set a Q1 lap within 107% of the fastest Q1 time may not start the Grand Prix without exceptional steward permission.',
+  },
+  {
+    term: 'Black and Orange Flag (Mechanical Warning)',
+    category: 'Rules',
+    definition: 'Signaled directly to a car suffering dangerous mechanical damage (e.g. dragging wing, fluid leak). The driver must pit immediately for safety repairs.',
+  },
+  {
+    term: 'Blue Flag',
+    category: 'Rules',
+    definition: 'Shown to warn a slower car that a faster leader is approaching to lap them. The slower driver must yield track position within three marshal sectors.',
+  },
+  {
+    term: 'Yellow Flag (Single & Double Waved)',
+    category: 'Rules',
+    definition: 'Single yellow indicates hazard off or near track; reduce speed and no overtaking. Double yellow indicates track partially or fully blocked; must be prepared to stop.',
+  },
+  {
+    term: 'Red Flag',
+    category: 'Rules',
+    definition: 'Session halted immediately due to serious crash, extreme weather, or blocked circuit. All cars must proceed slowly to the pit lane.',
+  },
+  {
+    term: 'Safety Car & Virtual Safety Car (VSC)',
+    category: 'Rules',
+    definition: 'Physical Safety Car leads the field at reduced pace to allow track cleanup. VSC requires drivers to immediately reduce speed and maintain positive delta times without a physical car on track.',
+  },
+  {
+    term: 'Pit Window',
+    category: 'Strategy',
+    definition: 'The optimal window of laps during a race to make scheduled pit stops based on fuel consumption, tyre compound durability, and pit lane loss delta.',
+  },
+  {
+    term: 'Lift and Coast',
+    category: 'Strategy',
+    definition: 'Releasing throttle several hundred metres before braking zones to coast. Saves significant fuel and electrical battery charge with minimal lap time penalty.',
+  },
+  {
+    term: 'Split Strategy',
+    category: 'Strategy',
+    definition: 'A team running different pit stop timings or starting tyre compounds on their two cars to hedge against safety cars or divergent weather forecasts.',
+  },
+  {
+    term: 'Stint',
+    category: 'Strategy',
+    definition: 'A continuous sequence of laps completed on a single set of tyres between pit stops or between the start/finish of the race.',
+  },
+  {
+    term: 'Prime vs Option Tyres',
+    category: 'Strategy',
+    definition: 'Historical terminology: Prime refers to the harder, more durable compound; Option refers to the softer, faster qualifying-oriented compound.',
+  },
+  {
+    term: 'Full Wet vs Intermediate Tyres',
+    category: 'Strategy',
+    definition: 'Inters (green grooved) clear ~35 litres of water/sec on damp tracks without standing water; Full Wets (blue deep treads) clear up to ~85 litres/sec in heavy rain.',
+  },
+  {
+    term: 'Downforce & Ground Effect',
+    category: 'Technical',
+    definition: 'Aerodynamic vertical load pushing the car into the track surface. Ground effect uses underfloor Venturi tunnels to generate massive suction without creating excess drag.',
+  },
+  {
+    term: 'MGU-K (Motor Generator Unit - Kinetic)',
+    category: 'Technical',
+    definition: 'The electric motor connected to the crankshaft. Under braking, it acts as a generator harvesting kinetic energy; under acceleration, it deploys up to 350 kW of electric power.',
+  },
+  {
+    term: 'Sustainable Drop-in Fuel (E-Fuel)',
+    category: 'Technical',
+    definition: 'Advanced 100% fossil-free synthetic fuel refined from carbon capture or non-food bio-waste, emitting near-net-zero greenhouse gases while matching high-octane combustion performance.',
+  },
+  {
+    term: 'Indian Racing League (IRL)',
+    category: 'Motorsport',
+    definition: 'India’s premier single-make franchise prototype championship headline of the Indian Racing Festival, featuring Wolf GB08 prototypes and gender-equal driver crews.',
+  },
+  {
+    term: 'F4 Indian Championship',
+    category: 'Motorsport',
+    definition: 'The official FIA-certified Formula 4 championship in India awarding up to 12 FIA Super Licence points, racing Mygale M21-F4 single-seaters on circuits across India.',
+  },
+  {
+    term: 'Shakedown',
+    category: 'Motorsport',
+    definition: 'A brief pre-event test session allowing teams and drivers to verify throttle, brake lines, radio telemetry, and basic vehicle systems before official competitive sessions begin.',
+  },
 ];
 
 export const LearnPage: React.FC = () => {
@@ -147,6 +353,7 @@ export const LearnPage: React.FC = () => {
     | 'electric'
     | 'rally'
     | 'motogp'
+    | 'indian'
     | 'glossary'
   >('overview');
   const [weekendFormat, setWeekendFormat] = useState<'standard' | 'sprint'>('standard');
@@ -154,7 +361,7 @@ export const LearnPage: React.FC = () => {
   const [glossaryCategory, setGlossaryCategory] = useState<string>('all');
 
   React.useEffect(() => {
-    document.title = 'Learn F1 | The Grid Academy';
+    document.title = 'Learn Motorsport | The Grid Knowledge Hub';
   }, []);
 
   const filteredGlossary = GLOSSARY_TERMS.filter(item => {
@@ -339,19 +546,19 @@ export const LearnPage: React.FC = () => {
       <header style={{ marginBottom: '2rem', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '1.5rem' }}>
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', color: 'var(--f1-red)', fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.5rem' }}>
           <BookOpen size={16} />
-          <span>F1 ACADEMY & 2026 TECHNICAL GUIDE</span>
+          <span>GLOBAL MOTORSPORT ACADEMY & KNOWLEDGE HUB</span>
         </div>
         <h1 style={{ fontSize: '2.4rem', fontWeight: 900, letterSpacing: '-0.02em', margin: 0, color: 'var(--text-primary)' }}>
-          Understanding Formula 1
+          Learn Motorsport
         </h1>
         <p style={{ color: 'var(--text-secondary)', fontSize: '1.05rem', marginTop: '0.5rem', maxWidth: '820px', lineHeight: 1.5 }}>
-          We explain the fundamentals so you can follow any Grand Prix with confidence. For authoritative rulebooks, technical specifications, and official FIA decisions, direct links to current official publications are provided throughout.
+          Master the rules, racecraft, technical systems, and race weekend strategies across Formula 1, Feeder Series, MotoGP, WEC, Formula E, WRC, and Indian Motorsport. For authoritative rulebooks and official regulatory decisions, direct links to official FIA, FIM, SRO, and FMSCI publications are provided throughout.
         </p>
       </header>
 
       {/* Navigation Sub-Tabs */}
       <nav
-        aria-label="Learn F1 Topics"
+        aria-label="Motorsport Knowledge Topics"
         style={{
           display: 'flex',
           gap: '0.5rem',
@@ -382,6 +589,7 @@ export const LearnPage: React.FC = () => {
           { id: 'electric', label: 'Formula E (Electric)', icon: Zap },
           { id: 'rally', label: 'Rally & Stages (WRC)', icon: Compass },
           { id: 'motogp', label: 'MotoGP (Bikes)', icon: Award },
+          { id: 'indian', label: 'Indian Motorsport 🇮🇳', icon: Flag },
           { id: 'glossary', label: 'Glossary', icon: HelpCircle },
         ].map(tab => {
           const Icon = tab.icon;
@@ -685,6 +893,26 @@ export const LearnPage: React.FC = () => {
                 <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', lineHeight: 1.5, margin: 0 }}>
                   {item.definition}
                 </p>
+                {item.relatedLink && (
+                  <div style={{ marginTop: '0.4rem', paddingTop: '0.5rem', borderTop: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                    <Link
+                      to={item.relatedLink.url}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.35rem',
+                        fontSize: '0.74rem',
+                        fontWeight: 700,
+                        color: 'var(--f1-red)',
+                        textDecoration: 'none',
+                        fontFamily: 'var(--font-mono)',
+                      }}
+                    >
+                      <span>{item.relatedLink.label}</span>
+                      <ExternalLink size={12} />
+                    </Link>
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -955,6 +1183,81 @@ export const LearnPage: React.FC = () => {
               <ul style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', lineHeight: 1.6, margin: '0.5rem 0 0 1.25rem' }}>
                 <li><strong style={{ color: '#fff' }}>Saturday Sprint (50% distance)</strong>: Flat-out aggression with half championship points (12 for P1 down to 1 for P9). Tyre saving is disregarded.</li>
                 <li><strong style={{ color: 'var(--f1-red)' }}>Sunday Grand Prix (100% distance)</strong>: Full race distance awarding 25 points for victory, requiring precision fuel and tyre wear management.</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* TAB: INDIAN MOTORSPORT */}
+      {activeTab === 'indian' && (
+        <section style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+          <div>
+            <div style={{ color: '#ff9933', fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '0.5rem', fontFamily: 'var(--font-mono)' }}>
+              DOMESTIC MOTORSPORT PYRAMID • FMSCI GOVERNANCE
+            </div>
+            <h2 style={{ fontSize: '1.6rem', fontWeight: 900, margin: '0 0 0.5rem', color: '#fff' }}>
+              The Indian Racing Ecosystem & Driver Ladder
+            </h2>
+            <p style={{ color: 'var(--text-secondary)', lineHeight: 1.6, fontSize: '0.92rem', maxWidth: '800px', margin: 0 }}>
+              From grassroots Rotax Max and X30 two-stroke karting to national prototype franchise leagues and FIA-certified junior championships, Indian motorsport provides a domestic ladder awarding up to 12 FIA Super Licence points.
+            </p>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.25rem' }}>
+            <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: '12px', padding: '1.5rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem', fontWeight: 800, color: '#ff9933' }}>PROTOTYPE & FRANCHISE</span>
+                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>City Teams</span>
+              </div>
+              <h3 style={{ fontSize: '1.15rem', fontWeight: 800, margin: '0 0 0.5rem', color: '#fff' }}>
+                Indian Racing League (IRL)
+              </h3>
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.55 }}>
+                The flagship series of the Indian Racing Festival. Six city-based franchises compete with Italian Wolf GB08 Thunder carbon-chassis prototypes powered by 215 bhp Aprilia RSV4 engines.
+              </p>
+              <div style={{ background: 'var(--bg-base)', padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--border-subtle)', marginTop: '0.75rem' }}>
+                <strong style={{ color: '#fff', fontSize: '0.8rem' }}>Gender-Equal Driver Pairing:</strong>
+                <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', margin: '0.25rem 0 0', lineHeight: 1.45 }}>
+                  Every franchise must field both male and female professional drivers sharing the car across sprint races, earning equal points towards the team championship.
+                </p>
+              </div>
+            </div>
+
+            <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: '12px', padding: '1.5rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem', fontWeight: 800, color: '#10b981' }}>FIA CERTIFIED STEP 1</span>
+                <span style={{ fontSize: '0.7rem', color: '#10b981', fontWeight: 700 }}>12 Super Licence Points</span>
+              </div>
+              <h3 style={{ fontSize: '1.15rem', fontWeight: 800, margin: '0 0 0.5rem', color: '#fff' }}>
+                FIA Formula 4 Indian Championship
+              </h3>
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.55 }}>
+                The official national gateway for junior talents stepping out of karting into international carbon-fibre single-seaters.
+              </p>
+              <ul style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', lineHeight: 1.6, margin: '0.5rem 0 0 1.25rem' }}>
+                <li>Identical French Mygale M21-F4 chassis with Alpine 1.3L turbocharged engines (~160 bhp).</li>
+                <li>Operated centrally with equalized machinery, giving young drivers transparent benchmark racing on home soil.</li>
+                <li>Champion earns 12 official FIA Super Licence points towards the 40 points needed for Formula 1.</li>
+              </ul>
+            </div>
+
+            <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: '12px', padding: '1.5rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem', fontWeight: 800, color: 'var(--f1-red)' }}>ICONIC CIRCUITS</span>
+                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>4 Permanent Tracks</span>
+              </div>
+              <h3 style={{ fontSize: '1.15rem', fontWeight: 800, margin: '0 0 0.5rem', color: '#fff' }}>
+                Domestic Racing Venues
+              </h3>
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.55 }}>
+                India's competitive circuits span permanent championship circuits to high-profile night street courses:
+              </p>
+              <ul style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', lineHeight: 1.6, margin: '0.5rem 0 0 1.25rem' }}>
+                <li><strong style={{ color: '#fff' }}>Buddh International Circuit (BIC)</strong>: FIA Grade 1 Tilke masterpiece in Greater Noida with a 1.06 km straight.</li>
+                <li><strong style={{ color: '#fff' }}>Madras International Circuit (MIC)</strong>: Historic 3.717 km technical proving ground in Irungattukottai.</li>
+                <li><strong style={{ color: '#fff' }}>Kari Motor Speedway</strong>: 2.1 km compact handling circuit in Coimbatore.</li>
+                <li><strong style={{ color: '#fff' }}>Chennai Street Circuit</strong>: 3.5 km FIA Grade 3 night street circuit around Island Grounds and Napier Bridge.</li>
               </ul>
             </div>
           </div>

@@ -30,6 +30,8 @@ import {
   Edit3,
   Check,
   X as XIcon,
+  Clock,
+  ArrowLeft,
 } from 'lucide-react';
 
 export const PredictionPage: React.FC = () => {
@@ -156,10 +158,11 @@ export const PredictionPage: React.FC = () => {
     return { label: 'WILD CARD', color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.1)', icon: '🎲' };
   };
 
+  const isUpcoming = round.status === 'UPCOMING';
   const isLocked = round.status === 'LOCKED';
   const isScored = round.status === 'SCORED';
   const isOpen = round.status === 'OPEN';
-  const isReadOnly = isLocked || isScored;
+  const isReadOnly = isLocked || isScored || isUpcoming;
 
   // Podium duplicate exclusion rules
   const podiumFields = ['p1', 'p2', 'p3'];
@@ -363,6 +366,11 @@ export const PredictionPage: React.FC = () => {
             >
               {isOpen ? (
                 <CountdownTimer targetDate={round.closesAt} prefix="Predictions Close In" />
+              ) : isUpcoming ? (
+                <div style={{ color: 'var(--telemetry-cyan)', display: 'flex', alignItems: 'center', gap: '0.5rem', fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: '0.9rem' }}>
+                  <Clock size={18} />
+                  PREDICTIONS OPEN SOON
+                </div>
               ) : isLocked ? (
                 <div style={{ color: '#f87171', display: 'flex', alignItems: 'center', gap: '0.5rem', fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: '0.9rem' }}>
                   <Lock size={18} />
@@ -475,8 +483,41 @@ export const PredictionPage: React.FC = () => {
           </div>
         )}
 
+        {/* Upcoming Banner if upcoming */}
+        {isUpcoming && (
+          <div
+            className="race-card"
+            style={{
+              padding: '1.25rem 1.5rem',
+              marginBottom: '2rem',
+              border: '1px solid rgba(0, 210, 255, 0.4)',
+              background: 'rgba(0, 210, 255, 0.05)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '1rem',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <Clock size={22} color="var(--telemetry-cyan)" />
+              <div>
+                <div style={{ fontWeight: 800, textTransform: 'uppercase', color: 'var(--telemetry-cyan)' }}>
+                  Predictions Open Soon
+                </div>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                  This prediction round is scheduled for the upcoming race weekend. Entry will unlock when the race weekend commences. You are currently viewing the format in read-only preview mode.
+                </div>
+              </div>
+            </div>
+            <Link to="/predictions" className="btn btn-secondary btn-sm" style={{ gap: '0.4rem' }}>
+              <ArrowLeft size={14} /> Return to Prediction Hub
+            </Link>
+          </div>
+        )}
+
         {/* Guest Prediction Notice */}
-        {!isAuthenticated && (
+        {!isAuthenticated && isOpen && (
           <div
             style={{
               background: 'linear-gradient(135deg, rgba(225, 6, 0, 0.08) 0%, rgba(22, 28, 40, 0.95) 100%)',
@@ -998,6 +1039,10 @@ export const PredictionPage: React.FC = () => {
                       {!isReadOnly && ' • You may update your choices any time before the deadline.'}
                     </div>
                   </div>
+                ) : isUpcoming ? (
+                  <div style={{ fontSize: '0.85rem', color: 'var(--telemetry-cyan)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <Clock size={15} /> Predictions will open when the race weekend commences.
+                  </div>
                 ) : (
                   <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
                     Complete your selections above and submit to enter the session leaderboard.
@@ -1033,12 +1078,21 @@ export const PredictionPage: React.FC = () => {
                 )
               ) : (
                 <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-                  <Link
-                    to={`/leaderboard?type=round&id=${round.roundId}`}
-                    className="btn btn-secondary"
-                  >
-                    <Trophy size={16} color="var(--telemetry-yellow)" /> View Session Leaderboard
-                  </Link>
+                  {isUpcoming ? (
+                    <Link
+                      to="/predictions"
+                      className="btn btn-secondary"
+                    >
+                      <ArrowLeft size={16} /> Return to Prediction Hub
+                    </Link>
+                  ) : (
+                    <Link
+                      to={`/leaderboard?type=round&id=${round.roundId}`}
+                      className="btn btn-secondary"
+                    >
+                      <Trophy size={16} color="var(--telemetry-yellow)" /> View Session Leaderboard
+                    </Link>
+                  )}
                 </div>
               )}
             </div>

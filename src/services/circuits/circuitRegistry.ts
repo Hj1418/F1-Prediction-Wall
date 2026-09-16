@@ -40,7 +40,8 @@ export const CIRCUIT_SOURCE_MAPPING: Record<
   yas_marina: { circuitId: 'yas_marina', sourceId: 'yas-marina', layoutId: 'yas-marina-2', seasons: '2021-2026', assetFile: 'yas-marina.svg' },
   madrid: { circuitId: 'madrid', sourceId: 'madring', layoutId: 'madring-1', seasons: '2026', assetFile: 'madrid.svg' },
   madring: { circuitId: 'madring', sourceId: 'madring', layoutId: 'madring-1', seasons: '2026', assetFile: 'madrid.svg' },
-  sepang: { circuitId: 'sepang', sourceId: 'sepang', layoutId: 'sepang-1', seasons: '1999-2017,2026', assetFile: 'sepang.svg' }
+  sepang: { circuitId: 'sepang', sourceId: 'sepang', layoutId: 'sepang-1', seasons: '1999-2017,2026', assetFile: 'sepang.svg' },
+  buddh: { circuitId: 'buddh', sourceId: 'buddh', layoutId: 'buddh-1', seasons: '2011-2013,2023-2026', assetFile: 'buddh.svg' }
 };
 
 /**
@@ -1526,7 +1527,68 @@ export const F1_CIRCUITS_REGISTRY: Record<string, CircuitMetadata> = {
       },
     ],
   },
+  buddh: {
+    circuitId: 'buddh',
+    id: 'buddh',
+    name: 'Buddh International Circuit',
+    locality: 'Greater Noida',
+    location: 'Greater Noida, Uttar Pradesh, India',
+    country: 'India',
+    flag: '🇮🇳',
+    lengthKm: 5.125,
+    length: 5.125,
+    turns: 16,
+    drsZones: 2,
+    laps: 60,
+    raceDistance: '307.249 km',
+    firstGrandPrix: 2011,
+    map: '/circuits/buddh.svg',
+    trackCharacter: {
+      speed: 'Very High',
+      braking: 'Heavy',
+      overtaking: 'High',
+      tyreWear: 'Medium',
+    },
+    lapRecord: {
+      time: '1:27.249',
+      driver: 'Sebastian Vettel',
+      year: 2011,
+    },
+    facts: [
+      {
+        category: 'SPEED',
+        title: 'The 1.06 km Back Straight',
+        description: 'Between Turns 3 and 4 lies one of the longest back straights in world motorsport (1,060 metres), where MotoGP prototypes reach 350+ km/h.',
+      },
+      {
+        category: 'HISTORY',
+        title: 'Formula 1 & MotoGP Heritage',
+        description: 'Hosted three Formula 1 Indian Grands Prix (2011–2013) with Sebastian Vettel winning all three, before welcoming premier motorcycle racing with the MotoGP Grand Prix of India (MotoGP Bharat).',
+      },
+      {
+        category: 'HISTORY',
+        title: 'Domestic Motorsport Apex',
+        description: 'Serves as the spiritual centerpiece for Indian national motorsport, hosting the Indian Racing Festival, FIA F4 India, and JK Tyre National Racing Championship rounds.',
+      },
+    ],
+    characteristics: [
+      { label: 'Top Speed', value: 9, max: 10, description: '1.06 km straight delivers extreme top speeds.' },
+      { label: 'Braking Demand', value: 8, max: 10, description: 'Severe deceleration into uphill Turn 4 hairpin.' },
+      { label: 'Downforce Requirement', value: 7, max: 10, description: 'Flowing multi-apex parabolica requires balanced downforce.' },
+      { label: 'Overtaking Potential', value: 9, max: 10, description: 'Wide entry zones and slipstream straights enable clean passes.' },
+      { label: 'Tyre Demand', value: 7, max: 10, description: 'High lateral loads through multi-apex corners.' },
+    ],
+    insights: [
+      {
+        category: 'TRACK CHARACTER',
+        title: 'WORLD-CLASS GRADE 1 VENUE',
+        description: 'Designed by Hermann Tilke with dramatic 14-metre natural elevation change, multi-apex parabolica, and FIA Grade 1 / FIM Grade A homologation.',
+      },
+    ],
+  },
 };
+
+export const MOTORSPORT_CIRCUITS_REGISTRY = F1_CIRCUITS_REGISTRY;
 
 /**
  * Normalizes circuit ID strings into standardized registry keys
@@ -1549,6 +1611,7 @@ export function normalizeCircuitId(circuitInput?: CircuitInfo | string): string 
 
   const clean = rawKey.toLowerCase().replace(/[^a-z0-9]/g, '_');
 
+  if (clean.includes('buddh') || clean.includes('noida') || clean.includes('greater_noida')) return 'buddh';
   if (clean.includes('madrid') || clean.includes('madring')) return 'madrid';
   if (clean.includes('sepang') || clean.includes('malaysia')) return 'sepang';
   if (clean.includes('monza') || clean.includes('italy')) return 'monza';
@@ -1639,3 +1702,6 @@ export function getCircuitMetadata(circuit?: CircuitInfo | string): CircuitMetad
     ],
   };
 }
+
+export { CROSS_CHAMPIONSHIP_VENUES, getVenueHostings } from './crossChampionshipVenues';
+export type { VenueHosting } from './crossChampionshipVenues';

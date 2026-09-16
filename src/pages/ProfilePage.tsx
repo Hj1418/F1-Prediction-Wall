@@ -5,6 +5,7 @@ import { User, Achievement, Driver, Constructor } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
 import { F1_CONSTRUCTORS_2026 } from '../services/mockData';
+import { CHAMPIONSHIPS_REGISTRY } from '../services/motorsport/motorsportRegistry';
 import { UserInitialsAvatar } from '../components/common/UserInitialsAvatar';
 import {
   Trophy,
@@ -18,7 +19,21 @@ import {
   Edit2,
   ChevronRight,
   Flame,
+  Compass,
 } from 'lucide-react';
+
+const GLOBAL_CONSTRUCTORS_LIST = [
+  ...F1_CONSTRUCTORS_2026.map(c => ({ ...c, series: 'Formula 1' })),
+  { id: 'ducati', name: 'Ducati Lenovo Team', country: 'Italy', flag: '🇮🇹', color: '#dc2626', series: 'MotoGP' },
+  { id: 'ktm', name: 'Red Bull KTM Factory Racing', country: 'Austria', flag: '🇦🇹', color: '#ea580c', series: 'MotoGP' },
+  { id: 'aprilia', name: 'Aprilia Racing', country: 'Italy', flag: '🇮🇹', color: '#10b981', series: 'MotoGP' },
+  { id: 'yamaha', name: 'Monster Energy Yamaha MotoGP', country: 'Japan', flag: '🇯🇵', color: '#002b49', series: 'MotoGP' },
+  { id: 'honda', name: 'Repsol Honda Team', country: 'Japan', flag: '🇯🇵', color: '#f97316', series: 'MotoGP' },
+  { id: 'ferrari-af-corse', name: 'Ferrari AF Corse (499P)', country: 'Italy', flag: '🇮🇹', color: '#dc2626', series: 'FIA WEC Hypercar' },
+  { id: 'toyota-gazoo', name: 'Toyota Gazoo Racing (GR010)', country: 'Japan', flag: '🇯🇵', color: '#ffffff', series: 'FIA WEC Hypercar' },
+  { id: 'porsche-penske', name: 'Porsche Penske Motorsport (963)', country: 'Germany', flag: '🇩🇪', color: '#d97706', series: 'FIA WEC Hypercar' },
+  { id: 'cadillac-wec', name: 'Cadillac Racing (V-Series.R)', country: 'USA', flag: '🇺🇸', color: '#eab308', series: 'FIA WEC Hypercar' },
+];
 
 export const ProfilePage: React.FC = () => {
   const { username } = useParams<{ username: string }>();
@@ -34,6 +49,8 @@ export const ProfilePage: React.FC = () => {
   const [selectedFavDriver, setSelectedFavDriver] = useState('');
   const [isEditingFavConstructor, setIsEditingFavConstructor] = useState(false);
   const [selectedFavConstructor, setSelectedFavConstructor] = useState('');
+  const [isEditingFavChampionship, setIsEditingFavChampionship] = useState(false);
+  const [selectedFavChampionship, setSelectedFavChampionship] = useState('');
   const [isEditingBio, setIsEditingBio] = useState(false);
   const [selectedBio, setSelectedBio] = useState('');
 
@@ -59,6 +76,7 @@ export const ProfilePage: React.FC = () => {
           document.title = `${u.displayName || u.username} (@${u.username}) | The Grid Profile`;
           setSelectedFavDriver(u.favouriteDriver || '');
           setSelectedFavConstructor(u.favouriteConstructor || 'ferrari');
+          setSelectedFavChampionship(u.favouriteChampionship || 'f1');
           setSelectedBio(u.bio || '');
           const [achs, userHistory] = await Promise.all([
             api.getUserAchievements(u.userId),
@@ -114,8 +132,11 @@ export const ProfilePage: React.FC = () => {
 
   const isOwner = Boolean(currentUser && currentUser.userId === profileUser.userId);
   const favDriver = drivers.find(d => d.id === (isEditingFavDriver ? selectedFavDriver : profileUser.favouriteDriver));
-  const favConstructor = F1_CONSTRUCTORS_2026.find(
+  const favConstructor = GLOBAL_CONSTRUCTORS_LIST.find(
     c => c.id === (isEditingFavConstructor ? selectedFavConstructor : profileUser.favouriteConstructor)
+  );
+  const favChampionship = CHAMPIONSHIPS_REGISTRY.find(
+    c => c.id === (isEditingFavChampionship ? selectedFavChampionship : profileUser.favouriteChampionship)
   );
 
   const handleSaveFavDriver = async () => {
@@ -137,6 +158,17 @@ export const ProfilePage: React.FC = () => {
       showToast('Favourite constructor updated!', 'success');
     } catch (e) {
       showToast('Failed to update constructor', 'error');
+    }
+  };
+
+  const handleSaveFavChampionship = async () => {
+    try {
+      await updateProfile({ favouriteChampionship: selectedFavChampionship });
+      setProfileUser(prev => (prev ? { ...prev, favouriteChampionship: selectedFavChampionship } : null));
+      setIsEditingFavChampionship(false);
+      showToast('Favourite championship updated!', 'success');
+    } catch (e) {
+      showToast('Failed to update favourite championship', 'error');
     }
   };
 
@@ -203,6 +235,9 @@ export const ProfilePage: React.FC = () => {
               </div>
 
               <div>
+                <div style={{ fontSize: '0.72rem', fontWeight: 800, color: 'var(--f1-red)', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: '0.35rem', fontFamily: 'var(--font-mono)' }}>
+                  THE GRID • RACING IDENTITY & TELEMETRY PROFILE
+                </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
                   <h1 style={{ fontSize: '2rem', fontWeight: 900, textTransform: 'uppercase' }}>
                     {profileUser.displayName}
@@ -230,8 +265,8 @@ export const ProfilePage: React.FC = () => {
                   @{profileUser.username} • Joined {new Date(profileUser.createdAt).toLocaleDateString(undefined, { month: 'short', year: 'numeric' })}
                 </div>
 
-                {/* Favourite Driver Chip */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.75rem' }}>
+                {/* Favourite Driver, Constructor & Championship Chips */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.75rem', flexWrap: 'wrap' }}>
                   {isEditingFavDriver ? (
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                       <select
@@ -303,9 +338,9 @@ export const ProfilePage: React.FC = () => {
                         value={selectedFavConstructor}
                         onChange={e => setSelectedFavConstructor(e.target.value)}
                       >
-                        {F1_CONSTRUCTORS_2026.map(c => (
+                        {GLOBAL_CONSTRUCTORS_LIST.map(c => (
                           <option key={c.id} value={c.id}>
-                            {c.name} ({c.country})
+                            {c.name} • {c.series} ({c.flag})
                           </option>
                         ))}
                       </select>
@@ -350,6 +385,69 @@ export const ProfilePage: React.FC = () => {
                             marginLeft: '0.2rem',
                           }}
                           title="Edit Favourite Constructor"
+                        >
+                          <Edit2 size={12} />
+                        </button>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Favourite Championship Chip */}
+                  {isEditingFavChampionship ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                      <select
+                        className="form-select"
+                        style={{ padding: '0.3rem 0.6rem', fontSize: '0.78rem' }}
+                        value={selectedFavChampionship}
+                        onChange={e => setSelectedFavChampionship(e.target.value)}
+                      >
+                        {CHAMPIONSHIPS_REGISTRY.map(c => (
+                          <option key={c.id} value={c.id}>
+                            {c.shortName} — {c.name}
+                          </option>
+                        ))}
+                      </select>
+                      <button onClick={handleSaveFavChampionship} className="btn btn-primary btn-sm" style={{ padding: '0.3rem 0.6rem' }}>
+                        Save
+                      </button>
+                      <button onClick={() => setIsEditingFavChampionship(false)} className="btn btn-outline btn-sm" style={{ padding: '0.3rem 0.6rem' }}>
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
+                    <div
+                      style={{
+                        background: 'var(--bg-input)',
+                        padding: '0.3rem 0.75rem',
+                        borderRadius: 'var(--radius-full)',
+                        border: '1px solid var(--border-subtle)',
+                        fontSize: '0.78rem',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.4rem',
+                      }}
+                    >
+                      <span style={{ color: 'var(--text-muted)' }}>Championship:</span>
+                      {favChampionship ? (
+                        <span style={{ fontWeight: 800, color: favChampionship.badgeColor }}>
+                          {favChampionship.shortName}
+                        </span>
+                      ) : (
+                        <span style={{ color: 'var(--text-muted)' }}>Not set</span>
+                      )}
+                      {isOwner && (
+                        <button
+                          onClick={() => setIsEditingFavChampionship(true)}
+                          style={{
+                            background: 'transparent',
+                            border: 'none',
+                            color: 'var(--text-muted)',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            marginLeft: '0.2rem',
+                          }}
+                          title="Edit Favourite Championship"
                         >
                           <Edit2 size={12} />
                         </button>
@@ -454,6 +552,24 @@ export const ProfilePage: React.FC = () => {
       </div>
 
       <div className="container" style={{ marginTop: '2.5rem' }}>
+        {/* Quick Competition Shortcuts */}
+        <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.75rem', flexWrap: 'wrap' }}>
+          <Link
+            to="/predictions"
+            className="btn btn-secondary btn-sm"
+            style={{ gap: '0.4rem', fontFamily: 'var(--font-mono)' }}
+          >
+            <Target size={14} color="var(--f1-red)" /> PREDICTION BENCH
+          </Link>
+          <Link
+            to="/leaderboard"
+            className="btn btn-secondary btn-sm"
+            style={{ gap: '0.4rem', fontFamily: 'var(--font-mono)' }}
+          >
+            <Trophy size={14} color="#eab308" /> CHAMPIONSHIP STANDINGS
+          </Link>
+        </div>
+
         {/* Performance Telemetry Grid */}
         <h2 style={{ fontSize: '1.25rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '1rem' }}>
           Prediction Performance Telemetry
@@ -475,7 +591,7 @@ export const ProfilePage: React.FC = () => {
               {profileUser.exactP1Count}
             </div>
             <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-              15 pts awarded per exact pole/winner
+              25 pts for P1 winner • 10 pts for pole
             </div>
           </div>
 
@@ -499,7 +615,7 @@ export const ProfilePage: React.FC = () => {
               {profileUser.wildcardsCorrect}
             </div>
             <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-              15 pts per wildcard insight
+              5 pts per correct insight
             </div>
           </div>
 

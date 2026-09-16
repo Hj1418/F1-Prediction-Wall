@@ -9,20 +9,49 @@ import {
   Info,
   CalendarDays,
   ExternalLink,
+  Flag,
+  Trophy,
+  Zap,
 } from 'lucide-react';
 import {
   F1_CIRCUITS_REGISTRY,
   getCircuitAssetUrl,
   CIRCUIT_SOURCE_MAPPING,
 } from '../services/circuits/circuitRegistry';
-import { getCrossChampionshipHostings } from '../services/circuits/crossChampionshipVenues';
+import { getCrossChampionshipHostings, VenueHosting } from '../services/circuits/crossChampionshipVenues';
 import { CircuitMetadata } from '../types';
+
+type ChampionshipFilter = 'all' | 'f1' | 'motogp' | 'wec' | 'gt' | 'fe' | 'india';
+
+interface FilterOption {
+  id: ChampionshipFilter;
+  label: string;
+  badgeColor?: string;
+}
+
+const CHAMPIONSHIP_FILTERS: FilterOption[] = [
+  { id: 'all', label: 'All Disciplines' },
+  { id: 'f1', label: 'Formula 1', badgeColor: '#e10600' },
+  { id: 'motogp', label: 'MotoGP™', badgeColor: '#dc2626' },
+  { id: 'wec', label: 'FIA WEC', badgeColor: '#002b49' },
+  { id: 'gt', label: 'GT World Challenge', badgeColor: '#d97706' },
+  { id: 'fe', label: 'Formula E', badgeColor: '#00d2be' },
+  { id: 'india', label: 'Indian Motorsport 🇮🇳', badgeColor: '#ff9933' },
+];
 
 export const CircuitsPage: React.FC = () => {
   const { circuitId } = useParams<{ circuitId?: string }>();
   const [searchTerm, setSearchTerm] = useState('');
   const [characterFilter, setCharacterFilter] = useState<string>('all');
+  const [championshipFilter, setChampionshipFilter] = useState<ChampionshipFilter>('all');
   const [selectedCircuitId, setSelectedCircuitId] = useState<string>(circuitId || 'monza');
+
+  // Handle URL route changes
+  useEffect(() => {
+    if (circuitId && F1_CIRCUITS_REGISTRY[circuitId]) {
+      setSelectedCircuitId(circuitId);
+    }
+  }, [circuitId]);
 
   const circuitsList = useMemo(() => {
     return Object.values(F1_CIRCUITS_REGISTRY);
@@ -30,18 +59,40 @@ export const CircuitsPage: React.FC = () => {
 
   const filteredCircuits = useMemo(() => {
     return circuitsList.filter(circuit => {
+      // 1. Text Search Filter
       const matchesSearch =
+        searchTerm.trim() === '' ||
         circuit.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         circuit.country.toLowerCase().includes(searchTerm.toLowerCase()) ||
         circuit.locality.toLowerCase().includes(searchTerm.toLowerCase());
 
+      // 2. Track Character Speed Filter
       const speedMatch =
         characterFilter === 'all' ||
         circuit.trackCharacter?.speed?.toLowerCase() === characterFilter.toLowerCase();
 
-      return matchesSearch && speedMatch;
+      // 3. Championship Category Filter
+      let champMatch = true;
+      if (championshipFilter !== 'all') {
+        const hostings = getCrossChampionshipHostings(circuit.circuitId);
+        if (championshipFilter === 'f1') {
+          champMatch = circuit.firstGrandPrix !== undefined || hostings.some(h => h.championshipId.includes('f1'));
+        } else if (championshipFilter === 'motogp') {
+          champMatch = hostings.some(h => h.championshipId === 'motogp');
+        } else if (championshipFilter === 'wec') {
+          champMatch = hostings.some(h => h.championshipId === 'wec');
+        } else if (championshipFilter === 'gt') {
+          champMatch = hostings.some(h => h.championshipId === 'gt-world-challenge');
+        } else if (championshipFilter === 'fe') {
+          champMatch = hostings.some(h => h.championshipId === 'formula-e');
+        } else if (championshipFilter === 'india') {
+          champMatch = circuit.country.toLowerCase() === 'india' || hostings.some(h => h.championshipId === 'indian-motorsport');
+        }
+      }
+
+      return matchesSearch && speedMatch && champMatch;
     });
-  }, [circuitsList, searchTerm, characterFilter]);
+  }, [circuitsList, searchTerm, characterFilter, championshipFilter]);
 
   const activeCircuit: CircuitMetadata = useMemo(() => {
     return F1_CIRCUITS_REGISTRY[selectedCircuitId] || F1_CIRCUITS_REGISTRY.monza;
@@ -52,7 +103,7 @@ export const CircuitsPage: React.FC = () => {
     return getCircuitAssetUrl(mapping ? mapping.assetFile : `${activeCircuit.circuitId}.svg`);
   }, [activeCircuit]);
 
-  const crossHostings = useMemo(() => {
+  const crossHostings: VenueHosting[] = useMemo(() => {
     return getCrossChampionshipHostings(activeCircuit.circuitId);
   }, [activeCircuit.circuitId]);
 
@@ -64,16 +115,73 @@ export const CircuitsPage: React.FC = () => {
     <div className="circuits-page" style={{ maxWidth: '1280px', margin: '0 auto', padding: '2rem 1rem 4rem' }}>
       {/* Header */}
       <header style={{ marginBottom: '2rem', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '1.5rem' }}>
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', color: 'var(--f1-red)', fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.5rem' }}>
-          <Compass size={16} />
-          <span>F1 WORLD CHAMPIONSHIP CALENDAR</span>
+        <div
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            color: 'var(--f1-red)',
+            fontSize: '0.78rem',
+            fontWeight: 800,
+            textTransform: 'uppercase',
+            letterSpacing: '0.1em',
+            marginBottom: '0.5rem',
+            fontFamily: 'var(--font-mono)',
+          }}
+        >
+          <Compass size={15} />
+          <span>GLOBAL MOTORSPORT CIRCUITS DIRECTORY</span>
         </div>
-        <h1 style={{ fontSize: '2.4rem', fontWeight: 900, letterSpacing: '-0.02em', margin: 0, color: 'var(--text-primary)' }}>
-          Championship Circuits
+        <h1 style={{ fontSize: 'clamp(2rem, 4.5vw, 2.75rem)', fontWeight: 900, letterSpacing: '-0.025em', margin: 0, color: 'var(--text-primary)' }}>
+          Motorsport Circuits Directory
         </h1>
-        <p style={{ color: 'var(--text-secondary)', fontSize: '1.05rem', marginTop: '0.5rem', maxWidth: '800px', lineHeight: 1.5 }}>
-          Explore all 24 official Formula 1 Grand Prix circuits. Inspect high-precision track geometry, DRS zones, braking demand, and all-time lap records.
+        <p style={{ color: 'var(--text-secondary)', fontSize: '1rem', marginTop: '0.5rem', maxWidth: '840px', lineHeight: 1.55 }}>
+          Explore iconic racing venues across Formula 1, MotoGP, FIA WEC, GT World Challenge, Formula E, and Indian Motorsport. Inspect high-precision track geometry, DRS/speed zones, braking demand, and multi-championship hostings.
         </p>
+
+        {/* Championship Filter Bar */}
+        <div style={{ display: 'flex', gap: '0.45rem', flexWrap: 'wrap', marginTop: '1.25rem' }}>
+          {CHAMPIONSHIP_FILTERS.map(cat => {
+            const active = championshipFilter === cat.id;
+            return (
+              <button
+                key={cat.id}
+                type="button"
+                onClick={() => setChampionshipFilter(cat.id)}
+                style={{
+                  padding: '0.4rem 0.85rem',
+                  borderRadius: '9999px',
+                  border: active
+                    ? `1px solid ${cat.badgeColor || 'var(--f1-red)'}`
+                    : '1px solid var(--border-subtle)',
+                  background: active
+                    ? `${cat.badgeColor || 'var(--f1-red)'}22`
+                    : 'rgba(255, 255, 255, 0.04)',
+                  color: active ? '#ffffff' : 'var(--text-secondary)',
+                  fontSize: '0.76rem',
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.4rem',
+                }}
+              >
+                {cat.badgeColor && (
+                  <span
+                    style={{
+                      width: '6px',
+                      height: '6px',
+                      borderRadius: '50%',
+                      backgroundColor: cat.badgeColor,
+                    }}
+                  />
+                )}
+                <span>{cat.label}</span>
+              </button>
+            );
+          })}
+        </div>
       </header>
 
       {/* Hero Circuit Spotlight */}
@@ -113,6 +221,10 @@ export const CircuitsPage: React.FC = () => {
               maxHeight: '260px',
               objectFit: 'contain',
               filter: 'drop-shadow(0 0 12px rgba(255, 255, 255, 0.08))',
+            }}
+            onError={e => {
+              // Graceful fallback if vector is missing
+              (e.currentTarget as HTMLElement).style.display = 'none';
             }}
           />
           <div
@@ -165,7 +277,7 @@ export const CircuitsPage: React.FC = () => {
               </div>
             </div>
             <div style={{ background: 'var(--bg-base)', border: '1px solid var(--border-subtle)', borderRadius: '8px', padding: '0.75rem' }}>
-              <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>DRS Zones</div>
+              <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>DRS / Speed</div>
               <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.2rem', fontWeight: 800, color: 'var(--f1-red)' }}>
                 {activeCircuit.drsZones} <span style={{ fontSize: '0.75rem', fontWeight: 400 }}>ZONES</span>
               </div>
@@ -202,7 +314,7 @@ export const CircuitsPage: React.FC = () => {
             </div>
           )}
 
-          {/* Track DNA Summary */}
+          {/* Track Character Summary */}
           {activeCircuit.trackCharacter && (
             <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
               <span style={{ fontSize: '0.75rem', padding: '0.25rem 0.6rem', borderRadius: '6px', background: 'rgba(255, 255, 255, 0.05)', color: 'var(--text-secondary)' }}>
@@ -220,18 +332,6 @@ export const CircuitsPage: React.FC = () => {
             </div>
           )}
 
-          {/* Why is this track different? */}
-          {activeCircuit.whySpecial && (
-            <div style={{ background: 'rgba(225, 6, 0, 0.06)', border: '1px solid rgba(225, 6, 0, 0.2)', borderRadius: '8px', padding: '0.85rem 1rem' }}>
-              <div style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--f1-red)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.25rem' }}>
-                WHY IS THIS TRACK DIFFERENT?
-              </div>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '0.86rem', lineHeight: 1.5, margin: 0 }}>
-                {activeCircuit.whySpecial}
-              </p>
-            </div>
-          )}
-
           {/* Cross-Championship Global Hosting */}
           {crossHostings.length > 0 && (
             <div style={{ background: 'rgba(255, 255, 255, 0.03)', border: '1px solid var(--border-subtle)', borderRadius: '8px', padding: '1rem' }}>
@@ -241,7 +341,7 @@ export const CircuitsPage: React.FC = () => {
                 </div>
                 <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Shared World Venue</span>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '0.6rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))', gap: '0.6rem' }}>
                 {crossHostings.map((h, i) => (
                   <Link
                     key={i}
@@ -269,6 +369,7 @@ export const CircuitsPage: React.FC = () => {
                           color: h.badgeColor,
                           border: `1px solid ${h.badgeColor}44`,
                           flexShrink: 0,
+                          fontFamily: 'var(--font-mono)',
                         }}
                       >
                         {h.badge}
@@ -289,51 +390,26 @@ export const CircuitsPage: React.FC = () => {
             </div>
           )}
 
-          {/* Key Corners */}
-          {activeCircuit.keyCorners && activeCircuit.keyCorners.length > 0 && (
+          {/* Key Facts */}
+          {activeCircuit.facts && activeCircuit.facts.length > 0 && (
             <div>
               <div style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.4rem' }}>
-                ICONIC CORNERS & OVERTAKING ZONES
+                VENUE FACTS & PROFILE
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.5rem' }}>
-                {activeCircuit.keyCorners.map(corner => (
-                  <div key={corner.name} style={{ background: 'var(--bg-base)', border: '1px solid var(--border-subtle)', borderRadius: '6px', padding: '0.6rem 0.8rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '0.5rem' }}>
+                {activeCircuit.facts.map((fact, idx) => (
+                  <div key={idx} style={{ background: 'var(--bg-base)', border: '1px solid var(--border-subtle)', borderRadius: '6px', padding: '0.6rem 0.8rem' }}>
                     <div style={{ fontSize: '0.8rem', fontWeight: 800, color: '#fff' }}>
-                      Turn {corner.number}: {corner.name}
+                      {fact.title}
                     </div>
                     <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.2rem', lineHeight: 1.4 }}>
-                      {corner.description}
+                      {fact.description}
                     </div>
                   </div>
                 ))}
               </div>
             </div>
           )}
-
-          {/* Official Circuit Guide External Link */}
-          <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '0.85rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-              Source: Formula1.com Official Circuit Guide
-            </span>
-            <a
-              href={activeCircuit.officialCircuitUrl || 'https://www.formula1.com/en/racing/2026.html'}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.35rem',
-                color: 'var(--f1-red)',
-                fontSize: '0.78rem',
-                fontWeight: 800,
-                textDecoration: 'none',
-                textTransform: 'uppercase',
-              }}
-            >
-              <span>Read Official F1 Track Guide</span>
-              <ExternalLink size={12} />
-            </a>
-          </div>
         </div>
       </section>
 
@@ -342,10 +418,10 @@ export const CircuitsPage: React.FC = () => {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
           <div>
             <h2 style={{ fontSize: '1.4rem', fontWeight: 800, margin: 0, color: '#fff' }}>
-              All 24 Circuits ({filteredCircuits.length})
+              Circuits Catalog ({filteredCircuits.length})
             </h2>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', margin: '0.2rem 0 0' }}>
-              Select any venue to inspect track telemetry and technical details.
+              Select any venue to inspect track telemetry, technical characteristics, and multi-series hostings.
             </p>
           </div>
 
@@ -392,12 +468,13 @@ export const CircuitsPage: React.FC = () => {
           </div>
         </div>
 
-        {/* 24 Circuits Grid */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '1rem' }}>
+        {/* Circuits Grid */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 260px), 1fr))', gap: '1rem' }}>
           {filteredCircuits.map(circuit => {
             const isSelected = circuit.circuitId === selectedCircuitId;
             const mapping = CIRCUIT_SOURCE_MAPPING[circuit.circuitId];
             const assetUrl = getCircuitAssetUrl(mapping ? mapping.assetFile : `${circuit.circuitId}.svg`);
+            const hostings = getCrossChampionshipHostings(circuit.circuitId);
 
             return (
               <div
@@ -428,15 +505,43 @@ export const CircuitsPage: React.FC = () => {
                       objectFit: 'contain',
                       opacity: isSelected ? 1 : 0.85,
                     }}
+                    onError={e => {
+                      (e.currentTarget as HTMLElement).style.display = 'none';
+                    }}
                   />
                 </div>
 
                 <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', marginBottom: '0.2rem' }}>
-                    <span style={{ fontSize: '0.9rem' }}>{circuit.flag || '🏁'}</span>
-                    <span style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
-                      {circuit.country}
-                    </span>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.35rem', marginBottom: '0.2rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                      <span style={{ fontSize: '0.9rem' }}>{circuit.flag || '🏁'}</span>
+                      <span style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                        {circuit.country}
+                      </span>
+                    </div>
+
+                    {/* Miniature Hosting Badges */}
+                    {hostings.length > 0 && (
+                      <div style={{ display: 'flex', gap: '0.25rem' }}>
+                        {hostings.slice(0, 3).map((h, i) => (
+                          <span
+                            key={i}
+                            style={{
+                              fontSize: '0.6rem',
+                              fontWeight: 800,
+                              padding: '0.1rem 0.3rem',
+                              borderRadius: '3px',
+                              backgroundColor: `${h.badgeColor}22`,
+                              color: h.badgeColor,
+                              border: `1px solid ${h.badgeColor}44`,
+                              fontFamily: 'var(--font-mono)',
+                            }}
+                          >
+                            {h.badge}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   <h3 style={{ fontSize: '1rem', fontWeight: 800, margin: 0, color: '#fff', lineHeight: 1.25 }}>
                     {circuit.name}

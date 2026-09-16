@@ -11,11 +11,37 @@ import {
   Achievement,
   Driver,
   ApiResponse,
+  NormalizedEvent,
+  NormalizedDriver,
+  NormalizedTeam,
+  NormalizedSessionResult,
+  NormalizedDriverStanding,
+  NormalizedConstructorStanding,
+  NormalizedFeederDriver,
+  JuniorAcademy,
+  FeederChampionshipId,
+  SuperLicenceStandingRule,
+  NormalizedWecEntry,
+  WecPointsScale,
+  WecDurationType,
+  NormalizedMotoGpRider,
+  ConcessionTier,
+  ConcessionRules,
+  MotoGpPointsScale,
 } from '../types';
 import { mockApi } from './mockApi';
+import { F1Normalizer } from './dataArchitecture/normalizers/f1Normalizer';
+import { FeederNormalizer, SUPER_LICENCE_POINTS_TABLE } from './dataArchitecture/normalizers/feederNormalizer';
+import { WecNormalizer, WEC_POINTS_SCALES } from './dataArchitecture/normalizers/wecNormalizer';
+import { MotoGpNormalizer, MOTOGP_POINTS_SCALE, CONCESSION_TIERS } from './dataArchitecture/normalizers/motogpNormalizer';
+import { JUNIOR_ACADEMIES_REGISTRY } from './dataArchitecture/identifierRegistry';
 import { clientCache, TTL } from './cache/clientCache';
 import { DEFAULT_SCORING_RULES, getDefaultPredictionFields } from './schedule/predictionRoundGenerator';
 import { computeWeekendStatus } from '../utils/raceLifecycle';
+import { f2Data } from './motorsport/data/f2Data';
+import { f3Data } from './motorsport/data/f3Data';
+import { wecData } from './motorsport/data/wecData';
+import { motogpData } from './motorsport/data/motogpData';
 
 const isTestEnv = typeof window === 'undefined';
 
@@ -505,7 +531,248 @@ export const api = {
     return mockApi.adminCalculateScores(roundId);
   },
 
+  // Normalized The Grid Architecture Methods
+  async getNormalizedDrivers(): Promise<NormalizedDriver[]> {
+    return clientCache.getOrFetch('f1_norm_drivers', async () => {
+      const rawDrivers = await this.getDrivers();
+      return F1Normalizer.normalizeDrivers(rawDrivers, 'jolpica-f1');
+    }, { ttlMs: TTL.LONG });
+  },
+
+  async getNormalizedTeams(): Promise<NormalizedTeam[]> {
+    return clientCache.getOrFetch('f1_norm_teams', async () => {
+      const rawConstructors = await this.getConstructors();
+      return F1Normalizer.normalizeTeams(rawConstructors, 'jolpica-f1');
+    }, { ttlMs: TTL.LONG });
+  },
+
+  async getNormalizedEvents(season: number = 2026): Promise<NormalizedEvent[]> {
+    return clientCache.getOrFetch(`f1_norm_events_${season}`, async () => {
+      const weekends = await this.getRaceWeekends(season);
+      return F1Normalizer.normalizeCalendar(weekends, 'jolpica-f1');
+    }, { ttlMs: TTL.SHORT });
+  },
+
+  async getNormalizedEventById(eventId: string): Promise<NormalizedEvent | null> {
+    const events = await this.getNormalizedEvents();
+    return events.find(e => e.eventId === eventId) || null;
+  },
+
+  async getNormalizedResult(sessionId: string): Promise<NormalizedSessionResult | null> {
+    return clientCache.getOrFetch(`f1_norm_res_${sessionId}`, async () => {
+      // Find corresponding round
+      const rounds = await this.getPredictionRounds();
+      const round = rounds.find(r => r.sessionId === sessionId || r.roundId === sessionId);
+      if (!round) return null;
+      const officialRes = await this.getOfficialResult(round.roundId);
+      if (!officialRes) return null;
+
+      return F1Normalizer.normalizeSessionResult(
+        officialRes.resultData,
+        sessionId,
+        round.raceWeekendId,
+        {
+          resultStatus: 'OFFICIAL',
+          versionNumber: 1,
+          sourceId: 'jolpica-f1',
+        }
+      );
+    }, { ttlMs: TTL.SHORT });
+  },
+
+  async getNormalizedStandings(season: number = 2026): Promise<{
+    drivers: NormalizedDriverStanding[];
+    constructors: NormalizedConstructorStanding[];
+  }> {
+    return clientCache.getOrFetch(`f1_norm_standings_${season}`, async () => {
+      // Build standings from current season drivers & constructors points
+      const [drivers, constructors] = await Promise.all([
+        this.getNormalizedDrivers(),
+        this.getNormalizedTeams(),
+      ]);
+
+      const driverStandings: NormalizedDriverStanding[] = drivers.map((d, idx) => ({
+        position: idx + 1,
+        driverId: d.driverId,
+        driverName: d.fullName,
+        driverCode: d.code,
+        teamId: d.currentTeamId,
+        teamName: d.currentTeamId,
+        points: 0,
+        wins: 0,
+        podiums: 0,
+        season,
+        provenance: d.provenance,
+      }));
+
+      const constructorStandings: NormalizedConstructorStanding[] = constructors.map((c, idx) => ({
+        position: idx + 1,
+        teamId: c.teamId,
+        teamName: c.name,
+        points: 0,
+        wins: 0,
+        podiums: 0,
+        season,
+        provenance: c.provenance,
+      }));
+
+      return { drivers: driverStandings, constructors: constructorStandings };
+    }, { ttlMs: TTL.LONG });
+  },
+
+  // ==========================================================================
+  // Feeder Series (F2 / F3) — Phase 9.2 API Layer
+  // ==========================================================================
+
+  /**
+   * Returns normalized calendar events for a feeder championship.
+   */
+  async getNormalizedFeederEvents(
+    championship: FeederChampionshipId,
+    season: number = 2026
+  ): Promise<NormalizedEvent[]> {
+    return clientCache.getOrFetch(`${championship}_norm_events_${season}`, () => {
+      const sourceData = championship === 'f2' ? f2Data : f3Data;
+      return Promise.resolve(
+        FeederNormalizer.normalizeCalendar(championship, sourceData.rounds as any[])
+      );
+    }, { ttlMs: TTL.LONG });
+  },
+
+  /**
+   * Returns normalized feeder drivers with Junior Academy affiliations.
+   */
+  async getNormalizedFeederDrivers(
+    championship: FeederChampionshipId
+  ): Promise<NormalizedFeederDriver[]> {
+    return clientCache.getOrFetch(`${championship}_norm_drivers`, () => {
+      const sourceData = championship === 'f2' ? f2Data : f3Data;
+      return Promise.resolve(
+        FeederNormalizer.normalizeDrivers(championship, sourceData.driversStandings as any[])
+      );
+    }, { ttlMs: TTL.LONG });
+  },
+
+  /**
+   * Returns the full Junior Academies registry.
+   */
+  async getJuniorAcademies(): Promise<JuniorAcademy[]> {
+    return clientCache.getOrFetch('junior_academies_all', () => {
+      return Promise.resolve(Object.values(JUNIOR_ACADEMIES_REGISTRY));
+    }, { ttlMs: TTL.LONG });
+  },
+
+  /**
+   * Returns the FIA Super Licence points table for a feeder championship.
+   */
+  async getSuperLicenceMatrix(
+    championship: FeederChampionshipId
+  ): Promise<SuperLicenceStandingRule[]> {
+    return clientCache.getOrFetch(`${championship}_sl_matrix`, () => {
+      return Promise.resolve(SUPER_LICENCE_POINTS_TABLE[championship]);
+    }, { ttlMs: TTL.LONG });
+  },
+
+  // ==========================================================================
+  // Multi-Class Endurance Racing (FIA WEC) — Phase 9.3 API Layer
+  // ==========================================================================
+
+  /**
+   * Returns normalized calendar rounds for the FIA World Endurance Championship.
+   */
+  async getNormalizedWecEvents(season: number = 2026): Promise<NormalizedEvent[]> {
+    return clientCache.getOrFetch(`wec_norm_events_${season}`, () => {
+      return Promise.resolve(WecNormalizer.normalizeCalendar(season, wecData.rounds as any[]));
+    }, { ttlMs: TTL.LONG });
+  },
+
+  /**
+   * Returns normalized car entries, driver rosters, and FIA driver categorizations across Hypercar and LMGT3.
+   */
+  async getNormalizedWecEntries(): Promise<NormalizedWecEntry[]> {
+    return clientCache.getOrFetch('wec_norm_entries', () => {
+      return Promise.resolve(
+        WecNormalizer.normalizeEntries(wecData.driversStandings as any[], wecData.teamsStandings as any[])
+      );
+    }, { ttlMs: TTL.LONG });
+  },
+
+  /**
+   * Returns normalized WEC Driver and Manufacturer/Team standings.
+   */
+  async getNormalizedWecStandings(season: number = 2026) {
+    return clientCache.getOrFetch(`wec_norm_standings_${season}`, () => {
+      return Promise.resolve(
+        WecNormalizer.normalizeStandings(season, wecData.driversStandings as any[], wecData.teamsStandings as any[])
+      );
+    }, { ttlMs: TTL.LONG });
+  },
+
+  /**
+   * Returns the official FIA WEC points matrices according to race duration (6h, 8h/1812km, 24h Le Mans).
+   */
+  async getWecPointsMatrix(): Promise<Record<WecDurationType, WecPointsScale>> {
+    return clientCache.getOrFetch('wec_points_matrix', () => {
+      return Promise.resolve(WEC_POINTS_SCALES);
+    }, { ttlMs: TTL.LONG });
+  },
+
+  // ==========================================================================
+  // Premier Two-Wheel Grand Prix (MotoGP) — Phase 10 API Layer
+  // ==========================================================================
+
+  /**
+   * Returns normalized calendar rounds for the FIM MotoGP World Championship.
+   */
+  async getNormalizedMotoGpEvents(season: number = 2026): Promise<NormalizedEvent[]> {
+    return clientCache.getOrFetch(`motogp_norm_events_${season}`, () => {
+      return Promise.resolve(MotoGpNormalizer.normalizeCalendar(season, motogpData.rounds as any[]));
+    }, { ttlMs: TTL.LONG });
+  },
+
+  /**
+   * Returns normalized MotoGP riders with bike, team, manufacturer, and Concession tier.
+   */
+  async getNormalizedMotoGpRiders(): Promise<NormalizedMotoGpRider[]> {
+    return clientCache.getOrFetch('motogp_norm_riders', () => {
+      return Promise.resolve(
+        MotoGpNormalizer.normalizeRiders(motogpData.driversStandings as any[], motogpData.teamsStandings as any[])
+      );
+    }, { ttlMs: TTL.LONG });
+  },
+
+  /**
+   * Returns normalized MotoGP Rider and Team/Manufacturer standings.
+   */
+  async getNormalizedMotoGpStandings(season: number = 2026) {
+    return clientCache.getOrFetch(`motogp_norm_standings_${season}`, () => {
+      return Promise.resolve(
+        MotoGpNormalizer.normalizeStandings(season, motogpData.driversStandings as any[], motogpData.teamsStandings as any[])
+      );
+    }, { ttlMs: TTL.LONG });
+  },
+
+  /**
+   * Returns official MotoGP points scale (Sprint top 9 and Grand Prix top 15).
+   */
+  async getMotoGpPointsRules(): Promise<MotoGpPointsScale> {
+    return clientCache.getOrFetch('motogp_points_rules', () => {
+      return Promise.resolve(MOTOGP_POINTS_SCALE);
+    }, { ttlMs: TTL.LONG });
+  },
+
+  /**
+   * Returns official FIM Manufacturer Concession rules and tiers (A, B, C, D).
+   */
+  async getMotoGpConcessionTiers(): Promise<Record<ConcessionTier, ConcessionRules>> {
+    return clientCache.getOrFetch('motogp_concessions', () => {
+      return Promise.resolve(CONCESSION_TIERS);
+    }, { ttlMs: TTL.LONG });
+  },
+
   resetDemoData() {
     mockApi.resetToDefaults();
   },
 };
+
+

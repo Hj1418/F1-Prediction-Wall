@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Mail, MessageCircle, HelpCircle, Home, Calendar, Trophy, Target, BookOpen, MapPin, Compass } from 'lucide-react';
+import { Mail, MessageCircle, HelpCircle, Home, Calendar, Trophy, Target, BookOpen, MapPin, Compass, Flag } from 'lucide-react';
 
 export const Footer: React.FC = () => {
   const linkStyle: React.CSSProperties = {
@@ -99,6 +99,9 @@ export const Footer: React.FC = () => {
               </Link>
               <Link to="/circuits" style={linkStyle} onMouseEnter={e => (e.currentTarget.style.color = '#fff')} onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-secondary)')}>
                 <MapPin size={13} /> Circuits
+              </Link>
+              <Link to="/indian-motorsport" style={linkStyle} onMouseEnter={e => (e.currentTarget.style.color = '#fff')} onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-secondary)')}>
+                <Flag size={13} style={{ color: '#ff9933' }} /> Indian Motorsport 🇮🇳
               </Link>
               <Link to="/predictions" style={linkStyle} onMouseEnter={e => (e.currentTarget.style.color = '#fff')} onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-secondary)')}>
                 <Target size={13} /> Prediction Bench

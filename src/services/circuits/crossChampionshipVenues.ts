@@ -40,6 +40,20 @@ export const CROSS_CHAMPIONSHIP_VENUES: Record<string, VenueHosting[]> = {
     { championshipId: 'wec', championshipName: 'FIA WEC', eventName: 'Qatar 1812 km (Season Opener)', badge: 'WEC', badgeColor: '#002b49', url: '/championships/wec' },
     { championshipId: 'f2', championshipName: 'Formula 2', eventName: 'Lusail Feeder Round', badge: 'F2', badgeColor: '#0090d0', url: '/championships/f2' },
   ],
+  lusail: [
+    { championshipId: 'f1', championshipName: 'Formula 1', eventName: 'Qatar Grand Prix', badge: 'F1', badgeColor: '#e10600', url: '/championships/f1' },
+    { championshipId: 'motogp', championshipName: 'MotoGP', eventName: 'Qatar Airways Grand Prix of Qatar (Night Race)', badge: 'MotoGP', badgeColor: '#dc2626', url: '/championships/motogp' },
+    { championshipId: 'wec', championshipName: 'FIA WEC', eventName: 'Qatar 1812 km (Season Opener)', badge: 'WEC', badgeColor: '#002b49', url: '/championships/wec' },
+    { championshipId: 'f2', championshipName: 'Formula 2', eventName: 'Lusail Feeder Round', badge: 'F2', badgeColor: '#0090d0', url: '/championships/f2' },
+  ],
+  lemans: [
+    { championshipId: 'wec', championshipName: 'FIA WEC', eventName: '24 Heures du Mans (Triple Crown)', badge: 'WEC', badgeColor: '#002b49', url: '/championships/wec', notes: '13.6 km Circuit de la Sarthe with Mulsanne Straight' },
+    { championshipId: 'motogp', championshipName: 'MotoGP', eventName: 'Shark Grand Prix de France', badge: 'MotoGP', badgeColor: '#dc2626', url: '/championships/motogp', notes: 'Historic 4.18 km Bugatti Circuit layout' },
+  ],
+  le_mans: [
+    { championshipId: 'wec', championshipName: 'FIA WEC', eventName: '24 Heures du Mans (Triple Crown)', badge: 'WEC', badgeColor: '#002b49', url: '/championships/wec', notes: '13.6 km Circuit de la Sarthe with Mulsanne Straight' },
+    { championshipId: 'motogp', championshipName: 'MotoGP', eventName: 'Shark Grand Prix de France', badge: 'MotoGP', badgeColor: '#dc2626', url: '/championships/motogp', notes: 'Historic 4.18 km Bugatti Circuit layout' },
+  ],
   cota: [
     { championshipId: 'f1', championshipName: 'Formula 1', eventName: 'United States Grand Prix', badge: 'F1', badgeColor: '#e10600', url: '/championships/f1' },
     { championshipId: 'motogp', championshipName: 'MotoGP', eventName: 'Red Bull Grand Prix of the Americas', badge: 'MotoGP', badgeColor: '#dc2626', url: '/championships/motogp' },
@@ -84,3 +98,5 @@ export function getCrossChampionshipHostings(circuitId: string): VenueHosting[] 
   const normId = circuitId.toLowerCase().replace(/[^a-z0-9_]+/g, '_');
   return CROSS_CHAMPIONSHIP_VENUES[normId] || CROSS_CHAMPIONSHIP_VENUES[circuitId] || [];
 }
+
+export const getVenueHostings = getCrossChampionshipHostings;

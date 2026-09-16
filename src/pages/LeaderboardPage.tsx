@@ -122,13 +122,13 @@ export const LeaderboardPage: React.FC = () => {
       >
         <div>
           <div style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--f1-red)', textTransform: 'uppercase', letterSpacing: '0.12em' }}>
-            THE GRID • PREDICTION BENCH
+            THE GRID • COMPETITION STANDINGS
           </div>
           <h1 style={{ fontSize: '2.25rem', fontWeight: 900, textTransform: 'uppercase', marginTop: '0.2rem' }}>
             Championship Standings
           </h1>
           <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.3rem' }}>
-            Global member standings calculated from official FIA race results across the season.
+            Official community member standings across Season Overall, Race Weekend, and Individual Session rounds.
           </p>
         </div>
 
@@ -471,6 +471,56 @@ export const LeaderboardPage: React.FC = () => {
             </table>
           </div>
         )}
+      </div>
+
+      {/* Scoring System Matrix Card */}
+      <div
+        className="race-card"
+        style={{
+          marginTop: '2.5rem',
+          padding: '1.5rem 1.75rem',
+          background: 'linear-gradient(135deg, rgba(22, 28, 40, 0.95), rgba(18, 23, 34, 0.95))',
+          border: '1px solid var(--border-subtle)',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
+          <Award size={18} color="var(--f1-red)" />
+          <h3 style={{ fontSize: '1.05rem', fontWeight: 900, textTransform: 'uppercase', margin: 0 }}>
+            Official Prediction Scoring Rules
+          </h3>
+        </div>
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+            gap: '0.85rem',
+          }}
+        >
+          <div style={{ background: 'var(--bg-input)', padding: '0.75rem 1rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)' }}>
+            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontFamily: 'var(--font-mono)' }}>P1 WINNER</div>
+            <div style={{ fontSize: '1.1rem', fontWeight: 900, color: 'var(--telemetry-green)', marginTop: '0.2rem' }}>25 PTS</div>
+          </div>
+          <div style={{ background: 'var(--bg-input)', padding: '0.75rem 1rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)' }}>
+            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontFamily: 'var(--font-mono)' }}>P2 / P3 PODIUM</div>
+            <div style={{ fontSize: '1.1rem', fontWeight: 900, color: 'var(--telemetry-green)', marginTop: '0.2rem' }}>18 / 15 PTS</div>
+          </div>
+          <div style={{ background: 'var(--bg-input)', padding: '0.75rem 1rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)' }}>
+            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontFamily: 'var(--font-mono)' }}>POLE POSITION</div>
+            <div style={{ fontSize: '1.1rem', fontWeight: 900, color: 'var(--telemetry-yellow)', marginTop: '0.2rem' }}>10 PTS</div>
+          </div>
+          <div style={{ background: 'var(--bg-input)', padding: '0.75rem 1rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)' }}>
+            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontFamily: 'var(--font-mono)' }}>FASTEST LAP</div>
+            <div style={{ fontSize: '1.1rem', fontWeight: 900, color: '#b966ff', marginTop: '0.2rem' }}>10 PTS</div>
+          </div>
+          <div style={{ background: 'var(--bg-input)', padding: '0.75rem 1rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)' }}>
+            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontFamily: 'var(--font-mono)' }}>PERFECT PODIUM</div>
+            <div style={{ fontSize: '1.1rem', fontWeight: 900, color: '#eab308', marginTop: '0.2rem' }}>+10 BONUS</div>
+          </div>
+          <div style={{ background: 'var(--bg-input)', padding: '0.75rem 1rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)' }}>
+            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontFamily: 'var(--font-mono)' }}>MARGIN / SAFETY CAR</div>
+            <div style={{ fontSize: '1.1rem', fontWeight: 900, color: 'var(--telemetry-cyan)', marginTop: '0.2rem' }}>5 PTS EACH</div>
+          </div>
+        </div>
       </div>
     </div>
   );
