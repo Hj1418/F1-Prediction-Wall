@@ -744,6 +744,10 @@
     height: 32px;
     font-size: 0.72rem;
   }
+  .navbar-search-btn {
+    height: 32px;
+    padding: 0 0.55rem;
+  }
   .navbar-right {
     display: flex;
     gap: 0.4rem;

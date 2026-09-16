@@ -15,6 +15,7 @@ import { useApp } from '../context/AppContext';
 import { StatusBadge } from '../components/common/StatusBadge';
 import { CountdownTimer } from '../components/common/CountdownTimer';
 import { DriverSelectModal } from '../components/common/DriverSelectModal';
+import { DriverCard } from '../components/common/DriverCard';
 import { UserInitialsAvatar } from '../components/common/UserInitialsAvatar';
 import confetti from 'canvas-confetti';
 import {
@@ -22,13 +23,13 @@ import {
   Save,
   CheckCircle2,
   ChevronLeft,
-  AlertCircle,
-  HelpCircle,
   Award,
   Sparkles,
   Trophy,
-  Share2,
   LogIn,
+  Edit3,
+  Check,
+  X as XIcon,
 } from 'lucide-react';
 
 export const PredictionPage: React.FC = () => {
@@ -45,6 +46,7 @@ export const PredictionPage: React.FC = () => {
   const [userScore, setUserScore] = useState<RoundScore | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
 
   // Driver modal selector state
   const [activeDriverField, setActiveDriverField] = useState<PredictionFieldConfig | null>(null);
@@ -78,8 +80,10 @@ export const PredictionPage: React.FC = () => {
 
           if (existingPred && existingPred.predictionData) {
             setFormData({ ...existingPred.predictionData });
+            setIsEditing(false);
           } else {
             setFormData({});
+            setIsEditing(true);
           }
         }
       } catch (err) {
@@ -221,6 +225,7 @@ export const PredictionPage: React.FC = () => {
       });
 
       setPrediction(saved);
+      setIsEditing(false);
       showToast('Prediction successfully submitted and locked for this round.', 'success');
       triggerDataRefresh();
 
@@ -505,110 +510,159 @@ export const PredictionPage: React.FC = () => {
           </div>
         )}
 
-        {/* Dynamic Prediction Form */}
-        <form onSubmit={handleSubmit}>
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
-              gap: '1.5rem',
-            }}
-          >
-            {(round.predictionFields || []).map(field => {
-              const currentValue = formData[field.id];
-              const selectedDriver = field.type === 'driver' && currentValue ? getDriverById(currentValue) : null;
-              const officialVal = officialResult?.resultData?.[field.id];
-              const officialDriver = field.type === 'driver' && officialVal ? getDriverById(officialVal) : null;
+        {/* PREDICTION SUBMITTED SUMMARY & POST-RACE COMPARISON (STEPS 6 & 7) */}
+        {prediction && !isEditing ? (
+          <div className="animate-fade-in" style={{ marginBottom: '2.5rem' }}>
+            {/* Header & Status Bar */}
+            <div
+              className="race-card"
+              style={{
+                padding: '1.5rem clamp(1rem, 3vw, 1.75rem)',
+                marginBottom: '1.5rem',
+                border: '1px solid rgba(0, 230, 118, 0.35)',
+                background: 'linear-gradient(135deg, rgba(0, 230, 118, 0.08) 0%, var(--bg-surface-card) 100%)',
+                display: 'flex',
+                flexWrap: 'wrap',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '1rem',
+              }}
+            >
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+                  <span style={{ fontSize: '1.25rem' }}>🏁</span>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.78rem', fontWeight: 800, color: 'var(--telemetry-green)', letterSpacing: '0.08em' }}>
+                    {isLocked ? 'PREDICTION LOCKED' : 'PREDICTION SUBMITTED'}
+                  </span>
+                  <span style={{ background: 'rgba(0, 230, 118, 0.15)', color: 'var(--telemetry-green)', fontSize: '0.7rem', padding: '0.15rem 0.5rem', borderRadius: '999px', fontWeight: 700 }}>
+                    ACTIVE
+                  </span>
+                </div>
+                <h2 style={{ fontSize: 'clamp(1.2rem, 3vw, 1.5rem)', fontWeight: 900, textTransform: 'uppercase', margin: 0 }}>
+                  Your Official Predictions
+                </h2>
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '0.35rem' }}>
+                  Submitted: {new Date(prediction.updatedAt).toLocaleString()}
+                  {!isLocked && !isScored && ' • You may update your choices anytime before deadline.'}
+                </div>
+              </div>
 
-              return (
-                <div
-                  key={field.id}
-                  className="race-card"
-                  style={{
-                    padding: '1.5rem',
-                    border: '1px solid var(--border-subtle)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'space-between',
-                  }}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
+                {!isLocked && !isScored && (
+                  <button
+                    type="button"
+                    onClick={() => setIsEditing(true)}
+                    className="btn btn-primary btn-sm"
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem' }}
+                  >
+                    <Edit3 size={14} /> Edit My Picks
+                  </button>
+                )}
+                <Link
+                  to={`/leaderboard?type=round&id=${round.roundId}`}
+                  className="btn btn-secondary btn-sm"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem' }}
                 >
-                  <div>
-                    {/* Category Badge & Score */}
-                    {(() => {
-                      const badge = getFieldBadge(field.id);
-                      return (
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.65rem' }}>
+                  <Trophy size={14} color="var(--telemetry-yellow)" /> View Standings
+                </Link>
+              </div>
+            </div>
+
+            {/* Grid of User Submitted Picks */}
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))',
+                gap: '1.25rem',
+              }}
+            >
+              {(round.predictionFields || []).map(field => {
+                const userPickVal = prediction.predictionData?.[field.id];
+                const selectedDriver = field.type === 'driver' && userPickVal ? getDriverById(userPickVal) : null;
+                const officialVal = officialResult?.resultData?.[field.id];
+                const officialDriver = field.type === 'driver' && officialVal ? getDriverById(officialVal) : null;
+                const badge = getFieldBadge(field.id);
+                const ptsEarned = userScore?.breakdown?.[field.id];
+                const isCorrect = isScored && (ptsEarned !== undefined ? ptsEarned > 0 : (userPickVal && officialVal && String(userPickVal).trim().toUpperCase() === String(officialVal).trim().toUpperCase()));
+
+                return (
+                  <div
+                    key={field.id}
+                    className="race-card"
+                    style={{
+                      padding: '1.25rem',
+                      border: '1px solid var(--border-medium)',
+                      backgroundColor: 'var(--bg-surface-card)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'space-between',
+                      gap: '0.75rem',
+                    }}
+                  >
+                    <div>
+                      {/* Field Header */}
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.65rem' }}>
+                        <span
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.35rem',
+                            padding: '0.2rem 0.6rem',
+                            borderRadius: '999px',
+                            background: badge.bg,
+                            border: `1px solid ${badge.color}40`,
+                            color: badge.color,
+                            fontSize: '0.68rem',
+                            fontWeight: 800,
+                            letterSpacing: '0.04em',
+                            textTransform: 'uppercase',
+                          }}
+                        >
+                          {badge.label}
+                        </span>
+                        {isScored && (
                           <span
                             style={{
                               display: 'inline-flex',
                               alignItems: 'center',
-                              gap: '0.35rem',
-                              padding: '0.2rem 0.6rem',
-                              borderRadius: '999px',
-                              background: badge.bg,
-                              border: `1px solid ${badge.color}40`,
-                              color: badge.color,
-                              fontSize: '0.68rem',
+                              gap: '0.25rem',
+                              fontSize: '0.72rem',
                               fontWeight: 800,
-                              letterSpacing: '0.06em',
                               fontFamily: 'var(--font-mono)',
+                              color: isCorrect ? 'var(--telemetry-green)' : 'var(--text-muted)',
                             }}
                           >
-                            <span>{badge.icon}</span>
-                            <span>{badge.label}</span>
+                            {isCorrect ? <Check size={13} strokeWidth={3} /> : <XIcon size={13} strokeWidth={3} />}
+                            {ptsEarned !== undefined ? `+${ptsEarned} pts` : (isCorrect ? 'CORRECT' : 'INCORRECT')}
                           </span>
+                        )}
+                      </div>
 
-                          {isScored && userScore?.breakdown?.[field.id] !== undefined && (
-                            <span
-                              style={{
-                                fontFamily: 'var(--font-mono)',
-                                fontWeight: 800,
-                                fontSize: '0.75rem',
-                                color: (userScore.breakdown[field.id] || 0) > 0 ? 'var(--telemetry-green)' : '#f87171',
-                              }}
-                            >
-                              +{(userScore.breakdown[field.id] || 0)} PTS
-                            </span>
-                          )}
-                        </div>
-                      );
-                    })()}
+                      <div style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '0.5rem' }}>
+                        {field.label}
+                      </div>
 
-                    {/* Field Label */}
-                    <div style={{ marginBottom: '0.4rem' }}>
-                      <label className="form-label" style={{ marginBottom: 0, fontSize: '0.95rem', fontWeight: 700 }}>
-                        {field.label} {field.required && <span style={{ color: 'var(--f1-red)' }}>*</span>}
-                      </label>
-                    </div>
-
-                    {field.helperText && (
-                      <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.85rem' }}>
-                        {field.helperText}
-                      </p>
-                    )}
-
-                    {/* Driver Picker Field */}
-                    {field.type === 'driver' && (
-                      <div style={{ marginTop: '0.5rem' }}>
-                        {selectedDriver ? (
+                      {/* Pick Display */}
+                      {field.type === 'driver' ? (
+                        selectedDriver ? (
                           <div
                             style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'space-between',
                               padding: '0.75rem 1rem',
                               borderRadius: 'var(--radius-md)',
                               background: 'var(--bg-surface-elevated)',
-                              border: '1px solid var(--border-medium)',
-                              borderLeft: `5px solid ${selectedDriver.teamColor}`,
+                              border: '1px solid var(--border-subtle)',
+                              borderLeft: `4px solid ${selectedDriver.teamColor}`,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
                             }}
                           >
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
                               <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 900, color: selectedDriver.teamColor, fontSize: '1.1rem' }}>
                                 #{selectedDriver.number}
                               </span>
                               <div>
-                                <div style={{ fontWeight: 800, fontSize: '0.95rem', textTransform: 'uppercase' }}>
+                                <div style={{ fontWeight: 800, fontSize: '0.88rem', color: '#fff' }}>
                                   {selectedDriver.firstName} {selectedDriver.lastName} {selectedDriver.countryFlag}
                                 </div>
                                 <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
@@ -616,207 +670,380 @@ export const PredictionPage: React.FC = () => {
                                 </div>
                               </div>
                             </div>
-
-                            {!isReadOnly && (
-                              <button
-                                type="button"
-                                onClick={() => setActiveDriverField(field)}
-                                className="btn btn-outline btn-sm"
-                                style={{ padding: '0.3rem 0.6rem', fontSize: '0.7rem' }}
-                              >
-                                Change
-                              </button>
-                            )}
                           </div>
                         ) : (
-                          <button
-                            type="button"
-                            disabled={isReadOnly}
-                            onClick={() => setActiveDriverField(field)}
-                            style={{
-                              width: '100%',
-                              padding: '1rem',
-                              borderRadius: 'var(--radius-md)',
-                              background: 'var(--bg-input)',
-                              border: '1px dashed var(--border-medium)',
-                              color: 'var(--text-secondary)',
-                              cursor: isReadOnly ? 'not-allowed' : 'pointer',
-                              fontWeight: 700,
-                              fontSize: '0.85rem',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              gap: '0.5rem',
-                              transition: 'border-color 0.2s',
-                            }}
-                            onMouseEnter={e => !isReadOnly && (e.currentTarget.style.borderColor = 'var(--f1-red)')}
-                            onMouseLeave={e => !isReadOnly && (e.currentTarget.style.borderColor = 'var(--border-medium)')}
-                          >
-                            <Sparkles size={15} color="var(--f1-red)" /> Select {field.label}
-                          </button>
-                        )}
-
-                        {/* If Scored: Show Official Driver Result underneath */}
-                        {isScored && officialDriver && (
-                          <div
-                            style={{
-                              marginTop: '0.75rem',
-                              padding: '0.5rem 0.75rem',
-                              borderRadius: 'var(--radius-sm)',
-                              background: 'rgba(255,255,255,0.03)',
-                              border: '1px solid var(--border-subtle)',
-                              fontSize: '0.75rem',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'space-between',
-                            }}
-                          >
-                            <span style={{ color: 'var(--text-muted)' }}>Official Outcome:</span>
-                            <span style={{ fontWeight: 800, color: '#fff' }}>
-                              #{officialDriver.number} {officialDriver.lastName} ({officialDriver.code})
-                            </span>
+                          <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                            No driver selected
                           </div>
-                        )}
+                        )
+                      ) : (
+                        <div
+                          style={{
+                            padding: '0.65rem 0.9rem',
+                            borderRadius: 'var(--radius-md)',
+                            background: 'var(--bg-surface-elevated)',
+                            border: '1px solid var(--border-subtle)',
+                            fontSize: '0.85rem',
+                            fontWeight: 700,
+                            color: '#fff',
+                            display: 'inline-block',
+                          }}
+                        >
+                          {String(userPickVal || 'None')}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Step 7 Post-Race Comparison Outcome */}
+                    {isScored && (officialDriver || officialVal !== undefined) && (
+                      <div
+                        style={{
+                          marginTop: '0.5rem',
+                          padding: '0.5rem 0.75rem',
+                          borderRadius: 'var(--radius-sm)',
+                          background: 'rgba(255, 255, 255, 0.03)',
+                          border: '1px solid var(--border-subtle)',
+                          fontSize: '0.72rem',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                        }}
+                      >
+                        <span style={{ color: 'var(--text-muted)' }}>Official Outcome:</span>
+                        <span style={{ fontWeight: 800, color: '#fff' }}>
+                          {officialDriver ? `#${officialDriver.number} ${officialDriver.lastName}` : String(officialVal)}
+                        </span>
                       </div>
                     )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ) : (
+          /* Dynamic Prediction Form */
+          <form onSubmit={handleSubmit}>
+            {prediction && isEditing && (
+              <div
+                style={{
+                  background: 'rgba(225, 6, 0, 0.08)',
+                  border: '1px solid rgba(225, 6, 0, 0.3)',
+                  borderRadius: 'var(--radius-md)',
+                  padding: '0.85rem 1.25rem',
+                  marginBottom: '1.5rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  flexWrap: 'wrap',
+                  gap: '0.75rem',
+                }}
+              >
+                <div style={{ fontSize: '0.85rem', color: '#fff' }}>
+                  <strong>Editing Prediction:</strong> Update any field below and submit to overwrite your previous choices.
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsEditing(false)}
+                  className="btn btn-secondary btn-sm"
+                  style={{ fontSize: '0.78rem' }}
+                >
+                  Cancel & View Saved Picks
+                </button>
+              </div>
+            )}
 
-                    {/* Option / Boolean Picker Field */}
-                    {(field.type === 'option' || field.type === 'boolean') && (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.5rem' }}>
-                        {(field.options || [
-                          { value: 'YES', label: 'Yes' },
-                          { value: 'NO', label: 'No' },
-                        ]).map(opt => {
-                          const isOptSelected = String(currentValue).toUpperCase() === String(opt.value).toUpperCase();
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))',
+                gap: '1.5rem',
+              }}
+            >
+              {(round.predictionFields || []).map(field => {
+                const currentValue = formData[field.id];
+                const selectedDriver = field.type === 'driver' && currentValue ? getDriverById(currentValue) : null;
+                const officialVal = officialResult?.resultData?.[field.id];
+                const officialDriver = field.type === 'driver' && officialVal ? getDriverById(officialVal) : null;
 
-                          return (
-                            <label
-                              key={opt.value}
+                return (
+                  <div
+                    key={field.id}
+                    className="race-card"
+                    style={{
+                      padding: '1.5rem',
+                      border: '1px solid var(--border-subtle)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'space-between',
+                    }}
+                  >
+                    <div>
+                      {/* Category Badge & Score */}
+                      {(() => {
+                        const badge = getFieldBadge(field.id);
+                        return (
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.65rem' }}>
+                            <span
                               style={{
-                                display: 'flex',
+                                display: 'inline-flex',
                                 alignItems: 'center',
-                                gap: '0.75rem',
-                                padding: '0.75rem 1rem',
-                                borderRadius: 'var(--radius-md)',
-                                background: isOptSelected ? 'var(--bg-surface-elevated)' : 'var(--bg-input)',
-                                border: `1px solid ${isOptSelected ? 'var(--telemetry-purple)' : 'var(--border-subtle)'}`,
-                                cursor: isReadOnly ? 'default' : 'pointer',
-                                transition: 'all 0.15s ease',
+                                gap: '0.35rem',
+                                padding: '0.2rem 0.6rem',
+                                borderRadius: '999px',
+                                background: badge.bg,
+                                border: `1px solid ${badge.color}40`,
+                                color: badge.color,
+                                fontSize: '0.7rem',
+                                fontWeight: 800,
+                                letterSpacing: '0.04em',
+                                textTransform: 'uppercase',
                               }}
                             >
-                              <input
-                                type="radio"
-                                name={field.id}
-                                value={opt.value}
-                                disabled={isReadOnly}
-                                checked={isOptSelected}
-                                onChange={() => handleFieldChange(field.id, opt.value)}
-                                style={{ accentColor: 'var(--f1-red)' }}
-                              />
-                              <span style={{ fontSize: '0.85rem', fontWeight: isOptSelected ? 700 : 500, color: isOptSelected ? '#fff' : 'var(--text-secondary)' }}>
-                                {opt.label}
-                              </span>
-                            </label>
-                          );
-                        })}
-
-                        {isScored && officialVal !== undefined && (
-                          <div
-                            style={{
-                              marginTop: '0.5rem',
-                              padding: '0.5rem 0.75rem',
-                              borderRadius: 'var(--radius-sm)',
-                              background: 'rgba(255,255,255,0.03)',
-                              border: '1px solid var(--border-subtle)',
-                              fontSize: '0.75rem',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'space-between',
-                            }}
-                          >
-                            <span style={{ color: 'var(--text-muted)' }}>Official Result:</span>
-                            <span style={{ fontWeight: 800, color: 'var(--telemetry-purple)' }}>{String(officialVal)}</span>
+                              {badge.label}
+                            </span>
+                            <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                              {field.required ? 'REQUIRED' : 'OPTIONAL'}
+                            </span>
                           </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+                        );
+                      })()}
 
-          {/* Submission Bar / Locked Message */}
-          <div
-            style={{
-              marginTop: '2.5rem',
-              padding: '1.5rem',
-              borderRadius: 'var(--radius-lg)',
-              backgroundColor: 'var(--bg-surface-card)',
-              border: '1px solid var(--border-medium)',
-              display: 'flex',
-              flexWrap: 'wrap',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: '1rem',
-            }}
-          >
-            <div>
-              {prediction ? (
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--telemetry-green)', fontWeight: 700, fontSize: '0.85rem' }}>
-                    <CheckCircle2 size={16} /> Prediction safely saved
+                      <div style={{ fontWeight: 800, fontSize: '1.05rem', color: 'var(--text-primary)', marginBottom: '0.3rem' }}>
+                        {field.label}
+                      </div>
+                      {field.helperText && (
+                        <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '0.85rem' }}>
+                          {field.helperText}
+                        </div>
+                      )}
+
+                      {/* Driver Selection Field */}
+                      {field.type === 'driver' && (
+                        <div>
+                          {selectedDriver ? (
+                            <div style={{ position: 'relative' }}>
+                              <DriverCard
+                                driver={selectedDriver}
+                                isSelected={true}
+                                onClick={() => !isReadOnly && setActiveDriverField(field)}
+                              />
+                              {!isReadOnly && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleFieldChange(field.id, '')}
+                                  style={{
+                                    position: 'absolute',
+                                    right: '-8px',
+                                    top: '-8px',
+                                    background: 'var(--f1-red)',
+                                    color: '#fff',
+                                    border: 'none',
+                                    borderRadius: '50%',
+                                    width: '20px',
+                                    height: '20px',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    fontSize: '11px',
+                                    fontWeight: 900,
+                                  }}
+                                  title="Clear selection"
+                                >
+                                  ×
+                                </button>
+                              )}
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              disabled={isReadOnly}
+                              onClick={() => setActiveDriverField(field)}
+                              style={{
+                                width: '100%',
+                                padding: '1rem',
+                                borderRadius: 'var(--radius-md)',
+                                background: 'var(--bg-input)',
+                                border: '1px dashed var(--border-medium)',
+                                color: 'var(--text-secondary)',
+                                cursor: isReadOnly ? 'not-allowed' : 'pointer',
+                                fontWeight: 700,
+                                fontSize: '0.85rem',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '0.5rem',
+                                transition: 'border-color 0.2s',
+                              }}
+                              onMouseEnter={e => !isReadOnly && (e.currentTarget.style.borderColor = 'var(--f1-red)')}
+                              onMouseLeave={e => !isReadOnly && (e.currentTarget.style.borderColor = 'var(--border-medium)')}
+                            >
+                              <Sparkles size={15} color="var(--f1-red)" /> Select {field.label}
+                            </button>
+                          )}
+
+                          {/* If Scored: Show Official Driver Result underneath */}
+                          {isScored && officialDriver && (
+                            <div
+                              style={{
+                                marginTop: '0.75rem',
+                                padding: '0.5rem 0.75rem',
+                                borderRadius: 'var(--radius-sm)',
+                                background: 'rgba(255,255,255,0.03)',
+                                border: '1px solid var(--border-subtle)',
+                                fontSize: '0.75rem',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                              }}
+                            >
+                              <span style={{ color: 'var(--text-muted)' }}>Official Outcome:</span>
+                              <span style={{ fontWeight: 800, color: '#fff' }}>
+                                #{officialDriver.number} {officialDriver.lastName} ({officialDriver.code})
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Option / Boolean Picker Field */}
+                      {(field.type === 'option' || field.type === 'boolean') && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.5rem' }}>
+                          {(field.options || [
+                            { value: 'YES', label: 'Yes' },
+                            { value: 'NO', label: 'No' },
+                          ]).map(opt => {
+                            const isOptSelected = String(currentValue).toUpperCase() === String(opt.value).toUpperCase();
+
+                            return (
+                              <label
+                                key={opt.value}
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '0.75rem',
+                                  padding: '0.75rem 1rem',
+                                  borderRadius: 'var(--radius-md)',
+                                  background: isOptSelected ? 'var(--bg-surface-elevated)' : 'var(--bg-input)',
+                                  border: `1px solid ${isOptSelected ? 'var(--telemetry-purple)' : 'var(--border-subtle)'}`,
+                                  cursor: isReadOnly ? 'default' : 'pointer',
+                                  transition: 'all 0.15s ease',
+                                }}
+                              >
+                                <input
+                                  type="radio"
+                                  name={field.id}
+                                  value={opt.value}
+                                  disabled={isReadOnly}
+                                  checked={isOptSelected}
+                                  onChange={() => handleFieldChange(field.id, opt.value)}
+                                  style={{ accentColor: 'var(--f1-red)' }}
+                                />
+                                <span style={{ fontSize: '0.85rem', fontWeight: isOptSelected ? 700 : 500, color: isOptSelected ? '#fff' : 'var(--text-secondary)' }}>
+                                  {opt.label}
+                                </span>
+                              </label>
+                            );
+                          })}
+
+                          {isScored && officialVal !== undefined && (
+                            <div
+                              style={{
+                                marginTop: '0.5rem',
+                                padding: '0.5rem 0.75rem',
+                                borderRadius: 'var(--radius-sm)',
+                                background: 'rgba(255,255,255,0.03)',
+                                border: '1px solid var(--border-subtle)',
+                                fontSize: '0.75rem',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                              }}
+                            >
+                              <span style={{ color: 'var(--text-muted)' }}>Official Result:</span>
+                              <span style={{ fontWeight: 800, color: 'var(--telemetry-purple)' }}>{String(officialVal)}</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
-                    Last saved: {new Date(prediction.updatedAt).toLocaleString()}
-                    {!isReadOnly && ' • You may update your choices any time before the deadline.'}
+                );
+              })}
+            </div>
+
+            {/* Submission Bar / Locked Message */}
+            <div
+              style={{
+                marginTop: '2.5rem',
+                padding: '1.5rem',
+                borderRadius: 'var(--radius-lg)',
+                backgroundColor: 'var(--bg-surface-card)',
+                border: '1px solid var(--border-medium)',
+                display: 'flex',
+                flexWrap: 'wrap',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '1rem',
+              }}
+            >
+              <div>
+                {prediction ? (
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--telemetry-green)', fontWeight: 700, fontSize: '0.85rem' }}>
+                      <CheckCircle2 size={16} /> Prediction safely saved
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
+                      Last saved: {new Date(prediction.updatedAt).toLocaleString()}
+                      {!isReadOnly && ' • You may update your choices any time before the deadline.'}
+                    </div>
                   </div>
-                </div>
+                ) : (
+                  <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                    Complete your selections above and submit to enter the session leaderboard.
+                  </div>
+                )}
+              </div>
+
+              {!isReadOnly ? (
+                !isAuthenticated ? (
+                  <button
+                    type="button"
+                    onClick={() => openLoginModal(`/predict/${round.roundId}`)}
+                    className="btn btn-primary btn-lg"
+                    style={{ minWidth: 'min(100%, 240px)' }}
+                  >
+                    <LogIn size={18} /> Sign In to Submit
+                  </button>
+                ) : (
+                  <button
+                    type="submit"
+                    disabled={submitting}
+                    className="btn btn-primary btn-lg"
+                    style={{ minWidth: 'min(100%, 220px)' }}
+                  >
+                    {submitting ? (
+                      'LOCKING SELECTION...'
+                    ) : (
+                      <>
+                        <Save size={18} /> {prediction ? 'UPDATE PREDICTION' : 'SUBMIT PREDICTION'}
+                      </>
+                    )}
+                  </button>
+                )
               ) : (
-                <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                  Complete your selections above and submit to enter the session leaderboard.
+                <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                  <Link
+                    to={`/leaderboard?type=round&id=${round.roundId}`}
+                    className="btn btn-secondary"
+                  >
+                    <Trophy size={16} color="var(--telemetry-yellow)" /> View Session Leaderboard
+                  </Link>
                 </div>
               )}
             </div>
-
-            {!isReadOnly ? (
-              !isAuthenticated ? (
-                <button
-                  type="button"
-                  onClick={() => openLoginModal(`/predict/${round.roundId}`)}
-                  className="btn btn-primary btn-lg"
-                  style={{ minWidth: '240px' }}
-                >
-                  <LogIn size={18} /> Sign In to Submit
-                </button>
-              ) : (
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="btn btn-primary btn-lg"
-                  style={{ minWidth: '220px' }}
-                >
-                  {submitting ? (
-                    'LOCKING SELECTION...'
-                  ) : (
-                    <>
-                      <Save size={18} /> {prediction ? 'UPDATE PREDICTION' : 'SUBMIT PREDICTION'}
-                    </>
-                  )}
-                </button>
-              )
-            ) : (
-              <div style={{ display: 'flex', gap: '0.75rem' }}>
-                <Link
-                  to={`/leaderboard?type=round&id=${round.roundId}`}
-                  className="btn btn-secondary"
-                >
-                  <Trophy size={16} color="var(--telemetry-yellow)" /> View Session Leaderboard
-                </Link>
-              </div>
-            )}
-          </div>
-        </form>
+          </form>
+        )}
       </div>
 
       {/* Driver Selection Modal */}

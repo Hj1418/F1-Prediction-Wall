@@ -75,6 +75,9 @@ function doGet(e) {
       case 'getUserPrediction':
         responseData = getUserPrediction(e.parameter.roundId, e.parameter.userId);
         break;
+      case 'getUserWeekendPredictions':
+        responseData = getUserWeekendPredictions(e.parameter.userId, e.parameter.raceWeekendId);
+        break;
       case 'getRoundResults':
         responseData = getRoundResults(e.parameter.roundId);
         break;
@@ -500,6 +503,13 @@ function getUpcomingRace() {
 }
 
 function getSessionSchedule(weekendId) {
+  const cache = CacheService.getScriptCache();
+  const cacheKey = 'sess_sched_' + (weekendId || 'all');
+  const cached = cache.get(cacheKey);
+  if (cached) {
+    try { return JSON.parse(cached); } catch (e) {}
+  }
+
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName(SHEET_NAMES.SESSIONS);
   const rows = sheet.getDataRange().getValues();
@@ -517,10 +527,20 @@ function getSessionSchedule(weekendId) {
       });
     }
   }
+  if (sessions.length > 0) {
+    try { cache.put(cacheKey, JSON.stringify(sessions), 300); } catch (err) {}
+  }
   return sessions;
 }
 
 function getPredictionRounds(weekendId) {
+  const cache = CacheService.getScriptCache();
+  const cacheKey = 'pred_rounds_' + (weekendId || 'all');
+  const cached = cache.get(cacheKey);
+  if (cached) {
+    try { return JSON.parse(cached); } catch (e) {}
+  }
+
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName(SHEET_NAMES.PREDICTION_ROUNDS);
   const rows = sheet.getDataRange().getValues();
@@ -551,6 +571,9 @@ function getPredictionRounds(weekendId) {
       });
     }
   }
+  if (rounds.length > 0) {
+    try { cache.put(cacheKey, JSON.stringify(rounds), 120); } catch (err) {}
+  }
   return rounds;
 }
 
@@ -570,12 +593,19 @@ function getPredictionRound(roundId) {
 }
 
 function getRaceWeekends(season) {
+  const targetSeason = season ? Number(season) : 2026;
+  const cache = CacheService.getScriptCache();
+  const cacheKey = 'race_weekends_' + targetSeason;
+  const cached = cache.get(cacheKey);
+  if (cached) {
+    try { return JSON.parse(cached); } catch (e) {}
+  }
+
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName(SHEET_NAMES.RACE_WEEKENDS);
   const rows = sheet.getDataRange().getValues();
   const weekends = [];
   const now = new Date().getTime();
-  const targetSeason = season ? Number(season) : 2026;
 
   for (let i = 1; i < rows.length; i++) {
     const r = rows[i];
@@ -588,10 +618,13 @@ function getRaceWeekends(season) {
     const endMs = new Date(r[9]).getTime();
     let dynamicStatus = r[10];
 
-    // Compute dynamic status relative to server time
-    if (now > endMs) {
+    // Compute dynamic status relative to server time:
+    // A race weekend remains ACTIVE during its schedule and 6h post-race buffer.
+    // Scheduled race start time passing NEVER prematurely marks it COMPLETED.
+    const postRaceBufferMs = 6 * 3600 * 1000;
+    if (dynamicStatus === 'COMPLETED' || now > endMs + postRaceBufferMs) {
       dynamicStatus = 'COMPLETED';
-    } else if (now >= startMs - 24 * 3600 * 1000 && now <= endMs) {
+    } else if (now >= startMs - 24 * 3600 * 1000) {
       dynamicStatus = 'ACTIVE';
     } else {
       dynamicStatus = 'UPCOMING';
@@ -615,6 +648,9 @@ function getRaceWeekends(season) {
       externalId: r[12],
       lastSyncedAt: r[13]
     });
+  }
+  if (weekends.length > 0) {
+    try { cache.put(cacheKey, JSON.stringify(weekends), 300); } catch (err) {}
   }
   return weekends;
 }
@@ -790,6 +826,15 @@ function adminCalculateScores(roundId) {
     }
   }
 
+  // Invalidate leaderboard and prediction round cache
+  try {
+    const cache = CacheService.getScriptCache();
+    cache.remove('leaderboard_season_global');
+    cache.remove('leaderboard_round_' + roundId);
+    cache.remove('pred_rounds_' + (round.raceWeekendId || 'all'));
+    cache.remove('current_weekend');
+  } catch (cErr) {}
+
   return { roundId: roundId, scoredCount: scoredCount };
 }
 
@@ -894,6 +939,13 @@ function getRoundScore(roundId, userId) {
 }
 
 function getLeaderboard(type, id) {
+  const cache = CacheService.getScriptCache();
+  const cacheKey = 'leaderboard_' + (type || 'season') + '_' + (id || 'global');
+  const cached = cache.get(cacheKey);
+  if (cached) {
+    try { return JSON.parse(cached); } catch (e) {}
+  }
+
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const users = getAllUsers();
   const usersMap = {};
@@ -954,13 +1006,52 @@ function getLeaderboard(type, id) {
   }
 
   entries.sort(function(a, b) { return b.totalPoints - a.totalPoints; });
-  return entries.map(function(e, idx) {
+  const result = entries.map(function(e, idx) {
     return Object.assign({}, e, {
       rank: idx + 1,
       previousRank: idx + 1,
       rankChange: 0
     });
   });
+
+  if (result.length > 0) {
+    try { cache.put(cacheKey, JSON.stringify(result), 120); } catch (err) {}
+  }
+  return result;
+}
+
+function getUserWeekendPredictions(userId, raceWeekendId) {
+  if (!userId) return {};
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const predSheet = ss.getSheetByName(SHEET_NAMES.PREDICTIONS);
+  if (!predSheet) return {};
+  const predRows = predSheet.getDataRange().getValues();
+
+  let targetRoundIds = null;
+  if (raceWeekendId) {
+    const rounds = getPredictionRounds(raceWeekendId);
+    targetRoundIds = {};
+    rounds.forEach(function(r) { targetRoundIds[r.roundId] = true; });
+  }
+
+  const map = {};
+  for (let i = 1; i < predRows.length; i++) {
+    if (String(predRows[i][1]) === String(userId)) {
+      const roundId = String(predRows[i][2]);
+      if (!targetRoundIds || targetRoundIds[roundId]) {
+        map[roundId] = {
+          predictionId: predRows[i][0],
+          userId: predRows[i][1],
+          roundId: roundId,
+          predictionData: JSON.parse(predRows[i][3] || '{}'),
+          submittedAt: predRows[i][4],
+          updatedAt: predRows[i][5],
+          lockedAt: predRows[i][6]
+        };
+      }
+    }
+  }
+  return map;
 }
 
 const USER_HEADERS = [

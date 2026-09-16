@@ -55,17 +55,12 @@ export const PredictionsHubPage: React.FC = () => {
           setCurrentRounds(weekendRounds);
 
           if (currentUser?.userId) {
-            const predMap: Record<string, Prediction | null> = {};
-            await Promise.all(
-              weekendRounds.map(async r => {
-                const p = await api.getUserPrediction(r.roundId, currentUser.userId);
-                predMap[r.roundId] = p;
-              })
-            );
-            setUserPredictions(predMap);
-
-            const hist = await api.getUserPredictionsHistory(currentUser.userId);
-            setUserHistory(hist);
+            const [predMap, hist] = await Promise.all([
+              api.getUserWeekendPredictions(currentUser.userId, activeW.raceWeekendId),
+              api.getUserPredictionsHistory(currentUser.userId),
+            ]);
+            setUserPredictions(predMap || {});
+            setUserHistory(hist || []);
           }
         }
       } catch (err) {

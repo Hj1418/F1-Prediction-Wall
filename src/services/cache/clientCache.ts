@@ -145,6 +145,13 @@ class ClientCache {
   }
 
   /**
+   * Alias for invalidatePrefix
+   */
+  clearPrefix(prefix: string): void {
+    this.invalidatePrefix(prefix);
+  }
+
+  /**
    * Clear all cache entries
    */
   clear(): void {

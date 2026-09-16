@@ -161,6 +161,18 @@ export class MockApiService {
     return p ? { ...p } : null;
   }
 
+  public async getUserWeekendPredictions(userId: string, raceWeekendId?: string): Promise<Record<string, Prediction>> {
+    const map: Record<string, Prediction> = {};
+    const relevantRounds = raceWeekendId ? this.rounds.filter(r => r.raceWeekendId === raceWeekendId) : this.rounds;
+    const roundIds = new Set(relevantRounds.map(r => r.roundId));
+    this.predictions
+      .filter(p => p.userId === userId && roundIds.has(p.roundId))
+      .forEach(p => {
+        map[p.roundId] = { ...p };
+      });
+    return map;
+  }
+
   public async submitPrediction(payload: {
     userId: string;
     roundId: string;

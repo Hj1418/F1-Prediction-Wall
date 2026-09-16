@@ -15,6 +15,7 @@ import {
 import { mockApi } from './mockApi';
 import { clientCache, TTL } from './cache/clientCache';
 import { DEFAULT_SCORING_RULES, getDefaultPredictionFields } from './schedule/predictionRoundGenerator';
+import { computeWeekendStatus } from '../utils/raceLifecycle';
 
 const isTestEnv = typeof window === 'undefined';
 
@@ -81,19 +82,10 @@ export const api = {
         if (filtered.length > 0) list = filtered;
       }
 
-      // Evaluate live status relative to current timestamp (e.g. Monza active on 2026-09-04)
-      const now = new Date().getTime();
+      // Authoritative lifecycle state evaluation
+      const now = new Date();
       return list.map(w => {
-        const startMs = new Date(w.startDate).getTime();
-        const endMs = new Date(w.endDate).getTime();
-        let status: 'UPCOMING' | 'ACTIVE' | 'COMPLETED' = w.status as any;
-        if (now > endMs) {
-          status = 'COMPLETED';
-        } else if (now >= startMs - 24 * 3600 * 1000 && now <= endMs) {
-          status = 'ACTIVE';
-        } else {
-          status = 'UPCOMING';
-        }
+        const status = computeWeekendStatus(w, now);
         return { ...w, status };
       });
     }, { ttlMs: TTL.SHORT });
@@ -112,18 +104,25 @@ export const api = {
     return isProd ? null : mockApi.getWeekendById(id);
   },
 
-  async getPredictionRounds(raceWeekendId?: string): Promise<PredictionRound[]> {
-    if (isLiveBackend) {
-      try {
-        const url = `${API_BASE_URL}?action=getPredictionRounds${raceWeekendId ? `&raceWeekendId=${encodeURIComponent(raceWeekendId)}` : ''}`;
-        const res = await fetch(url);
-        const json: ApiResponse<PredictionRound[]> = await res.json();
-        if (json.success && json.data) return json.data.map(hydratePredictionRound);
-      } catch (e) {
-        console.error('Live API getPredictionRounds failed:', e);
-      }
-    }
-    return isProd ? [] : mockApi.getPredictionRounds(raceWeekendId);
+  async getPredictionRounds(raceWeekendId?: string, forceRefresh: boolean = false): Promise<PredictionRound[]> {
+    const cacheKey = `f1_prediction_rounds_${raceWeekendId || 'all'}`;
+    return clientCache.getOrFetch(
+      cacheKey,
+      async () => {
+        if (isLiveBackend) {
+          try {
+            const url = `${API_BASE_URL}?action=getPredictionRounds${raceWeekendId ? `&raceWeekendId=${encodeURIComponent(raceWeekendId)}` : ''}`;
+            const res = await fetch(url);
+            const json: ApiResponse<PredictionRound[]> = await res.json();
+            if (json.success && json.data) return json.data.map(hydratePredictionRound);
+          } catch (e) {
+            console.error('Live API getPredictionRounds failed:', e);
+          }
+        }
+        return isProd ? [] : mockApi.getPredictionRounds(raceWeekendId);
+      },
+      { ttlMs: TTL.SHORT, forceRefresh }
+    );
   },
 
   async getPredictionRoundById(roundId: string): Promise<PredictionRound | null> {
@@ -152,6 +151,29 @@ export const api = {
     return isProd ? null : mockApi.getUserPrediction(roundId, userId);
   },
 
+  async getUserWeekendPredictions(userId: string, raceWeekendId?: string): Promise<Record<string, Prediction>> {
+    if (isLiveBackend) {
+      try {
+        const url = `${API_BASE_URL}?action=getUserWeekendPredictions&userId=${encodeURIComponent(userId)}${raceWeekendId ? `&raceWeekendId=${encodeURIComponent(raceWeekendId)}` : ''}`;
+        const res = await fetch(url);
+        const json = await res.json();
+        if (json.success && json.data) {
+          if (Array.isArray(json.data)) {
+            const map: Record<string, Prediction> = {};
+            json.data.forEach((p: Prediction) => {
+              if (p && p.roundId) map[p.roundId] = p;
+            });
+            return map;
+          }
+          return json.data;
+        }
+      } catch (e) {
+        console.warn('Live API getUserWeekendPredictions failed:', e);
+      }
+    }
+    return isProd ? {} : mockApi.getUserWeekendPredictions(userId, raceWeekendId);
+  },
+
   async submitPrediction(payload: {
     userId: string;
     roundId: string;
@@ -160,20 +182,32 @@ export const api = {
     if (!isLiveBackend && isProd) {
       throw new Error('Live database connection is required for predictions.');
     }
-    if (!isLiveBackend) return mockApi.submitPrediction(payload);
-    try {
-      const res = await fetch(`${API_BASE_URL}?action=submitPrediction`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({ action: 'submitPrediction', ...payload }),
-      });
-      const json: ApiResponse<Prediction> = await res.json();
-      if (json.success && json.data) return json.data;
-      throw new Error(json.message || 'Failed to submit prediction to live database');
-    } catch (e: any) {
-      console.error('Live database prediction submit failed:', e);
-      throw new Error(e.message || 'Failed to submit prediction to database');
+    let saved: Prediction;
+    if (!isLiveBackend) {
+      saved = await mockApi.submitPrediction(payload);
+    } else {
+      try {
+        const res = await fetch(`${API_BASE_URL}?action=submitPrediction`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'submitPrediction', ...payload }),
+        });
+        const json: ApiResponse<Prediction> = await res.json();
+        if (json.success && json.data) {
+          saved = json.data;
+        } else {
+          throw new Error(json.message || 'Failed to submit prediction to live database');
+        }
+      } catch (e: any) {
+        console.error('Live database prediction submit failed:', e);
+        throw new Error(e.message || 'Failed to submit prediction to database');
+      }
     }
+
+    // Invalidate prediction round caches so fresh status is immediately reflected
+    clientCache.clearPrefix('f1_prediction_rounds_');
+    clientCache.clearPrefix('user_predictions_');
+    return saved;
   },
 
   async getOfficialResult(roundId: string): Promise<SessionResult | null> {

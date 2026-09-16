@@ -12,7 +12,8 @@ try {
   execSync('npx tsx scripts/verify-racing-identity.ts', { stdio: 'inherit' });
   execSync('npx tsx scripts/verify-avatar.ts', { stdio: 'inherit' });
   execSync('npx tsx scripts/verify-motorsport-foundation.ts', { stdio: 'inherit' });
-  console.log('🏆 ALL UNIT, INTEGRATION, AUTH, ADMIN, BETA, RACING IDENTITY, AVATAR & MOTORSPORT FOUNDATION TESTS PASSED PERFECTLY!\n');
+  execSync('npx tsx scripts/verify-phase8a.ts', { stdio: 'inherit' });
+  console.log('🏆 ALL UNIT, INTEGRATION, AUTH, ADMIN, BETA, RACING IDENTITY, AVATAR, FOUNDATION & PHASE 8A TESTS PASSED PERFECTLY!\n');
 } catch (err) {
   console.error('Test execution failed');
   process.exit(1);

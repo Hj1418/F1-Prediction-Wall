@@ -48,9 +48,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const authStatus = localStorage.getItem(AUTH_STATUS_KEY);
       const savedUserId = localStorage.getItem(CURRENT_USER_KEY);
+      let profile: User | null = null;
       if (authStatus === 'authenticated' && savedUserId) {
         try {
-          const profile = await api.getUserProfile(savedUserId);
+          profile = await api.getUserProfile(savedUserId);
           if (profile) {
             setCurrentUser(profile);
             setIsAuthenticated(true);
@@ -60,9 +61,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       }
 
-      const users = await api.getAllUsers();
-      if (users && users.length > 0) {
-        setAllUsers(users);
+      // Only fetch complete user directory if authenticated session is an admin
+      if (profile?.role === 'admin' || currentUser?.role === 'admin') {
+        const users = await api.getAllUsers();
+        if (users && users.length > 0) {
+          setAllUsers(users);
+        }
       }
     } catch (e) {
       console.warn('Failed to refresh users:', e);
@@ -82,34 +86,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (profile) {
               setCurrentUser(profile);
               setIsAuthenticated(true);
-              const users = await api.getAllUsers();
-              if (users && users.length > 0) setAllUsers(users);
+              if (profile.role === 'admin') {
+                const users = await api.getAllUsers();
+                if (users && users.length > 0) setAllUsers(users);
+              }
               return;
             }
           } catch (profileErr) {
             console.warn('Could not fetch user profile from live database:', profileErr);
           }
-        }
 
-        const users = await api.getAllUsers();
-        if (users && users.length > 0) {
-          setAllUsers(users);
-        }
-
-        // Strict session restoration:
-        // A session is VALID if and only if auth status is explicitly 'authenticated'
-        // and savedUserId corresponds to an active registered user account.
-        if (authStatus === 'authenticated' && savedUserId) {
-          const userList = users && users.length > 0 ? users : (import.meta.env.PROD ? [] : INITIAL_USERS);
-          const match = userList.find(u => u.userId === savedUserId);
-          if (match) {
-            setCurrentUser(match);
-            setIsAuthenticated(true);
-            return;
+          // Fallback check in mock data (development only)
+          if (!import.meta.env.PROD) {
+            const match = INITIAL_USERS.find(u => u.userId === savedUserId);
+            if (match) {
+              setCurrentUser(match);
+              setIsAuthenticated(true);
+              return;
+            }
           }
         }
 
-        // NO SESSION: clean up and ensure unauthenticated state
+        // Anonymous or expired session: clean up and ensure unauthenticated state without querying all users
         setCurrentUser(null);
         setIsAuthenticated(false);
         localStorage.removeItem(AUTH_STATUS_KEY);

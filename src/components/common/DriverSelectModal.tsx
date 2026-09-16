@@ -132,10 +132,10 @@ export const DriverSelectModal: React.FC<DriverSelectModalProps> = ({
         {/* Drivers Grid */}
         <div
           style={{
-            padding: '1.25rem 1.5rem',
+            padding: '1rem clamp(0.75rem, 3vw, 1.5rem)',
             overflowY: 'auto',
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 220px), 1fr))',
             gap: '0.75rem',
           }}
         >
