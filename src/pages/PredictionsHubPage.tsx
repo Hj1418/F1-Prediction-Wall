@@ -4,6 +4,8 @@ import { api } from '../services/apiClient';
 import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
 import { RaceWeekend, PredictionRound, Prediction } from '../types';
+import { getSharedRaceContext, getActiveTestPredictionContext, PredictionContext } from '../services/schedule/raceContextService';
+import { isQualificationPredictionRound } from '../services/schedule/predictionRoundGenerator';
 import { StatusBadge } from '../components/common/StatusBadge';
 import { CountdownTimer } from '../components/common/CountdownTimer';
 import { LoadingState } from '../components/common/LoadingState';
@@ -32,6 +34,10 @@ export const PredictionsHubPage: React.FC = () => {
   const [userHistory, setUserHistory] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Test Grand Prix context (when activated by Admin)
+  const [testContext, setTestContext] = useState<PredictionContext | null>(null);
+  const [userTestPrediction, setUserTestPrediction] = useState<Prediction | null>(null);
+
   useEffect(() => {
     document.title = 'Prediction Bench | The Grid';
   }, []);
@@ -42,23 +48,28 @@ export const PredictionsHubPage: React.FC = () => {
     async function loadMetadata() {
       try {
         setLoading(true);
-        const [weekends, allRounds] = await Promise.all([
-          api.getRaceWeekends(),
+        const [sharedCtx, weekends, allRounds] = await Promise.all([
+          getSharedRaceContext(2026),
+          api.getRaceWeekends(2026),
           api.getPredictionRounds(),
         ]);
 
         if (!mounted) return;
 
-        const activeW = weekends.find(w => w.status === 'ACTIVE') || weekends.find(w => w.status === 'UPCOMING') || weekends[0];
+        const activeW = sharedCtx ? sharedCtx.currentWeekend : (weekends.find(w => w.status === 'ACTIVE') || weekends.find(w => w.status === 'UPCOMING') || weekends[0]);
         setCurrentWeekend(activeW || null);
 
         const futureW = weekends.filter(w => w.raceWeekendId !== activeW?.raceWeekendId && w.status !== 'COMPLETED');
         setUpcomingWeekends(futureW);
 
         if (activeW) {
-          const weekendRounds = allRounds.filter(r => r.raceWeekendId === activeW.raceWeekendId);
+          const weekendRounds = allRounds.filter(r => r.raceWeekendId === activeW.raceWeekendId && !isQualificationPredictionRound(r));
           setCurrentRounds(weekendRounds);
         }
+
+        // Check for active test context
+        const activeTestCtx = getActiveTestPredictionContext();
+        setTestContext(activeTestCtx);
       } catch (err) {
         console.error('Failed to load predictions hub metadata', err);
       } finally {
@@ -78,6 +89,16 @@ export const PredictionsHubPage: React.FC = () => {
   useEffect(() => {
     let mounted = true;
     async function loadUserData() {
+      // Load user test prediction if test context is active
+      const activeTestCtx = getActiveTestPredictionContext();
+      if (activeTestCtx && currentUser?.userId) {
+        api.getUserPrediction(activeTestCtx.roundId, currentUser.userId).then(p => {
+          if (mounted) setUserTestPrediction(p);
+        }).catch(() => {});
+      } else if (mounted) {
+        setUserTestPrediction(null);
+      }
+
       if (!currentWeekend || !currentUser?.userId) {
         setUserPredictions({});
         setUserHistory([]);
@@ -110,6 +131,15 @@ export const PredictionsHubPage: React.FC = () => {
 
   const isGuest = !currentUser || currentUser.userId.startsWith('guest');
 
+  const getTestDriverName = (driverId?: string): string => {
+    if (!driverId) return '—';
+    if (driverId.startsWith('test-')) {
+      const formatted = driverId.replace('test-', '');
+      return 'Test Driver ' + formatted.charAt(0).toUpperCase() + formatted.slice(1);
+    }
+    return driverId;
+  };
+
   const hasOpenRounds = currentRounds.some(r => r.status === 'OPEN');
   const allUpcoming = currentRounds.length > 0 && currentRounds.every(r => r.status === 'UPCOMING');
   const allLocked = currentRounds.length > 0 && currentRounds.every(r => r.status === 'LOCKED');
@@ -126,9 +156,161 @@ export const PredictionsHubPage: React.FC = () => {
           Prediction Bench
         </h1>
         <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginTop: '0.3rem' }}>
-          Prediction Bench is The Grid's interactive competition layer. Put your strategy foresight to the test: pick the Pole Sitter, Podium Finishers (P1, P2, P3), and Fastest Lap before sessions lock to earn points and climb the championship leaderboard.
+          Prediction Bench is The Grid's interactive competition layer. Put your strategy foresight to the test: pick the Podium Finishers (P1, P2, P3), Fastest Lap, Driver of the Day, and Race Strategy wildcards before the race locks to earn points and climb the championship leaderboard.
         </p>
       </div>
+
+      {/* 0. TEST GRAND PRIX (SANDBOX CONTEXT - DISPLAYED ONLY WHEN ACTIVATED BY ADMIN) */}
+      {testContext && testContext.round && testContext.round.status !== 'UPCOMING' && (
+        <section
+          className="animate-fade-in"
+          style={{
+            marginBottom: '3rem',
+            padding: '1.75rem clamp(1rem, 3vw, 2rem)',
+            background: 'linear-gradient(135deg, rgba(0, 210, 255, 0.08) 0%, rgba(185, 102, 255, 0.05) 100%)',
+            border: '2px dashed rgba(0, 210, 255, 0.5)',
+            borderRadius: '16px',
+            position: 'relative',
+          }}
+        >
+          {/* Header */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '0.75rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+              <span style={{ fontSize: '1.5rem' }}>🧪</span>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <span
+                    style={{
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: '0.72rem',
+                      fontWeight: 900,
+                      color: 'var(--telemetry-cyan)',
+                      letterSpacing: '0.12em',
+                      textTransform: 'uppercase',
+                    }}
+                  >
+                    TEST GRAND PRIX
+                  </span>
+                  <span
+                    style={{
+                      background: 'rgba(0, 210, 255, 0.2)',
+                      color: 'var(--telemetry-cyan)',
+                      padding: '0.15rem 0.5rem',
+                      borderRadius: '4px',
+                      fontSize: '0.68rem',
+                      fontWeight: 800,
+                      fontFamily: 'var(--font-mono)',
+                    }}
+                  >
+                    {testContext.raceId}
+                  </span>
+                </div>
+                <h2 style={{ fontSize: 'clamp(1.25rem, 3vw, 1.65rem)', fontWeight: 900, textTransform: 'uppercase', margin: '0.2rem 0 0 0' }}>
+                  {testContext.weekend?.raceName || 'The Grid Test Grand Prix'}
+                </h2>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <span style={{ fontSize: '0.75rem', fontFamily: 'var(--font-mono)', fontWeight: 800, color: 'var(--text-muted)' }}>
+                Prediction Round:
+              </span>
+              <StatusBadge status={testContext.round.status} size="sm" />
+            </div>
+          </div>
+
+          <p style={{ fontSize: '0.86rem', color: 'var(--text-secondary)', margin: '0 0 1.25rem 0', maxWidth: '750px' }}>
+            This is a test race. Predictions and scores will not affect the production leaderboard.
+          </p>
+
+          {/* User's Test Prediction state */}
+          {userTestPrediction ? (
+            <div
+              style={{
+                background: 'var(--bg-surface-elevated)',
+                border: '1px solid rgba(0, 230, 118, 0.4)',
+                borderRadius: '10px',
+                padding: '1.25rem',
+                display: 'flex',
+                flexWrap: 'wrap',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '1rem',
+              }}
+            >
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--telemetry-green)', fontWeight: 800, fontSize: '0.78rem', letterSpacing: '0.08em', marginBottom: '0.35rem' }}>
+                  <Lock size={14} /> YOUR TEST PREDICTION 🔒
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.6rem 1.25rem', fontSize: '0.85rem' }}>
+                  <span style={{ color: 'var(--text-secondary)' }}>
+                    <strong style={{ color: '#fff' }}>P1</strong> — {getTestDriverName(userTestPrediction.predictionData?.p1)}
+                  </span>
+                  <span style={{ color: 'var(--text-secondary)' }}>
+                    <strong style={{ color: '#fff' }}>P2</strong> — {getTestDriverName(userTestPrediction.predictionData?.p2)}
+                  </span>
+                  <span style={{ color: 'var(--text-secondary)' }}>
+                    <strong style={{ color: '#fff' }}>P3</strong> — {getTestDriverName(userTestPrediction.predictionData?.p3)}
+                  </span>
+                  {userTestPrediction.predictionData?.fastestLap && (
+                    <span style={{ color: 'var(--text-secondary)' }}>
+                      <strong style={{ color: '#fff' }}>Fastest Lap</strong> — {getTestDriverName(userTestPrediction.predictionData?.fastestLap)}
+                    </span>
+                  )}
+                </div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--telemetry-green)', fontWeight: 700, marginTop: '0.4rem' }}>
+                  Prediction Locked
+                </div>
+              </div>
+
+              <Link
+                to={`/predict/${testContext.roundId}`}
+                className="btn btn-primary btn-sm"
+                style={{ textTransform: 'uppercase', fontWeight: 800, letterSpacing: '0.04em' }}
+              >
+                VIEW TEST PREDICTION
+              </Link>
+            </div>
+          ) : (
+            <div
+              style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '1rem',
+                background: 'var(--bg-surface-elevated)',
+                border: '1px solid var(--border-subtle)',
+                borderRadius: '10px',
+                padding: '1.25rem',
+              }}
+            >
+              <div>
+                <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#ffffff' }}>
+                  Ready to test the prediction lifecycle?
+                </div>
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
+                  Submit podium and fastest lap predictions with deterministic test drivers.
+                </div>
+              </div>
+
+              <Link
+                to={`/predict/${testContext.roundId}`}
+                className="btn btn-primary"
+                style={{
+                  background: 'var(--telemetry-cyan)',
+                  color: '#000000',
+                  fontWeight: 900,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.04em',
+                }}
+              >
+                MAKE TEST PREDICTION
+              </Link>
+            </div>
+          )}
+        </section>
+      )}
 
       {/* 1. WEEKEND PREDICTIONS SECTION */}
       <section style={{ marginBottom: '3.5rem' }}>

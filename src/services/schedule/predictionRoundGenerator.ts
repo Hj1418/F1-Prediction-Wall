@@ -305,144 +305,66 @@ export function generatePredictionRounds(
     ? subtractMinutes(fp1.startTime, 24 * 60) // opens 24h before FP1
     : subtractMinutes(raceWeekend.startDate, 24 * 60);
 
-  if (weekendType === 'SPRINT') {
-    // 1. SPRINT QUALIFYING PREDICTION
-    if (sq) {
-      const closesAt = subtractMinutes(sq.startTime, bufferMins);
-      const roundId = `${weekendId}_SPRINT_QUALIFYING_PREDICTION`;
-      generatedRounds.push({
-        id: roundId,
-        roundId,
-        raceWeekendId: weekendId,
-        sessionId: sq.id || sq.sessionId || '',
-        type: 'SPRINT_QUALIFYING',
-        roundType: 'SPRINT_QUALIFYING',
-        title: 'Sprint Qualifying Prediction',
-        description: 'Predict the top 3 shootout qualifiers and Sprint Qualifying wildcards.',
-        opensAt: weekendOpenTime,
-        closesAt,
-        status: getPredictionRoundStatus({ opensAt: weekendOpenTime, closesAt }),
-        predictionFields: getDefaultPredictionFields('SPRINT_QUALIFYING'),
-        scoringRules: DEFAULT_SCORING_RULES,
-        lastUpdatedAt: new Date().toISOString(),
-      });
-    }
+  // Phase 11: Prediction Bench supports RACE PREDICTIONS ONLY (Grand Prix & Sprint Race).
+  // Deprecated qualification prediction rounds (Qualifying, Sprint Qualifying) are no longer actively created.
+  if (sprint) {
+    const opensAt = weekendOpenTime;
+    const closesAt = subtractMinutes(sprint.startTime, bufferMins);
+    const roundId = `${weekendId}_SPRINT_PREDICTION`;
+    generatedRounds.push({
+      id: roundId,
+      roundId,
+      raceWeekendId: weekendId,
+      sessionId: sprint.id || sprint.sessionId || '',
+      type: 'SPRINT',
+      roundType: 'SPRINT',
+      title: `${raceWeekend.name || raceWeekend.raceName} Sprint Race`,
+      description: 'Predict Sprint podium (P1, P2, P3), fastest lap, and sprint wildcards.',
+      opensAt,
+      closesAt,
+      status: getPredictionRoundStatus({ opensAt, closesAt }),
+      predictionFields: getDefaultPredictionFields('SPRINT'),
+      scoringRules: DEFAULT_SCORING_RULES,
+      lastUpdatedAt: new Date().toISOString(),
+    });
+  }
 
-    // 2. SPRINT RACE PREDICTION
-    if (sprint) {
-      const opensAt = sq ? sq.startTime : weekendOpenTime;
-      const closesAt = subtractMinutes(sprint.startTime, bufferMins);
-      const roundId = `${weekendId}_SPRINT_PREDICTION`;
-      generatedRounds.push({
-        id: roundId,
-        roundId,
-        raceWeekendId: weekendId,
-        sessionId: sprint.id || sprint.sessionId || '',
-        type: 'SPRINT',
-        roundType: 'SPRINT',
-        title: 'Sprint Race Prediction',
-        description: 'Predict the top 3 sprint finishers, fastest lap, and sprint chaos wildcards.',
-        opensAt,
-        closesAt,
-        status: getPredictionRoundStatus({ opensAt, closesAt }),
-        predictionFields: getDefaultPredictionFields('SPRINT'),
-        scoringRules: DEFAULT_SCORING_RULES,
-        lastUpdatedAt: new Date().toISOString(),
-      });
-    }
-
-    // 3. GP QUALIFYING PREDICTION (In Sprint weekend, after Sprint race)
-    if (quali) {
-      const opensAt = sprint ? sprint.startTime : (sq ? sq.startTime : weekendOpenTime);
-      const closesAt = subtractMinutes(quali.startTime, bufferMins);
-      const roundId = `${weekendId}_QUALIFYING_PREDICTION`;
-      generatedRounds.push({
-        id: roundId,
-        roundId,
-        raceWeekendId: weekendId,
-        sessionId: quali.id || quali.sessionId || '',
-        type: 'QUALIFYING',
-        roundType: 'QUALIFYING',
-        title: 'Grand Prix Qualifying Prediction',
-        description: 'Predict the top 3 qualifiers on the starting grid, pole margin, and Q3 wildcards.',
-        opensAt,
-        closesAt,
-        status: getPredictionRoundStatus({ opensAt, closesAt }),
-        predictionFields: getDefaultPredictionFields('QUALIFYING'),
-        scoringRules: DEFAULT_SCORING_RULES,
-        lastUpdatedAt: new Date().toISOString(),
-      });
-    }
-
-    // 4. GRAND PRIX PREDICTION
-    if (race) {
-      const opensAt = quali ? quali.startTime : weekendOpenTime;
-      const closesAt = subtractMinutes(race.startTime, bufferMins);
-      const roundId = `${weekendId}_RACE_PREDICTION`;
-      generatedRounds.push({
-        id: roundId,
-        roundId,
-        raceWeekendId: weekendId,
-        sessionId: race.id || race.sessionId || '',
-        type: 'RACE',
-        roundType: 'GRAND_PRIX',
-        title: `${raceWeekend.name || raceWeekend.raceName} Race Prediction`,
-        description: 'Predict podium, fastest lap, driver of the day, safety car, VSC, red flag, and race wildcards.',
-        opensAt,
-        closesAt,
-        status: getPredictionRoundStatus({ opensAt, closesAt }),
-        predictionFields: getDefaultPredictionFields('GRAND_PRIX'),
-        scoringRules: DEFAULT_SCORING_RULES,
-        lastUpdatedAt: new Date().toISOString(),
-      });
-    }
-  } else {
-    // NORMAL WEEKEND FORMAT
-    // 1. QUALIFYING PREDICTION
-    if (quali) {
-      const closesAt = subtractMinutes(quali.startTime, bufferMins);
-      const roundId = `${weekendId}_QUALIFYING_PREDICTION`;
-      generatedRounds.push({
-        id: roundId,
-        roundId,
-        raceWeekendId: weekendId,
-        sessionId: quali.id || quali.sessionId || '',
-        type: 'QUALIFYING',
-        roundType: 'QUALIFYING',
-        title: 'Qualifying Predictions',
-        description: 'Predict the top 3 qualifiers on the grid, pole margin, and session wildcards.',
-        opensAt: weekendOpenTime,
-        closesAt,
-        status: getPredictionRoundStatus({ opensAt: weekendOpenTime, closesAt }),
-        predictionFields: getDefaultPredictionFields('QUALIFYING'),
-        scoringRules: DEFAULT_SCORING_RULES,
-        lastUpdatedAt: new Date().toISOString(),
-      });
-    }
-
-    // 2. GRAND PRIX PREDICTION
-    if (race) {
-      const opensAt = quali ? quali.startTime : weekendOpenTime;
-      const closesAt = subtractMinutes(race.startTime, bufferMins);
-      const roundId = `${weekendId}_RACE_PREDICTION`;
-      generatedRounds.push({
-        id: roundId,
-        roundId,
-        raceWeekendId: weekendId,
-        sessionId: race.id || race.sessionId || '',
-        type: 'RACE',
-        roundType: 'GRAND_PRIX',
-        title: `${raceWeekend.name || raceWeekend.raceName} Race Prediction`,
-        description: 'Predict podium, fastest lap, driver of the day, safety car, VSC, red flag, and race wildcards.',
-        opensAt,
-        closesAt,
-        status: getPredictionRoundStatus({ opensAt, closesAt }),
-        predictionFields: getDefaultPredictionFields('GRAND_PRIX'),
-        scoringRules: DEFAULT_SCORING_RULES,
-        lastUpdatedAt: new Date().toISOString(),
-      });
-    }
+  if (race) {
+    // Prediction window opens before the race weekend and closes before race start
+    const opensAt = weekendOpenTime;
+    const closesAt = subtractMinutes(race.startTime, bufferMins);
+    const roundId = `${weekendId}_RACE_PREDICTION`;
+    generatedRounds.push({
+      id: roundId,
+      roundId,
+      raceWeekendId: weekendId,
+      sessionId: race.id || race.sessionId || '',
+      type: 'RACE',
+      roundType: 'GRAND_PRIX',
+      title: `${raceWeekend.name || raceWeekend.raceName} Race Prediction`,
+      description: 'Predict podium (P1, P2, P3), fastest lap, driver of the day, safety car, and race wildcards.',
+      opensAt,
+      closesAt,
+      status: getPredictionRoundStatus({ opensAt, closesAt }),
+      predictionFields: getDefaultPredictionFields('GRAND_PRIX'),
+      scoringRules: DEFAULT_SCORING_RULES,
+      lastUpdatedAt: new Date().toISOString(),
+    });
   }
 
   return generatedRounds;
+}
+
+/**
+ * Checks if a prediction round is a deprecated qualification round.
+ */
+export function isQualificationPredictionRound(round: Partial<PredictionRound>): boolean {
+  const type = String(round.roundType || round.type || '').toUpperCase();
+  const id = String(round.roundId || round.id || '').toUpperCase();
+  return (
+    type === 'QUALIFYING' ||
+    type === 'SPRINT_QUALIFYING' ||
+    id.includes('QUALIFYING_PREDICTION') ||
+    id.includes('SPRINT_QUALIFYING_PREDICTION')
+  );
 }

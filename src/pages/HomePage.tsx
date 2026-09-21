@@ -8,9 +8,15 @@ import {
   ChevronRight,
   BookOpen,
   ArrowRight,
+  Lock,
+  Trophy,
+  CheckCircle2,
+  Clock,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
+import { api } from '../services/apiClient';
+import { Prediction, RoundScore, Driver } from '../types';
 import {
   DEFAULT_HOME_SNAPSHOT,
   HomeSnapshot,
@@ -20,9 +26,12 @@ import { getAllChampionships } from '../services/motorsport/motorsportRegistry';
 
 export const HomePage: React.FC = () => {
   const { openSearch } = useApp();
-  const { currentUser, isAuthenticated } = useAuth();
+  const { currentUser, isAuthenticated, openLoginModal } = useAuth();
   const [snapshot, setSnapshot] = useState<HomeSnapshot>(DEFAULT_HOME_SNAPSHOT);
   const [activeLearnTab, setActiveLearnTab] = useState<'topics' | 'thirty_seconds'>('topics');
+  const [userPrediction, setUserPrediction] = useState<Prediction | null>(null);
+  const [userScore, setUserScore] = useState<RoundScore | null>(null);
+  const [drivers, setDrivers] = useState<Driver[]>([]);
 
   useEffect(() => {
     document.title = 'The Grid | Your Motorsport Starting Point';
@@ -55,6 +64,45 @@ export const HomePage: React.FC = () => {
     discoverMoreItems,
     predictionHighlight,
   } = snapshot;
+
+  useEffect(() => {
+    let isMounted = true;
+    if (!currentUser?.userId || !predictionHighlight?.roundId) {
+      setUserPrediction(null);
+      setUserScore(null);
+      return;
+    }
+
+    Promise.all([
+      api.getUserPrediction(predictionHighlight.roundId, currentUser.userId).catch(() => null),
+      api.getRoundScore(predictionHighlight.roundId, currentUser.userId).catch(() => null),
+      api.getDrivers(2026).catch(() => [] as Driver[]),
+    ]).then(([pred, score, drvs]) => {
+      if (isMounted) {
+        setUserPrediction(pred);
+        setUserScore(score);
+        if (drvs && drvs.length > 0) {
+          setDrivers(drvs);
+        }
+      }
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [currentUser?.userId, predictionHighlight?.roundId]);
+
+  const getDriverLastName = (driverId?: string): string => {
+    if (!driverId) return 'TBD';
+    const d = drivers.find(drv => drv.id === driverId);
+    return d ? d.lastName : driverId;
+  };
+
+  const getDriverFullName = (driverId?: string): string => {
+    if (!driverId) return '—';
+    const d = drivers.find(drv => drv.id === driverId);
+    return d ? `${d.firstName} ${d.lastName}` : driverId;
+  };
 
   const championships = getAllChampionships();
 
@@ -410,6 +458,181 @@ export const HomePage: React.FC = () => {
               ))}
             </div>
           </div>
+
+          {/* ===================================================================
+              PREDICTION BENCH INTEGRATION (Phase 11 Single Source of Truth)
+              =================================================================== */}
+          {userPrediction ? (
+            /* State 1: User has a locked prediction for this race */
+            <div
+              className="race-card animate-fade-in"
+              style={{
+                marginTop: '1.25rem',
+                marginBottom: '2rem',
+                padding: '1.5rem clamp(1rem, 3vw, 1.75rem)',
+                background: 'linear-gradient(135deg, rgba(0, 230, 118, 0.08) 0%, var(--bg-surface-card) 100%)',
+                border: '1px solid rgba(0, 230, 118, 0.35)',
+                borderRadius: '12px',
+                display: 'flex',
+                flexWrap: 'wrap',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '1.25rem',
+              }}
+            >
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', color: 'var(--telemetry-green)', fontWeight: 900, fontSize: '0.8rem', letterSpacing: '0.08em', marginBottom: '0.35rem' }}>
+                  <Lock size={15} /> YOUR PREDICTION 🔒
+                </div>
+                <h3 style={{ fontSize: 'clamp(1.2rem, 3vw, 1.45rem)', fontWeight: 900, textTransform: 'uppercase', margin: '0 0 0.65rem 0', color: '#ffffff' }}>
+                  {predictionHighlight?.roundName || nextRace.grandPrixName}
+                </h3>
+
+                {/* Display exact submitted values */}
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.6rem 1.25rem', fontSize: '0.85rem' }}>
+                  <span style={{ color: 'var(--text-secondary)' }}>
+                    <strong style={{ color: '#fff' }}>P1</strong> — {getDriverFullName(userPrediction.predictionData?.p1)}
+                  </span>
+                  <span style={{ color: 'var(--text-secondary)' }}>
+                    <strong style={{ color: '#fff' }}>P2</strong> — {getDriverFullName(userPrediction.predictionData?.p2)}
+                  </span>
+                  <span style={{ color: 'var(--text-secondary)' }}>
+                    <strong style={{ color: '#fff' }}>P3</strong> — {getDriverFullName(userPrediction.predictionData?.p3)}
+                  </span>
+                  {userPrediction.predictionData?.fastestLap && (
+                    <span style={{ color: 'var(--text-secondary)' }}>
+                      <strong style={{ color: '#fff' }}>Fastest Lap</strong> — {getDriverFullName(userPrediction.predictionData?.fastestLap)}
+                    </span>
+                  )}
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--telemetry-green)', fontSize: '0.78rem', fontWeight: 700, marginTop: '0.65rem' }}>
+                  <CheckCircle2 size={14} /> Prediction Locked
+                </div>
+              </div>
+
+              <Link
+                to={predictionHighlight?.url || `/predict/${predictionHighlight?.roundId}`}
+                className="btn btn-primary"
+                style={{ minWidth: 'min(100%, 200px)', textTransform: 'uppercase', fontWeight: 800, letterSpacing: '0.04em' }}
+              >
+                VIEW MY PREDICTION
+              </Link>
+            </div>
+          ) : userScore ? (
+            /* State 2: Session scored, show result & score */
+            <div
+              className="race-card animate-fade-in"
+              style={{
+                marginTop: '1.25rem',
+                marginBottom: '2rem',
+                padding: '1.5rem clamp(1rem, 3vw, 1.75rem)',
+                background: 'linear-gradient(135deg, rgba(185, 102, 255, 0.1) 0%, var(--bg-surface-card) 100%)',
+                border: '1px solid rgba(185, 102, 255, 0.4)',
+                borderRadius: '12px',
+                display: 'flex',
+                flexWrap: 'wrap',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '1.25rem',
+              }}
+            >
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', color: 'var(--telemetry-purple)', fontWeight: 900, fontSize: '0.8rem', letterSpacing: '0.08em', marginBottom: '0.35rem' }}>
+                  🏁 RESULT AVAILABLE
+                </div>
+                <h3 style={{ fontSize: 'clamp(1.2rem, 3vw, 1.45rem)', fontWeight: 900, textTransform: 'uppercase', margin: '0 0 0.35rem 0', color: '#ffffff' }}>
+                  {predictionHighlight?.roundName || nextRace.grandPrixName}
+                </h3>
+                <div style={{ fontSize: '1.1rem', fontWeight: 900, color: '#ffffff', marginTop: '0.2rem' }}>
+                  Your Score: {userScore.totalScore} Points
+                </div>
+              </div>
+
+              <Link
+                to={predictionHighlight?.url || `/predict/${predictionHighlight?.roundId}`}
+                className="btn btn-secondary"
+                style={{ minWidth: 'min(100%, 180px)', textTransform: 'uppercase', fontWeight: 800, letterSpacing: '0.04em' }}
+              >
+                VIEW BREAKDOWN
+              </Link>
+            </div>
+          ) : predictionHighlight?.status === 'OPEN' ? (
+            /* State 3: Predictions Open, primary CTA: Make Prediction */
+            <div
+              className="race-card animate-fade-in"
+              style={{
+                marginTop: '1.25rem',
+                marginBottom: '2rem',
+                padding: '1.5rem clamp(1rem, 3vw, 1.75rem)',
+                background: 'linear-gradient(135deg, rgba(225, 6, 0, 0.08) 0%, var(--bg-surface-card) 100%)',
+                border: '1px solid rgba(225, 6, 0, 0.35)',
+                borderRadius: '12px',
+                display: 'flex',
+                flexWrap: 'wrap',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '1.25rem',
+              }}
+            >
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', color: 'var(--f1-red)', fontWeight: 900, fontSize: '0.8rem', letterSpacing: '0.08em', marginBottom: '0.35rem' }}>
+                  <Zap size={15} /> PREDICTION BENCH
+                </div>
+                <h3 style={{ fontSize: 'clamp(1.2rem, 3vw, 1.35rem)', fontWeight: 900, textTransform: 'uppercase', margin: '0 0 0.35rem 0', color: '#ffffff' }}>
+                  {predictionHighlight?.roundName || nextRace.grandPrixName}
+                </h3>
+                <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                  {predictionHighlight?.deadlineNotice || 'Predictions Open • Submit your podium & fastest lap before deadline'}
+                </div>
+                <div style={{ color: 'var(--telemetry-green)', fontWeight: 800, fontSize: '0.82rem', marginTop: '0.4rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                  <span className="live-pulse" style={{ width: '8px', height: '8px', backgroundColor: 'var(--telemetry-green)' }} /> Predictions Open
+                </div>
+              </div>
+
+              <Link
+                to={predictionHighlight?.url || `/predict/${predictionHighlight?.roundId}`}
+                className="btn btn-primary"
+                style={{ minWidth: 'min(100%, 180px)', textTransform: 'uppercase', fontWeight: 800, letterSpacing: '0.04em' }}
+              >
+                MAKE PREDICTION
+              </Link>
+            </div>
+          ) : (
+            /* State 4: Prediction not open yet */
+            <div
+              className="race-card"
+              style={{
+                marginTop: '1.25rem',
+                marginBottom: '2rem',
+                padding: '1.25rem 1.5rem',
+                background: 'var(--bg-surface-card)',
+                border: '1px solid var(--border-subtle)',
+                borderRadius: '12px',
+                display: 'flex',
+                flexWrap: 'wrap',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '1rem',
+              }}
+            >
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', color: 'var(--telemetry-cyan)', fontWeight: 800, fontSize: '0.78rem', letterSpacing: '0.06em' }}>
+                  <Clock size={14} /> PREDICTION OPENS SOON
+                </div>
+                <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#ffffff', marginTop: '0.2rem' }}>
+                  {predictionHighlight?.roundName || nextRace.grandPrixName}
+                </div>
+              </div>
+              <Link
+                to="/predictions"
+                className="btn btn-secondary btn-sm"
+                style={{ textTransform: 'uppercase', fontWeight: 700 }}
+              >
+                View Prediction Hub
+              </Link>
+            </div>
+          )}
 
           {/* Multi-Category Upcoming Radar Grid */}
           <div
@@ -1024,7 +1247,11 @@ export const HomePage: React.FC = () => {
           <div
             style={{
               background: 'linear-gradient(135deg, rgba(22, 27, 34, 0.95) 0%, rgba(13, 17, 23, 0.98) 100%)',
-              border: '1px solid var(--border-subtle)',
+              border: userScore
+                ? '1px solid rgba(157, 78, 221, 0.4)'
+                : userPrediction
+                ? '1px solid rgba(0, 230, 118, 0.35)'
+                : '1px solid var(--border-subtle)',
               borderRadius: '14px',
               padding: '2rem 1.5rem',
               display: 'flex',
@@ -1040,43 +1267,102 @@ export const HomePage: React.FC = () => {
                 <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', fontWeight: 800, color: 'var(--f1-red)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
                   PREDICTION BENCH
                 </span>
-                <span
-                  style={{
-                    fontSize: '0.65rem',
-                    fontWeight: 900,
-                    padding: '0.15rem 0.45rem',
-                    borderRadius: '4px',
-                    backgroundColor:
-                      predictionHighlight.status === 'OPEN'
-                        ? 'rgba(0, 230, 118, 0.15)'
-                        : predictionHighlight.status === 'LOCKED'
-                        ? 'rgba(239, 68, 68, 0.15)'
-                        : 'rgba(255, 255, 255, 0.1)',
-                    color:
-                      predictionHighlight.status === 'OPEN'
-                        ? '#00e676'
-                        : predictionHighlight.status === 'LOCKED'
-                        ? '#ef4444'
-                        : 'var(--text-secondary)',
-                    fontFamily: 'var(--font-mono)',
-                  }}
-                >
-                  {predictionHighlight.status}
-                </span>
+                {userScore ? (
+                  <span
+                    style={{
+                      fontSize: '0.68rem',
+                      fontWeight: 900,
+                      padding: '0.15rem 0.5rem',
+                      borderRadius: '4px',
+                      backgroundColor: 'rgba(157, 78, 221, 0.15)',
+                      color: 'var(--telemetry-purple)',
+                      fontFamily: 'var(--font-mono)',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.25rem',
+                    }}
+                  >
+                    <Trophy size={11} /> SCORED
+                  </span>
+                ) : userPrediction ? (
+                  <span
+                    style={{
+                      fontSize: '0.68rem',
+                      fontWeight: 900,
+                      padding: '0.15rem 0.5rem',
+                      borderRadius: '4px',
+                      backgroundColor: 'rgba(0, 230, 118, 0.15)',
+                      color: '#00e676',
+                      fontFamily: 'var(--font-mono)',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.25rem',
+                    }}
+                  >
+                    <Lock size={11} /> PREDICTIONS LOCKED
+                  </span>
+                ) : (
+                  <span
+                    style={{
+                      fontSize: '0.65rem',
+                      fontWeight: 900,
+                      padding: '0.15rem 0.45rem',
+                      borderRadius: '4px',
+                      backgroundColor:
+                        predictionHighlight.status === 'OPEN'
+                          ? 'rgba(0, 230, 118, 0.15)'
+                          : 'rgba(239, 68, 68, 0.15)',
+                      color:
+                        predictionHighlight.status === 'OPEN'
+                          ? '#00e676'
+                          : '#ef4444',
+                      fontFamily: 'var(--font-mono)',
+                    }}
+                  >
+                    {predictionHighlight.status}
+                  </span>
+                )}
               </div>
-              <h2 style={{ fontSize: '1.5rem', fontWeight: 900, textTransform: 'uppercase', color: '#ffffff', margin: '0 0 0.35rem 0' }}>
-                Think You Know Racing?
-              </h2>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', margin: '0 0 0.5rem 0', maxWidth: '540px' }}>
-                Put your motorsport knowledge to the test. Make your predictions for the {predictionHighlight.roundName}. Predict pole position, top-3 podium finishers, and fastest lap.
-              </p>
-              <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
-                {predictionHighlight.deadlineNotice}
-              </div>
+
+              {/* Headline & Summary */}
+              {userScore ? (
+                <>
+                  <h2 style={{ fontSize: '1.5rem', fontWeight: 900, textTransform: 'uppercase', color: '#ffffff', margin: '0 0 0.35rem 0' }}>
+                    Official Results Scored
+                  </h2>
+                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', margin: '0 0 0.5rem 0', maxWidth: '540px' }}>
+                    The {predictionHighlight.roundName} has concluded. You earned <strong style={{ color: 'var(--telemetry-green)' }}>+{userScore.totalScore} championship points</strong> for your prediction.
+                  </p>
+                </>
+              ) : userPrediction ? (
+                <>
+                  <h2 style={{ fontSize: '1.5rem', fontWeight: 900, textTransform: 'uppercase', color: '#ffffff', margin: '0 0 0.35rem 0' }}>
+                    Predictions Locked In
+                  </h2>
+                  <p style={{ color: '#fff', fontSize: '0.9rem', fontWeight: 700, margin: '0 0 0.25rem 0', maxWidth: '540px' }}>
+                    Your picks: <span style={{ color: '#ffb800' }}>P1 {getDriverLastName(userPrediction.predictionData?.p1)}</span>, <span style={{ color: '#e0e0e0' }}>P2 {getDriverLastName(userPrediction.predictionData?.p2)}</span>, <span style={{ color: '#cd7f32' }}>P3 {getDriverLastName(userPrediction.predictionData?.p3)}</span>
+                  </p>
+                  <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                    Scores will be calculated after the race concludes.
+                  </div>
+                </>
+              ) : (
+                <>
+                  <h2 style={{ fontSize: '1.5rem', fontWeight: 900, textTransform: 'uppercase', color: '#ffffff', margin: '0 0 0.35rem 0' }}>
+                    Think You Know Racing?
+                  </h2>
+                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', margin: '0 0 0.5rem 0', maxWidth: '540px' }}>
+                    Put your motorsport knowledge to the test. Make your predictions for the {predictionHighlight.roundName}. Predict top-3 podium finishers, fastest lap, driver of the day, and race strategy wildcards.
+                  </p>
+                  <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                    {predictionHighlight.deadlineNotice}
+                  </div>
+                </>
+              )}
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
-              {isAuthenticated ? (
+              {isAuthenticated && (
                 <div style={{ textAlign: 'right', marginRight: '0.5rem' }}>
                   <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontFamily: 'var(--font-mono)' }}>
                     Your Score
@@ -1085,9 +1371,77 @@ export const HomePage: React.FC = () => {
                     {currentUser?.totalPoints ?? 0} PTS
                   </div>
                 </div>
-              ) : null}
+              )}
 
-              {predictionHighlight.status === 'OPEN' ? (
+              {userScore ? (
+                <Link
+                  to={predictionHighlight.url}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    padding: '0.75rem 1.4rem',
+                    borderRadius: '8px',
+                    backgroundColor: 'var(--telemetry-purple)',
+                    color: '#ffffff',
+                    fontWeight: 800,
+                    fontSize: '0.85rem',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.04em',
+                    textDecoration: 'none',
+                    boxShadow: '0 0 20px rgba(157, 78, 221, 0.35)',
+                  }}
+                >
+                  <span>View Breakdown</span>
+                  <ArrowRight size={15} />
+                </Link>
+              ) : userPrediction ? (
+                <Link
+                  to={predictionHighlight.url}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    padding: '0.75rem 1.4rem',
+                    borderRadius: '8px',
+                    backgroundColor: 'rgba(0, 230, 118, 0.15)',
+                    border: '1px solid rgba(0, 230, 118, 0.5)',
+                    color: '#00e676',
+                    fontWeight: 800,
+                    fontSize: '0.85rem',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.04em',
+                    textDecoration: 'none',
+                  }}
+                >
+                  <span>View My Prediction</span>
+                  <ArrowRight size={15} />
+                </Link>
+              ) : !isAuthenticated ? (
+                <button
+                  type="button"
+                  onClick={() => openLoginModal(predictionHighlight.url)}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    padding: '0.75rem 1.4rem',
+                    borderRadius: '8px',
+                    backgroundColor: 'var(--f1-red)',
+                    color: '#ffffff',
+                    fontWeight: 800,
+                    fontSize: '0.85rem',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.04em',
+                    border: 'none',
+                    cursor: 'pointer',
+                    boxShadow: '0 0 20px rgba(225, 6, 0, 0.35)',
+                  }}
+                >
+                  <span>Sign In to Predict</span>
+                  <ArrowRight size={15} />
+                </button>
+              ) : predictionHighlight.status === 'OPEN' ? (
                 <Link
                   to={predictionHighlight.url}
                   style={{

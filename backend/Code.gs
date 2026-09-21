@@ -187,6 +187,28 @@ function doPost(e) {
       case 'processNotificationQueue':
         responseData = processNotificationQueue(payload.limit);
         break;
+      case 'sendDirectEmail':
+        if (!payload.to || !payload.subject || !payload.body) {
+          throw new Error('Missing required fields: to, subject, body');
+        }
+        MailApp.sendEmail({
+          to: payload.to,
+          name: payload.name || 'The Grid',
+          subject: payload.subject,
+          body: payload.body
+        });
+        responseData = { sent: true, to: payload.to };
+        break;
+      case 'enqueueNotification':
+        responseData = enqueueNotification(
+          payload.recipientEmail,
+          payload.recipientName,
+          payload.notificationType,
+          payload.subject,
+          payload.templateData,
+          payload.idempotencyKey
+        );
+        break;
       case 'getAdminUsers':
       case 'getUsers':
         responseData = getAdminUsers(payload.requesterId || payload.userId, payload.accessToken);
@@ -424,13 +446,13 @@ function generatePredictionRoundsForWeekend(sheet, weekendId, raceName, weekendT
   var bufferMs = 5 * 60 * 1000; // 5 min close buffer
 
   sessions.forEach(function(sess) {
-    if (sess.type === 'QUALIFYING' || sess.type === 'RACE' || sess.type === 'SPRINT_QUALIFYING' || sess.type === 'SPRINT') {
+    if (sess.type === 'RACE' || sess.type === 'SPRINT') {
       var roundId = weekendId + '_' + sess.type + '_PREDICTION';
       var sessStartMs = new Date(sess.startTime).getTime();
       var closesAt = new Date(sessStartMs - bufferMs).toISOString();
       var opensAt = new Date(sessStartMs - 48 * 3600 * 1000).toISOString();
 
-      var title = (sess.type === 'QUALIFYING' ? 'Qualifying' : sess.type === 'RACE' ? 'Grand Prix' : sess.name) + ' Prediction';
+      var title = (sess.type === 'RACE' ? 'Grand Prix' : sess.name) + ' Prediction';
       var status = new Date().getTime() > (sessStartMs - bufferMs) ? 'LOCKED' : 'OPEN';
 
       upsertPredictionRoundRow(sheet, {
@@ -668,6 +690,36 @@ function getWeekendDetails(id) {
 }
 
 /**
+ * Authoritative 2026 Race-Eligible Driver Grid (11 Teams, 22 Drivers)
+ */
+function getAllDrivers(season) {
+  return [
+    { id: 'verstappen', number: 1, code: 'VER', firstName: 'Max', lastName: 'Verstappen', team: 'Red Bull Racing', teamColor: '#3671C6', countryFlag: '🇳🇱' },
+    { id: 'hadjar', number: 6, code: 'HAD', firstName: 'Isack', lastName: 'Hadjar', team: 'Red Bull Racing', teamColor: '#3671C6', countryFlag: '🇫🇷' },
+    { id: 'norris', number: 4, code: 'NOR', firstName: 'Lando', lastName: 'Norris', team: 'McLaren', teamColor: '#FF8000', countryFlag: '🇬🇧' },
+    { id: 'piastri', number: 81, code: 'PIA', firstName: 'Oscar', lastName: 'Piastri', team: 'McLaren', teamColor: '#FF8000', countryFlag: '🇦🇺' },
+    { id: 'leclerc', number: 16, code: 'LEC', firstName: 'Charles', lastName: 'Leclerc', team: 'Ferrari', teamColor: '#E80020', countryFlag: '🇲🇨' },
+    { id: 'hamilton', number: 44, code: 'HAM', firstName: 'Lewis', lastName: 'Hamilton', team: 'Ferrari', teamColor: '#E80020', countryFlag: '🇬🇧' },
+    { id: 'russell', number: 63, code: 'RUS', firstName: 'George', lastName: 'Russell', team: 'Mercedes', teamColor: '#27F4D2', countryFlag: '🇬🇧' },
+    { id: 'antonelli', number: 12, code: 'ANT', firstName: 'Kimi', lastName: 'Antonelli', team: 'Mercedes', teamColor: '#27F4D2', countryFlag: '🇮🇹' },
+    { id: 'alonso', number: 14, code: 'ALO', firstName: 'Fernando', lastName: 'Alonso', team: 'Aston Martin', teamColor: '#229971', countryFlag: '🇪🇸' },
+    { id: 'stroll', number: 18, code: 'STR', firstName: 'Lance', lastName: 'Stroll', team: 'Aston Martin', teamColor: '#229971', countryFlag: '🇨🇦' },
+    { id: 'gasly', number: 10, code: 'GAS', firstName: 'Pierre', lastName: 'Gasly', team: 'Alpine', teamColor: '#0093CC', countryFlag: '🇫🇷' },
+    { id: 'doohan', number: 7, code: 'DOO', firstName: 'Jack', lastName: 'Doohan', team: 'Alpine', teamColor: '#0093CC', countryFlag: '🇦🇺' },
+    { id: 'albon', number: 23, code: 'ALB', firstName: 'Alexander', lastName: 'Albon', team: 'Williams', teamColor: '#64C4FF', countryFlag: '🇹🇭' },
+    { id: 'sainz', number: 55, code: 'SAI', firstName: 'Carlos', lastName: 'Sainz', team: 'Williams', teamColor: '#64C4FF', countryFlag: '🇪🇸' },
+    { id: 'tsunoda', number: 22, code: 'TSU', firstName: 'Yuki', lastName: 'Tsunoda', team: 'Racing Bulls', teamColor: '#6692FF', countryFlag: '🇯🇵' },
+    { id: 'lawson', number: 30, code: 'LAW', firstName: 'Liam', lastName: 'Lawson', team: 'Racing Bulls', teamColor: '#6692FF', countryFlag: '🇳🇿' },
+    { id: 'hulkenberg', number: 27, code: 'HUL', firstName: 'Nico', lastName: 'Hülkenberg', team: 'Sauber / Audi', teamColor: '#52E252', countryFlag: '🇩🇪' },
+    { id: 'bortoleto', number: 5, code: 'BOR', firstName: 'Gabriel', lastName: 'Bortoleto', team: 'Sauber / Audi', teamColor: '#52E252', countryFlag: '🇧🇷' },
+    { id: 'ocon', number: 31, code: 'OCO', firstName: 'Esteban', lastName: 'Ocon', team: 'Haas', teamColor: '#B6BABD', countryFlag: '🇫🇷' },
+    { id: 'bearman', number: 87, code: 'BEA', firstName: 'Oliver', lastName: 'Bearman', team: 'Haas', teamColor: '#B6BABD', countryFlag: '🇬🇧' },
+    { id: 'maloney', number: 77, code: 'MAL', firstName: 'Zane', lastName: 'Maloney', team: 'Cadillac F1 Team', teamColor: '#C0C0C0', countryFlag: '🇧🇧' },
+    { id: 'pourchaire', number: 99, code: 'POU', firstName: 'Théo', lastName: 'Pourchaire', team: 'Cadillac F1 Team', teamColor: '#C0C0C0', countryFlag: '🇫🇷' }
+  ];
+}
+
+/**
  * Prediction Submission & Scoring (Preserved from existing working implementation)
  */
 function submitPrediction(payload) {
@@ -693,6 +745,17 @@ function submitPrediction(payload) {
   if (serverTime.getTime() > closeTime.getTime()) {
     throw new Error('Predictions are LOCKED. Deadline has passed.');
   }
+
+  // Authoritative 2026 driver validation: reject invalid or outdated drivers
+  const validDrivers = getAllDrivers();
+  const validDriverIds = validDrivers.map(function(d) { return d.id; });
+  const driverFields = ['p1', 'p2', 'p3', 'fastestLap', 'driverOfTheDay'];
+  driverFields.forEach(function(fieldKey) {
+    var val = predictionData[fieldKey];
+    if (val && validDriverIds.indexOf(val) === -1) {
+      throw new Error('Invalid driver selection for ' + fieldKey + ': ' + val + ' is not an eligible 2026 driver.');
+    }
+  });
 
   const podium = [predictionData.p1, predictionData.p2, predictionData.p3].filter(Boolean);
   const uniquePodium = Array.from(new Set(podium));
@@ -841,19 +904,24 @@ function adminCalculateScores(roundId) {
 function computeScore(pred, official) {
   var b = {};
   var total = 0;
-  var officialPodium = [official.p1, official.p2, official.p3].filter(Boolean);
+  var dsqList = Array.isArray(official.disqualifiedDrivers) ? official.disqualifiedDrivers : [];
+  var isDsq = function(driverId) { return dsqList.indexOf(driverId) !== -1; };
 
-  var p1Exact = pred.p1 && pred.p1 === official.p1;
-  var p2Exact = pred.p2 && pred.p2 === official.p2;
-  var p3Exact = pred.p3 && pred.p3 === official.p3;
+  var officialPodium = [official.p1, official.p2, official.p3]
+    .filter(Boolean)
+    .filter(function(d) { return !isDsq(d); });
 
-  b.p1 = p1Exact ? 15 : (officialPodium.indexOf(pred.p1) !== -1 ? 5 : 0);
-  b.p2 = p2Exact ? 10 : (officialPodium.indexOf(pred.p2) !== -1 ? 5 : 0);
-  b.p3 = p3Exact ? 10 : (officialPodium.indexOf(pred.p3) !== -1 ? 5 : 0);
+  var p1Exact = pred.p1 && pred.p1 === official.p1 && !isDsq(pred.p1);
+  var p2Exact = pred.p2 && pred.p2 === official.p2 && !isDsq(pred.p2);
+  var p3Exact = pred.p3 && pred.p3 === official.p3 && !isDsq(pred.p3);
+
+  b.p1 = p1Exact ? 15 : (!isDsq(pred.p1) && officialPodium.indexOf(pred.p1) !== -1 ? 5 : 0);
+  b.p2 = p2Exact ? 10 : (!isDsq(pred.p2) && officialPodium.indexOf(pred.p2) !== -1 ? 5 : 0);
+  b.p3 = p3Exact ? 10 : (!isDsq(pred.p3) && officialPodium.indexOf(pred.p3) !== -1 ? 5 : 0);
   b.perfectPodiumBonus = (p1Exact && p2Exact && p3Exact) ? 10 : 0;
 
-  b.fastestLap = (pred.fastestLap && pred.fastestLap === official.fastestLap) ? 10 : 0;
-  b.driverOfTheDay = (pred.driverOfTheDay && pred.driverOfTheDay === official.driverOfTheDay) ? 10 : 0;
+  b.fastestLap = (pred.fastestLap && pred.fastestLap === official.fastestLap && !isDsq(pred.fastestLap)) ? 10 : 0;
+  b.driverOfTheDay = (pred.driverOfTheDay && pred.driverOfTheDay === official.driverOfTheDay && !isDsq(pred.driverOfTheDay)) ? 10 : 0;
 
   // Evaluate all dynamic wildcard & option fields (safetyCar, virtualSafetyCar, redFlag, etc.)
   var standardFields = ['p1', 'p2', 'p3', 'perfectPodiumBonus', 'fastestLap', 'driverOfTheDay'];

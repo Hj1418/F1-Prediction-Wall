@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { api } from '../../services/apiClient';
+import { getSharedRaceContext } from '../../services/schedule/raceContextService';
 import { RaceWeekend, getCircuitName } from '../../types';
 
 type StripState = 'upcoming' | 'active' | 'completed';
@@ -32,53 +32,41 @@ export const RaceStatusStrip: React.FC = () => {
     let mounted = true;
     const load = async () => {
       try {
-        const weekends = await api.getRaceWeekends(2026);
-        if (!mounted || weekends.length === 0) return;
+        const sharedCtx = await getSharedRaceContext(2026);
+        if (!mounted || !sharedCtx) return;
 
-        const sorted = [...weekends].sort((a, b) => a.roundNumber - b.roundNumber);
-        const active = sorted.find(w => w.status === 'ACTIVE');
-        const upcoming = sorted.find(w => w.status === 'UPCOMING');
-
-        if (active) {
-          const nextIdx = sorted.findIndex(w => w.raceWeekendId === active.raceWeekendId) + 1;
-          setRaceCtx({
-            state: 'active',
-            current: active,
-            next: sorted[nextIdx],
-            totalRounds: sorted.length,
-          });
-        } else if (upcoming) {
-          // Check if the previous race just completed
-          const upIdx = sorted.findIndex(w => w.raceWeekendId === upcoming.raceWeekendId);
-          const prev = upIdx > 0 ? sorted[upIdx - 1] : undefined;
-          const prevEnd = prev ? new Date(prev.endDate).getTime() : 0;
-          const hoursSincePrev = (Date.now() - prevEnd) / (1000 * 3600);
-
-          if (prev && prev.status === 'COMPLETED' && hoursSincePrev < 48) {
-            setRaceCtx({
-              state: 'completed',
-              current: prev,
-              next: upcoming,
-              totalRounds: sorted.length,
-            });
-          } else {
-            setRaceCtx({
-              state: 'upcoming',
-              current: upcoming,
-              totalRounds: sorted.length,
-            });
-          }
+        let state: StripState = 'upcoming';
+        if (sharedCtx.status === 'ACTIVE') {
+          state = 'active';
+        } else if (sharedCtx.status === 'COMPLETED') {
+          state = 'completed';
         } else {
-          // All completed — show last race
-          const last = sorted[sorted.length - 1];
-          setRaceCtx({
-            state: 'completed',
-            current: last,
-            totalRounds: sorted.length,
-          });
+          // If upcoming, check if previous completed within 48h
+          if (sharedCtx.previousWeekend && sharedCtx.previousWeekend.status === 'COMPLETED') {
+            const prevEnd = new Date(sharedCtx.previousWeekend.endDate).getTime();
+            const hoursSincePrev = (Date.now() - prevEnd) / (1000 * 3600);
+            if (hoursSincePrev < 48) {
+              state = 'completed';
+              setRaceCtx({
+                state: 'completed',
+                current: sharedCtx.previousWeekend,
+                next: sharedCtx.currentWeekend,
+                totalRounds: sharedCtx.totalRounds,
+              });
+              return;
+            }
+          }
+          state = 'upcoming';
         }
+
+        setRaceCtx({
+          state,
+          current: sharedCtx.currentWeekend,
+          next: sharedCtx.nextWeekend,
+          totalRounds: sharedCtx.totalRounds,
+        });
       } catch (e) {
-        console.warn('RaceStatusStrip: Failed to load weekends', e);
+        console.warn('RaceStatusStrip: Failed to load shared race context', e);
       }
     };
     load();

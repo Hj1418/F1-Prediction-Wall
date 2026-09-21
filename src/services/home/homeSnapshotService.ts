@@ -246,28 +246,28 @@ export const DEFAULT_DISCOVER_MORE: DiscoverMoreItem[] = [
 export const DEFAULT_HOME_SNAPSHOT: HomeSnapshot = {
   heroTagline: 'Your motorsport starting point.',
   nextRace: {
-    roundNumber: 16,
-    officialTitle: 'Formula 1 Gran Premio de España 2026',
-    grandPrixName: 'Spanish Grand Prix',
-    circuitName: 'Madring Circuit',
-    city: 'Madrid',
-    country: 'Spain',
-    countryCode: 'ES',
-    flag: '🇪🇸',
-    dates: '11–13 Sep 2026',
+    roundNumber: 17,
+    officialTitle: 'Formula 1 Qatar Airways Azerbaijan Grand Prix 2026',
+    grandPrixName: 'Azerbaijan Grand Prix',
+    circuitName: 'Baku City Circuit',
+    city: 'Baku',
+    country: 'Azerbaijan',
+    countryCode: 'AZ',
+    flag: '🇦🇿',
+    dates: '18–20 Sep 2026',
     status: 'ACTIVE',
     weekendType: 'STANDARD',
-    raceWeekendId: '2026-16-spain',
-    circuitId: 'madrid',
+    raceWeekendId: '2026_17',
+    circuitId: 'baku',
     sessions: [
-      { name: 'Practice 1 & 2', day: 'FRI', time: '13:30 / 17:00' },
-      { name: 'Qualifying', day: 'SAT', time: '16:00 CET', isKeySession: true },
-      { name: 'Grand Prix', day: 'SUN', time: '15:00 CET', isKeySession: true },
+      { name: 'Practice 1 & 2', day: 'FRI', time: '13:30 / 17:00 AZT' },
+      { name: 'Practice 3 & Qualifying', day: 'SAT', time: '12:30 / 16:00 AZT', isKeySession: true },
+      { name: 'Grand Prix', day: 'SUN', time: '15:00 AZT', isKeySession: true },
     ],
   },
   championshipChips: [
-    { id: 'f1', shortName: 'F1', fullName: 'Formula 1', category: 'Open-Wheel', badgeColor: '#e10600', nextEventBrief: 'Spanish GP • Madrid', url: '/championships/f1' },
-    { id: 'f2', shortName: 'F2', fullName: 'Formula 2', category: 'Feeder', badgeColor: '#0090d0', nextEventBrief: 'Monza Feature • Italy', url: '/championships/f2' },
+    { id: 'f1', shortName: 'F1', fullName: 'Formula 1', category: 'Open-Wheel', badgeColor: '#e10600', nextEventBrief: 'Azerbaijan GP • Baku', url: '/championships/f1' },
+    { id: 'f2', shortName: 'F2', fullName: 'Formula 2', category: 'Feeder', badgeColor: '#0090d0', nextEventBrief: 'Baku Feature • Azerbaijan', url: '/championships/f2' },
     { id: 'f3', shortName: 'F3', fullName: 'Formula 3', category: 'Feeder', badgeColor: '#e10600', nextEventBrief: 'Monza Finale • Italy', url: '/championships/f3' },
     { id: 'f4', shortName: 'F4', fullName: 'Formula 4', category: 'Junior', badgeColor: '#10b981', nextEventBrief: 'Misano Sprint • Italy', url: '/championships/f4' },
     { id: 'formula-e', shortName: 'FE', fullName: 'Formula E', category: 'Electric', badgeColor: '#00d2be', nextEventBrief: 'Monaco E-Prix • Monte Carlo', url: '/championships/formula-e' },
@@ -278,7 +278,7 @@ export const DEFAULT_HOME_SNAPSHOT: HomeSnapshot = {
     { id: 'indian-motorsport', shortName: 'INDIA 🇮🇳', fullName: 'Indian Motorsport', category: 'National', badgeColor: '#ff9933', nextEventBrief: 'IRF & F4 • Chennai Street', url: '/indian-motorsport' },
   ],
   racingNowOrNext: [
-    { championshipId: 'f1', championshipName: 'Formula 1', badge: 'F1', badgeColor: '#e10600', eventName: 'Spanish Grand Prix', circuit: 'Madring Circuit', location: 'Madrid, Spain', dates: 'Sep 11–13', statusTag: 'PREDICTIONS OPEN', url: '/championships/f1' },
+    { championshipId: 'f1', championshipName: 'Formula 1', badge: 'F1', badgeColor: '#e10600', eventName: 'Azerbaijan Grand Prix', circuit: 'Baku City Circuit', location: 'Baku, Azerbaijan', dates: 'Sep 18–20', statusTag: 'PREDICTIONS OPEN', url: '/championships/f1' },
     { championshipId: 'motogp', championshipName: 'MotoGP™', badge: 'MotoGP', badgeColor: '#dc2626', eventName: 'Grand Prix of India', circuit: 'Buddh International Circuit', location: 'Greater Noida, India', dates: 'Sep 25–27', statusTag: 'NEXT UP', url: '/championships/motogp' },
     { championshipId: 'wec', championshipName: 'FIA WEC', badge: 'WEC', badgeColor: '#002b49', eventName: '6 Hours of Fuji', circuit: 'Fuji International Speedway', location: 'Oyama, Japan', dates: 'Sep 13–15', statusTag: 'UPCOMING', url: '/championships/wec' },
     { championshipId: 'wrc', championshipName: 'WRC Rally', badge: 'WRC', badgeColor: '#ea580c', eventName: 'FORUM8 Rally Japan', circuit: 'Toyota Stadium & Asuke', location: 'Aichi & Gifu, Japan', dates: 'Nov 19–22', statusTag: 'UPCOMING', url: '/championships/wrc' },
@@ -385,13 +385,13 @@ export const DEFAULT_HOME_SNAPSHOT: HomeSnapshot = {
   featuredLearnTopics: DEFAULT_FEATURED_LEARN_TOPICS,
   discoverMoreItems: DEFAULT_DISCOVER_MORE,
   predictionHighlight: {
-    roundId: '2026-16-spain',
-    roundName: 'Spanish Grand Prix',
-    grandPrix: 'Madrid Street Circuit',
+    roundId: '2026_17_RACE_PREDICTION',
+    roundName: 'Azerbaijan Grand Prix',
+    grandPrix: 'Baku City Circuit',
     status: 'OPEN',
-    deadlineNotice: 'Predictions lock Saturday before Qualifying (16:00 CET)',
+    deadlineNotice: 'Predictions lock before Grand Prix start',
     totalPointsAvailable: 60,
-    url: '/predictions',
+    url: '/predict/2026_17_RACE_PREDICTION',
   },
 };
 
@@ -399,50 +399,88 @@ export async function getHomeSnapshot(): Promise<HomeSnapshot> {
   const snapshot: HomeSnapshot = { ...DEFAULT_HOME_SNAPSHOT };
 
   try {
-    // Check if prediction rounds are already in client cache
+    const { getSharedRaceContext } = await import('../schedule/raceContextService');
+    const raceContext = await getSharedRaceContext(2026);
+
+    if (raceContext && raceContext.currentWeekend) {
+      const w = raceContext.currentWeekend;
+      const circuitName = typeof w.circuit === 'object' && w.circuit ? w.circuit.name : String(w.circuit || 'Grand Prix Circuit');
+      const circuitKey = typeof w.circuit === 'object' && w.circuit ? (w.circuit.id || w.circuit.name) : String(w.circuit || 'circuit');
+      
+      const datesFormatted = w.startDate && w.endDate
+        ? `${new Date(w.startDate).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}–${new Date(w.endDate).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}`
+        : 'Sep 18–20';
+
+      snapshot.nextRace = {
+        roundNumber: w.roundNumber || w.round || 17,
+        officialTitle: w.name || w.raceName || 'Formula 1 Grand Prix',
+        grandPrixName: w.raceName || w.name || 'Azerbaijan Grand Prix',
+        circuitName,
+        city: (typeof w.circuit === 'object' && w.circuit && (w.circuit as any).locality) ? (w.circuit as any).locality : ((w.raceName || w.name || '').includes('Azerbaijan') ? 'Baku' : (w.country || 'Baku')),
+        country: w.country || 'Azerbaijan',
+        countryCode: 'AZ',
+        flag: w.flag || '🇦🇿',
+        dates: datesFormatted,
+        status: raceContext.status,
+        weekendType: w.weekendType === 'SPRINT' ? 'SPRINT' : 'STANDARD',
+        raceWeekendId: w.raceWeekendId,
+        circuitId: circuitKey,
+        sessions: (w.sessions || []).slice(0, 3).map(s => ({
+          name: s.name,
+          day: s.startTime ? new Date(s.startTime).toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase() : 'FRI',
+          time: s.startTime ? new Date(s.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '14:00',
+          isKeySession: s.type === 'RACE' || s.type === 'QUALIFYING',
+        })),
+      };
+
+      // Synchronize F1 category chip and radar event
+      snapshot.championshipChips[0].nextEventBrief = `${w.raceName || 'Azerbaijan GP'} • ${w.country || 'Baku'}`;
+      snapshot.racingNowOrNext[0] = {
+        championshipId: 'f1',
+        championshipName: 'Formula 1',
+        badge: 'F1',
+        badgeColor: '#e10600',
+        eventName: w.raceName || 'Azerbaijan Grand Prix',
+        circuit: circuitName,
+        location: `${w.country || 'Baku'}`,
+        dates: datesFormatted,
+        statusTag: raceContext.status === 'ACTIVE' ? 'RACE WEEKEND LIVE' : 'PREDICTIONS OPEN',
+        url: `/weekends/${w.raceWeekendId}`,
+      };
+
+      // Bind active prediction round
+      if (raceContext.activePredictionRound) {
+        const pr = raceContext.activePredictionRound;
+        snapshot.predictionHighlight = {
+          roundId: pr.roundId,
+          roundName: pr.title || `${w.raceName || 'Grand Prix'} Race Prediction`,
+          grandPrix: circuitName,
+          status: pr.status === 'OPEN' ? 'OPEN' : pr.status === 'LOCKED' ? 'LOCKED' : pr.status === 'SCORED' ? 'SCORED' : 'UPCOMING',
+          deadlineNotice: pr.closesAt ? `Predictions lock: ${new Date(pr.closesAt).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}` : 'Predictions lock before start',
+          totalPointsAvailable: 60,
+          url: pr.status === 'OPEN' ? `/predict/${pr.roundId}` : '/predictions',
+        };
+      }
+    }
+
+    // Check clientCache for active prediction round override (e.g. testing or explicit client cache)
     const cachedRounds = clientCache.get<PredictionRound[]>('f1_prediction_rounds_all');
     if (cachedRounds && cachedRounds.length > 0) {
-      const openRound = cachedRounds.find(r => r.status === 'OPEN');
-      if (openRound) {
+      const activeRound = cachedRounds.find(r => r.status === 'OPEN') || cachedRounds[0];
+      if (activeRound) {
         snapshot.predictionHighlight = {
-          roundId: openRound.roundId,
-          roundName: openRound.title || 'Next Prediction Round',
-          grandPrix: openRound.description || 'Grand Prix Weekend',
-          status: 'OPEN',
-          deadlineNotice: openRound.closesAt ? `Predictions lock: ${new Date(openRound.closesAt).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}` : 'Predictions lock before qualifying',
+          roundId: activeRound.roundId,
+          roundName: activeRound.title || 'Prediction Round',
+          grandPrix: activeRound.description || 'Grand Prix',
+          status: activeRound.status === 'OPEN' ? 'OPEN' : activeRound.status === 'LOCKED' ? 'LOCKED' : activeRound.status === 'SCORED' ? 'SCORED' : 'UPCOMING',
+          deadlineNotice: activeRound.status === 'OPEN' ? 'Predictions lock before Grand Prix' : 'Predictions are locked for this session',
           totalPointsAvailable: 60,
-          url: `/predict/${openRound.roundId}`,
+          url: activeRound.status === 'OPEN' ? `/predict/${activeRound.roundId}` : '/predictions',
         };
-      } else {
-        const upcomingRound = cachedRounds.find(r => r.status === 'UPCOMING');
-        if (upcomingRound) {
-          snapshot.predictionHighlight = {
-            roundId: upcomingRound.roundId,
-            roundName: upcomingRound.title || 'Upcoming Prediction Round',
-            grandPrix: upcomingRound.description || 'Grand Prix Weekend',
-            status: 'UPCOMING',
-            deadlineNotice: upcomingRound.opensAt ? `Opens: ${new Date(upcomingRound.opensAt).toLocaleDateString()}` : 'Opens soon',
-            totalPointsAvailable: 60,
-            url: `/predict/${upcomingRound.roundId}`,
-          };
-        } else {
-          const lockedRound = cachedRounds.find(r => r.status === 'LOCKED');
-          if (lockedRound) {
-            snapshot.predictionHighlight = {
-              roundId: lockedRound.roundId,
-              roundName: lockedRound.title || 'Locked Prediction Round',
-              grandPrix: lockedRound.description || 'Grand Prix Weekend',
-              status: 'LOCKED',
-              deadlineNotice: 'Predictions locked. Race weekend in progress.',
-              totalPointsAvailable: 60,
-              url: '/predictions',
-            };
-          }
-        }
       }
     }
   } catch (err) {
-    console.warn('Home snapshot reconciliation error:', err);
+    console.warn('Home snapshot dynamic reconciliation error:', err);
   }
 
   return snapshot;

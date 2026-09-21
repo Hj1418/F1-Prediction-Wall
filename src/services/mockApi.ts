@@ -193,6 +193,19 @@ export class MockApiService {
       throw new Error('A driver cannot be selected multiple times on the podium.');
     }
 
+    // Validate driver IDs against current 2026 eligible driver roster
+    const eligibleDriverIds = new Set(F1_DRIVERS_2026.map(d => d.id.toLowerCase()));
+    const driverFieldsToCheck = ['p1', 'p2', 'p3', 'fastestLap', 'driverOfTheDay'];
+    for (const field of driverFieldsToCheck) {
+      const selectedDriverId = payload.predictionData[field];
+      if (selectedDriverId) {
+        const cleanId = String(selectedDriverId).trim().toLowerCase();
+        if (!eligibleDriverIds.has(cleanId)) {
+          throw new Error(`Invalid driver selection: Driver "${selectedDriverId}" is not an eligible 2026 driver for this race weekend.`);
+        }
+      }
+    }
+
     const existingIndex = this.predictions.findIndex(
       p => p.userId === payload.userId && p.roundId === payload.roundId
     );
@@ -316,25 +329,50 @@ export class MockApiService {
       return entries.map((item, idx) => ({ ...item, rank: idx + 1 }));
     }
 
-    // Default: Season Leaderboard
-    const sorted = [...this.users].sort((a, b) => b.totalPoints - a.totalPoints);
-    return sorted.map((u, idx) => {
-      const currentRank = idx + 1;
-      const rankChange = (u.previousRank || currentRank) - currentRank;
+    // Default: Season Leaderboard - Aggregated directly from authoritative scores (excluding isolated test rounds)
+    const userSeasonScores: Record<string, { total: number; roundScores: Record<string, number>; exactP1: number; perfectPodium: number }> = {};
+    this.scores.filter(s => !s.roundId.startsWith('TEST_')).forEach(s => {
+      if (!userSeasonScores[s.userId]) {
+        userSeasonScores[s.userId] = { total: 0, roundScores: {}, exactP1: 0, perfectPodium: 0 };
+      }
+      userSeasonScores[s.userId].total += s.totalScore;
+      userSeasonScores[s.userId].roundScores[s.roundId] = s.totalScore;
+      if (s.breakdown.p1 === 15) userSeasonScores[s.userId].exactP1++;
+      if ((s.breakdown.perfectPodiumBonus || 0) > 0) userSeasonScores[s.userId].perfectPodium++;
+    });
+
+    const entries: LeaderboardEntry[] = this.users.map(u => {
+      const scoreData = userSeasonScores[u.userId];
+      const totalPoints = scoreData ? scoreData.total : u.totalPoints;
+      const racesParticipated = scoreData ? Object.keys(scoreData.roundScores).length : (u.racesParticipated || 0);
+      const exactP1Count = scoreData ? scoreData.exactP1 : (u.exactP1Count || 0);
+      const perfectPodiumCount = scoreData ? scoreData.perfectPodium : (u.perfectPodiumCount || 0);
+
       return {
-        rank: currentRank,
-        previousRank: u.previousRank || currentRank,
-        rankChange,
+        rank: 0,
+        previousRank: u.previousRank || 1,
+        rankChange: 0,
         userId: u.userId,
         username: u.username,
         displayName: u.displayName,
         avatarUrl: u.avatarUrl,
         favouriteDriver: u.favouriteDriver,
-        totalPoints: u.totalPoints,
-        racesParticipated: u.racesParticipated || 2,
-        avgPointsPerRace: Math.round((u.totalPoints / (u.racesParticipated || 1)) * 10) / 10,
-        exactP1Count: u.exactP1Count || 0,
-        perfectPodiumCount: u.perfectPodiumCount || 0,
+        totalPoints,
+        racesParticipated,
+        avgPointsPerRace: racesParticipated > 0 ? Math.round((totalPoints / racesParticipated) * 10) / 10 : 0,
+        exactP1Count,
+        perfectPodiumCount,
+      };
+    });
+
+    entries.sort((a, b) => b.totalPoints - a.totalPoints);
+    return entries.map((item, idx) => {
+      const currentRank = idx + 1;
+      const rankChange = item.previousRank - currentRank;
+      return {
+        ...item,
+        rank: currentRank,
+        rankChange,
       };
     });
   }

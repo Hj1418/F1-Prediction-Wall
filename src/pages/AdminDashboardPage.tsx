@@ -29,15 +29,20 @@ import {
   ArrowDownRight,
   ArrowUpRight,
   Users,
+  Flag,
+  Mail,
+  Play,
+  Trophy,
 } from 'lucide-react';
 import { raceWeekendApi } from '../api/raceWeekendApi';
 import { SyncLog } from '../types';
+import { testGrandPrixService, TEST_DRIVERS, TEST_GP_ID } from '../services/testGrandPrix/testGrandPrixService';
 
 export const AdminDashboardPage: React.FC = () => {
   const { currentUser, isAdmin, isAuthenticated, allUsers, openLoginModal } = useAuth();
   const { showToast, triggerDataRefresh } = useApp();
 
-  const [activeTab, setActiveTab] = useState<'sync' | 'results' | 'weekends' | 'rounds' | 'users'>('sync');
+  const [activeTab, setActiveTab] = useState<'sync' | 'results' | 'weekends' | 'rounds' | 'users' | 'testgp'>('sync');
   const [weekends, setWeekends] = useState<RaceWeekend[]>([]);
   const [rounds, setRounds] = useState<PredictionRound[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
@@ -60,6 +65,184 @@ export const AdminDashboardPage: React.FC = () => {
       setUsersError(err.message || 'Failed to retrieve registered users directory.');
     } finally {
       setLoadingUsers(false);
+    }
+  };
+
+  // Test Grand Prix State & Handlers
+  const [testGpState, setTestGpState] = useState(testGrandPrixService.getState());
+  const [testResultP1, setTestResultP1] = useState('test-alpha');
+  const [testResultP2, setTestResultP2] = useState('test-bravo');
+  const [testResultP3, setTestResultP3] = useState('test-charlie');
+  const [testResultFastestLap, setTestResultFastestLap] = useState('test-alpha');
+  const [testUserPickP1, setTestUserPickP1] = useState('test-alpha');
+  const [testUserPickP2, setTestUserPickP2] = useState('test-bravo');
+  const [testUserPickP3, setTestUserPickP3] = useState('test-charlie');
+  const [testUserPickFastestLap, setTestUserPickFastestLap] = useState('test-alpha');
+
+  const refreshTestGp = () => {
+    setTestGpState(testGrandPrixService.getState());
+  };
+
+  const handleCreateTestGp = () => {
+    try {
+      testGrandPrixService.createTestGrandPrix(isAdmin);
+      refreshTestGp();
+      showToast('End-to-End Test Grand Prix initialized successfully.', 'success');
+    } catch (err: any) {
+      showToast(err.message || 'Failed to create Test GP', 'error');
+    }
+  };
+
+  const handleOpenTestPrediction = () => {
+    try {
+      const registered = adminUsers.map(u => ({ userId: u.userId, email: u.email || `${u.userId}@thegrid.test`, name: u.displayName || u.username }));
+      testGrandPrixService.openTestPrediction(isAdmin, registered);
+      refreshTestGp();
+      showToast('Test Grand Prix prediction opened and open-emails queued.', 'success');
+    } catch (err: any) {
+      showToast(err.message || 'Failed to open Test GP prediction', 'error');
+    }
+  };
+
+  const handleSubmitUserTestPrediction = () => {
+    try {
+      const uid = currentUser?.userId || 'test_user_alpha';
+      const name = currentUser?.displayName || 'Test Racer Alpha';
+      const email = currentUser?.email || 'racer@thegrid.test';
+      testGrandPrixService.submitTestPrediction(uid, name, email, {
+        p1: testUserPickP1,
+        p2: testUserPickP2,
+        p3: testUserPickP3,
+        fastestLap: testUserPickFastestLap,
+      });
+      refreshTestGp();
+      showToast('Test prediction locked & confirmation email queued.', 'success');
+    } catch (err: any) {
+      showToast(err.message || 'Failed to submit test prediction', 'error');
+    }
+  };
+
+  const handleEnterTestResult = (isAmended = false) => {
+    try {
+      testGrandPrixService.enterTestResult(isAdmin, {
+        p1: testResultP1,
+        p2: testResultP2,
+        p3: testResultP3,
+        fastestLap: testResultFastestLap,
+      }, isAmended);
+      refreshTestGp();
+      showToast(`Test result ${isAmended ? 'amended' : 'entered'} successfully.`, 'success');
+    } catch (err: any) {
+      showToast(err.message || 'Failed to enter test result', 'error');
+    }
+  };
+
+  const handleRunTestScoring = () => {
+    try {
+      testGrandPrixService.runTestScoring(isAdmin);
+      refreshTestGp();
+      showToast('Test scoring engine executed. Scores & notifications updated.', 'success');
+    } catch (err: any) {
+      showToast(err.message || 'Failed to run test scoring', 'error');
+    }
+  };
+
+  const [isProcessingEmails, setIsProcessingEmails] = useState(false);
+
+  const handleProcessEmailQueue = async () => {
+    try {
+      setIsProcessingEmails(true);
+      // 1. Process the in-memory/test queue first
+      const pendingNotes = testGpState.notifications.filter(n => n.status !== 'SENT');
+      const res = testGrandPrixService.processNotificationQueue();
+      refreshTestGp();
+
+      // 2. If there are notifications addressed to real email addresses (e.g. gmail.com), dispatch them via live backend!
+      let liveSent = 0;
+      let liveFailed = 0;
+
+      for (const note of pendingNotes) {
+        // Check if recipient is a real email (not @thegrid.test or @example.com)
+        const isRealEmail = note.recipientEmail &&
+          !note.recipientEmail.endsWith('@thegrid.test') &&
+          !note.recipientEmail.endsWith('@example.com') &&
+          note.recipientEmail.includes('@');
+
+        if (isRealEmail) {
+          let emailBody = `Hi ${note.recipientName || 'Racer'},\n\n`;
+          if (note.notificationType === 'PREDICTION_OPEN') {
+            emailBody += `Predictions are now officially OPEN for ${note.templateData?.raceName || 'The Grid Test Grand Prix'}!\n\n` +
+              `Head over to The Grid to make your predictions:\n` +
+              `https://hj1418.github.io/F1-Prediction-Wall/#/predictions\n\n` +
+              `Warm regards,\nThe Grid Race Control`;
+          } else if (note.notificationType === 'PREDICTION_CONFIRMATION') {
+            emailBody += `Your predictions for ${note.templateData?.raceName || 'The Grid Test Grand Prix'} have been locked in!\n\n`;
+            if (note.templateData?.predictionData) {
+              const p = note.templateData.predictionData;
+              emailBody += `Your Selections:\n` +
+                `• P1 Winner: ${String(p.p1).toUpperCase()}\n` +
+                `• P2 Runner-up: ${String(p.p2).toUpperCase()}\n` +
+                `• P3 Third Place: ${String(p.p3).toUpperCase()}\n` +
+                `• Fastest Lap: ${String(p.fastestLap).toUpperCase()}\n\n`;
+            }
+            emailBody += `Locked at: ${note.templateData?.lockedAt || new Date().toLocaleString()}\n` +
+              `Warm regards,\nThe Grid Race Control`;
+          } else if (note.notificationType === 'PREDICTION_RESULT') {
+            emailBody += `Official results and scores are in for ${note.templateData?.raceName || 'The Grid Test Grand Prix'}!\n\n` +
+              `Your Total Score: ${note.templateData?.totalScore || 0} PTS\n\n`;
+            if (note.templateData?.breakdown) {
+              emailBody += `Score Breakdown:\n`;
+              for (const [k, v] of Object.entries(note.templateData.breakdown)) {
+                emailBody += `• ${k}: +${v} pts\n`;
+              }
+              emailBody += '\n';
+            }
+            emailBody += `Check your rank on the leaderboard:\nhttps://hj1418.github.io/F1-Prediction-Wall/#/leaderboard\n\n` +
+              `Warm regards,\nThe Grid Race Control`;
+          }
+
+          try {
+            const dispatchRes = await api.sendDirectEmail({
+              to: note.recipientEmail,
+              subject: note.subject,
+              body: emailBody,
+              name: 'The Grid Race Control',
+            });
+            if (dispatchRes.success) {
+              liveSent++;
+            } else {
+              liveFailed++;
+              console.warn(`Failed to dispatch real email to ${note.recipientEmail}:`, dispatchRes.error);
+            }
+          } catch (liveErr) {
+            liveFailed++;
+            console.error(`Live dispatch error for ${note.recipientEmail}:`, liveErr);
+          }
+        }
+      }
+
+      if (liveSent > 0) {
+        showToast(`Delivered ${res.sent} queue items (${liveSent} real emails dispatched to inbox via Google Apps Script).`, 'success');
+      } else {
+        showToast(`Notification worker finished: ${res.sent} sent, ${res.failed} failed.`, 'success');
+      }
+    } catch (err: any) {
+      showToast(err.message || 'Failed to process notification queue', 'error');
+    } finally {
+      setIsProcessingEmails(false);
+    }
+  };
+
+  const handleResetTestGp = () => {
+    if (!window.confirm('Reset the Test Grand Prix? Only test data will be deleted; production remains untouched.')) {
+      return;
+    }
+    try {
+      testGrandPrixService.resetTestGrandPrix(isAdmin);
+      refreshTestGp();
+      showToast('Test Grand Prix has been completely reset.', 'info');
+    } catch (err: any) {
+      showToast(err.message || 'Failed to reset test Grand Prix', 'error');
     }
   };
 
@@ -374,6 +557,18 @@ export const AdminDashboardPage: React.FC = () => {
           }}
         >
           <Users size={14} /> Users
+        </button>
+
+        <button
+          onClick={() => setActiveTab('testgp')}
+          className="btn btn-sm"
+          style={{
+            background: activeTab === 'testgp' ? 'var(--f1-red)' : 'transparent',
+            color: activeTab === 'testgp' ? '#fff' : 'var(--text-secondary)',
+            border: 'none',
+          }}
+        >
+          <Flag size={14} /> 🏁 End-to-End Test Grand Prix
         </button>
       </div>
 
@@ -1182,6 +1377,427 @@ export const AdminDashboardPage: React.FC = () => {
               </table>
             </div>
           )}
+        </div>
+      )}
+
+      {/* TAB 6: END-TO-END TEST GRAND PRIX */}
+      {activeTab === 'testgp' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+          {/* Header Card */}
+          <div className="race-card" style={{ padding: '1.75rem' }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', marginBottom: '1.25rem' }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <span style={{ fontSize: '0.72rem', fontWeight: 800, color: 'var(--telemetry-cyan)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+                    ISOLATED TEST HARNESS • ENVIRONMENT = TEST
+                  </span>
+                  <span style={{ background: 'rgba(0, 210, 255, 0.15)', color: 'var(--telemetry-cyan)', padding: '0.15rem 0.5rem', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 800 }}>
+                    {TEST_GP_ID}
+                  </span>
+                </div>
+                <h2 style={{ fontSize: '1.5rem', fontWeight: 900, textTransform: 'uppercase', marginTop: '0.2rem' }}>
+                  The Grid Test Grand Prix
+                </h2>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', margin: 0, maxWidth: '750px' }}>
+                  A strictly sandboxed environment to verify the entire Prediction Bench lifecycle: 
+                  <strong> Race Setup → Prediction Open → Lock → Submission Email → Official Result → Scoring → Leaderboard → Result Email → Reset</strong>.
+                  Zero pollution into production leaderboards or active calendars.
+                </p>
+              </div>
+
+              <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
+                <button onClick={handleResetTestGp} className="btn btn-outline btn-sm" style={{ color: '#f87171', borderColor: 'rgba(248, 113, 113, 0.4)' }}>
+                  <RotateCcw size={14} /> RESET TEST GRAND PRIX
+                </button>
+              </div>
+            </div>
+
+            {/* Quick Status Bar */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '1rem', background: 'var(--bg-input)', padding: '1rem', borderRadius: '8px' }}>
+              <div>
+                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>Race Status</div>
+                <div style={{ fontSize: '0.95rem', fontWeight: 800, color: testGpState.weekend ? 'var(--telemetry-green)' : 'var(--text-muted)' }}>
+                  {testGpState.weekend ? 'INITIALIZED' : 'NOT CREATED'}
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>Prediction Round</div>
+                <div style={{ fontSize: '0.95rem', fontWeight: 800, color: testGpState.round?.status === 'OPEN' ? 'var(--telemetry-green)' : '#fff' }}>
+                  {testGpState.round ? testGpState.round.status : 'NONE'}
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>Official Result</div>
+                <div style={{ fontSize: '0.95rem', fontWeight: 800, color: testGpState.officialResult ? 'var(--telemetry-purple)' : 'var(--text-muted)' }}>
+                  {testGpState.officialResult ? testGpState.officialResult.status : 'PENDING'}
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>Locked Predictions</div>
+                <div style={{ fontSize: '0.95rem', fontWeight: 800, color: '#fff', fontFamily: 'var(--font-mono)' }}>
+                  {Object.keys(testGpState.predictions).length}
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>Queued / Sent Emails</div>
+                <div style={{ fontSize: '0.95rem', fontWeight: 800, color: '#fff', fontFamily: 'var(--font-mono)' }}>
+                  {testGpState.notifications.length} / {testGpState.notificationLog.length}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Section 1: Lifecycle Controls */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.5rem' }}>
+            {/* Step 1 & 2: Race & Prediction Controls */}
+            <div className="race-card" style={{ padding: '1.5rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
+                <Calendar size={18} color="var(--f1-red)" />
+                <h3 style={{ fontSize: '1.1rem', fontWeight: 900, textTransform: 'uppercase', margin: 0 }}>
+                  1. Setup & Prediction Opening
+                </h3>
+              </div>
+              <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: '1.25rem' }}>
+                Create the isolated test weekend and open prediction window for test drivers.
+              </p>
+              <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                <button
+                  onClick={handleCreateTestGp}
+                  disabled={Boolean(testGpState.weekend)}
+                  className="btn btn-primary btn-sm"
+                  style={{ opacity: testGpState.weekend ? 0.6 : 1 }}
+                >
+                  <PlusCircle size={14} /> CREATE TEST GRAND PRIX
+                </button>
+                <button
+                  onClick={handleOpenTestPrediction}
+                  disabled={!testGpState.weekend || testGpState.round?.status === 'OPEN'}
+                  className="btn btn-secondary btn-sm"
+                  style={{ opacity: !testGpState.weekend || testGpState.round?.status === 'OPEN' ? 0.6 : 1 }}
+                >
+                  <Play size={14} /> OPEN TEST PREDICTION
+                </button>
+              </div>
+            </div>
+
+            {/* Step 3: Simulate User Prediction Submission */}
+            <div className="race-card" style={{ padding: '1.5rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
+                <CheckCircle2 size={18} color="var(--telemetry-green)" />
+                <h3 style={{ fontSize: '1.1rem', fontWeight: 900, textTransform: 'uppercase', margin: 0 }}>
+                  2. User Prediction & Lock
+                </h3>
+              </div>
+              <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: '0.75rem' }}>
+                Pick test drivers, review selections, and lock prediction:
+              </p>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginBottom: '1rem' }}>
+                <div>
+                  <label style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 700 }}>P1 WINNER</label>
+                  <select
+                    value={testUserPickP1}
+                    onChange={e => setTestUserPickP1(e.target.value)}
+                    className="form-input"
+                    style={{ fontSize: '0.8rem', padding: '0.35rem 0.6rem' }}
+                  >
+                    {TEST_DRIVERS.map(d => (
+                      <option key={d.id} value={d.id}>{d.firstName} {d.lastName}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 700 }}>P2 RUNNER-UP</label>
+                  <select
+                    value={testUserPickP2}
+                    onChange={e => setTestUserPickP2(e.target.value)}
+                    className="form-input"
+                    style={{ fontSize: '0.8rem', padding: '0.35rem 0.6rem' }}
+                  >
+                    {TEST_DRIVERS.map(d => (
+                      <option key={d.id} value={d.id}>{d.firstName} {d.lastName}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 700 }}>P3 THIRD</label>
+                  <select
+                    value={testUserPickP3}
+                    onChange={e => setTestUserPickP3(e.target.value)}
+                    className="form-input"
+                    style={{ fontSize: '0.8rem', padding: '0.35rem 0.6rem' }}
+                  >
+                    {TEST_DRIVERS.map(d => (
+                      <option key={d.id} value={d.id}>{d.firstName} {d.lastName}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 700 }}>FASTEST LAP</label>
+                  <select
+                    value={testUserPickFastestLap}
+                    onChange={e => setTestUserPickFastestLap(e.target.value)}
+                    className="form-input"
+                    style={{ fontSize: '0.8rem', padding: '0.35rem 0.6rem' }}
+                  >
+                    {TEST_DRIVERS.map(d => (
+                      <option key={d.id} value={d.id}>{d.firstName} {d.lastName}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <button
+                onClick={handleSubmitUserTestPrediction}
+                disabled={testGpState.round?.status !== 'OPEN'}
+                className="btn btn-primary btn-sm"
+                style={{ width: '100%' }}
+              >
+                🔒 LOCK TEST PREDICTION
+              </button>
+            </div>
+          </div>
+
+          {/* Section 2: Results & Scoring */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.5rem' }}>
+            {/* Enter Official Test Result */}
+            <div className="race-card" style={{ padding: '1.5rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
+                <Award size={18} color="var(--telemetry-purple)" />
+                <h3 style={{ fontSize: '1.1rem', fontWeight: 900, textTransform: 'uppercase', margin: 0 }}>
+                  3. Enter Controlled Result
+                </h3>
+              </div>
+              <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: '0.75rem' }}>
+                Enter race finish positions to test scoring scenarios (perfect, partial, or amended):
+              </p>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginBottom: '1rem' }}>
+                <div>
+                  <label style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 700 }}>ACTUAL P1</label>
+                  <select
+                    value={testResultP1}
+                    onChange={e => setTestResultP1(e.target.value)}
+                    className="form-input"
+                    style={{ fontSize: '0.8rem', padding: '0.35rem 0.6rem' }}
+                  >
+                    {TEST_DRIVERS.map(d => (
+                      <option key={d.id} value={d.id}>{d.firstName} {d.lastName}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 700 }}>ACTUAL P2</label>
+                  <select
+                    value={testResultP2}
+                    onChange={e => setTestResultP2(e.target.value)}
+                    className="form-input"
+                    style={{ fontSize: '0.8rem', padding: '0.35rem 0.6rem' }}
+                  >
+                    {TEST_DRIVERS.map(d => (
+                      <option key={d.id} value={d.id}>{d.firstName} {d.lastName}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 700 }}>ACTUAL P3</label>
+                  <select
+                    value={testResultP3}
+                    onChange={e => setTestResultP3(e.target.value)}
+                    className="form-input"
+                    style={{ fontSize: '0.8rem', padding: '0.35rem 0.6rem' }}
+                  >
+                    {TEST_DRIVERS.map(d => (
+                      <option key={d.id} value={d.id}>{d.firstName} {d.lastName}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 700 }}>ACTUAL FASTEST LAP</label>
+                  <select
+                    value={testResultFastestLap}
+                    onChange={e => setTestResultFastestLap(e.target.value)}
+                    className="form-input"
+                    style={{ fontSize: '0.8rem', padding: '0.35rem 0.6rem' }}
+                  >
+                    {TEST_DRIVERS.map(d => (
+                      <option key={d.id} value={d.id}>{d.firstName} {d.lastName}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <button
+                  onClick={() => handleEnterTestResult(false)}
+                  disabled={!testGpState.round}
+                  className="btn btn-secondary btn-sm"
+                  style={{ flex: 1 }}
+                >
+                  ENTER TEST RESULT
+                </button>
+                <button
+                  onClick={() => handleEnterTestResult(true)}
+                  disabled={!testGpState.officialResult}
+                  className="btn btn-outline btn-sm"
+                  style={{ flex: 1 }}
+                >
+                  AMEND RESULT
+                </button>
+              </div>
+            </div>
+
+            {/* Run Scoring Engine */}
+            <div className="race-card" style={{ padding: '1.5rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
+                <Sparkles size={18} color="var(--telemetry-yellow)" />
+                <h3 style={{ fontSize: '1.1rem', fontWeight: 900, textTransform: 'uppercase', margin: 0 }}>
+                  4. Scoring & Leaderboard
+                </h3>
+              </div>
+              <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
+                Run scoring using the production scoring rules. Scoring is idempotent (running twice does not double points).
+              </p>
+              <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
+                <button
+                  onClick={handleRunTestScoring}
+                  disabled={!testGpState.officialResult}
+                  className="btn btn-primary btn-sm"
+                  style={{ flex: 1 }}
+                >
+                  RUN TEST SCORING
+                </button>
+                <button
+                  onClick={handleProcessEmailQueue}
+                  disabled={isProcessingEmails}
+                  className="btn btn-secondary btn-sm"
+                  style={{ flex: 1 }}
+                >
+                  <Mail size={14} /> {isProcessingEmails ? 'SENDING LIVE EMAILS...' : 'PROCESS EMAIL WORKER'}
+                </button>
+              </div>
+              {Object.keys(testGpState.scores).length > 0 && (
+                <div style={{ background: 'var(--bg-input)', padding: '0.75rem', borderRadius: '6px', fontSize: '0.8rem' }}>
+                  <div style={{ fontWeight: 800, color: 'var(--telemetry-green)' }}>
+                    Authoritative Scores Calculated:
+                  </div>
+                  {Object.entries(testGpState.scores).map(([uid, sc]) => (
+                    <div key={uid} style={{ display: 'flex', justifyContent: 'space-between', marginTop: '0.25rem' }}>
+                      <span>User: {uid}</span>
+                      <strong style={{ color: '#fff' }}>{sc.totalScore} PTS</strong>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Section 3: Isolated Notification Queue Inspector */}
+          <div className="race-card" style={{ padding: '1.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Mail size={18} color="var(--telemetry-cyan)" />
+                <h3 style={{ fontSize: '1.1rem', fontWeight: 900, textTransform: 'uppercase', margin: 0 }}>
+                  Test Email Pipeline & Idempotency Queue
+                </h3>
+              </div>
+              <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                {testGpState.notifications.length} Items Enqueued • {testGpState.notificationLog.length} Delivered
+              </span>
+            </div>
+
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
+                <thead>
+                  <tr style={{ borderBottom: '1px solid var(--border-subtle)', textAlign: 'left', color: 'var(--text-muted)' }}>
+                    <th style={{ padding: '0.6rem 0.5rem' }}>TYPE</th>
+                    <th style={{ padding: '0.6rem 0.5rem' }}>RECIPIENT</th>
+                    <th style={{ padding: '0.6rem 0.5rem' }}>SUBJECT</th>
+                    <th style={{ padding: '0.6rem 0.5rem' }}>IDEMPOTENCY KEY</th>
+                    <th style={{ padding: '0.6rem 0.5rem' }}>STATUS</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {testGpState.notifications.map(n => (
+                    <tr key={n.id} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                      <td style={{ padding: '0.6rem 0.5rem', fontWeight: 800, color: 'var(--telemetry-cyan)', fontFamily: 'var(--font-mono)' }}>
+                        {n.notificationType}
+                      </td>
+                      <td style={{ padding: '0.6rem 0.5rem' }}>{n.recipientEmail}</td>
+                      <td style={{ padding: '0.6rem 0.5rem' }}>{n.subject}</td>
+                      <td style={{ padding: '0.6rem 0.5rem', fontFamily: 'var(--font-mono)', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                        {n.idempotencyKey}
+                      </td>
+                      <td style={{ padding: '0.6rem 0.5rem' }}>
+                        <span style={{
+                          padding: '0.15rem 0.45rem',
+                          borderRadius: '4px',
+                          fontWeight: 800,
+                          fontSize: '0.68rem',
+                          background: n.status === 'SENT' ? 'rgba(0, 230, 118, 0.15)' : 'rgba(255, 184, 0, 0.15)',
+                          color: n.status === 'SENT' ? 'var(--telemetry-green)' : 'var(--telemetry-yellow)',
+                        }}>
+                          {n.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                  {testGpState.notifications.length === 0 && (
+                    <tr>
+                      <td colSpan={5} style={{ padding: '1.5rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                        No test emails queued. Run steps above to trigger notifications.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Section 4: Isolated Test Leaderboard */}
+          <div className="race-card" style={{ padding: '1.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Trophy size={18} color="var(--telemetry-yellow)" />
+                <h3 style={{ fontSize: '1.1rem', fontWeight: 900, textTransform: 'uppercase', margin: 0 }}>
+                  Isolated Test Leaderboard
+                </h3>
+              </div>
+              <span style={{ fontSize: '0.72rem', color: 'var(--telemetry-green)', fontWeight: 800 }}>
+                100% ISOLATED FROM PRODUCTION
+              </span>
+            </div>
+
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
+                <thead>
+                  <tr style={{ borderBottom: '1px solid var(--border-subtle)', textAlign: 'left', color: 'var(--text-muted)' }}>
+                    <th style={{ padding: '0.6rem' }}>RANK</th>
+                    <th style={{ padding: '0.6rem' }}>USER</th>
+                    <th style={{ padding: '0.6rem', textAlign: 'right' }}>POINTS</th>
+                    <th style={{ padding: '0.6rem', textAlign: 'center' }}>EXACT P1</th>
+                    <th style={{ padding: '0.6rem', textAlign: 'center' }}>PERFECT PODIUM</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {testGpState.leaderboard.map(e => (
+                    <tr key={e.userId} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                      <td style={{ padding: '0.6rem', fontWeight: 900, fontFamily: 'var(--font-mono)' }}>#{e.rank}</td>
+                      <td style={{ padding: '0.6rem', fontWeight: 700 }}>{e.displayName}</td>
+                      <td style={{ padding: '0.6rem', textAlign: 'right', fontWeight: 900, color: 'var(--telemetry-green)', fontFamily: 'var(--font-mono)' }}>
+                        {e.totalPoints} PTS
+                      </td>
+                      <td style={{ padding: '0.6rem', textAlign: 'center' }}>{e.exactP1Count}</td>
+                      <td style={{ padding: '0.6rem', textAlign: 'center' }}>{e.perfectPodiumCount ? '🏆 YES' : '—'}</td>
+                    </tr>
+                  ))}
+                  {testGpState.leaderboard.length === 0 && (
+                    <tr>
+                      <td colSpan={5} style={{ padding: '1.5rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                        Test leaderboard empty. Submit test predictions and run test scoring.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
       )}
     </div>

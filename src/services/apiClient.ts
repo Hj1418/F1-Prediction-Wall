@@ -42,6 +42,7 @@ import { f2Data } from './motorsport/data/f2Data';
 import { f3Data } from './motorsport/data/f3Data';
 import { wecData } from './motorsport/data/wecData';
 import { motogpData } from './motorsport/data/motogpData';
+import { testGrandPrixService } from './testGrandPrix/testGrandPrixService';
 
 const isTestEnv = typeof window === 'undefined';
 
@@ -73,10 +74,26 @@ function hydratePredictionRound(round: PredictionRound): PredictionRound {
 export const api = {
   isLive: isLiveBackend,
 
-  async getDrivers(): Promise<Driver[]> {
-    return clientCache.getOrFetch('f1_drivers_list', () => mockApi.getDrivers(), {
+  async getDrivers(season: number = 2026): Promise<Driver[]> {
+    return clientCache.getOrFetch(`f1_drivers_${season}`, () => mockApi.getDrivers(), {
       ttlMs: TTL.LONG,
     });
+  },
+
+  async getEligibleDrivers(raceWeekendId?: string, season: number = 2026): Promise<Driver[]> {
+    if (raceWeekendId) {
+      try {
+        const testState = testGrandPrixService.getState();
+        if (testState.weekend && (testState.weekend.raceWeekendId === raceWeekendId || testState.weekend.id === raceWeekendId)) {
+          return testGrandPrixService.getTestDrivers();
+        }
+      } catch (_e) {}
+    }
+    if (!raceWeekendId) {
+      return this.getDrivers(season);
+    }
+    const { getEligibleDriversForRace } = await import('./motorsport/raceEntryService');
+    return getEligibleDriversForRace(raceWeekendId, season);
   },
 
   async getConstructors(): Promise<Constructor[]> {
@@ -118,6 +135,13 @@ export const api = {
   },
 
   async getWeekendById(id: string): Promise<RaceWeekend | null> {
+    try {
+      const testState = testGrandPrixService.getState();
+      if (testState.weekend && (testState.weekend.raceWeekendId === id || testState.weekend.id === id)) {
+        return testState.weekend;
+      }
+    } catch (_e) {}
+
     // 1. Check if season weekends are already in memory cache
     const cachedSeason = clientCache.get<RaceWeekend[]>('f1_weekends_2026');
     if (cachedSeason) {
@@ -153,6 +177,15 @@ export const api = {
   },
 
   async getPredictionRounds(raceWeekendId?: string, forceRefresh: boolean = false): Promise<PredictionRound[]> {
+    if (raceWeekendId) {
+      try {
+        const testState = testGrandPrixService.getState();
+        if (testState.weekend && (testState.weekend.raceWeekendId === raceWeekendId || testState.weekend.id === raceWeekendId)) {
+          return testState.round ? [testState.round] : [];
+        }
+      } catch (_e) {}
+    }
+
     // 1. If requesting for a specific raceWeekendId, check if all rounds are already cached
     if (raceWeekendId && !forceRefresh) {
       const cachedAll = clientCache.get<PredictionRound[]>('f1_prediction_rounds_all');
@@ -193,6 +226,13 @@ export const api = {
   },
 
   async getPredictionRoundById(roundId: string): Promise<PredictionRound | null> {
+    try {
+      const testState = testGrandPrixService.getState();
+      if (testState.round && (testState.round.roundId === roundId || testState.round.id === roundId)) {
+        return testState.round;
+      }
+    } catch (_e) {}
+
     // Check if season rounds are in cache or in flight
     const cachedAll = clientCache.get<PredictionRound[]>('f1_prediction_rounds_all');
     if (cachedAll) {
@@ -224,6 +264,13 @@ export const api = {
   },
 
   async getUserPrediction(roundId: string, userId: string): Promise<Prediction | null> {
+    try {
+      const testState = testGrandPrixService.getState();
+      if (testState.round && (testState.round.roundId === roundId || testState.round.id === roundId)) {
+        return testGrandPrixService.getTestPrediction(userId);
+      }
+    } catch (_e) {}
+
     if (isLiveBackend) {
       try {
         const res = await fetch(`${API_BASE_URL}?action=getUserPrediction&roundId=${encodeURIComponent(roundId)}&userId=${encodeURIComponent(userId)}`);
@@ -237,6 +284,16 @@ export const api = {
   },
 
   async getUserWeekendPredictions(userId: string, raceWeekendId?: string): Promise<Record<string, Prediction>> {
+    if (raceWeekendId) {
+      try {
+        const testState = testGrandPrixService.getState();
+        if (testState.weekend && (testState.weekend.raceWeekendId === raceWeekendId || testState.weekend.id === raceWeekendId)) {
+          const p = testGrandPrixService.getTestPrediction(userId);
+          return p ? { [p.roundId]: p } : {};
+        }
+      } catch (_e) {}
+    }
+
     if (isLiveBackend) {
       try {
         const url = `${API_BASE_URL}?action=getUserWeekendPredictions&userId=${encodeURIComponent(userId)}${raceWeekendId ? `&raceWeekendId=${encodeURIComponent(raceWeekendId)}` : ''}`;
@@ -263,7 +320,28 @@ export const api = {
     userId: string;
     roundId: string;
     predictionData: Record<string, any>;
+    email?: string;
+    displayName?: string;
   }): Promise<Prediction> {
+    try {
+      const testState = testGrandPrixService.getState();
+      if (testState.round && (testState.round.roundId === payload.roundId || testState.round.id === payload.roundId)) {
+        const saved = testGrandPrixService.submitTestPrediction(
+          payload.userId,
+          payload.displayName || 'Test Racer',
+          payload.email || `${payload.userId}@thegrid.test`,
+          payload.predictionData
+        );
+        clientCache.clearPrefix('f1_prediction_rounds_');
+        clientCache.clearPrefix('user_predictions_');
+        return saved;
+      }
+    } catch (e: any) {
+      if (e.message && (e.message.includes('test') || e.message.includes('Test'))) {
+        throw e;
+      }
+    }
+
     if (!isLiveBackend && isProd) {
       throw new Error('Live database connection is required for predictions.');
     }
@@ -289,13 +367,22 @@ export const api = {
       }
     }
 
-    // Invalidate prediction round caches so fresh status is immediately reflected
+    // Invalidate prediction round and race context caches so fresh status is immediately reflected
     clientCache.clearPrefix('f1_prediction_rounds_');
     clientCache.clearPrefix('user_predictions_');
+    clientCache.clearPrefix('shared_race_context_');
     return saved;
   },
 
   async getOfficialResult(roundId: string): Promise<SessionResult | null> {
+    try {
+      const testState = testGrandPrixService.getState();
+      if (testState.round && (testState.round.roundId === roundId || testState.round.id === roundId)) {
+        const res = testState.officialResult;
+        return res ? ({ ...res, publishedAt: res.enteredAt } as any) : null;
+      }
+    } catch (_e) {}
+
     if (isLiveBackend) {
       try {
         const res = await fetch(`${API_BASE_URL}?action=getRoundResults&roundId=${encodeURIComponent(roundId)}`);
@@ -309,6 +396,13 @@ export const api = {
   },
 
   async getRoundScore(roundId: string, userId: string): Promise<RoundScore | null> {
+    try {
+      const testState = testGrandPrixService.getState();
+      if (testState.round && (testState.round.roundId === roundId || testState.round.id === roundId)) {
+        return testGrandPrixService.getScoreBreakdown(userId);
+      }
+    } catch (_e) {}
+
     if (isLiveBackend) {
       try {
         const res = await fetch(`${API_BASE_URL}?action=getRoundScore&roundId=${encodeURIComponent(roundId)}&userId=${encodeURIComponent(userId)}`);
@@ -322,6 +416,15 @@ export const api = {
   },
 
   async getLeaderboard(type: 'season' | 'weekend' | 'round', id?: string): Promise<LeaderboardEntry[]> {
+    if (type === 'round' && id) {
+      try {
+        const testState = testGrandPrixService.getState();
+        if (testState.round && (testState.round.roundId === id || testState.round.id === id)) {
+          return testGrandPrixService.getTestLeaderboard();
+        }
+      } catch (_e) {}
+    }
+
     if (isLiveBackend) {
       try {
         const url = `${API_BASE_URL}?action=getLeaderboard&type=${type}${id ? `&id=${encodeURIComponent(id)}` : ''}`;
@@ -529,6 +632,48 @@ export const api = {
 
   async adminCalculateScores(roundId: string) {
     return mockApi.adminCalculateScores(roundId);
+  },
+
+  async processNotificationQueue(limit = 25): Promise<{ processed: number; sent: number; failed: number }> {
+    if (isLiveBackend) {
+      try {
+        const res = await fetch(`${API_BASE_URL}?action=processNotificationQueue`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'processNotificationQueue', limit }),
+        });
+        const json = await res.json();
+        if (json.success && json.data) {
+          return json.data;
+        }
+      } catch (e) {
+        console.warn('Live API processNotificationQueue failed:', e);
+      }
+    }
+    return { processed: 0, sent: 0, failed: 0 };
+  },
+
+  async sendDirectEmail(payload: {
+    to: string;
+    subject: string;
+    body: string;
+    name?: string;
+  }): Promise<{ success: boolean; error?: string }> {
+    if (isLiveBackend) {
+      try {
+        const res = await fetch(`${API_BASE_URL}?action=sendDirectEmail`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'sendDirectEmail', ...payload }),
+        });
+        const json = await res.json();
+        if (json.success) return { success: true };
+        return { success: false, error: json.message };
+      } catch (e: any) {
+        return { success: false, error: e.message || 'Failed to dispatch email via Google Apps Script' };
+      }
+    }
+    return { success: false, error: 'Live backend URL is not configured' };
   },
 
   // Normalized The Grid Architecture Methods

@@ -49,6 +49,7 @@ export const PredictionPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [driverError, setDriverError] = useState(false);
 
   // Driver modal selector state
   const [activeDriverField, setActiveDriverField] = useState<PredictionFieldConfig | null>(null);
@@ -58,13 +59,30 @@ export const PredictionPage: React.FC = () => {
       if (!roundId) return;
       try {
         setLoading(true);
-        const [r, dList] = await Promise.all([
-          api.getPredictionRoundById(roundId),
-          api.getDrivers(),
-        ]);
-
+        const r = await api.getPredictionRoundById(roundId);
         setRound(r);
+
+        let dList: Driver[] = [];
+        let dErr = false;
+        if (r && r.raceWeekendId) {
+          try {
+            dList = await api.getEligibleDrivers(r.raceWeekendId, 2026);
+            if (!dList || dList.length === 0) {
+              dErr = true;
+            }
+          } catch (_e) {
+            dErr = true;
+          }
+        } else {
+          try {
+            dList = await api.getDrivers(2026);
+          } catch (_e) {
+            dErr = true;
+          }
+        }
+
         setDrivers(dList);
+        setDriverError(dErr);
 
         if (r) {
           document.title = `${r.title || 'Prediction Entry'} | Prediction Bench • The Grid`;
@@ -225,6 +243,8 @@ export const PredictionPage: React.FC = () => {
         userId: currentUser.userId,
         roundId: round.roundId,
         predictionData: formData,
+        email: currentUser.email,
+        displayName: currentUser.displayName,
       });
 
       setPrediction(saved);
@@ -240,7 +260,7 @@ export const PredictionPage: React.FC = () => {
           origin: { y: 0.6 },
           colors: ['#e10600', '#ff8000', '#00e676', '#ffffff'],
         });
-      } catch (err) {
+      } catch (_err) {
         // Confetti non-critical
       }
     } catch (err: any) {
@@ -254,8 +274,33 @@ export const PredictionPage: React.FC = () => {
     return drivers.find(d => d.id === id);
   };
 
+  const isTestRound = Boolean(
+    round?.roundId?.startsWith('TEST_') ||
+    round?.raceWeekendId?.startsWith('TEST_') ||
+    weekend?.raceWeekendId?.startsWith('TEST_')
+  );
+
   return (
     <div style={{ paddingBottom: '5rem' }}>
+      {/* Test Environment Banner */}
+      {isTestRound && (
+        <div
+          style={{
+            background: 'linear-gradient(90deg, rgba(0, 210, 255, 0.2) 0%, rgba(185, 102, 255, 0.15) 100%)',
+            borderBottom: '2px dashed rgba(0, 210, 255, 0.6)',
+            padding: '0.65rem 1rem',
+            textAlign: 'center',
+            fontSize: '0.82rem',
+            fontWeight: 800,
+            fontFamily: 'var(--font-mono)',
+            color: 'var(--telemetry-cyan)',
+            letterSpacing: '0.08em',
+          }}
+        >
+          🧪 TEST GRAND PRIX ENVIRONMENT • SEPARATED FROM PRODUCTION DATA • LEADERBOARD ISOLATED
+        </div>
+      )}
+
       {/* Top Banner */}
       <div
         style={{
@@ -267,7 +312,7 @@ export const PredictionPage: React.FC = () => {
         <div className="container">
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
             <Link
-              to={weekend ? `/races/${weekend.roundNumber || weekend.raceWeekendId}` : '/races'}
+              to={isTestRound ? '/predictions' : (weekend ? `/races/${weekend.roundNumber || weekend.raceWeekendId}` : '/races')}
               style={{
                 textDecoration: 'none',
                 color: 'var(--text-muted)',
@@ -277,7 +322,7 @@ export const PredictionPage: React.FC = () => {
                 gap: '0.3rem',
               }}
             >
-              <ChevronLeft size={14} /> Back to {weekend ? weekend.raceName : 'Championship Calendar'}
+              <ChevronLeft size={14} /> Back to {isTestRound ? 'Prediction Hub' : (weekend ? weekend.raceName : 'Championship Calendar')}
             </Link>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -331,17 +376,19 @@ export const PredictionPage: React.FC = () => {
           >
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.4rem' }}>
-                <span style={{ fontSize: '1.8rem' }}>{weekend?.flag || '🏁'}</span>
+                <span style={{ fontSize: '1.8rem' }}>{isTestRound ? '🧪' : (weekend?.flag || '🏁')}</span>
                 <span
                   style={{
                     fontFamily: 'var(--font-mono)',
                     fontSize: '0.75rem',
-                    color: 'var(--text-secondary)',
+                    color: isTestRound ? 'var(--telemetry-cyan)' : 'var(--text-secondary)',
                     fontWeight: 700,
                     letterSpacing: '0.08em',
                   }}
                 >
-                  THE GRID • PREDICTION BENCH • {weekend?.raceName.toUpperCase()} • {round.roundType.replace('_', ' ')}
+                  {isTestRound
+                    ? `THE GRID • TEST BENCH • ${(weekend?.raceName || 'TEST GRAND PRIX').toUpperCase()}`
+                    : `THE GRID • PREDICTION BENCH • ${weekend?.raceName.toUpperCase()} • ${round.roundType.replace('_', ' ')}`}
                 </span>
                 <StatusBadge status={round.status} />
               </div>
@@ -551,6 +598,28 @@ export const PredictionPage: React.FC = () => {
           </div>
         )}
 
+        {/* Driver Loading Error Notice */}
+        {driverError && (
+          <div
+            style={{
+              padding: '1rem 1.25rem',
+              marginBottom: '1.5rem',
+              borderRadius: '8px',
+              backgroundColor: 'rgba(245, 158, 11, 0.12)',
+              border: '1px solid rgba(245, 158, 11, 0.4)',
+              color: '#fbbf24',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.75rem',
+              fontSize: '0.9rem',
+              fontWeight: 600,
+            }}
+          >
+            <span>⚠️</span>
+            <span>Driver list unavailable — please refresh or try again shortly.</span>
+          </div>
+        )}
+
         {/* PREDICTION SUBMITTED SUMMARY & POST-RACE COMPARISON (STEPS 6 & 7) */}
         {prediction && !isEditing ? (
           <div className="animate-fade-in" style={{ marginBottom: '2.5rem' }}>
@@ -571,20 +640,25 @@ export const PredictionPage: React.FC = () => {
             >
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
-                  <span style={{ fontSize: '1.25rem' }}>🏁</span>
-                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.78rem', fontWeight: 800, color: 'var(--telemetry-green)', letterSpacing: '0.08em' }}>
-                    {isLocked ? 'PREDICTION LOCKED' : 'PREDICTION SUBMITTED'}
+                  <span style={{ fontSize: '1.25rem' }}>{isTestRound ? '🧪' : '🔒'}</span>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.82rem', fontWeight: 900, color: 'var(--telemetry-green)', letterSpacing: '0.08em' }}>
+                    {isTestRound ? '🧪 TEST PREDICTION LOCKED' : '🔒 PREDICTIONS LOCKED'}
                   </span>
                   <span style={{ background: 'rgba(0, 230, 118, 0.15)', color: 'var(--telemetry-green)', fontSize: '0.7rem', padding: '0.15rem 0.5rem', borderRadius: '999px', fontWeight: 700 }}>
-                    ACTIVE
+                    {isTestRound ? 'TEST REGISTERED' : 'REGISTERED'}
                   </span>
                 </div>
                 <h2 style={{ fontSize: 'clamp(1.2rem, 3vw, 1.5rem)', fontWeight: 900, textTransform: 'uppercase', margin: 0 }}>
-                  Your Official Predictions
+                  {isTestRound ? '🔒 YOUR TEST PREDICTION' : '🔒 YOUR LOCKED PREDICTION'}
                 </h2>
-                <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '0.35rem' }}>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.35rem' }}>
                   Submitted: {new Date(prediction.updatedAt).toLocaleString()}
-                  {!isLocked && !isScored && ' • You may update your choices anytime before deadline.'}
+                </div>
+                <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
+                  {isTestRound
+                    ? 'Test scores are calculated by the admin test console. Isolated from production championship.'
+                    : 'Scores will be calculated after the race concludes.'}
+                  {!isLocked && !isScored && ' You may update your choices anytime before deadline.'}
                 </div>
               </div>
 
@@ -604,7 +678,7 @@ export const PredictionPage: React.FC = () => {
                   className="btn btn-secondary btn-sm"
                   style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem' }}
                 >
-                  <Trophy size={14} color="var(--telemetry-yellow)" /> View Standings
+                  <Trophy size={14} color="var(--telemetry-yellow)" /> Live Leaderboard
                 </Link>
               </div>
             </div>
@@ -1013,10 +1087,75 @@ export const PredictionPage: React.FC = () => {
               })}
             </div>
 
+            {/* Review Your Prediction Panel */}
+            {!isReadOnly && (
+              <div
+                style={{
+                  marginTop: '2.5rem',
+                  padding: '1.5rem',
+                  borderRadius: 'var(--radius-lg)',
+                  backgroundColor: 'var(--bg-surface-elevated)',
+                  border: '1px solid var(--border-medium)',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <span style={{ fontSize: '1.1rem' }}>📋</span>
+                    <h3 style={{ fontSize: '1rem', fontWeight: 900, textTransform: 'uppercase', margin: 0, letterSpacing: '0.04em' }}>
+                      Review Your Prediction
+                    </h3>
+                  </div>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                    CONFIRM SELECTIONS BEFORE LOCKING
+                  </span>
+                </div>
+
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                    gap: '0.75rem',
+                  }}
+                >
+                  {(round.predictionFields || []).map(f => {
+                    const val = formData[f.id];
+                    let displayVal = '— Not selected —';
+                    if (f.type === 'driver' && val) {
+                      const d = getDriverById(val);
+                      displayVal = d ? `${d.firstName} ${d.lastName} (${d.team})` : val;
+                    } else if (f.type === 'boolean' && val !== undefined) {
+                      displayVal = val === true ? 'YES' : 'NO';
+                    } else if (val) {
+                      displayVal = String(val);
+                    }
+
+                    return (
+                      <div
+                        key={f.id}
+                        style={{
+                          padding: '0.65rem 0.85rem',
+                          borderRadius: '6px',
+                          background: 'var(--bg-input)',
+                          border: val ? '1px solid var(--border-medium)' : '1px dashed var(--border-subtle)',
+                        }}
+                      >
+                        <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>
+                          {f.label}
+                        </div>
+                        <div style={{ fontSize: '0.85rem', fontWeight: 800, color: val ? '#ffffff' : 'var(--text-muted)', marginTop: '0.2rem' }}>
+                          {displayVal}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             {/* Submission Bar / Locked Message */}
             <div
               style={{
-                marginTop: '2.5rem',
+                marginTop: '1.5rem',
                 padding: '1.5rem',
                 borderRadius: 'var(--radius-lg)',
                 backgroundColor: 'var(--bg-surface-card)',
@@ -1045,7 +1184,7 @@ export const PredictionPage: React.FC = () => {
                   </div>
                 ) : (
                   <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                    Complete your selections above and submit to enter the session leaderboard.
+                    Complete your selections above, review your choices, and click Lock Prediction.
                   </div>
                 )}
               </div>
@@ -1065,13 +1204,20 @@ export const PredictionPage: React.FC = () => {
                     type="submit"
                     disabled={submitting}
                     className="btn btn-primary btn-lg"
-                    style={{ minWidth: 'min(100%, 220px)' }}
+                    style={{ minWidth: 'min(100%, 240px)', letterSpacing: '0.04em' }}
                   >
                     {submitting ? (
-                      'LOCKING SELECTION...'
+                      'LOCKING PREDICTION...'
                     ) : (
                       <>
-                        <Save size={18} /> {prediction ? 'UPDATE PREDICTION' : 'SUBMIT PREDICTION'}
+                        <Lock size={18} />{' '}
+                        {prediction
+                          ? isTestRound
+                            ? 'LOCK UPDATED TEST PREDICTION'
+                            : 'LOCK UPDATED PREDICTION'
+                          : isTestRound
+                            ? 'LOCK TEST PREDICTION'
+                            : 'LOCK PREDICTION'}
                       </>
                     )}
                   </button>
