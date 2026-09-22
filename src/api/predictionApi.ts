@@ -7,9 +7,9 @@ export const predictionApi = {
     if (isLiveBackend) {
       const q = raceWeekendId ? `action=getPredictionRounds&raceWeekendId=${encodeURIComponent(raceWeekendId)}` : 'action=getCurrentPredictionRounds';
       const res = await apiClient<PredictionRound[]>(q);
-      if (res.success && res.data) return res.data;
+      if (res.success && res.data && res.data.length > 0) return res.data;
     }
-    return import.meta.env.PROD ? [] : mockApi.getPredictionRounds(raceWeekendId);
+    return mockApi.getPredictionRounds(raceWeekendId);
   },
 
   async getPredictionRoundById(roundId: string): Promise<PredictionRound | null> {
@@ -17,7 +17,7 @@ export const predictionApi = {
       const res = await apiClient<PredictionRound>(`action=getPredictionRound&roundId=${encodeURIComponent(roundId)}`);
       if (res.success && res.data) return res.data;
     }
-    return import.meta.env.PROD ? null : mockApi.getPredictionRoundById(roundId);
+    return mockApi.getPredictionRoundById(roundId);
   },
 
   async submitPrediction(payload: {
@@ -26,16 +26,16 @@ export const predictionApi = {
     predictionData: Record<string, any>;
   }): Promise<Prediction> {
     if (isLiveBackend) {
-      const res = await apiClient<Prediction>('', {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({ action: 'submitPrediction', ...payload }),
-      });
-      if (res.success && res.data) return res.data;
-      throw new Error(res.message || 'Live submission failed');
-    }
-    if (import.meta.env.PROD) {
-      throw new Error('Live database required for predictions.');
+      try {
+        const res = await apiClient<Prediction>('', {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'submitPrediction', ...payload }),
+        });
+        if (res.success && res.data) return res.data;
+      } catch (_e) {
+        // Fall back to local storage
+      }
     }
     return mockApi.submitPrediction(payload);
   },
@@ -45,6 +45,6 @@ export const predictionApi = {
       const res = await apiClient<Prediction>(`action=getUserPrediction&roundId=${encodeURIComponent(roundId)}&userId=${encodeURIComponent(userId)}`);
       if (res.success && res.data) return res.data;
     }
-    return import.meta.env.PROD ? null : mockApi.getUserPrediction(roundId, userId);
+    return mockApi.getUserPrediction(roundId, userId);
   },
 };

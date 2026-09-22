@@ -162,6 +162,50 @@ export const WeekendsPage: React.FC = () => {
           Formula 1, MotoGP, FIA WEC, Formula E, GT World Challenge, WRC, Feeder Series, and Indian Motorsport.
         </p>
 
+        {/* Quick-Access 2026 Drivers & Teams Banner */}
+        <div
+          style={{
+            marginTop: '1.25rem',
+            padding: '0.85rem 1.25rem',
+            background: 'linear-gradient(90deg, rgba(225, 6, 0, 0.12) 0%, rgba(17, 24, 39, 0.4) 100%)',
+            border: '1px solid rgba(225, 6, 0, 0.3)',
+            borderRadius: 'var(--radius-md)',
+            display: 'flex',
+            flexWrap: 'wrap',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '0.75rem',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+            <span style={{ fontSize: '1.1rem' }}>🏎️</span>
+            <div>
+              <span style={{ fontWeight: 800, fontSize: '0.88rem', color: '#ffffff', letterSpacing: '0.02em' }}>
+                2026 Formula 1 Grid: 11 Teams • 22 Drivers Synchronized
+              </span>
+              <p style={{ fontSize: '0.76rem', color: 'var(--text-secondary)', margin: 0 }}>
+                Featuring Cadillac F1 Team, Lewis Hamilton @ Ferrari, Carlos Sainz @ Williams, Kimi Antonelli @ Mercedes.
+              </p>
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <Link
+              to="/championships/f1#standings"
+              className="btn btn-outline btn-sm"
+              style={{ fontSize: '0.75rem', padding: '0.35rem 0.75rem' }}
+            >
+              Drivers Standings →
+            </Link>
+            <Link
+              to="/championships/f1#teams"
+              className="btn btn-secondary btn-sm"
+              style={{ fontSize: '0.75rem', padding: '0.35rem 0.75rem' }}
+            >
+              Teams Roster →
+            </Link>
+          </div>
+        </div>
+
         {/* Controls Bar: Category Pills + Search */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1.5rem' }}>
           {/* Category Tabs */}

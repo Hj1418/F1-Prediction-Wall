@@ -13,7 +13,7 @@
 import { api } from '../apiClient';
 import { clientCache, CACHE_TTL } from '../cache/clientCache';
 import { RaceWeekend, PredictionRound } from '../../types';
-import { isQualificationPredictionRound } from './predictionRoundGenerator';
+import { isQualificationPredictionRound, generatePredictionRounds } from './predictionRoundGenerator';
 import { testGrandPrixService } from '../testGrandPrix/testGrandPrixService';
 
 export interface SharedRaceContext {
@@ -98,9 +98,15 @@ export async function getSharedRaceContext(
         }
 
         // Find associated active race prediction round (RACE_PREDICTION)
-        const activePredRound = racePredictionRounds.find(
-          r => r.raceWeekendId === selectedWeekend.raceWeekendId && !isQualificationPredictionRound(r)
+        let activePredRound = racePredictionRounds.find(
+          r => (r.raceWeekendId === selectedWeekend.raceWeekendId || r.raceWeekendId === selectedWeekend.id) && !isQualificationPredictionRound(r)
         );
+
+        // Dynamic fallback: generate active prediction round if not pre-populated
+        if (!activePredRound && selectedWeekend) {
+          const generated = generatePredictionRounds(selectedWeekend);
+          activePredRound = generated.find(r => !isQualificationPredictionRound(r));
+        }
 
         return {
           currentWeekend: selectedWeekend,

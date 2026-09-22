@@ -327,17 +327,25 @@ export function generatePredictionRounds(
   const weekendType = detectWeekendFormat(sessions);
   const bufferMins = config.defaultCloseBufferMinutes;
 
-  const fp1 = sessions.find(s => s.type === 'FP1');
-  const sq = sessions.find(s => s.type === 'SPRINT_QUALIFYING');
-  const sprint = sessions.find(s => s.type === 'SPRINT');
-  const quali = sessions.find(s => s.type === 'QUALIFYING');
-  const race = sessions.find(s => s.type === 'RACE' || s.type === 'GRAND_PRIX');
+  const fp1 = sessions.find(s => s.type === 'FP1' || s.sessionType === 'FP1');
+  const sq = sessions.find(s => s.type === 'SPRINT_QUALIFYING' || s.sessionType === 'SPRINT_QUALIFYING');
+  const sprint = sessions.find(s => s.type === 'SPRINT' || s.sessionType === 'SPRINT');
+  const quali = sessions.find(s => s.type === 'QUALIFYING' || s.sessionType === 'QUALIFYING');
+  const race = sessions.find(s =>
+    s.type === 'RACE' ||
+    s.type === 'GRAND_PRIX' ||
+    s.sessionType === 'RACE' ||
+    s.sessionType === 'GRAND_PRIX' ||
+    (s.name && /grand prix|race/i.test(s.name) && !/sprint/i.test(s.name))
+  );
 
   const weekendId = raceWeekend.id || raceWeekend.raceWeekendId;
   const generatedRounds: PredictionRound[] = [];
-  const weekendOpenTime = fp1
-    ? subtractMinutes(fp1.startTime, 24 * 60) // opens 24h before FP1
-    : subtractMinutes(raceWeekend.startDate, 24 * 60);
+  const firstSessionTime = fp1 ? fp1.startTime : raceWeekend.startDate;
+  // If weekend is already ACTIVE, predictions are open (opens 7 days before session start).
+  // If UPCOMING, predictions open 24 hours before first session start.
+  const openMinutes = raceWeekend.status === 'ACTIVE' ? 7 * 24 * 60 : 24 * 60;
+  const weekendOpenTime = subtractMinutes(firstSessionTime, openMinutes);
 
   // Phase 11: Prediction Bench supports RACE PREDICTIONS ONLY (Grand Prix & Sprint Race).
   // Deprecated qualification prediction rounds (Qualifying, Sprint Qualifying) are no longer actively created.
@@ -363,28 +371,29 @@ export function generatePredictionRounds(
     });
   }
 
-  if (race) {
-    // Prediction window opens before the race weekend and closes before race start
-    const opensAt = weekendOpenTime;
-    const closesAt = subtractMinutes(race.startTime, bufferMins);
-    const roundId = `${weekendId}_RACE_PREDICTION`;
-    generatedRounds.push({
-      id: roundId,
-      roundId,
-      raceWeekendId: weekendId,
-      sessionId: race.id || race.sessionId || '',
-      type: 'RACE',
-      roundType: 'GRAND_PRIX',
-      title: `${raceWeekend.name || raceWeekend.raceName} Race Prediction`,
-      description: 'Predict podium (P1, P2, P3), fastest lap, driver of the day, safety car, and race wildcards.',
-      opensAt,
-      closesAt,
-      status: getPredictionRoundStatus({ opensAt, closesAt }),
-      predictionFields: getDefaultPredictionFields('GRAND_PRIX'),
-      scoringRules: DEFAULT_SCORING_RULES,
-      lastUpdatedAt: new Date().toISOString(),
-    });
-  }
+  // Ensure a Grand Prix Race prediction round is always generated for every race weekend
+  const raceSessionStartTime = race ? race.startTime : (raceWeekend.endDate || raceWeekend.startDate);
+  const raceSessionId = race ? (race.id || race.sessionId || `${weekendId}_RACE`) : `${weekendId}_RACE`;
+  const opensAt = weekendOpenTime;
+  const closesAt = subtractMinutes(raceSessionStartTime, bufferMins);
+  const roundId = `${weekendId}_RACE_PREDICTION`;
+
+  generatedRounds.push({
+    id: roundId,
+    roundId,
+    raceWeekendId: weekendId,
+    sessionId: raceSessionId,
+    type: 'RACE',
+    roundType: 'GRAND_PRIX',
+    title: `${raceWeekend.name || raceWeekend.raceName || 'Grand Prix'} Race Prediction`,
+    description: 'Predict podium (P1, P2, P3), fastest lap, driver of the day, safety car, and race wildcards.',
+    opensAt,
+    closesAt,
+    status: getPredictionRoundStatus({ opensAt, closesAt }),
+    predictionFields: getDefaultPredictionFields('GRAND_PRIX'),
+    scoringRules: DEFAULT_SCORING_RULES,
+    lastUpdatedAt: new Date().toISOString(),
+  });
 
   return generatedRounds;
 }

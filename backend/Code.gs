@@ -56,6 +56,15 @@ function doGet(e) {
       case 'getRaceWeekends':
         responseData = getRaceWeekends(e.parameter.season);
         break;
+      case 'getDrivers':
+        responseData = getDrivers(e.parameter.season);
+        break;
+      case 'getConstructors':
+        responseData = getConstructors();
+        break;
+      case 'getEligibleDrivers':
+        responseData = getEligibleDrivers(e.parameter.raceWeekendId, e.parameter.season);
+        break;
       case 'getRaceWeekend':
       case 'getWeekendDetails':
         responseData = getWeekendDetails(e.parameter.raceWeekendId || e.parameter.id);
@@ -462,7 +471,7 @@ function generatePredictionRoundsForWeekend(sheet, weekendId, raceName, weekendT
       var roundId = weekendId + '_' + sess.type + '_PREDICTION';
       var sessStartMs = new Date(sess.startTime).getTime();
       var closesAt = new Date(sessStartMs - bufferMs).toISOString();
-      var opensAt = new Date(sessStartMs - 48 * 3600 * 1000).toISOString();
+      var opensAt = new Date(sessStartMs - 7 * 24 * 3600 * 1000).toISOString();
 
       var title = (sess.type === 'RACE' ? 'Grand Prix' : sess.name) + ' Prediction';
       var status = new Date().getTime() > (sessStartMs - bufferMs) ? 'LOCKED' : 'OPEN';
@@ -614,6 +623,26 @@ function getPredictionRounds(weekendId) {
   }
   if (rounds.length > 0) {
     try { cache.put(cacheKey, JSON.stringify(rounds), 120); } catch (err) {}
+  } else if (weekendId) {
+    try {
+      const sess = getSessionSchedule(weekendId);
+      if (sess && sess.length > 0) {
+        let raceName = 'Grand Prix';
+        const rwSheet = ss.getSheetByName(SHEET_NAMES.RACE_WEEKENDS);
+        if (rwSheet) {
+          const rwRows = rwSheet.getDataRange().getValues();
+          for (let j = 1; j < rwRows.length; j++) {
+            if (rwRows[j][0] === weekendId) {
+              raceName = rwRows[j][3];
+              break;
+            }
+          }
+        }
+        generatePredictionRoundsForWeekend(sheet, weekendId, raceName, 'NORMAL', sess, new Date().toISOString());
+        cache.remove(cacheKey);
+        return getPredictionRounds(weekendId);
+      }
+    } catch (err) {}
   }
   return rounds;
 }
@@ -631,6 +660,53 @@ function getPredictionRound(roundId) {
     if (all[i].roundId === roundId) return all[i];
   }
   return null;
+}
+
+function getDrivers(season) {
+  return [
+    { id: 'norris', code: 'NOR', firstName: 'Lando', lastName: 'Norris', number: 4, team: 'McLaren', teamColor: '#ff8000', country: 'United Kingdom', countryFlag: '🇬🇧' },
+    { id: 'piastri', code: 'PIA', firstName: 'Oscar', lastName: 'Piastri', number: 81, team: 'McLaren', teamColor: '#ff8000', country: 'Australia', countryFlag: '🇦🇺' },
+    { id: 'verstappen', code: 'VER', firstName: 'Max', lastName: 'Verstappen', number: 1, team: 'Red Bull Racing', teamColor: '#1e41ff', country: 'Netherlands', countryFlag: '🇳🇱' },
+    { id: 'lawson', code: 'LAW', firstName: 'Liam', lastName: 'Lawson', number: 30, team: 'Red Bull Racing', teamColor: '#1e41ff', country: 'New Zealand', countryFlag: '🇳🇿' },
+    { id: 'hamilton', code: 'HAM', firstName: 'Lewis', lastName: 'Hamilton', number: 44, team: 'Ferrari', teamColor: '#e10600', country: 'United Kingdom', countryFlag: '🇬🇧' },
+    { id: 'leclerc', code: 'LEC', firstName: 'Charles', lastName: 'Leclerc', number: 16, team: 'Ferrari', teamColor: '#e10600', country: 'Monaco', countryFlag: '🇲🇨' },
+    { id: 'russell', code: 'RUS', firstName: 'George', lastName: 'Russell', number: 63, team: 'Mercedes-AMG', teamColor: '#00d2be', country: 'United Kingdom', countryFlag: '🇬🇧' },
+    { id: 'antonelli', code: 'ANT', firstName: 'Kimi', lastName: 'Antonelli', number: 12, team: 'Mercedes-AMG', teamColor: '#00d2be', country: 'Italy', countryFlag: '🇮🇹' },
+    { id: 'alonso', code: 'ALO', firstName: 'Fernando', lastName: 'Alonso', number: 14, team: 'Aston Martin', teamColor: '#00665e', country: 'Spain', countryFlag: '🇪🇸' },
+    { id: 'stroll', code: 'STR', firstName: 'Lance', lastName: 'Stroll', number: 18, team: 'Aston Martin', teamColor: '#00665e', country: 'Canada', countryFlag: '🇨🇦' },
+    { id: 'sainz', code: 'SAI', firstName: 'Carlos', lastName: 'Sainz', number: 55, team: 'Williams', teamColor: '#005aff', country: 'Spain', countryFlag: '🇪🇸' },
+    { id: 'albon', code: 'ALB', firstName: 'Alexander', lastName: 'Albon', number: 23, team: 'Williams', teamColor: '#005aff', country: 'Thailand', countryFlag: '🇹🇭' },
+    { id: 'gasly', code: 'GAS', firstName: 'Pierre', lastName: 'Gasly', number: 10, team: 'Alpine', teamColor: '#0093cc', country: 'France', countryFlag: '🇫🇷' },
+    { id: 'doohan', code: 'DOO', firstName: 'Jack', lastName: 'Doohan', number: 7, team: 'Alpine', teamColor: '#0093cc', country: 'Australia', countryFlag: '🇦🇺' },
+    { id: 'tsunoda', code: 'TSU', firstName: 'Yuki', lastName: 'Tsunoda', number: 22, team: 'Racing Bulls', teamColor: '#6692ff', country: 'Japan', countryFlag: '🇯🇵' },
+    { id: 'hadjar', code: 'HAD', firstName: 'Isack', lastName: 'Hadjar', number: 6, team: 'Racing Bulls', teamColor: '#6692ff', country: 'France', countryFlag: '🇫🇷' },
+    { id: 'hulkenberg', code: 'HUL', firstName: 'Nico', lastName: 'Hülkenberg', number: 27, team: 'Sauber / Audi', teamColor: '#52e252', country: 'Germany', countryFlag: '🇩🇪' },
+    { id: 'bortoleto', code: 'BOR', firstName: 'Gabriel', lastName: 'Bortoleto', number: 5, team: 'Sauber / Audi', teamColor: '#52e252', country: 'Brazil', countryFlag: '🇧🇷' },
+    { id: 'ocon', code: 'OCO', firstName: 'Esteban', lastName: 'Ocon', number: 31, team: 'Haas', teamColor: '#b6babd', country: 'France', countryFlag: '🇫🇷' },
+    { id: 'bearman', code: 'BEA', firstName: 'Oliver', lastName: 'Bearman', number: 87, team: 'Haas', teamColor: '#b6babd', country: 'United Kingdom', countryFlag: '🇬🇧' },
+    { id: 'perez', code: 'PER', firstName: 'Sergio', lastName: 'Pérez', number: 11, team: 'Cadillac', teamColor: '#c5a059', country: 'Mexico', countryFlag: '🇲🇽' },
+    { id: 'bottas', code: 'BOT', firstName: 'Valtteri', lastName: 'Bottas', number: 77, team: 'Cadillac', teamColor: '#c5a059', country: 'Finland', countryFlag: '🇫🇮' }
+  ];
+}
+
+function getConstructors() {
+  return [
+    { id: 'mclaren', name: 'McLaren', color: '#ff8000', country: 'United Kingdom', flag: '🇬🇧', powerUnit: 'Mercedes' },
+    { id: 'ferrari', name: 'Ferrari', color: '#e10600', country: 'Italy', flag: '🇮🇹', powerUnit: 'Ferrari' },
+    { id: 'red_bull', name: 'Red Bull Racing', color: '#1e41ff', country: 'Austria', flag: '🇦🇹', powerUnit: 'Red Bull Ford' },
+    { id: 'mercedes', name: 'Mercedes-AMG', color: '#00d2be', country: 'Germany', flag: '🇩🇪', powerUnit: 'Mercedes' },
+    { id: 'aston_martin', name: 'Aston Martin', color: '#00665e', country: 'United Kingdom', flag: '🇬🇧', powerUnit: 'Honda' },
+    { id: 'williams', name: 'Williams', color: '#005aff', country: 'United Kingdom', flag: '🇬🇧', powerUnit: 'Mercedes' },
+    { id: 'racing_bulls', name: 'Racing Bulls', color: '#6692ff', country: 'Italy', flag: '🇮🇹', powerUnit: 'Red Bull Ford' },
+    { id: 'alpine', name: 'Alpine', color: '#0093cc', country: 'France', flag: '🇫🇷', powerUnit: 'Renault' },
+    { id: 'sauber_audi', name: 'Sauber / Audi', color: '#52e252', country: 'Switzerland', flag: '🇨🇭', powerUnit: 'Audi' },
+    { id: 'haas', name: 'Haas', color: '#b6babd', country: 'United States', flag: '🇺🇸', powerUnit: 'Ferrari' },
+    { id: 'cadillac', name: 'Cadillac', color: '#c5a059', country: 'United States', flag: '🇺🇸', powerUnit: 'Ferrari' }
+  ];
+}
+
+function getEligibleDrivers(raceWeekendId, season) {
+  return getDrivers(season);
 }
 
 function getRaceWeekends(season) {

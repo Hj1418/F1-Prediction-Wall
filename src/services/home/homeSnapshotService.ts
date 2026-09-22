@@ -436,7 +436,11 @@ export async function getHomeSnapshot(): Promise<HomeSnapshot> {
       };
 
       // Synchronize F1 category chip and radar event
-      snapshot.championshipChips[0].nextEventBrief = `${w.raceName || 'Azerbaijan GP'} • ${w.country || 'Baku'}`;
+      if (snapshot.championshipChips && snapshot.championshipChips[0]) {
+        snapshot.championshipChips[0].nextEventBrief = `${w.raceName || 'Azerbaijan GP'} • ${w.country || 'Baku'}`;
+      }
+      const isLive = raceContext.status === 'ACTIVE';
+      const isPredOpen = raceContext.activePredictionRound?.status === 'OPEN';
       snapshot.racingNowOrNext[0] = {
         championshipId: 'f1',
         championshipName: 'Formula 1',
@@ -446,23 +450,29 @@ export async function getHomeSnapshot(): Promise<HomeSnapshot> {
         circuit: circuitName,
         location: `${w.country || 'Baku'}`,
         dates: datesFormatted,
-        statusTag: raceContext.status === 'ACTIVE' ? 'RACE WEEKEND LIVE' : 'PREDICTIONS OPEN',
+        statusTag: isLive ? 'RACE WEEKEND LIVE' : isPredOpen ? 'PREDICTIONS OPEN' : 'NEXT UP',
         url: `/weekends/${w.raceWeekendId}`,
       };
 
       // Bind active prediction round
-      if (raceContext.activePredictionRound) {
-        const pr = raceContext.activePredictionRound;
-        const timeline = getResultsTimeline(pr);
+      let activeRound = raceContext.activePredictionRound;
+      if (!activeRound && w) {
+        const { generatePredictionRounds } = await import('../schedule/predictionRoundGenerator');
+        const generated = generatePredictionRounds(w);
+        activeRound = generated[0];
+      }
+
+      if (activeRound) {
+        const timeline = getResultsTimeline(activeRound);
         snapshot.predictionHighlight = {
-          roundId: pr.roundId,
-          roundName: pr.title || `${w.raceName || 'Grand Prix'} Race Prediction`,
+          roundId: activeRound.roundId,
+          roundName: activeRound.title || `${w.raceName || 'Grand Prix'} Race Prediction`,
           grandPrix: circuitName,
-          status: pr.status === 'OPEN' ? 'OPEN' : pr.status === 'LOCKED' ? 'LOCKED' : pr.status === 'SCORED' ? 'SCORED' : 'UPCOMING',
-          deadlineNotice: pr.closesAt ? `Predictions lock: ${new Date(pr.closesAt).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}` : 'Predictions lock before start',
-          resultsExpectedNotice: pr.status === 'SCORED' ? 'Results Published' : `Results: ~${timeline.formattedExpectedResultsTime} (${timeline.shortEta})`,
+          status: activeRound.status === 'OPEN' ? 'OPEN' : activeRound.status === 'LOCKED' ? 'LOCKED' : activeRound.status === 'SCORED' ? 'SCORED' : 'UPCOMING',
+          deadlineNotice: activeRound.closesAt ? `Predictions lock: ${new Date(activeRound.closesAt).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}` : 'Predictions lock before start',
+          resultsExpectedNotice: activeRound.status === 'SCORED' ? 'Results Published' : `Results: ~${timeline.formattedExpectedResultsTime} (${timeline.shortEta})`,
           totalPointsAvailable: 60,
-          url: pr.status === 'OPEN' ? `/predict/${pr.roundId}` : '/predictions',
+          url: activeRound.status === 'OPEN' ? `/predict/${activeRound.roundId}` : '/predictions',
         };
       }
     }
@@ -470,7 +480,10 @@ export async function getHomeSnapshot(): Promise<HomeSnapshot> {
     // Check clientCache for active prediction round override (e.g. testing or explicit client cache)
     const cachedRounds = clientCache.get<PredictionRound[]>('f1_prediction_rounds_all');
     if (cachedRounds && cachedRounds.length > 0) {
-      const activeRound = cachedRounds.find(r => r.status === 'OPEN') || cachedRounds[0];
+      const currentWId = raceContext?.currentWeekend?.raceWeekendId || raceContext?.currentWeekend?.id;
+      const weekendMatch = currentWId ? cachedRounds.filter(r => r.raceWeekendId === currentWId) : [];
+      const candidateList = weekendMatch.length > 0 ? weekendMatch : cachedRounds;
+      const activeRound = candidateList.find(r => r.status === 'OPEN') || candidateList[0];
       if (activeRound) {
         const timeline = getResultsTimeline(activeRound);
         snapshot.predictionHighlight = {

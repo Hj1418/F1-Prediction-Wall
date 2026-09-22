@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
 import { RaceWeekend, PredictionRound, Prediction, Driver } from '../types';
 import { getSharedRaceContext, getActiveTestPredictionContext, PredictionContext } from '../services/schedule/raceContextService';
-import { isQualificationPredictionRound } from '../services/schedule/predictionRoundGenerator';
+import { isQualificationPredictionRound, generatePredictionRounds } from '../services/schedule/predictionRoundGenerator';
 import { StatusBadge } from '../components/common/StatusBadge';
 import { CountdownTimer } from '../components/common/CountdownTimer';
 import { LoadingState } from '../components/common/LoadingState';
@@ -71,7 +71,12 @@ export const PredictionsHubPage: React.FC = () => {
         setUpcomingWeekends(futureW);
 
         if (activeW) {
-          const weekendRounds = allRounds.filter(r => r.raceWeekendId === activeW.raceWeekendId && !isQualificationPredictionRound(r));
+          let weekendRounds = allRounds.filter(
+            r => (r.raceWeekendId === activeW.raceWeekendId || r.raceWeekendId === activeW.id) && !isQualificationPredictionRound(r)
+          );
+          if (weekendRounds.length === 0) {
+            weekendRounds = generatePredictionRounds(activeW).filter(r => !isQualificationPredictionRound(r));
+          }
           setCurrentRounds(weekendRounds);
         }
 

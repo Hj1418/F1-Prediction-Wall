@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { api } from '../services/apiClient';
-import { RaceWeekend, PredictionRound, getCircuitName } from '../types';
+import { RaceWeekend, PredictionRound, Driver, getCircuitName } from '../types';
 import { StatusBadge } from '../components/common/StatusBadge';
 import { CountdownTimer } from '../components/common/CountdownTimer';
 import { CircuitMap } from '../components/common/CircuitMap';
@@ -22,6 +22,9 @@ import {
   ChevronLeft,
   CheckCircle2,
   HelpCircle,
+  Users,
+  Shield,
+  Flag,
 } from 'lucide-react';
 
 export const WeekendDashboardPage: React.FC = () => {
@@ -30,6 +33,7 @@ export const WeekendDashboardPage: React.FC = () => {
   const { dataVersion } = useApp();
   const [weekend, setWeekend] = useState<RaceWeekend | null>(null);
   const [rounds, setRounds] = useState<PredictionRound[]>([]);
+  const [drivers, setDrivers] = useState<Driver[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -48,15 +52,23 @@ export const WeekendDashboardPage: React.FC = () => {
         if (found) {
           setWeekend(found);
           document.title = `${found.raceName} Weekend Hub | The Grid`;
-          const rList = await api.getPredictionRounds(found.raceWeekendId);
+          const [rList, dList] = await Promise.all([
+            api.getPredictionRounds(found.raceWeekendId),
+            api.getEligibleDrivers(found.raceWeekendId, 2026).catch(() => []),
+          ]);
           setRounds(rList.filter(r => !isQualificationPredictionRound(r)));
+          setDrivers(dList);
         } else {
           try {
             const w = await api.getWeekendById(routeParam);
             setWeekend(w);
             if (w) document.title = `${w.raceName} Weekend Hub | The Grid`;
-            const rList = await api.getPredictionRounds(routeParam);
+            const [rList, dList] = await Promise.all([
+              api.getPredictionRounds(routeParam),
+              api.getEligibleDrivers(routeParam, 2026).catch(() => []),
+            ]);
             setRounds(rList.filter(r => !isQualificationPredictionRound(r)));
+            setDrivers(dList);
           } catch (e) {
             setWeekend(null);
           }
@@ -414,7 +426,125 @@ export const WeekendDashboardPage: React.FC = () => {
           </div>
         </div>
 
-        {/* SECTION 4 & 5: PADDOCK FACTS & TRACK CHARACTER */}
+        {/* SECTION 4: 2026 GRAND PRIX ENTRY LIST */}
+        {drivers.length > 0 && (
+          <div style={{ marginBottom: '3rem' }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', marginBottom: '1.25rem' }}>
+              <div>
+                <div style={{ fontSize: '0.72rem', fontWeight: 800, color: 'var(--f1-red)', letterSpacing: '0.12em', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <Users size={14} />
+                  <span>2026 OFFICIAL ENTRY LIST • 11 CONSTRUCTORS • 22 DRIVERS</span>
+                </div>
+                <h2 style={{ fontSize: '1.5rem', fontWeight: 900, textTransform: 'uppercase', marginTop: '0.2rem' }}>
+                  Grand Prix Driver & Constructor Grid
+                </h2>
+              </div>
+              <Link to="/championships/f1#standings" className="btn btn-outline btn-sm" style={{ gap: '0.4rem' }}>
+                <Trophy size={14} /> Full 2026 Championship Standings →
+              </Link>
+            </div>
+
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(310px, 1fr))',
+                gap: '1.25rem',
+              }}
+            >
+              {Object.entries(
+                drivers.reduce((acc, d) => {
+                  const t = d.team || 'Other';
+                  if (!acc[t]) acc[t] = [];
+                  acc[t].push(d);
+                  return acc;
+                }, {} as Record<string, Driver[]>)
+              ).map(([teamName, teamDrivers]) => {
+                const teamColor = teamDrivers[0]?.teamColor || 'var(--border-subtle)';
+                return (
+                  <div
+                    key={teamName}
+                    className="race-card"
+                    style={{
+                      background: 'var(--bg-surface-card)',
+                      border: '1px solid var(--border-subtle)',
+                      borderTop: `3px solid ${teamColor}`,
+                      padding: '1.25rem',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'space-between',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+                      <span style={{ fontWeight: 800, fontSize: '0.95rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                        {teamName}
+                      </span>
+                      <span
+                        style={{
+                          width: '10px',
+                          height: '10px',
+                          borderRadius: '50%',
+                          backgroundColor: teamColor,
+                          boxShadow: `0 0 8px ${teamColor}`,
+                        }}
+                      />
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+                      {teamDrivers.map(d => (
+                        <div
+                          key={d.id}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            padding: '0.55rem 0.75rem',
+                            background: 'var(--bg-input)',
+                            borderRadius: 'var(--radius-sm)',
+                            border: '1px solid var(--border-subtle)',
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                            <span
+                              style={{
+                                fontFamily: 'var(--font-mono)',
+                                fontWeight: 900,
+                                fontSize: '0.85rem',
+                                color: teamColor,
+                                minWidth: '24px',
+                              }}
+                            >
+                              #{d.number}
+                            </span>
+                            <span style={{ fontSize: '1rem' }}>{d.countryFlag || '🏁'}</span>
+                            <span style={{ fontWeight: 700, fontSize: '0.88rem' }}>
+                              {d.firstName} {d.lastName}
+                            </span>
+                          </div>
+                          <span
+                            style={{
+                              fontSize: '0.72rem',
+                              fontFamily: 'var(--font-mono)',
+                              color: 'var(--text-muted)',
+                              fontWeight: 700,
+                              letterSpacing: '0.08em',
+                              background: 'var(--bg-surface-elevated)',
+                              padding: '0.15rem 0.4rem',
+                              borderRadius: 'var(--radius-sm)',
+                            }}
+                          >
+                            {d.code}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* SECTION 5 & 6: PADDOCK FACTS & TRACK CHARACTER */}
         <div
           style={{
             display: 'grid',
