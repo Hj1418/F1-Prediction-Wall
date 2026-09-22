@@ -25,7 +25,8 @@ try {
   execSync('npx tsx scripts/verify-phase10.ts', { stdio: 'inherit' });
   execSync('npx tsx scripts/verify-phase11.ts', { stdio: 'inherit' });
   execSync('npx tsx scripts/verify-phase11-e2e.ts', { stdio: 'inherit' });
-  console.log('🏆 ALL UNIT, INTEGRATION, AUTH, ADMIN, BETA, RACING IDENTITY, AVATAR, FOUNDATION, PHASE 8A-8F, 9.1-9.3, PHASE 10 & PHASE 11 (INCLUDING 23-STEP E2E) TESTS PASSED PERFECTLY!\n');
+  execSync('npx tsx scripts/verify-phase11-simplification.ts', { stdio: 'inherit' });
+  console.log('🏆 ALL UNIT, INTEGRATION, AUTH, ADMIN, BETA, RACING IDENTITY, AVATAR, FOUNDATION, PHASE 8A-8F, 9.1-9.3, PHASE 10 & PHASE 11 (INCLUDING 23-STEP E2E & SIMPLIFICATION) TESTS PASSED PERFECTLY!\n');
 } catch (err) {
   console.error('Test execution failed');
   process.exit(1);

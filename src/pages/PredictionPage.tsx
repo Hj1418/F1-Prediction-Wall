@@ -17,6 +17,8 @@ import { CountdownTimer } from '../components/common/CountdownTimer';
 import { DriverSelectModal } from '../components/common/DriverSelectModal';
 import { DriverCard } from '../components/common/DriverCard';
 import { UserInitialsAvatar } from '../components/common/UserInitialsAvatar';
+import { PredictionGuideCard } from '../components/predictions/PredictionGuideCard';
+import { getResultsTimeline } from '../utils/predictionTimeline';
 import confetti from 'canvas-confetti';
 import {
   Lock,
@@ -32,6 +34,8 @@ import {
   X as XIcon,
   Clock,
   ArrowLeft,
+  BookOpen,
+  CalendarClock,
 } from 'lucide-react';
 
 export const PredictionPage: React.FC = () => {
@@ -50,6 +54,7 @@ export const PredictionPage: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [driverError, setDriverError] = useState(false);
+  const [isGuideOpen, setIsGuideOpen] = useState(true);
 
   // Driver modal selector state
   const [activeDriverField, setActiveDriverField] = useState<PredictionFieldConfig | null>(null);
@@ -85,12 +90,12 @@ export const PredictionPage: React.FC = () => {
         setDriverError(dErr);
 
         if (r) {
-          document.title = `${r.title || 'Prediction Entry'} | Prediction Bench • The Grid`;
+          const isScoredRound = r.status === 'SCORED';
           const [w, existingPred, res, score] = await Promise.all([
             api.getWeekendById(r.raceWeekendId),
             currentUser ? api.getUserPrediction(r.roundId, currentUser.userId) : Promise.resolve(null),
-            api.getOfficialResult(r.roundId),
-            currentUser ? api.getRoundScore(r.roundId, currentUser.userId) : Promise.resolve(null),
+            isScoredRound ? api.getOfficialResult(r.roundId) : Promise.resolve(null),
+            (isScoredRound && currentUser) ? api.getRoundScore(r.roundId, currentUser.userId) : Promise.resolve(null),
           ]);
 
           setWeekend(w);
@@ -158,10 +163,13 @@ export const PredictionPage: React.FC = () => {
     if (fieldId === 'redFlag') {
       return { label: 'RED FLAG', color: '#ff3b30', bg: 'rgba(255, 59, 48, 0.15)', icon: '🚩' };
     }
+    if (fieldId === 'yellowFlag') {
+      return { label: 'YELLOW FLAG', color: '#eab308', bg: 'rgba(234, 179, 8, 0.15)', icon: '⚠️' };
+    }
     if (fieldId === 'rainSession' || fieldId === 'rainIntermediates') {
       return { label: 'WEATHER INTEL', color: '#00d2ff', bg: 'rgba(0, 210, 255, 0.1)', icon: '🌧️' };
     }
-    if (fieldId === 'poleMargin' || fieldId === 'winningMargin') {
+    if (fieldId === 'winningMargin') {
       return { label: 'TIMING MARGIN', color: '#a78bfa', bg: 'rgba(167, 139, 250, 0.1)', icon: '⏱️' };
     }
     if (fieldId === 'retirementsOverUnder' || fieldId === 'sprintDnf') {
@@ -169,9 +177,6 @@ export const PredictionPage: React.FC = () => {
     }
     if (fieldId === 'lap1Leader') {
       return { label: 'LAP 1 BATTLE', color: '#f43f5e', bg: 'rgba(244, 63, 94, 0.1)', icon: '🏁' };
-    }
-    if (fieldId === 'q1Elimination') {
-      return { label: 'QUALIFYING SHOCK', color: '#e879f9', bg: 'rgba(232, 121, 249, 0.1)', icon: '⚠️' };
     }
     return { label: 'WILD CARD', color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.1)', icon: '🎲' };
   };
@@ -274,6 +279,17 @@ export const PredictionPage: React.FC = () => {
     return drivers.find(d => d.id === id);
   };
 
+  const getDriverName = (driverId?: string): string => {
+    if (!driverId) return '—';
+    const d = getDriverById(driverId);
+    if (d) return `${d.firstName} ${d.lastName}`;
+    if (driverId.startsWith('test-')) {
+      const formatted = driverId.replace('test-', '');
+      return 'Test Driver ' + formatted.charAt(0).toUpperCase() + formatted.slice(1);
+    }
+    return driverId;
+  };
+
   const isTestRound = Boolean(
     round?.roundId?.startsWith('TEST_') ||
     round?.raceWeekendId?.startsWith('TEST_') ||
@@ -325,7 +341,29 @@ export const PredictionPage: React.FC = () => {
               <ChevronLeft size={14} /> Back to {isTestRound ? 'Prediction Hub' : (weekend ? weekend.raceName : 'Championship Calendar')}
             </Link>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsGuideOpen(true);
+                  const el = document.getElementById('scoring-guide');
+                  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }}
+                className="btn btn-secondary btn-sm"
+                style={{
+                  fontSize: '0.76rem',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.35rem',
+                  border: '1px solid rgba(0, 210, 255, 0.4)',
+                  color: 'var(--telemetry-cyan)',
+                  background: 'rgba(0, 210, 255, 0.08)',
+                  padding: '0.3rem 0.75rem',
+                }}
+              >
+                <BookOpen size={14} /> {isGuideOpen ? 'Scoring & Rules Guide' : 'Show Scoring Guide'}
+              </button>
+
               {isAuthenticated && currentUser ? (
                 <>
                   <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Predicting as:</span>
@@ -429,6 +467,45 @@ export const PredictionPage: React.FC = () => {
                   SESSION SCORED
                 </div>
               )}
+
+              {/* Race Results Out Notice */}
+              {(() => {
+                const timeline = getResultsTimeline(round);
+                return (
+                  <div
+                    style={{
+                      marginTop: '0.75rem',
+                      paddingTop: '0.75rem',
+                      borderTop: '1px solid var(--border-subtle)',
+                      fontSize: '0.75rem',
+                      fontFamily: 'var(--font-mono)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '0.2rem',
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.35rem',
+                        fontWeight: 700,
+                        color: isScored
+                          ? 'var(--telemetry-purple)'
+                          : isLocked
+                          ? '#fb923c'
+                          : 'var(--telemetry-cyan)',
+                      }}
+                    >
+                      <CalendarClock size={13} />
+                      <span>{isScored ? 'RESULTS PUBLISHED' : `RESULTS OUT: ~${timeline.formattedExpectedResultsTime}`}</span>
+                    </div>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
+                      {timeline.shortEta}
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           </div>
         </div>
@@ -620,6 +697,14 @@ export const PredictionPage: React.FC = () => {
           </div>
         )}
 
+        {/* In-Page Prediction & Scoring Guide (Displayed outside directly on page) */}
+        <div style={{ marginBottom: '2rem' }}>
+          <PredictionGuideCard
+            isOpen={isGuideOpen}
+            onToggle={() => setIsGuideOpen(prev => !prev)}
+          />
+        </div>
+
         {/* PREDICTION SUBMITTED SUMMARY & POST-RACE COMPARISON (STEPS 6 & 7) */}
         {prediction && !isEditing ? (
           <div className="animate-fade-in" style={{ marginBottom: '2.5rem' }}>
@@ -680,6 +765,69 @@ export const PredictionPage: React.FC = () => {
                 >
                   <Trophy size={14} color="var(--telemetry-yellow)" /> Live Leaderboard
                 </Link>
+              </div>
+            </div>
+
+            {/* Immediate Clean Locked Prediction Summary */}
+            <div
+              style={{
+                background: 'var(--bg-surface-elevated)',
+                border: '1px solid rgba(0, 230, 118, 0.4)',
+                borderRadius: '12px',
+                padding: '1.5rem',
+                marginBottom: '1.5rem',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', color: 'var(--telemetry-green)', fontWeight: 900, fontSize: '0.8rem', letterSpacing: '0.08em', marginBottom: '0.35rem' }}>
+                <Lock size={15} /> YOUR PREDICTION 🔒
+              </div>
+              <h3 style={{ fontSize: '1.35rem', fontWeight: 900, textTransform: 'uppercase', margin: '0 0 0.75rem 0', color: '#ffffff' }}>
+                {round.title}
+              </h3>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem 1.5rem', fontSize: '0.92rem' }}>
+                {prediction.predictionData?.p1 && (
+                  <span style={{ color: 'var(--text-secondary)' }}>
+                    <strong style={{ color: '#fff' }}>P1</strong> — {getDriverName(prediction.predictionData.p1)}
+                  </span>
+                )}
+                {prediction.predictionData?.p2 && (
+                  <span style={{ color: 'var(--text-secondary)' }}>
+                    <strong style={{ color: '#fff' }}>P2</strong> — {getDriverName(prediction.predictionData.p2)}
+                  </span>
+                )}
+                {prediction.predictionData?.p3 && (
+                  <span style={{ color: 'var(--text-secondary)' }}>
+                    <strong style={{ color: '#fff' }}>P3</strong> — {getDriverName(prediction.predictionData.p3)}
+                  </span>
+                )}
+                {prediction.predictionData?.fastestLap && (
+                  <span style={{ color: 'var(--text-secondary)' }}>
+                    <strong style={{ color: '#fff' }}>Fastest Lap</strong> — {getDriverName(prediction.predictionData.fastestLap)}
+                  </span>
+                )}
+                {prediction.predictionData?.safetyCar && (
+                  <span style={{ color: 'var(--text-secondary)' }}>
+                    <strong style={{ color: '#fff' }}>Safety Car</strong> — {prediction.predictionData.safetyCar}
+                  </span>
+                )}
+                {prediction.predictionData?.virtualSafetyCar && (
+                  <span style={{ color: 'var(--text-secondary)' }}>
+                    <strong style={{ color: '#fff' }}>VSC</strong> — {prediction.predictionData.virtualSafetyCar}
+                  </span>
+                )}
+                {prediction.predictionData?.redFlag && (
+                  <span style={{ color: 'var(--text-secondary)' }}>
+                    <strong style={{ color: '#fff' }}>Red Flag</strong> — {prediction.predictionData.redFlag}
+                  </span>
+                )}
+                {prediction.predictionData?.yellowFlag && (
+                  <span style={{ color: 'var(--text-secondary)' }}>
+                    <strong style={{ color: '#fff' }}>Yellow Flag</strong> — {prediction.predictionData.yellowFlag}
+                  </span>
+                )}
+              </div>
+              <div style={{ fontSize: '0.78rem', color: 'var(--telemetry-green)', fontWeight: 700, marginTop: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                <CheckCircle2 size={14} /> Prediction Locked
               </div>
             </div>
 

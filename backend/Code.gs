@@ -94,6 +94,10 @@ function doGet(e) {
       case 'getUsers':
         responseData = getAdminUsers(e.parameter.requesterId || e.parameter.userId, e.parameter.accessToken);
         break;
+      case 'getAdminPredictions':
+      case 'getPredictions':
+        responseData = getAdminPredictions(e.parameter.roundId);
+        break;
       case 'getUserAchievements':
         responseData = getUserAchievements(e.parameter.userId);
         break;
@@ -191,12 +195,16 @@ function doPost(e) {
         if (!payload.to || !payload.subject || !payload.body) {
           throw new Error('Missing required fields: to, subject, body');
         }
-        MailApp.sendEmail({
+        var mailOpts = {
           to: payload.to,
           name: payload.name || 'The Grid',
           subject: payload.subject,
           body: payload.body
-        });
+        };
+        if (payload.htmlBody) {
+          mailOpts.htmlBody = payload.htmlBody;
+        }
+        MailApp.sendEmail(mailOpts);
         responseData = { sent: true, to: payload.to };
         break;
       case 'enqueueNotification':
@@ -212,6 +220,10 @@ function doPost(e) {
       case 'getAdminUsers':
       case 'getUsers':
         responseData = getAdminUsers(payload.requesterId || payload.userId, payload.accessToken);
+        break;
+      case 'getAdminPredictions':
+      case 'getPredictions':
+        responseData = getAdminPredictions(payload.roundId);
         break;
       default:
         return createJsonResponse({
@@ -571,6 +583,13 @@ function getPredictionRounds(weekendId) {
 
   for (let i = 1; i < rows.length; i++) {
     if (!weekendId || rows[i][1] === weekendId) {
+      const roundType = String(rows[i][3] || '').toUpperCase();
+      const roundId = String(rows[i][0] || '').toUpperCase();
+      const title = String(rows[i][4] || '').toUpperCase();
+      if (roundType === 'QUALIFYING' || roundType === 'SPRINT_QUALIFYING' || roundId.indexOf('QUALIFYING') !== -1 || title.indexOf('QUALIFYING') !== -1) {
+        continue;
+      }
+
       const opensAt = new Date(rows[i][6]).getTime();
       const closesAt = new Date(rows[i][7]).getTime();
       let status = rows[i][8];
@@ -1120,6 +1139,29 @@ function getUserWeekendPredictions(userId, raceWeekendId) {
     }
   }
   return map;
+}
+
+function getAdminPredictions(roundId) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const predSheet = ss.getSheetByName(SHEET_NAMES.PREDICTIONS);
+  if (!predSheet) return [];
+  const rows = predSheet.getDataRange().getValues();
+  const list = [];
+  for (let i = 1; i < rows.length; i++) {
+    const r = rows[i];
+    if (!r[0]) continue;
+    if (roundId && String(r[2]) !== String(roundId)) continue;
+    list.push({
+      predictionId: r[0],
+      userId: r[1],
+      roundId: r[2],
+      predictionData: JSON.parse(r[3] || '{}'),
+      submittedAt: r[4],
+      updatedAt: r[5],
+      lockedAt: r[6] || r[5]
+    });
+  }
+  return list;
 }
 
 const USER_HEADERS = [
@@ -2005,7 +2047,9 @@ function processNotificationQueue(batchLimit) {
               if (p.fastestLap) body += '• Fastest Lap: ' + String(p.fastestLap).toUpperCase() + '\n';
               if (p.driverOfTheDay) body += '• Driver of the Day: ' + String(p.driverOfTheDay).toUpperCase() + '\n';
               if (p.safetyCar) body += '• Safety Car: ' + p.safetyCar + '\n';
+              if (p.virtualSafetyCar) body += '• Virtual Safety Car: ' + p.virtualSafetyCar + '\n';
               if (p.redFlag) body += '• Red Flag: ' + p.redFlag + '\n';
+              if (p.yellowFlag) body += '• Yellow Flag: ' + p.yellowFlag + '\n';
             }
             body += '\nScoring and leaderboard standings will be calculated once official FIA results are verified.\n';
           } else if (type === 'RACE_RESULTS' || type === 'PREDICTION_RESULT') {
@@ -2031,12 +2075,17 @@ function processNotificationQueue(batchLimit) {
           }
           body += '\nWarm regards,\nThe Grid Team\nhttps://hj1418.github.io/F1-Prediction-Wall/';
 
-          MailApp.sendEmail({
+          const emailOpts = {
             to: email,
             name: 'The Grid',
             subject: subject,
             body: body
-          });
+          };
+          if (data && data.htmlBody) {
+            emailOpts.htmlBody = data.htmlBody;
+          }
+
+          MailApp.sendEmail(emailOpts);
 
           queueSheet.getRange(rowIdx, 7).setValue('SENT');
           queueSheet.getRange(rowIdx, 9).setValue(attempts);
@@ -2183,3 +2232,43 @@ function testSendWelcomeEmail(targetEmail) {
   Logger.log('[EMAIL_SENT] Verification test email sent successfully to: ' + recipient);
   return { success: true, recipient: recipient, sender: 'thepaddockprediction14@gmail.com' };
 }
+
+/**
+ * Real-time Automated Data Sync:
+ * Clears caches and synchronizes live round and weekend status according to current time.
+ */
+function syncCurrentWeekendAndStatus() {
+  Logger.log('[AUTO_SYNC] Executing automatic weekend, round status, and calendar sync...');
+  const cache = CacheService.getScriptCache();
+  cache.remove('current_weekend');
+  cache.remove('race_weekends_2026');
+  cache.remove('pred_rounds_all');
+
+  const current = getCurrentWeekend();
+  Logger.log('[AUTO_SYNC] Status sync complete. Current weekend: ' + (current ? current.raceName : 'None'));
+  return { success: true, currentWeekend: current ? current.raceName : null, timestamp: new Date().toISOString() };
+}
+
+/**
+ * Setup recurring trigger for automatic race calendar and status synchronization.
+ * Runs every 6 hours automatically to ensure race states and round lifecycles stay fresh.
+ */
+function setupAutomaticSyncTrigger() {
+  const triggers = ScriptApp.getProjectTriggers();
+  let removed = 0;
+  for (let i = 0; i < triggers.length; i++) {
+    if (triggers[i].getHandlerFunction() === 'syncCurrentWeekendAndStatus') {
+      ScriptApp.deleteTrigger(triggers[i]);
+      removed++;
+    }
+  }
+
+  const newTrigger = ScriptApp.newTrigger('syncCurrentWeekendAndStatus')
+    .timeBased()
+    .everyHours(6)
+    .create();
+
+  Logger.log('[AUTO_SYNC_SETUP] Installed 6-hour time-driven calendar sync trigger: ' + newTrigger.getUniqueId());
+  return { success: true, triggerId: newTrigger.getUniqueId(), removedPrevious: removed };
+}
+

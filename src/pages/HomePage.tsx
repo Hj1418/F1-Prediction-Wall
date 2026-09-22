@@ -12,6 +12,7 @@ import {
   Trophy,
   CheckCircle2,
   Clock,
+  CalendarClock,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
@@ -73,9 +74,10 @@ export const HomePage: React.FC = () => {
       return;
     }
 
+    const isScoredRound = predictionHighlight.status === 'SCORED';
     Promise.all([
       api.getUserPrediction(predictionHighlight.roundId, currentUser.userId).catch(() => null),
-      api.getRoundScore(predictionHighlight.roundId, currentUser.userId).catch(() => null),
+      isScoredRound ? api.getRoundScore(predictionHighlight.roundId, currentUser.userId).catch(() => null) : Promise.resolve(null),
       api.getDrivers(2026).catch(() => [] as Driver[]),
     ]).then(([pred, score, drvs]) => {
       if (isMounted) {
@@ -509,6 +511,12 @@ export const HomePage: React.FC = () => {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--telemetry-green)', fontSize: '0.78rem', fontWeight: 700, marginTop: '0.65rem' }}>
                   <CheckCircle2 size={14} /> Prediction Locked
                 </div>
+                {predictionHighlight?.resultsExpectedNotice && (
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', marginTop: '0.35rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                    <CalendarClock size={12} color="var(--telemetry-cyan)" />
+                    <span>{predictionHighlight.resultsExpectedNotice}</span>
+                  </div>
+                )}
               </div>
 
               <Link
@@ -588,6 +596,12 @@ export const HomePage: React.FC = () => {
                 <div style={{ color: 'var(--telemetry-green)', fontWeight: 800, fontSize: '0.82rem', marginTop: '0.4rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
                   <span className="live-pulse" style={{ width: '8px', height: '8px', backgroundColor: 'var(--telemetry-green)' }} /> Predictions Open
                 </div>
+                {predictionHighlight?.resultsExpectedNotice && (
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', marginTop: '0.35rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                    <CalendarClock size={12} color="var(--telemetry-cyan)" />
+                    <span>{predictionHighlight.resultsExpectedNotice}</span>
+                  </div>
+                )}
               </div>
 
               <Link

@@ -9,6 +9,7 @@
 
 import { clientCache } from '../cache/clientCache';
 import { PredictionRound } from '../../types';
+import { getResultsTimeline } from '../../utils/predictionTimeline';
 
 export interface NextRaceSessionSummary {
   name: string;
@@ -115,6 +116,7 @@ export interface PredictionBenchHighlight {
   grandPrix: string;
   status: 'OPEN' | 'UPCOMING' | 'LOCKED' | 'SCORED';
   deadlineNotice: string;
+  resultsExpectedNotice?: string;
   totalPointsAvailable: number;
   url: string;
 }
@@ -451,12 +453,14 @@ export async function getHomeSnapshot(): Promise<HomeSnapshot> {
       // Bind active prediction round
       if (raceContext.activePredictionRound) {
         const pr = raceContext.activePredictionRound;
+        const timeline = getResultsTimeline(pr);
         snapshot.predictionHighlight = {
           roundId: pr.roundId,
           roundName: pr.title || `${w.raceName || 'Grand Prix'} Race Prediction`,
           grandPrix: circuitName,
           status: pr.status === 'OPEN' ? 'OPEN' : pr.status === 'LOCKED' ? 'LOCKED' : pr.status === 'SCORED' ? 'SCORED' : 'UPCOMING',
           deadlineNotice: pr.closesAt ? `Predictions lock: ${new Date(pr.closesAt).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}` : 'Predictions lock before start',
+          resultsExpectedNotice: pr.status === 'SCORED' ? 'Results Published' : `Results: ~${timeline.formattedExpectedResultsTime} (${timeline.shortEta})`,
           totalPointsAvailable: 60,
           url: pr.status === 'OPEN' ? `/predict/${pr.roundId}` : '/predictions',
         };
@@ -468,12 +472,14 @@ export async function getHomeSnapshot(): Promise<HomeSnapshot> {
     if (cachedRounds && cachedRounds.length > 0) {
       const activeRound = cachedRounds.find(r => r.status === 'OPEN') || cachedRounds[0];
       if (activeRound) {
+        const timeline = getResultsTimeline(activeRound);
         snapshot.predictionHighlight = {
           roundId: activeRound.roundId,
           roundName: activeRound.title || 'Prediction Round',
           grandPrix: activeRound.description || 'Grand Prix',
           status: activeRound.status === 'OPEN' ? 'OPEN' : activeRound.status === 'LOCKED' ? 'LOCKED' : activeRound.status === 'SCORED' ? 'SCORED' : 'UPCOMING',
           deadlineNotice: activeRound.status === 'OPEN' ? 'Predictions lock before Grand Prix' : 'Predictions are locked for this session',
+          resultsExpectedNotice: activeRound.status === 'SCORED' ? 'Results Published' : `Results: ~${timeline.formattedExpectedResultsTime}`,
           totalPointsAvailable: 60,
           url: activeRound.status === 'OPEN' ? `/predict/${activeRound.roundId}` : '/predictions',
         };

@@ -112,7 +112,7 @@ export const Footer: React.FC = () => {
             </div>
           </div>
 
-          {/* Contact Us */}
+          {/* Contact & Support */}
           <div>
             <h4
               style={{
@@ -125,19 +125,19 @@ export const Footer: React.FC = () => {
                 marginBottom: '0.85rem',
               }}
             >
-              Community & Support
+              Contact & Support
             </h4>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
               <a
-                href="mailto:support@thegridmotorsport.com"
+                href="mailto:thepaddockprediction14@gmail.com"
                 style={linkStyle}
                 onMouseEnter={e => (e.currentTarget.style.color = '#fff')}
                 onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-secondary)')}
               >
-                <Mail size={13} /> support@thegridmotorsport.com
+                <Mail size={13} /> thepaddockprediction14@gmail.com
               </a>
               <a
-                href="mailto:feedback@thegridmotorsport.com"
+                href="mailto:thepaddockprediction14@gmail.com?subject=The%20Grid%20Feedback"
                 style={linkStyle}
                 onMouseEnter={e => (e.currentTarget.style.color = '#fff')}
                 onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-secondary)')}
@@ -145,7 +145,7 @@ export const Footer: React.FC = () => {
                 <MessageCircle size={13} /> Send Feedback
               </a>
               <a
-                href="mailto:help@thegridmotorsport.com"
+                href="mailto:thepaddockprediction14@gmail.com?subject=The%20Grid%20Support%20Request"
                 style={linkStyle}
                 onMouseEnter={e => (e.currentTarget.style.color = '#fff')}
                 onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-secondary)')}

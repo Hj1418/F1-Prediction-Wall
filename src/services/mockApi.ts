@@ -22,6 +22,7 @@ import {
   INITIAL_ACHIEVEMENTS,
 } from './mockData';
 import { ScoringEngine } from './scoringEngine';
+import { isQualificationPredictionRound } from './schedule/predictionRoundGenerator';
 
 const STORAGE_KEYS = {
   USERS: 'f1_pred_users_v3',
@@ -122,7 +123,7 @@ export class MockApiService {
   }
 
   public async getPredictionRounds(raceWeekendId?: string): Promise<PredictionRound[]> {
-    let list = [...this.rounds];
+    let list = this.rounds.filter(r => !isQualificationPredictionRound(r));
     if (raceWeekendId) {
       list = list.filter(r => r.raceWeekendId === raceWeekendId);
     }
@@ -726,6 +727,13 @@ export class MockApiService {
       scoredCount: calculatedScores.length,
       scores: calculatedScores,
     };
+  }
+
+  public async getAdminPredictions(roundId?: string): Promise<Prediction[]> {
+    if (roundId) {
+      return this.predictions.filter(p => p.roundId === roundId).map(p => ({ ...p }));
+    }
+    return this.predictions.map(p => ({ ...p }));
   }
 
   private recalculateSeasonStats() {

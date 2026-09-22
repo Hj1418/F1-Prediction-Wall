@@ -108,6 +108,7 @@ const DEFAULT_TEST_SCORING_RULES: ScoringRules = {
   safetyCar: 10,
   virtualSafetyCar: 10,
   redFlag: 10,
+  yellowFlag: 10,
   retirementsOverUnder: 10,
   lap1Leader: 10,
   winningMargin: 10,
@@ -235,8 +236,51 @@ class TestGrandPrixService {
         { id: 'p2', label: 'Second Place (P2)', type: 'driver', required: true },
         { id: 'p3', label: 'Third Place (P3)', type: 'driver', required: true },
         { id: 'fastestLap', label: 'Fastest Lap', type: 'driver', required: true },
+        {
+          id: 'safetyCar',
+          label: 'Safety Car Deployed?',
+          type: 'option',
+          required: false,
+          helperText: '+10 PTS • Physical Bernd Mayländer Safety Car deployed',
+          options: [
+            { value: 'YES', label: 'Yes — Safety Car deployed' },
+            { value: 'NO', label: 'No — No physical Safety Car' },
+          ],
+        },
+        {
+          id: 'virtualSafetyCar',
+          label: 'Virtual Safety Car (VSC)?',
+          type: 'option',
+          required: false,
+          helperText: '+10 PTS • Virtual Safety Car speed restriction deployed',
+          options: [
+            { value: 'YES', label: 'Yes — VSC deployed' },
+            { value: 'NO', label: 'No — No VSC period' },
+          ],
+        },
+        {
+          id: 'redFlag',
+          label: 'Red Flag Stoppage?',
+          type: 'option',
+          required: false,
+          helperText: '+10 PTS • Race officially suspended with red flags',
+          options: [
+            { value: 'YES', label: 'Yes — Race red-flagged' },
+            { value: 'NO', label: 'No — No red flag stoppage' },
+          ],
+        },
+        {
+          id: 'yellowFlag',
+          label: 'Yellow Flag Caution?',
+          type: 'option',
+          required: false,
+          helperText: '+10 PTS • Yellow flag waved during session',
+          options: [
+            { value: 'YES', label: 'Yes — Yellow flag waved' },
+            { value: 'NO', label: 'No — Clean green flag session' },
+          ],
+        },
         { id: 'driverOfTheDay', label: 'Driver of the Day', type: 'driver', required: false },
-        { id: 'safetyCar', label: 'Safety Car Deployed', type: 'boolean', required: false },
       ],
     };
 

@@ -9,6 +9,7 @@ import { PaddockFacts } from '../components/race/PaddockFacts';
 import { TrackCharacter } from '../components/race/TrackCharacter';
 import { InfoTooltip } from '../components/common/InfoTooltip';
 import { getCircuitMetadata } from '../services/circuits/circuitRegistry';
+import { isQualificationPredictionRound } from '../services/schedule/predictionRoundGenerator';
 import { useApp } from '../context/AppContext';
 import {
   Calendar,
@@ -48,14 +49,14 @@ export const WeekendDashboardPage: React.FC = () => {
           setWeekend(found);
           document.title = `${found.raceName} Weekend Hub | The Grid`;
           const rList = await api.getPredictionRounds(found.raceWeekendId);
-          setRounds(rList);
+          setRounds(rList.filter(r => !isQualificationPredictionRound(r)));
         } else {
           try {
             const w = await api.getWeekendById(routeParam);
             setWeekend(w);
             if (w) document.title = `${w.raceName} Weekend Hub | The Grid`;
             const rList = await api.getPredictionRounds(routeParam);
-            setRounds(rList);
+            setRounds(rList.filter(r => !isQualificationPredictionRound(r)));
           } catch (e) {
             setWeekend(null);
           }
@@ -253,7 +254,7 @@ export const WeekendDashboardPage: React.FC = () => {
                   MAKE YOUR PREDICTION
                 </div>
                 <h2 style={{ fontSize: '1.75rem', fontWeight: 900, textTransform: 'uppercase', marginTop: '0.2rem' }}>
-                  Predict Session Outcomes
+                  Predict Race Outcome
                 </h2>
               </div>
               <Link to="/predictions" className="btn btn-outline btn-sm">

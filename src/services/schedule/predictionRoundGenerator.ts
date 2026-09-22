@@ -28,6 +28,7 @@ export const DEFAULT_SCORING_RULES: ScoringRules = {
   safetyCar: 10,
   virtualSafetyCar: 10,
   redFlag: 10,
+  yellowFlag: 10,
   retirementsOverUnder: 10,
   lap1Leader: 10,
   winningMargin: 10,
@@ -118,18 +119,29 @@ export function getDefaultPredictionFields(roundType: string): PredictionFieldCo
         },
         {
           id: 'safetyCar',
-          label: 'Wild Card: Safety Car or VSC in Sprint?',
+          label: 'Safety Car Deployed?',
           type: 'option',
           required: false,
-          helperText: '+10 PTS • Will Bernd Mayländer or Virtual Safety Car be deployed in the sprint?',
+          helperText: '+10 PTS • Will Bernd Mayländer Safety Car be dispatched in the sprint?',
           options: [
-            { value: 'YES', label: 'Yes — SC or VSC deployed' },
-            { value: 'NO', label: 'No — Full green flag sprint' },
+            { value: 'YES', label: 'Yes — Physical Safety Car deployed' },
+            { value: 'NO', label: 'No — No physical Safety Car deployed' },
+          ],
+        },
+        {
+          id: 'virtualSafetyCar',
+          label: 'Virtual Safety Car (VSC)?',
+          type: 'option',
+          required: false,
+          helperText: '+10 PTS • Speed delta restriction VSC period triggered in sprint',
+          options: [
+            { value: 'YES', label: 'Yes — VSC deployed during sprint' },
+            { value: 'NO', label: 'No — No VSC deployed' },
           ],
         },
         {
           id: 'redFlag',
-          label: 'Wild Card: Red Flag in Sprint?',
+          label: 'Red Flag Stoppage?',
           type: 'option',
           required: false,
           helperText: '+10 PTS • Will the sprint race be halted by a red flag?',
@@ -139,8 +151,19 @@ export function getDefaultPredictionFields(roundType: string): PredictionFieldCo
           ],
         },
         {
+          id: 'yellowFlag',
+          label: 'Yellow Flag Caution?',
+          type: 'option',
+          required: false,
+          helperText: '+10 PTS • Will a yellow flag caution be waved during the sprint?',
+          options: [
+            { value: 'YES', label: 'Yes — Yellow flag waved' },
+            { value: 'NO', label: 'No — Full green flag session' },
+          ],
+        },
+        {
           id: 'sprintDnf',
-          label: 'Wild Card: Any Sprint Retirements (DNFs)?',
+          label: 'Any Sprint Retirements (DNFs)?',
           type: 'option',
           required: false,
           helperText: '+10 PTS • Will at least 1 car fail to complete the 100km sprint distance?',
@@ -164,15 +187,8 @@ export function getDefaultPredictionFields(roundType: string): PredictionFieldCo
           helperText: '+10 PTS • Driver who clocks the official fastest lap of the Grand Prix',
         },
         {
-          id: 'driverOfTheDay',
-          label: 'Driver of the Day',
-          type: 'driver',
-          required: false,
-          helperText: '+10 PTS • Official FIA fan-voted Driver of the Day',
-        },
-        {
           id: 'safetyCar',
-          label: 'Wild Card: Safety Car Deployed?',
+          label: 'Safety Car Deployed?',
           type: 'option',
           required: false,
           helperText: '+10 PTS • Physical Bernd Mayländer Safety Car dispatched onto the circuit',
@@ -183,7 +199,7 @@ export function getDefaultPredictionFields(roundType: string): PredictionFieldCo
         },
         {
           id: 'virtualSafetyCar',
-          label: 'Wild Card: Virtual Safety Car (VSC)?',
+          label: 'Virtual Safety Car (VSC)?',
           type: 'option',
           required: false,
           helperText: '+10 PTS • Speed delta restriction Virtual Safety Car period triggered',
@@ -194,7 +210,7 @@ export function getDefaultPredictionFields(roundType: string): PredictionFieldCo
         },
         {
           id: 'redFlag',
-          label: 'Wild Card: Red Flag Stoppage?',
+          label: 'Red Flag Stoppage?',
           type: 'option',
           required: false,
           helperText: '+10 PTS • Grand Prix officially suspended and cars return to pit lane',
@@ -202,6 +218,24 @@ export function getDefaultPredictionFields(roundType: string): PredictionFieldCo
             { value: 'YES', label: 'Yes — Race suspended with red flags' },
             { value: 'NO', label: 'No — No red flag stoppage' },
           ],
+        },
+        {
+          id: 'yellowFlag',
+          label: 'Yellow Flag Caution?',
+          type: 'option',
+          required: false,
+          helperText: '+10 PTS • Track sector or full course yellow flag waved for incident/debris',
+          options: [
+            { value: 'YES', label: 'Yes — Yellow flag waved during race' },
+            { value: 'NO', label: 'No — Clean green flag race' },
+          ],
+        },
+        {
+          id: 'driverOfTheDay',
+          label: 'Driver of the Day',
+          type: 'driver',
+          required: false,
+          helperText: '+10 PTS • Official FIA fan-voted Driver of the Day',
         },
         {
           id: 'retirementsOverUnder',
@@ -361,10 +395,11 @@ export function generatePredictionRounds(
 export function isQualificationPredictionRound(round: Partial<PredictionRound>): boolean {
   const type = String(round.roundType || round.type || '').toUpperCase();
   const id = String(round.roundId || round.id || '').toUpperCase();
+  const title = String(round.title || '').toUpperCase();
   return (
     type === 'QUALIFYING' ||
     type === 'SPRINT_QUALIFYING' ||
-    id.includes('QUALIFYING_PREDICTION') ||
-    id.includes('SPRINT_QUALIFYING_PREDICTION')
+    id.includes('QUALIFYING') ||
+    title.includes('QUALIFYING')
   );
 }

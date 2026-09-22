@@ -36,7 +36,7 @@ import { WecNormalizer, WEC_POINTS_SCALES } from './dataArchitecture/normalizers
 import { MotoGpNormalizer, MOTOGP_POINTS_SCALE, CONCESSION_TIERS } from './dataArchitecture/normalizers/motogpNormalizer';
 import { JUNIOR_ACADEMIES_REGISTRY } from './dataArchitecture/identifierRegistry';
 import { clientCache, TTL } from './cache/clientCache';
-import { DEFAULT_SCORING_RULES, getDefaultPredictionFields } from './schedule/predictionRoundGenerator';
+import { DEFAULT_SCORING_RULES, getDefaultPredictionFields, isQualificationPredictionRound } from './schedule/predictionRoundGenerator';
 import { computeWeekendStatus } from '../utils/raceLifecycle';
 import { f2Data } from './motorsport/data/f2Data';
 import { f3Data } from './motorsport/data/f3Data';
@@ -56,6 +56,23 @@ const API_BASE_URL =
 export const isLiveBackend = Boolean(API_BASE_URL && API_BASE_URL.startsWith('http') && !isTestEnv);
 
 const isProd = typeof import.meta !== 'undefined' && Boolean(import.meta.env?.PROD);
+
+/**
+ * Fast network fetch with AbortController timeout.
+ * Prevents Google Apps Script serverless cold-start latency from freezing the browser UI.
+ */
+async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutMs: number = 4000): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, { ...options, signal: controller.signal });
+    clearTimeout(timer);
+    return res;
+  } catch (err) {
+    clearTimeout(timer);
+    throw err;
+  }
+}
 
 /**
  * Ensures a PredictionRound from the live API has predictionFields and scoringRules.
@@ -107,13 +124,13 @@ export const api = {
       let list: RaceWeekend[] = [];
       if (isLiveBackend) {
         try {
-          const res = await fetch(`${API_BASE_URL}?action=getRaceWeekends&season=${season}`);
+          const res = await fetchWithTimeout(`${API_BASE_URL}?action=getRaceWeekends&season=${season}`);
           const json: ApiResponse<RaceWeekend[]> = await res.json();
           if (json.success && json.data && json.data.length > 0) {
             list = json.data;
           }
         } catch (e) {
-          console.warn('Live API request failed, falling back to mockApi', e);
+          console.warn('Live API request failed or timed out, falling back to mockApi', e);
         }
       }
       if (list.length === 0) {
@@ -131,7 +148,7 @@ export const api = {
         const status = computeWeekendStatus(w, now);
         return { ...w, status };
       });
-    }, { ttlMs: TTL.SHORT });
+    }, { ttlMs: TTL.MEDIUM });
   },
 
   async getWeekendById(id: string): Promise<RaceWeekend | null> {
@@ -165,15 +182,15 @@ export const api = {
     return clientCache.getOrFetch(`f1_weekend_${id}`, async () => {
       if (isLiveBackend) {
         try {
-          const res = await fetch(`${API_BASE_URL}?action=getWeekendDetails&raceWeekendId=${encodeURIComponent(id)}`);
+          const res = await fetchWithTimeout(`${API_BASE_URL}?action=getWeekendDetails&raceWeekendId=${encodeURIComponent(id)}`);
           const json: ApiResponse<RaceWeekend> = await res.json();
           if (json.success && json.data) return json.data;
         } catch (e) {
-          console.error('Live API getWeekendById failed:', e);
+          console.warn('Live API getWeekendById failed or timed out:', e);
         }
       }
       return isProd ? null : mockApi.getWeekendById(id);
-    }, { ttlMs: TTL.SHORT });
+    }, { ttlMs: TTL.MEDIUM });
   },
 
   async getPredictionRounds(raceWeekendId?: string, forceRefresh: boolean = false): Promise<PredictionRound[]> {
@@ -212,16 +229,21 @@ export const api = {
         if (isLiveBackend) {
           try {
             const url = `${API_BASE_URL}?action=getPredictionRounds${raceWeekendId ? `&raceWeekendId=${encodeURIComponent(raceWeekendId)}` : ''}`;
-            const res = await fetch(url);
+            const res = await fetchWithTimeout(url);
             const json: ApiResponse<PredictionRound[]> = await res.json();
-            if (json.success && json.data) return json.data.map(hydratePredictionRound);
+            if (json.success && json.data) {
+              return json.data
+                .map(hydratePredictionRound)
+                .filter(r => !isQualificationPredictionRound(r));
+            }
           } catch (e) {
-            console.error('Live API getPredictionRounds failed:', e);
+            console.warn('Live API getPredictionRounds failed or timed out:', e);
           }
         }
-        return isProd ? [] : mockApi.getPredictionRounds(raceWeekendId);
+        const mockList = isProd ? [] : await mockApi.getPredictionRounds(raceWeekendId);
+        return mockList.filter(r => !isQualificationPredictionRound(r));
       },
-      { ttlMs: TTL.SHORT, forceRefresh }
+      { ttlMs: TTL.MEDIUM, forceRefresh }
     );
   },
 
@@ -252,15 +274,15 @@ export const api = {
     return clientCache.getOrFetch(`f1_round_${roundId}`, async () => {
       if (isLiveBackend) {
         try {
-          const res = await fetch(`${API_BASE_URL}?action=getPredictionRound&roundId=${encodeURIComponent(roundId)}`);
+          const res = await fetchWithTimeout(`${API_BASE_URL}?action=getPredictionRound&roundId=${encodeURIComponent(roundId)}`);
           const json: ApiResponse<PredictionRound> = await res.json();
           if (json.success && json.data) return hydratePredictionRound(json.data);
         } catch (e) {
-          console.error('Live API getPredictionRoundById failed:', e);
+          console.warn('Live API getPredictionRoundById failed or timed out:', e);
         }
       }
       return isProd ? null : mockApi.getPredictionRoundById(roundId);
-    }, { ttlMs: TTL.SHORT });
+    }, { ttlMs: TTL.MEDIUM });
   },
 
   async getUserPrediction(roundId: string, userId: string): Promise<Prediction | null> {
@@ -271,16 +293,19 @@ export const api = {
       }
     } catch (_e) {}
 
-    if (isLiveBackend) {
-      try {
-        const res = await fetch(`${API_BASE_URL}?action=getUserPrediction&roundId=${encodeURIComponent(roundId)}&userId=${encodeURIComponent(userId)}`);
-        const json: ApiResponse<Prediction> = await res.json();
-        if (json.success && json.data) return json.data;
-      } catch (e) {
-        console.error('Live API getUserPrediction failed:', e);
+    const cacheKey = `user_pred_${roundId}_${userId}`;
+    return clientCache.getOrFetch(cacheKey, async () => {
+      if (isLiveBackend) {
+        try {
+          const res = await fetchWithTimeout(`${API_BASE_URL}?action=getUserPrediction&roundId=${encodeURIComponent(roundId)}&userId=${encodeURIComponent(userId)}`);
+          const json: ApiResponse<Prediction> = await res.json();
+          if (json.success && json.data) return json.data;
+        } catch (e) {
+          console.warn('Live API getUserPrediction failed or timed out:', e);
+        }
       }
-    }
-    return isProd ? null : mockApi.getUserPrediction(roundId, userId);
+      return isProd ? null : mockApi.getUserPrediction(roundId, userId);
+    }, { ttlMs: TTL.SHORT });
   },
 
   async getUserWeekendPredictions(userId: string, raceWeekendId?: string): Promise<Record<string, Prediction>> {
@@ -294,26 +319,29 @@ export const api = {
       } catch (_e) {}
     }
 
-    if (isLiveBackend) {
-      try {
-        const url = `${API_BASE_URL}?action=getUserWeekendPredictions&userId=${encodeURIComponent(userId)}${raceWeekendId ? `&raceWeekendId=${encodeURIComponent(raceWeekendId)}` : ''}`;
-        const res = await fetch(url);
-        const json = await res.json();
-        if (json.success && json.data) {
-          if (Array.isArray(json.data)) {
-            const map: Record<string, Prediction> = {};
-            json.data.forEach((p: Prediction) => {
-              if (p && p.roundId) map[p.roundId] = p;
-            });
-            return map;
+    const cacheKey = `user_wknd_preds_${userId}_${raceWeekendId || 'all'}`;
+    return clientCache.getOrFetch(cacheKey, async () => {
+      if (isLiveBackend) {
+        try {
+          const url = `${API_BASE_URL}?action=getUserWeekendPredictions&userId=${encodeURIComponent(userId)}${raceWeekendId ? `&raceWeekendId=${encodeURIComponent(raceWeekendId)}` : ''}`;
+          const res = await fetchWithTimeout(url);
+          const json = await res.json();
+          if (json.success && json.data) {
+            if (Array.isArray(json.data)) {
+              const map: Record<string, Prediction> = {};
+              json.data.forEach((p: Prediction) => {
+                if (p && p.roundId) map[p.roundId] = p;
+              });
+              return map;
+            }
+            return json.data;
           }
-          return json.data;
+        } catch (e) {
+          console.warn('Live API getUserWeekendPredictions failed or timed out:', e);
         }
-      } catch (e) {
-        console.warn('Live API getUserWeekendPredictions failed:', e);
       }
-    }
-    return isProd ? {} : mockApi.getUserWeekendPredictions(userId, raceWeekendId);
+      return isProd ? {} : mockApi.getUserWeekendPredictions(userId, raceWeekendId);
+    }, { ttlMs: TTL.SHORT });
   },
 
   async submitPrediction(payload: {
@@ -333,7 +361,11 @@ export const api = {
           payload.predictionData
         );
         clientCache.clearPrefix('f1_prediction_rounds_');
+        clientCache.clearPrefix('user_pred_');
+        clientCache.clearPrefix('user_wknd_preds_');
         clientCache.clearPrefix('user_predictions_');
+        clientCache.clearPrefix('shared_race_context_');
+        clientCache.clearPrefix('leaderboard_');
         return saved;
       }
     } catch (e: any) {
@@ -350,11 +382,11 @@ export const api = {
       saved = await mockApi.submitPrediction(payload);
     } else {
       try {
-        const res = await fetch(`${API_BASE_URL}?action=submitPrediction`, {
+        const res = await fetchWithTimeout(`${API_BASE_URL}?action=submitPrediction`, {
           method: 'POST',
           headers: { 'Content-Type': 'text/plain;charset=utf-8' },
           body: JSON.stringify({ action: 'submitPrediction', ...payload }),
-        });
+        }, 8000);
         const json: ApiResponse<Prediction> = await res.json();
         if (json.success && json.data) {
           saved = json.data;
@@ -369,8 +401,11 @@ export const api = {
 
     // Invalidate prediction round and race context caches so fresh status is immediately reflected
     clientCache.clearPrefix('f1_prediction_rounds_');
+    clientCache.clearPrefix('user_pred_');
+    clientCache.clearPrefix('user_wknd_preds_');
     clientCache.clearPrefix('user_predictions_');
     clientCache.clearPrefix('shared_race_context_');
+    clientCache.clearPrefix('leaderboard_');
     return saved;
   },
 
@@ -383,16 +418,18 @@ export const api = {
       }
     } catch (_e) {}
 
-    if (isLiveBackend) {
-      try {
-        const res = await fetch(`${API_BASE_URL}?action=getRoundResults&roundId=${encodeURIComponent(roundId)}`);
-        const json: ApiResponse<SessionResult> = await res.json();
-        if (json.success && json.data) return json.data;
-      } catch (e) {
-        console.error('Live API getOfficialResult failed:', e);
+    return clientCache.getOrFetch(`official_result_${roundId}`, async () => {
+      if (isLiveBackend) {
+        try {
+          const res = await fetchWithTimeout(`${API_BASE_URL}?action=getRoundResults&roundId=${encodeURIComponent(roundId)}`);
+          const json: ApiResponse<SessionResult> = await res.json();
+          if (json.success && json.data) return json.data;
+        } catch (e) {
+          console.warn('Live API getOfficialResult failed or timed out:', e);
+        }
       }
-    }
-    return isProd ? null : mockApi.getOfficialResult(roundId);
+      return isProd ? null : mockApi.getOfficialResult(roundId);
+    }, { ttlMs: TTL.SHORT });
   },
 
   async getRoundScore(roundId: string, userId: string): Promise<RoundScore | null> {
@@ -403,16 +440,18 @@ export const api = {
       }
     } catch (_e) {}
 
-    if (isLiveBackend) {
-      try {
-        const res = await fetch(`${API_BASE_URL}?action=getRoundScore&roundId=${encodeURIComponent(roundId)}&userId=${encodeURIComponent(userId)}`);
-        const json: ApiResponse<RoundScore> = await res.json();
-        if (json.success && json.data) return json.data;
-      } catch (e) {
-        console.error('Live API getRoundScore failed:', e);
+    return clientCache.getOrFetch(`round_score_${roundId}_${userId}`, async () => {
+      if (isLiveBackend) {
+        try {
+          const res = await fetchWithTimeout(`${API_BASE_URL}?action=getRoundScore&roundId=${encodeURIComponent(roundId)}&userId=${encodeURIComponent(userId)}`);
+          const json: ApiResponse<RoundScore> = await res.json();
+          if (json.success && json.data) return json.data;
+        } catch (e) {
+          console.warn('Live API getRoundScore failed or timed out:', e);
+        }
       }
-    }
-    return isProd ? null : mockApi.getRoundScore(roundId, userId);
+      return isProd ? null : mockApi.getRoundScore(roundId, userId);
+    }, { ttlMs: TTL.SHORT });
   },
 
   async getLeaderboard(type: 'season' | 'weekend' | 'round', id?: string): Promise<LeaderboardEntry[]> {
@@ -425,56 +464,64 @@ export const api = {
       } catch (_e) {}
     }
 
-    if (isLiveBackend) {
-      try {
-        const url = `${API_BASE_URL}?action=getLeaderboard&type=${type}${id ? `&id=${encodeURIComponent(id)}` : ''}`;
-        const res = await fetch(url);
-        const json: ApiResponse<LeaderboardEntry[]> = await res.json();
-        if (json.success && json.data) return json.data;
-      } catch (e) {
-        console.error('Live API getLeaderboard failed:', e);
+    return clientCache.getOrFetch(`leaderboard_${type}_${id || 'all'}`, async () => {
+      if (isLiveBackend) {
+        try {
+          const url = `${API_BASE_URL}?action=getLeaderboard&type=${type}${id ? `&id=${encodeURIComponent(id)}` : ''}`;
+          const res = await fetchWithTimeout(url);
+          const json: ApiResponse<LeaderboardEntry[]> = await res.json();
+          if (json.success && json.data) return json.data;
+        } catch (e) {
+          console.warn('Live API getLeaderboard failed or timed out:', e);
+        }
       }
-    }
-    return isProd ? [] : mockApi.getLeaderboard(type, id);
+      return isProd ? [] : mockApi.getLeaderboard(type, id);
+    }, { ttlMs: TTL.SHORT });
   },
 
   async getUserProfile(usernameOrId: string): Promise<User | null> {
-    if (isLiveBackend) {
-      try {
-        const res = await fetch(`${API_BASE_URL}?action=getUserProfile&userId=${encodeURIComponent(usernameOrId)}`);
-        const json: ApiResponse<User> = await res.json();
-        if (json.success && json.data) return json.data;
-      } catch (e) {
-        console.warn('Live API getUserProfile failed, checking fallback:', e);
+    return clientCache.getOrFetch(`user_profile_${usernameOrId}`, async () => {
+      if (isLiveBackend) {
+        try {
+          const res = await fetchWithTimeout(`${API_BASE_URL}?action=getUserProfile&userId=${encodeURIComponent(usernameOrId)}`);
+          const json: ApiResponse<User> = await res.json();
+          if (json.success && json.data) return json.data;
+        } catch (e) {
+          console.warn('Live API getUserProfile failed or timed out, checking fallback:', e);
+        }
       }
-    }
-    return isProd ? null : mockApi.getUserProfile(usernameOrId);
+      return isProd ? null : mockApi.getUserProfile(usernameOrId);
+    }, { ttlMs: TTL.SHORT });
   },
 
   async getUserAchievements(userId: string): Promise<Achievement[]> {
-    if (isLiveBackend) {
-      try {
-        const res = await fetch(`${API_BASE_URL}?action=getUserAchievements&userId=${encodeURIComponent(userId)}`);
-        const json: ApiResponse<Achievement[]> = await res.json();
-        if (json.success && json.data) return json.data;
-      } catch (e) {
-        console.warn('Live API getUserAchievements failed, checking fallback:', e);
+    return clientCache.getOrFetch(`user_achievements_${userId}`, async () => {
+      if (isLiveBackend) {
+        try {
+          const res = await fetchWithTimeout(`${API_BASE_URL}?action=getUserAchievements&userId=${encodeURIComponent(userId)}`);
+          const json: ApiResponse<Achievement[]> = await res.json();
+          if (json.success && json.data) return json.data;
+        } catch (e) {
+          console.warn('Live API getUserAchievements failed or timed out, checking fallback:', e);
+        }
       }
-    }
-    return isProd ? [] : mockApi.getUserAchievements(userId);
+      return isProd ? [] : mockApi.getUserAchievements(userId);
+    }, { ttlMs: TTL.SHORT });
   },
 
   async getUserPredictionsHistory(userId: string) {
-    if (isLiveBackend) {
-      try {
-        const res = await fetch(`${API_BASE_URL}?action=getUserPredictionsHistory&userId=${encodeURIComponent(userId)}`);
-        const json = await res.json();
-        if (json.success && json.data) return json.data;
-      } catch (e) {
-        console.warn('Live API getUserPredictionsHistory failed, checking fallback:', e);
+    return clientCache.getOrFetch(`user_pred_history_${userId}`, async () => {
+      if (isLiveBackend) {
+        try {
+          const res = await fetchWithTimeout(`${API_BASE_URL}?action=getUserPredictionsHistory&userId=${encodeURIComponent(userId)}`);
+          const json = await res.json();
+          if (json.success && json.data) return json.data;
+        } catch (e) {
+          console.warn('Live API getUserPredictionsHistory failed or timed out, checking fallback:', e);
+        }
       }
-    }
-    return isProd ? [] : mockApi.getUserPredictionsHistory(userId);
+      return isProd ? [] : mockApi.getUserPredictionsHistory(userId);
+    }, { ttlMs: TTL.SHORT });
   },
 
   async getAllUsers(): Promise<User[]> {
@@ -510,6 +557,22 @@ export const api = {
       throw new Error('Live database required for admin directory.');
     }
     return mockApi.getAdminUsers(requesterId);
+  },
+
+  async getAdminPredictions(roundId?: string): Promise<Prediction[]> {
+    if (isLiveBackend) {
+      try {
+        const url = `${API_BASE_URL}?action=getAdminPredictions${roundId ? `&roundId=${encodeURIComponent(roundId)}` : ''}`;
+        const res = await fetch(url);
+        const json: ApiResponse<Prediction[]> = await res.json();
+        if (json.success && Array.isArray(json.data)) {
+          return json.data;
+        }
+      } catch (e: any) {
+        console.error('Live API getAdminPredictions error:', e);
+      }
+    }
+    return mockApi.getAdminPredictions(roundId);
   },
 
   async googleLogin(payload: { email: string; displayName?: string; photoUrl?: string; accessToken?: string }): Promise<User> {
@@ -657,6 +720,7 @@ export const api = {
     to: string;
     subject: string;
     body: string;
+    htmlBody?: string;
     name?: string;
   }): Promise<{ success: boolean; error?: string }> {
     if (isLiveBackend) {

@@ -3,13 +3,15 @@ import { Link } from 'react-router-dom';
 import { api } from '../services/apiClient';
 import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
-import { RaceWeekend, PredictionRound, Prediction } from '../types';
+import { RaceWeekend, PredictionRound, Prediction, Driver } from '../types';
 import { getSharedRaceContext, getActiveTestPredictionContext, PredictionContext } from '../services/schedule/raceContextService';
 import { isQualificationPredictionRound } from '../services/schedule/predictionRoundGenerator';
 import { StatusBadge } from '../components/common/StatusBadge';
 import { CountdownTimer } from '../components/common/CountdownTimer';
 import { LoadingState } from '../components/common/LoadingState';
 import { evaluateRoundState } from '../utils/raceLifecycle';
+import { PredictionGuideCard } from '../components/predictions/PredictionGuideCard';
+import { getResultsTimeline } from '../utils/predictionTimeline';
 import {
   Calendar,
   CheckCircle2,
@@ -21,6 +23,8 @@ import {
   Zap,
   Sparkles,
   ChevronRight,
+  BookOpen,
+  CalendarClock,
 } from 'lucide-react';
 
 export const PredictionsHubPage: React.FC = () => {
@@ -31,15 +35,19 @@ export const PredictionsHubPage: React.FC = () => {
   const [upcomingWeekends, setUpcomingWeekends] = useState<RaceWeekend[]>([]);
   const [currentRounds, setCurrentRounds] = useState<PredictionRound[]>([]);
   const [userPredictions, setUserPredictions] = useState<Record<string, Prediction | null>>({});
+  const [userScores, setUserScores] = useState<Record<string, any>>({});
+  const [drivers, setDrivers] = useState<Driver[]>([]);
   const [userHistory, setUserHistory] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Test Grand Prix context (when activated by Admin)
   const [testContext, setTestContext] = useState<PredictionContext | null>(null);
   const [userTestPrediction, setUserTestPrediction] = useState<Prediction | null>(null);
+  const [isGuideOpen, setIsGuideOpen] = useState(false);
 
   useEffect(() => {
     document.title = 'Prediction Bench | The Grid';
+    api.getDrivers(2026).then(setDrivers).catch(() => {});
   }, []);
 
   // 1. Stable weekend & round metadata loading (does not re-query on auth changes)
@@ -114,6 +122,21 @@ export const PredictionsHubPage: React.FC = () => {
         if (!mounted) return;
         setUserPredictions(predMap || {});
         setUserHistory(hist || []);
+
+        const scoredRounds = currentRounds.filter(r => r.status === 'SCORED');
+        if (scoredRounds.length > 0) {
+          const scorePromises = scoredRounds.map(r =>
+            api.getRoundScore(r.roundId, currentUser.userId).catch(() => null)
+          );
+          const sList = await Promise.all(scorePromises);
+          const sMap: Record<string, any> = {};
+          scoredRounds.forEach((r, idx) => {
+            sMap[r.roundId] = sList[idx];
+          });
+          if (mounted) setUserScores(sMap);
+        } else if (mounted) {
+          setUserScores({});
+        }
       } catch (err) {
         console.warn('Failed to load user predictions in hub', err);
       }
@@ -123,7 +146,7 @@ export const PredictionsHubPage: React.FC = () => {
     return () => {
       mounted = false;
     };
-  }, [currentUser?.userId, currentWeekend?.raceWeekendId, dataVersion]);
+  }, [currentUser?.userId, currentWeekend?.raceWeekendId, currentRounds.length, dataVersion]);
 
   if (loading) {
     return <LoadingState message="LOADING YOUR PREDICTIONS..." />;
@@ -140,6 +163,13 @@ export const PredictionsHubPage: React.FC = () => {
     return driverId;
   };
 
+  const getDriverFullName = (driverId?: string): string => {
+    if (!driverId) return '—';
+    if (driverId.startsWith('test-')) return getTestDriverName(driverId);
+    const d = drivers.find(drv => drv.id === driverId);
+    return d ? `${d.firstName} ${d.lastName}` : driverId;
+  };
+
   const hasOpenRounds = currentRounds.some(r => r.status === 'OPEN');
   const allUpcoming = currentRounds.length > 0 && currentRounds.every(r => r.status === 'UPCOMING');
   const allLocked = currentRounds.length > 0 && currentRounds.every(r => r.status === 'LOCKED');
@@ -148,16 +178,48 @@ export const PredictionsHubPage: React.FC = () => {
   return (
     <div className="container" style={{ padding: '3rem 1.25rem 5rem 1.25rem' }}>
       {/* Header */}
-      <div style={{ marginBottom: '2.5rem' }}>
-        <div style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--f1-red)', letterSpacing: '0.12em', textTransform: 'uppercase' }}>
-          THE GRID • INTERACTIVE COMPETITION
+      <div style={{ marginBottom: '2.5rem', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1.5rem' }}>
+        <div style={{ maxWidth: '800px' }}>
+          <div style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--f1-red)', letterSpacing: '0.12em', textTransform: 'uppercase' }}>
+            THE GRID • INTERACTIVE COMPETITION
+          </div>
+          <h1 style={{ fontSize: '2.25rem', fontWeight: 900, textTransform: 'uppercase', marginTop: '0.2rem' }}>
+            Prediction Bench
+          </h1>
+          <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginTop: '0.3rem' }}>
+            Prediction Bench is The Grid's interactive competition layer. Put your strategy foresight to the test: pick the Podium Finishers (P1, P2, P3), Fastest Lap, Driver of the Day, and Race Strategy wildcards before the race locks to earn points and climb the championship leaderboard.
+          </p>
         </div>
-        <h1 style={{ fontSize: '2.25rem', fontWeight: 900, textTransform: 'uppercase', marginTop: '0.2rem' }}>
-          Prediction Bench
-        </h1>
-        <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginTop: '0.3rem' }}>
-          Prediction Bench is The Grid's interactive competition layer. Put your strategy foresight to the test: pick the Podium Finishers (P1, P2, P3), Fastest Lap, Driver of the Day, and Race Strategy wildcards before the race locks to earn points and climb the championship leaderboard.
-        </p>
+
+        <button
+          type="button"
+          onClick={() => {
+            setIsGuideOpen(true);
+            const el = document.getElementById('scoring-guide');
+            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }}
+          className="btn btn-secondary"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            border: '1px solid rgba(0, 210, 255, 0.4)',
+            color: 'var(--telemetry-cyan)',
+            background: 'rgba(0, 210, 255, 0.08)',
+            fontWeight: 800,
+            fontSize: '0.85rem',
+          }}
+        >
+          <BookOpen size={16} /> {isGuideOpen ? 'Scoring & Rules Guide' : 'Show Scoring Guide'}
+        </button>
+      </div>
+
+      {/* In-Page Prediction & Scoring Guide (Rendered outside on page) */}
+      <div style={{ marginBottom: '2.5rem' }}>
+        <PredictionGuideCard
+          isOpen={isGuideOpen}
+          onToggle={() => setIsGuideOpen(prev => !prev)}
+        />
       </div>
 
       {/* 0. TEST GRAND PRIX (SANDBOX CONTEXT - DISPLAYED ONLY WHEN ACTIVATED BY ADMIN) */}
@@ -355,6 +417,7 @@ export const PredictionsHubPage: React.FC = () => {
           >
             {currentRounds.map(round => {
               const userPred = userPredictions[round.roundId];
+              const userScore = userScores[round.roundId];
               const state = evaluateRoundState(round, Boolean(userPred));
 
               return (
@@ -388,8 +451,65 @@ export const PredictionsHubPage: React.FC = () => {
                   </div>
 
                   <div>
+                    {/* Scored State or Locked Prediction State or Open State */}
+                    {userScore ? (
+                      <div style={{ background: 'linear-gradient(135deg, rgba(185, 102, 255, 0.12) 0%, var(--bg-surface-elevated) 100%)', border: '1px solid rgba(185, 102, 255, 0.4)', borderRadius: '8px', padding: '0.85rem 1rem', marginBottom: '1rem' }}>
+                        <div style={{ fontSize: '0.74rem', fontWeight: 900, color: 'var(--telemetry-purple)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '0.2rem' }}>
+                          🏁 YOUR RESULT
+                        </div>
+                        <div style={{ fontSize: '1.25rem', fontWeight: 900, color: '#ffffff', fontFamily: 'var(--font-mono)' }}>
+                          {userScore.totalScore} POINTS
+                        </div>
+                      </div>
+                    ) : userPred ? (
+                      <div style={{ background: 'var(--bg-surface-elevated)', border: '1px solid rgba(0, 230, 118, 0.35)', borderRadius: '8px', padding: '0.85rem 1rem', marginBottom: '1rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--telemetry-green)', fontWeight: 900, fontSize: '0.74rem', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '0.35rem' }}>
+                          <Lock size={13} /> YOUR PREDICTION 🔒
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', fontSize: '0.82rem' }}>
+                          <span style={{ color: 'var(--text-secondary)' }}>
+                            <strong style={{ color: '#fff' }}>P1</strong> — {getDriverFullName(userPred.predictionData?.p1)}
+                          </span>
+                          <span style={{ color: 'var(--text-secondary)' }}>
+                            <strong style={{ color: '#fff' }}>P2</strong> — {getDriverFullName(userPred.predictionData?.p2)}
+                          </span>
+                          <span style={{ color: 'var(--text-secondary)' }}>
+                            <strong style={{ color: '#fff' }}>P3</strong> — {getDriverFullName(userPred.predictionData?.p3)}
+                          </span>
+                          {userPred.predictionData?.fastestLap && (
+                            <span style={{ color: 'var(--text-secondary)' }}>
+                              <strong style={{ color: '#fff' }}>Fastest Lap</strong> — {getDriverFullName(userPred.predictionData?.fastestLap)}
+                            </span>
+                          )}
+                          {userPred.predictionData?.safetyCar && (
+                            <span style={{ color: 'var(--text-secondary)' }}>
+                              <strong style={{ color: '#fff' }}>Safety Car</strong> — {userPred.predictionData.safetyCar}
+                            </span>
+                          )}
+                          {userPred.predictionData?.virtualSafetyCar && (
+                            <span style={{ color: 'var(--text-secondary)' }}>
+                              <strong style={{ color: '#fff' }}>VSC</strong> — {userPred.predictionData.virtualSafetyCar}
+                            </span>
+                          )}
+                          {userPred.predictionData?.redFlag && (
+                            <span style={{ color: 'var(--text-secondary)' }}>
+                              <strong style={{ color: '#fff' }}>Red Flag</strong> — {userPred.predictionData.redFlag}
+                            </span>
+                          )}
+                          {userPred.predictionData?.yellowFlag && (
+                            <span style={{ color: 'var(--text-secondary)' }}>
+                              <strong style={{ color: '#fff' }}>Yellow Flag</strong> — {userPred.predictionData.yellowFlag}
+                            </span>
+                          )}
+                        </div>
+                        <div style={{ fontSize: '0.72rem', color: 'var(--telemetry-green)', fontWeight: 700, marginTop: '0.4rem' }}>
+                          Prediction Locked
+                        </div>
+                      </div>
+                    ) : null}
+
                     {/* Countdown or status */}
-                    <div style={{ marginBottom: '1rem' }}>
+                    <div style={{ marginBottom: '0.6rem' }}>
                       {state.canPredict ? (
                         <CountdownTimer targetDate={round.closesAt} prefix="Closes in" />
                       ) : state.predictionStatus === 'NOT_OPEN' ? (
@@ -410,6 +530,27 @@ export const PredictionsHubPage: React.FC = () => {
                       )}
                     </div>
 
+                    {/* Expected Results Out Time */}
+                    {(() => {
+                      const timeline = getResultsTimeline(round);
+                      return (
+                        <div
+                          style={{
+                            fontSize: '0.72rem',
+                            color: 'var(--text-muted)',
+                            fontFamily: 'var(--font-mono)',
+                            marginBottom: '1rem',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.35rem',
+                          }}
+                        >
+                          <CalendarClock size={12} color={round.status === 'SCORED' ? 'var(--telemetry-purple)' : 'var(--telemetry-cyan)'} />
+                          <span>{round.status === 'SCORED' ? 'Results Published' : `Results: ~${timeline.formattedExpectedResultsTime}`}</span>
+                        </div>
+                      );
+                    })()}
+
                     {/* Action Button */}
                     <Link
                       to={`/predict/${round.roundId}`}
@@ -419,12 +560,20 @@ export const PredictionsHubPage: React.FC = () => {
                           openLoginModal(`/predict/${round.roundId}`);
                         }
                       }}
-                      className={`btn ${state.canPredict ? 'btn-primary' : 'btn-secondary'} btn-sm`}
-                      style={{ width: '100%', justifyContent: 'center', gap: '0.4rem', fontSize: '0.85rem' }}
+                      className={`btn ${state.canPredict && !userPred ? 'btn-primary' : 'btn-secondary'} btn-sm`}
+                      style={{ width: '100%', justifyContent: 'center', gap: '0.4rem', fontSize: '0.85rem', textTransform: 'uppercase', fontWeight: 800 }}
                     >
-                      {state.canPredict ? (
+                      {userScore ? (
                         <>
-                          <Zap size={14} /> {userPred ? 'UPDATE PREDICTION' : 'MAKE PREDICTION'}
+                          <Trophy size={14} color="var(--telemetry-yellow)" /> VIEW BREAKDOWN
+                        </>
+                      ) : userPred ? (
+                        <>
+                          <Lock size={14} /> VIEW PREDICTION
+                        </>
+                      ) : state.canPredict ? (
+                        <>
+                          <Zap size={14} /> MAKE PREDICTION
                         </>
                       ) : (
                         <>
