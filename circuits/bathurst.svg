@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" width="500" height="500" viewBox="0 0 500 500" preserveAspectRatio="xMidYMid meet">
+    <desc>Mount Panorama Circuit (Bathurst) Track Layout (6.213 km)</desc>
+    <path d="M 120 440 
+             L 420 440 
+             C 450 440 470 410 460 380 
+             L 410 240 
+             C 400 210 420 180 445 160 
+             L 460 145 
+             C 475 130 465 100 440 100 
+             L 300 100 
+             C 275 100 260 80 270 55 
+             L 280 35 
+             C 290 10 265 -5 240 10 
+             L 180 50 
+             C 150 70 130 110 140 145 
+             L 165 240 
+             C 175 275 155 310 120 320 
+             L 80 330 
+             C 50 340 45 380 70 405 
+             L 100 435 
+             Z"
+          fill="none" 
+          stroke="#f59e0b" 
+          stroke-width="12" 
+          stroke-linecap="round" 
+          stroke-linejoin="round" />
+    <line x1="260" y1="425" x2="260" y2="455" stroke="#ffffff" stroke-width="4" />
+</svg>

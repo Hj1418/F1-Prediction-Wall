@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" width="500" height="500" viewBox="0 0 500 500" preserveAspectRatio="xMidYMid meet">
+    <desc>Berlin Tempelhof Airport Circuit Track Layout (2.343 km)</desc>
+    <path d="M 80 360 
+             L 420 360 
+             C 455 360 475 330 460 295 
+             L 420 200 
+             C 405 165 370 145 330 155 
+             L 280 170 
+             C 240 180 200 160 190 120 
+             L 180 80 
+             C 170 45 130 35 100 60 
+             L 60 100 
+             C 35 125 45 170 80 185 
+             L 140 210 
+             C 175 225 180 270 150 295 
+             L 100 335 
+             C 80 350 70 360 80 360 
+             Z"
+          fill="none" 
+          stroke="#00d2be" 
+          stroke-width="12" 
+          stroke-linecap="round" 
+          stroke-linejoin="round" />
+    <line x1="250" y1="345" x2="250" y2="375" stroke="#ffffff" stroke-width="4" />
+</svg>

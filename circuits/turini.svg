@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" width="500" height="500" viewBox="0 0 500 500" preserveAspectRatio="xMidYMid meet">
+    <desc>Col de Turini Mountain Pass Stage Route (21.37 km)</desc>
+    <path d="M 60 440 
+             L 120 400 
+             C 140 385 130 355 105 345 
+             L 70 330 
+             C 45 320 50 280 80 270 
+             L 160 250 
+             C 190 240 195 200 165 190 
+             L 120 175 
+             C 90 165 95 125 125 115 
+             L 240 80 
+             C 270 70 295 95 285 125 
+             L 260 200 
+             C 250 230 285 255 315 240 
+             L 380 205 
+             C 410 190 445 215 435 245 
+             L 410 320 
+             C 400 350 430 380 460 365 
+             L 480 355"
+          fill="none" 
+          stroke="#3b82f6" 
+          stroke-width="12" 
+          stroke-linecap="round" 
+          stroke-linejoin="round" />
+    <circle cx="60" cy="440" r="10" fill="#10b981" />
+    <circle cx="480" cy="355" r="10" fill="#ef4444" />
+</svg>
