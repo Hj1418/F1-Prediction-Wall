@@ -87,7 +87,7 @@ export const IndianMotorsportPage: React.FC = () => {
             }}
           >
             <Link
-              to="/championships"
+              to="/explore"
               style={{
                 color: 'var(--text-secondary)',
                 textDecoration: 'none',
@@ -96,7 +96,7 @@ export const IndianMotorsportPage: React.FC = () => {
                 gap: '0.35rem',
               }}
             >
-              <ArrowLeft size={14} /> EXPLORE
+              <ArrowLeft size={14} /> EXPLORE MOTORSPORT
             </Link>
             <span>/</span>
             <span style={{ color: data.heroBadgeColor, fontWeight: 700 }}>NATIONAL ECOSYSTEM</span>
@@ -732,7 +732,7 @@ export const IndianMotorsportPage: React.FC = () => {
                 {currentCircuit.description}
               </p>
 
-              {currentCircuit.id === 'bic' && (
+              {currentCircuit.id === 'bic' ? (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
                   <Link
                     to="/circuits/buddh"
@@ -755,7 +755,30 @@ export const IndianMotorsportPage: React.FC = () => {
                     VIEW FULL CIRCUIT GUIDE (VECTOR MAP & TELEMETRY) <ChevronRight size={14} />
                   </Link>
                 </div>
-              )}
+              ) : currentCircuit.id === 'mmrt' || currentCircuit.id === 'kari' ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                  <Link
+                    to={`/circuits/${currentCircuit.id}`}
+                    style={{
+                      backgroundColor: 'rgba(255, 153, 51, 0.12)',
+                      border: '1px solid rgba(255, 153, 51, 0.4)',
+                      color: '#ff9933',
+                      padding: '0.45rem 1rem',
+                      borderRadius: '8px',
+                      fontWeight: 800,
+                      fontSize: '0.78rem',
+                      fontFamily: 'var(--font-mono)',
+                      textDecoration: 'none',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.4rem',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    EXPLORE {currentCircuit.name.toUpperCase()} ON THE GRID <ChevronRight size={14} />
+                  </Link>
+                </div>
+              ) : null}
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.25rem' }}>
                 <div

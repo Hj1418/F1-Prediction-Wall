@@ -27,6 +27,8 @@ import {
   Flag,
 } from 'lucide-react';
 
+import { OfficialEventEntryList } from '../types/dataContract';
+
 export const WeekendDashboardPage: React.FC = () => {
   const { raceWeekendId, round } = useParams<{ raceWeekendId?: string; round?: string }>();
   const routeParam = round || raceWeekendId;
@@ -34,6 +36,7 @@ export const WeekendDashboardPage: React.FC = () => {
   const [weekend, setWeekend] = useState<RaceWeekend | null>(null);
   const [rounds, setRounds] = useState<PredictionRound[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
+  const [entryList, setEntryList] = useState<OfficialEventEntryList | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -52,23 +55,27 @@ export const WeekendDashboardPage: React.FC = () => {
         if (found) {
           setWeekend(found);
           document.title = `${found.raceName} Weekend Hub | The Grid`;
-          const [rList, dList] = await Promise.all([
+          const [rList, dList, eList] = await Promise.all([
             api.getPredictionRounds(found.raceWeekendId),
             api.getEligibleDrivers(found.raceWeekendId, 2026).catch(() => []),
+            api.getOfficialEventEntryList('f1', 2026, found.raceWeekendId).catch(() => null),
           ]);
           setRounds(rList.filter(r => !isQualificationPredictionRound(r)));
           setDrivers(dList);
+          setEntryList(eList);
         } else {
           try {
             const w = await api.getWeekendById(routeParam);
             setWeekend(w);
             if (w) document.title = `${w.raceName} Weekend Hub | The Grid`;
-            const [rList, dList] = await Promise.all([
+            const [rList, dList, eList] = await Promise.all([
               api.getPredictionRounds(routeParam),
               api.getEligibleDrivers(routeParam, 2026).catch(() => []),
+              api.getOfficialEventEntryList('f1', 2026, routeParam).catch(() => null),
             ]);
             setRounds(rList.filter(r => !isQualificationPredictionRound(r)));
             setDrivers(dList);
+            setEntryList(eList);
           } catch (e) {
             setWeekend(null);
           }
@@ -541,6 +548,86 @@ export const WeekendDashboardPage: React.FC = () => {
                 );
               })}
             </div>
+
+            {/* Official Event Reserves & Substitutes */}
+            {entryList && entryList.entries.some(e => e.role === 'RESERVE' || e.role === 'SUBSTITUTE') && (
+              <div
+                style={{
+                  marginTop: '1.25rem',
+                  padding: '1rem 1.25rem',
+                  background: 'var(--bg-surface-card)',
+                  borderRadius: 'var(--radius-md)',
+                  border: '1px solid var(--border-subtle)',
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: '0.72rem',
+                    fontWeight: 800,
+                    color: 'var(--text-muted)',
+                    letterSpacing: '0.08em',
+                    textTransform: 'uppercase',
+                    marginBottom: '0.75rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.4rem',
+                  }}
+                >
+                  <Shield size={13} color="var(--accent-cyan)" />
+                  <span>OFFICIAL EVENT RESERVES & CONTINGENCY ROSTER</span>
+                </div>
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+                    gap: '0.75rem',
+                  }}
+                >
+                  {entryList.entries
+                    .filter(e => e.role === 'RESERVE' || e.role === 'SUBSTITUTE')
+                    .map(e => (
+                      <div
+                        key={e.entryId}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '0.6rem 0.85rem',
+                          background: 'var(--bg-input)',
+                          borderRadius: 'var(--radius-sm)',
+                          border: e.role === 'SUBSTITUTE' ? '1px solid var(--accent-cyan)' : '1px solid var(--border-subtle)',
+                        }}
+                      >
+                        <div>
+                          <div style={{ fontWeight: 700, fontSize: '0.88rem' }}>{e.competitorName}</div>
+                          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                            {e.teamName} • #{e.carNumber}
+                          </div>
+                        </div>
+                        <span
+                          style={{
+                            fontSize: '0.68rem',
+                            fontWeight: 800,
+                            letterSpacing: '0.06em',
+                            padding: '0.2rem 0.5rem',
+                            borderRadius: '999px',
+                            background:
+                              e.role === 'SUBSTITUTE'
+                                ? 'rgba(6, 182, 212, 0.15)'
+                                : 'rgba(255, 255, 255, 0.05)',
+                            color: e.role === 'SUBSTITUTE' ? 'var(--accent-cyan)' : 'var(--text-muted)',
+                            border: `1px solid ${
+                              e.role === 'SUBSTITUTE' ? 'var(--accent-cyan)' : 'var(--border-subtle)'
+                            }`,
+                          }}
+                        >
+                          {e.role === 'SUBSTITUTE' ? 'ACTIVE SUBSTITUTE' : 'STANDBY RESERVE'}
+                        </span>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 

@@ -520,6 +520,14 @@ class TestGrandPrixService {
     return this.state.scores[userId] || null;
   }
 
+  public getUserTestScore(userId: string): number {
+    return this.state.scores[userId]?.totalScore || 0;
+  }
+
+  public getUserTestScoreDetails(userId: string): RoundScore | null {
+    return this.state.scores[userId] || null;
+  }
+
   // --- Isolated Notification Queue & Delivery Worker ---
   public enqueueNotification(
     recipientEmail: string,

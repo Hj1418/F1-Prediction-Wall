@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" width="500" height="500" viewBox="0 0 500 500" preserveAspectRatio="xMidYMid meet">
+    <desc>Madras International Circuit (MMRT) Track Layout (3.717 km)</desc>
+    <path d="M 80 400 
+             L 380 400 
+             C 420 400 450 370 445 330 
+             L 435 250 
+             C 430 210 395 180 355 185 
+             L 310 190 
+             C 280 195 260 175 260 145 
+             L 260 90 
+             C 260 60 230 40 200 55 
+             L 150 80 
+             C 120 95 110 130 125 160 
+             L 155 215 
+             C 170 245 155 280 125 295 
+             L 90 310 
+             C 60 325 50 365 75 395 
+             Z"
+          fill="none" 
+          stroke="#ff9933" 
+          stroke-width="12" 
+          stroke-linecap="round" 
+          stroke-linejoin="round" />
+    <line x1="200" y1="385" x2="200" y2="415" stroke="#ffffff" stroke-width="4" />
+</svg>

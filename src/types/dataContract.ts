@@ -341,4 +341,155 @@ export interface NormalizedMotoGpEntry {
   riders: { riderId: string; name: string; number: number }[];
 }
 
+// ============================================================================
+// 8. Multi-Motorsport Core Entities, Rosters & Event Entry Contracts
+// ============================================================================
+
+export type CompetitorRole =
+  | 'ACTIVE'
+  | 'RACE_DRIVER'
+  | 'RIDER'
+  | 'RESERVE'
+  | 'SUBSTITUTE'
+  | 'TEST_DRIVER'
+  | 'DEVELOPMENT_DRIVER'
+  | 'CO_DRIVER'
+  | 'CREW_MEMBER'
+  | 'GUEST'
+  | 'WILDCARD'
+  | 'WITHDRAWN';
+
+export type VerificationStatus =
+  | 'VERIFIED'
+  | 'PARTIALLY_VERIFIED'
+  | 'UNVERIFIED'
+  | 'CONFLICTED';
+
+export type EntrantType =
+  | 'TEAM'
+  | 'CONSTRUCTOR'
+  | 'ENTRANT'
+  | 'MANUFACTURER'
+  | 'CREW';
+
+export interface NormalizedCompetitor {
+  competitorId: string;         // Stable internal ID (e.g. 'verstappen', 'bagnaia', 'neuville')
+  code?: string;                // Short code (e.g. 'VER', 'BAG', 'NEU')
+  firstName: string;
+  lastName: string;
+  fullName: string;
+  number?: number;
+  nationality: string;
+  countryFlag: string;
+  defaultRole: CompetitorRole;
+  discipline: string;          // 'f1', 'motogp', 'wec', 'wrc', 'formula-e', etc.
+  externalIds?: Record<string, string>;
+  provenance: SourceProvenanceMetadata;
+  verificationStatus: VerificationStatus;
+}
+
+export interface NormalizedEntrant {
+  teamId: string;               // Stable internal ID (e.g. 'red-bull-racing', 'ducati-lenovo')
+  name: string;
+  shortName: string;
+  color: string;
+  country: string;
+  countryFlag: string;
+  manufacturer?: string;
+  powerUnit?: string;
+  entrantType: EntrantType;
+  discipline: string;
+  externalIds?: Record<string, string>;
+  provenance: SourceProvenanceMetadata;
+  verificationStatus: VerificationStatus;
+}
+
+export interface SeasonRosterCompetitor {
+  competitor: NormalizedCompetitor;
+  teamId: string;
+  role: CompetitorRole;
+  carNumber?: number;
+  classId?: string;
+  isPrimaryCompetitor: boolean;
+  notes?: string;
+}
+
+export interface SeasonRoster {
+  championshipId: string;
+  season: number;
+  entrants: NormalizedEntrant[];
+  competitors: SeasonRosterCompetitor[];
+  provenance: SourceProvenanceMetadata;
+  verificationStatus: VerificationStatus;
+}
+
+export type EventEntryStatus =
+  | 'CONFIRMED'
+  | 'SUBSTITUTED'
+  | 'WITHDRAWN'
+  | 'DNS'
+  | 'RESERVE_STANDBY';
+
+export interface OfficialEventEntry {
+  eventId: string;              // e.g. 'f1-2026-r15'
+  championshipId: string;       // e.g. 'f1'
+  season: number;               // 2026
+  entryId: string;              // e.g. 'entry-f1-2026-r15-ver'
+  competitorId: string;         // e.g. 'verstappen'
+  competitorName: string;       // e.g. 'Max Verstappen'
+  competitorCode?: string;      // e.g. 'VER'
+  teamId: string;               // e.g. 'red_bull'
+  teamName: string;             // e.g. 'Red Bull Racing'
+  vehicleId?: string;
+  role: CompetitorRole;
+  status: EventEntryStatus;
+  carNumber?: number;
+  classId?: string;
+  isPredictionEligible: boolean; // Authoritative flag for Prediction Bench
+  source: string;
+  verifiedAt: string;           // ISO 8601 UTC
+  verificationStatus: VerificationStatus;
+  substitutionNote?: string;
+}
+
+export interface OfficialEventEntryList {
+  eventId: string;
+  championshipId: string;
+  season: number;
+  eventName: string;
+  circuitId: string;
+  entries: OfficialEventEntry[];
+  publishedAtUtc: string;
+  source: SourceProvenanceMetadata;
+  verificationStatus: VerificationStatus;
+}
+
+// ============================================================================
+// 9. WRC Rally Crew & GT Racing Contracts
+// ============================================================================
+
+export interface WrcCrewEntry {
+  crewId: string;
+  carNumber: number;
+  teamId: string;
+  teamName: string;
+  carModel: string;
+  rallyClass: 'Rally1' | 'Rally2' | 'Junior WRC';
+  driver: { competitorId: string; name: string; nationality: string; flag: string };
+  coDriver: { competitorId: string; name: string; nationality: string; flag: string };
+  provenance: SourceProvenanceMetadata;
+}
+
+export interface GtEntry {
+  entryId: string;
+  carNumber: number;
+  teamId: string;
+  teamName: string;
+  carModel: string;
+  cupClass: 'Pro' | 'Gold Cup' | 'Silver Cup' | 'Bronze Cup';
+  drivers: Array<{ competitorId: string; name: string; rating: 'platinum' | 'gold' | 'silver' | 'bronze' }>;
+  provenance: SourceProvenanceMetadata;
+}
+
+
 

@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" width="500" height="500" viewBox="0 0 500 500" preserveAspectRatio="xMidYMid meet">
+    <desc>Circuit des 24 Heures du Mans Track Layout (13.626 km) with Mulsanne Straight and Porsche Curves</desc>
+    <!-- Outer Track Outline -->
+    <path d="M 120 180 
+             L 160 170 
+             C 175 165 190 175 195 190 
+             L 210 240 
+             L 240 230 
+             C 255 225 270 235 275 250 
+             L 285 300 
+             L 470 300 
+             C 485 300 490 315 480 325 
+             L 460 345 
+             C 450 355 450 370 460 380 
+             L 480 400 
+             C 490 410 480 430 465 430 
+             L 360 430 
+             C 340 430 330 410 335 390 
+             L 345 350 
+             C 350 330 335 315 315 320 
+             L 260 335 
+             C 240 340 225 325 230 305 
+             L 240 260 
+             C 245 240 230 225 210 230 
+             L 150 250 
+             C 130 255 110 240 115 220 
+             Z"
+          fill="none" 
+          stroke="#00f0ff" 
+          stroke-width="12" 
+          stroke-linecap="round" 
+          stroke-linejoin="round" />
+    <!-- Start / Finish Line Indicator -->
+    <line x1="120" y1="165" x2="120" y2="195" stroke="#ffffff" stroke-width="4" />
+</svg>

@@ -56,7 +56,7 @@ export async function getUniversalSearchIndex(): Promise<SearchResultItem[]> {
         championshipName: 'Formula 1',
         badge: 'F1',
         badgeColor: '#e10600',
-        url: '/championships/f1',
+        url: '/explore/f1',
         keywords: ['f1', 'formula one', 'grand prix', 'verstappen', 'hamilton', 'ferrari', 'mercedes', 'red bull'],
       },
       {
@@ -68,7 +68,7 @@ export async function getUniversalSearchIndex(): Promise<SearchResultItem[]> {
         championshipName: 'Formula 2',
         badge: 'F2',
         badgeColor: '#0090d0',
-        url: '/championships/f2',
+        url: '/explore/f2',
         keywords: ['f2', 'formula 2', 'feeder', 'hadjar', 'bortoleto', 'maini', 'dallara', 'super licence'],
       },
       {
@@ -80,7 +80,7 @@ export async function getUniversalSearchIndex(): Promise<SearchResultItem[]> {
         championshipName: 'Formula 3',
         badge: 'F3',
         badgeColor: '#e10600',
-        url: '/championships/f3',
+        url: '/explore/f3',
         keywords: ['f3', 'formula 3', 'fornaroli', 'minì', 'junior', 'feeder'],
       },
       {
@@ -92,7 +92,7 @@ export async function getUniversalSearchIndex(): Promise<SearchResultItem[]> {
         championshipName: 'Formula 4',
         badge: 'F4',
         badgeColor: '#10b981',
-        url: '/championships/f4',
+        url: '/explore/f4',
         keywords: ['f4', 'formula 4', 'tatuus', 'entry level', 'karting ladder'],
       },
       {
@@ -104,7 +104,7 @@ export async function getUniversalSearchIndex(): Promise<SearchResultItem[]> {
         championshipName: 'Formula E',
         badge: 'FE',
         badgeColor: '#00d2be',
-        url: '/championships/formula-e',
+        url: '/explore/formula-e',
         keywords: ['fe', 'formula e', 'electric', 'wehrlein', 'evans', 'attack mode', 'regen', 'gen3 evo', 'porsche', 'jaguar'],
       },
       {
@@ -116,7 +116,7 @@ export async function getUniversalSearchIndex(): Promise<SearchResultItem[]> {
         championshipName: 'WEC',
         badge: 'WEC',
         badgeColor: '#002b49',
-        url: '/championships/wec',
+        url: '/explore/wec',
         keywords: ['wec', 'le mans', '24 hours', 'hypercar', 'lmgt3', 'ferrari 499p', 'toyota', 'bop', 'fuoco', 'endurance'],
       },
       {
@@ -128,7 +128,7 @@ export async function getUniversalSearchIndex(): Promise<SearchResultItem[]> {
         championshipName: 'GT World Challenge',
         badge: 'GT3',
         badgeColor: '#d97706',
-        url: '/championships/gt-world-challenge',
+        url: '/explore/gt-world-challenge',
         keywords: ['gt', 'gt3', 'spa 24', 'sro', 'vanthoor', 'wrt', 'bmw m4', 'ferrari 296', 'iron dames', 'bop'],
       },
       {
@@ -140,7 +140,7 @@ export async function getUniversalSearchIndex(): Promise<SearchResultItem[]> {
         championshipName: 'WRC',
         badge: 'WRC',
         badgeColor: '#ea580c',
-        url: '/championships/wrc',
+        url: '/explore/wrc',
         keywords: ['wrc', 'rally', 'neuville', 'ogier', 'tanak', 'toyota yaris', 'hyundai i20', 'pace notes', 'power stage'],
       },
       {
@@ -152,7 +152,7 @@ export async function getUniversalSearchIndex(): Promise<SearchResultItem[]> {
         championshipName: 'MotoGP',
         badge: 'MotoGP',
         badgeColor: '#dc2626',
-        url: '/championships/motogp',
+        url: '/explore/motogp',
         keywords: ['motogp', 'motorcycle', 'bagnaia', 'martin', 'marquez', 'ducati', 'ktm', 'buddh', 'rider', 'holeshot'],
       },
       {
@@ -225,7 +225,7 @@ export async function getUniversalSearchIndex(): Promise<SearchResultItem[]> {
               championshipName: ds.name,
               badge: ds.badge,
               badgeColor: ds.badgeColor,
-              url: `/championships/${ds.id}#standings`,
+              url: `/explore/${ds.id}#standings`,
               keywords: [d.driverName, d.teamName || '', d.nationality || '', String(d.carNumber || ''), ds.name],
             });
           }
@@ -245,7 +245,7 @@ export async function getUniversalSearchIndex(): Promise<SearchResultItem[]> {
               championshipName: ds.name,
               badge: ds.badge,
               badgeColor: ds.badgeColor,
-              url: `/championships/${ds.id}#teams`,
+              url: `/explore/${ds.id}#teams`,
               keywords: [t.teamName, t.country || '', t.carModel || '', t.manufacturer || '', ds.name],
             });
           }
@@ -265,12 +265,13 @@ export async function getUniversalSearchIndex(): Promise<SearchResultItem[]> {
               championshipName: ds.name,
               badge: ds.badge,
               badgeColor: ds.badgeColor,
-              url: `/championships/${ds.id}#calendar`,
+              url: `/explore/${ds.id}#calendar`,
               keywords: [roundTitle, round.circuitName || '', round.location || '', ds.name],
             });
 
             // Circuit entry
             if (round.circuitName) {
+              const cleanId = ((round as any).circuitId || round.circuitName).toLowerCase().replace(/[^a-z0-9]+/g, '_');
               items.push({
                 id: `circuit-${ds.id}-${round.circuitName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
                 title: round.circuitName,
@@ -280,8 +281,8 @@ export async function getUniversalSearchIndex(): Promise<SearchResultItem[]> {
                 championshipName: ds.name,
                 badge: 'Circuit',
                 badgeColor: '#6366f1',
-                url: `/championships/${ds.id}#calendar`,
-                keywords: [round.circuitName, round.location || '', ds.name],
+                url: `/circuits/${cleanId}`,
+                keywords: [round.circuitName, round.location || '', ds.name, 'track', 'circuit'],
               });
             }
           }
@@ -300,7 +301,7 @@ export async function getUniversalSearchIndex(): Promise<SearchResultItem[]> {
               championshipName: ds.name,
               badge: 'Guide',
               badgeColor: '#8b5cf6',
-              url: `/championships/${ds.id}#guide`,
+              url: `/explore/${ds.id}#guide`,
               keywords: [feat.title, feat.subtitle || '', ds.name, 'technical', 'regulation'],
             });
           }
@@ -337,7 +338,7 @@ export async function getUniversalSearchIndex(): Promise<SearchResultItem[]> {
             championshipName: 'Indian Motorsport',
             badge: 'Circuit',
             badgeColor: '#ff9933',
-            url: `/indian-motorsport#circuits`,
+            url: c.id === 'bic' ? '/circuits/buddh' : `/circuits/${c.id}`,
             keywords: [c.name, c.location, c.fiaGrade, 'buddh', 'mmrt', 'kari', 'coastt', 'chennai', 'india'],
           });
         }
@@ -388,7 +389,7 @@ export async function getUniversalSearchIndex(): Promise<SearchResultItem[]> {
           championshipName: 'Single-Seater Feeder Pyramid',
           badge: 'Licence',
           badgeColor: '#eab308',
-          url: '/championships/f2#feature',
+          url: '/explore/f2#feature',
           keywords: ['super licence', 'points', 'f2', 'f3', 'feeder ladder', 'eligibility', 'fia appendix l', '40 points'],
         },
         {
@@ -400,7 +401,7 @@ export async function getUniversalSearchIndex(): Promise<SearchResultItem[]> {
           championshipName: 'MotoGP',
           badge: 'Concessions',
           badgeColor: '#dc2626',
-          url: '/championships/motogp#overview',
+          url: '/explore/motogp#overview',
           keywords: ['concessions', 'yamaha', 'honda', 'ducati', 'ktm', 'aprilia', 'wildcards', 'testing'],
         },
         {
@@ -412,7 +413,7 @@ export async function getUniversalSearchIndex(): Promise<SearchResultItem[]> {
           championshipName: 'Formula 1',
           badge: 'Aero',
           badgeColor: '#3b82f6',
-          url: '/learn#glossary',
+          url: '/explore/f1?tab=basics',
           keywords: ['active aero', 'x-mode', 'z-mode', 'drs', 'downforce', 'drag'],
         },
         {
@@ -424,7 +425,7 @@ export async function getUniversalSearchIndex(): Promise<SearchResultItem[]> {
           championshipName: 'Formula E',
           badge: 'Electric',
           badgeColor: '#00d2be',
-          url: '/championships/formula-e#guide',
+          url: '/explore/formula-e#guide',
           keywords: ['attack mode', 'boost', 'formula e', '350kw', 'electric', 'overtake'],
         },
         {
@@ -436,7 +437,7 @@ export async function getUniversalSearchIndex(): Promise<SearchResultItem[]> {
           championshipName: 'WEC & GT',
           badge: 'BoP',
           badgeColor: '#002b49',
-          url: '/championships/wec#guide',
+          url: '/explore/wec#guide',
           keywords: ['bop', 'balance of performance', 'wec', 'gt3', 'ballast', 'le mans'],
         },
         {
@@ -448,7 +449,7 @@ export async function getUniversalSearchIndex(): Promise<SearchResultItem[]> {
           championshipName: 'MotoGP',
           badge: 'MotoGP',
           badgeColor: '#dc2626',
-          url: '/championships/motogp#guide',
+          url: '/explore/motogp#guide',
           keywords: ['lean angle', 'elbow down', 'knee down', 'motogp', 'physics', 'michelin'],
         },
         {
@@ -460,7 +461,7 @@ export async function getUniversalSearchIndex(): Promise<SearchResultItem[]> {
           championshipName: 'WRC',
           badge: 'Rally',
           badgeColor: '#ea580c',
-          url: '/championships/wrc#guide',
+          url: '/explore/wrc#guide',
           keywords: ['pace notes', 'co-driver', 'wrc', 'rally', 'stages', 'crests'],
         }
       );

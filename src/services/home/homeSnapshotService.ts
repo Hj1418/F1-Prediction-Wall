@@ -146,7 +146,7 @@ export const DEFAULT_FEATURED_LEARN_TOPICS: FeaturedLearnTopic[] = [
     category: 'Structure & Disciplines',
     shortExplanation: 'From single-seater apex prototypes to multi-class 24-hour endurance, rally stages, and bikes — racing spans diverse technical rules and physics.',
     keyTakeaway: 'Open-wheel tests pure aero; endurance tests car reliability; rally tests pace-note trust; bikes test extreme physics.',
-    learnUrl: '/championships',
+    learnUrl: '/explore',
   },
   {
     id: 'race-weekends',
@@ -156,7 +156,7 @@ export const DEFAULT_FEATURED_LEARN_TOPICS: FeaturedLearnTopic[] = [
     category: 'Weekend Format',
     shortExplanation: 'How practice sessions, knockout qualifying shootouts, sprint races, and Sunday Grands Prix fit together across standard and sprint schedules.',
     keyTakeaway: 'Fridays dial in aerodynamic setup; Saturdays set the grid under Parc Fermé; Sundays award maximum championship points.',
-    learnUrl: '/learn#topics',
+    learnUrl: '/explore/f1?tab=basics',
   },
   {
     id: 'flags-safety',
@@ -166,7 +166,7 @@ export const DEFAULT_FEATURED_LEARN_TOPICS: FeaturedLearnTopic[] = [
     category: 'Race Control',
     shortExplanation: 'Green, yellow, red, and blue marshal signals, alongside Safety Car (SC) and Virtual Safety Car (VSC) delta management.',
     keyTakeaway: 'Drivers must respect electronic light panels instantly. Ignoring yellow flags or VSC deltas triggers immediate time penalties.',
-    learnUrl: '/learn#topics',
+    learnUrl: '/explore/f1?tab=basics',
   },
   {
     id: 'qualifying-explained',
@@ -176,7 +176,7 @@ export const DEFAULT_FEATURED_LEARN_TOPICS: FeaturedLearnTopic[] = [
     category: 'Grid Order',
     shortExplanation: 'Knockout elimination rounds (Q1, Q2, Q3) where the slowest cars drop out until the top 10 battle on fresh soft tyres for Pole Position.',
     keyTakeaway: 'P1 provides clean aerodynamic air, strategic race control into Turn 1, and avoids mid-pack opening lap incidents.',
-    learnUrl: '/learn#topics',
+    learnUrl: '/explore/f1?tab=basics',
   },
   {
     id: 'tyres-strategy',
@@ -186,7 +186,7 @@ export const DEFAULT_FEATURED_LEARN_TOPICS: FeaturedLearnTopic[] = [
     category: 'Pit Strategy',
     shortExplanation: 'Soft, Medium, and Hard tyre compounds degrade at different thermal rates. Drivers must pit for mandatory compound switches.',
     keyTakeaway: 'Pitting early (undercut) gains track position on fresh rubber; extending a stint (overcut) exploits clean air and tyre offset.',
-    learnUrl: '/learn#topics',
+    learnUrl: '/explore/f1?tab=basics',
   },
   {
     id: 'motorsport-terminology',
@@ -196,7 +196,7 @@ export const DEFAULT_FEATURED_LEARN_TOPICS: FeaturedLearnTopic[] = [
     category: '50+ Terms',
     shortExplanation: 'Master essential racing jargon: Active Aero, Attack Mode, Balance of Performance (BoP), Apex, Parc Fermé, Box Box, and Delta Times.',
     keyTakeaway: 'Understanding motorsport vocabulary unlocks broadcast commentary and race engineer team radio communications.',
-    learnUrl: '/learn#glossary',
+    learnUrl: '/explore/wec?tab=basics',
   },
 ];
 
@@ -219,7 +219,7 @@ export const DEFAULT_DISCOVER_MORE: DiscoverMoreItem[] = [
     tag: 'Technical',
     tagColor: '#3b82f6',
     description: 'Deep dive into Active Aerodynamics (X-Mode & Z-Mode), 350 kW MGU-K hybrid deployment, and Manual Override passing assist.',
-    url: '/learn#topics',
+    url: '/explore/f1?tab=basics',
     actionText: 'Read Tech Guide',
   },
   {
@@ -228,7 +228,7 @@ export const DEFAULT_DISCOVER_MORE: DiscoverMoreItem[] = [
     tag: 'Pathways',
     tagColor: '#ff9933',
     description: 'Trace the progression pathway from grassroots karting through Formula 4, Formula 3, Formula 2, and premier world championship seats.',
-    url: '/indian-motorsport#pathway',
+    url: '/explore/indian-motorsport',
     actionText: 'View Pathway',
   },
   {
@@ -237,8 +237,8 @@ export const DEFAULT_DISCOVER_MORE: DiscoverMoreItem[] = [
     tag: 'Regulations',
     tagColor: '#10b981',
     description: 'Access direct, verified references to official FIA sporting regulations, technical directives, and International Sporting Code bulletins.',
-    url: '/learn#official-updates',
-    actionText: 'Review Rulebooks',
+    url: '/explore',
+    actionText: 'Review Hubs',
   },
 ];
 
@@ -336,7 +336,7 @@ export const DEFAULT_HOME_SNAPSHOT: HomeSnapshot = {
       badgeColor: '#3b82f6',
       quickAnswer: 'Wings that automatically flatten out on straights (X-Mode) and pitch up for downforce in corners (Z-Mode).',
       whyItMatters: 'Replaces DRS in 2026 to drastically reduce fuel drag while preserving high cornering speeds.',
-      learnUrl: '/learn#glossary',
+      learnUrl: '/explore/f1?tab=basics',
     },
     {
       id: 'attack-mode-30s',
@@ -345,7 +345,7 @@ export const DEFAULT_HOME_SNAPSHOT: HomeSnapshot = {
       badgeColor: '#00d2be',
       quickAnswer: 'Steering off the racing line through designated timing loops to unlock an extra 50 kW of electric power.',
       whyItMatters: 'Forces strategic risk: lose time offline to gain aggressive overtaking speed for a limited time.',
-      learnUrl: '/championships/formula-e#guide',
+      learnUrl: '/explore/formula-e?tab=basics',
     },
     {
       id: 'bop-30s',
@@ -354,7 +354,7 @@ export const DEFAULT_HOME_SNAPSHOT: HomeSnapshot = {
       badgeColor: '#002b49',
       quickAnswer: 'Regulators adding weight ballast and adjusting fuel/power limits to balance completely different engines.',
       whyItMatters: 'Enables Ferrari, Porsche, Toyota, and Cadillac to race wheel-to-wheel for 24 hours on equal terms.',
-      learnUrl: '/championships/wec#guide',
+      learnUrl: '/explore/wec?tab=basics',
     },
     {
       id: 'pace-notes-30s',
@@ -363,7 +363,7 @@ export const DEFAULT_HOME_SNAPSHOT: HomeSnapshot = {
       badgeColor: '#ea580c',
       quickAnswer: 'Shorthand code read by co-drivers (e.g. "Left 4 tightens over crest") warning the driver what is coming.',
       whyItMatters: 'Rally drivers are driving blind at 180 km/h between trees—trusting the co-driver’s voice completely.',
-      learnUrl: '/championships/wrc#guide',
+      learnUrl: '/explore/wrc?tab=basics',
     },
     {
       id: 'holeshot-30s',
@@ -372,7 +372,7 @@ export const DEFAULT_HOME_SNAPSHOT: HomeSnapshot = {
       badgeColor: '#dc2626',
       quickAnswer: 'A mechanical hydraulic switch that compresses the rear suspension to squat the bike low to the ground.',
       whyItMatters: 'Lowers the center of gravity to eliminate wheelies off the line and launch to 100 km/h in 2.2 seconds.',
-      learnUrl: '/championships/motogp#guide',
+      learnUrl: '/explore/motogp?tab=basics',
     },
     {
       id: 'qualifying-30s',
@@ -381,7 +381,7 @@ export const DEFAULT_HOME_SNAPSHOT: HomeSnapshot = {
       badgeColor: '#e10600',
       quickAnswer: 'Three elimination rounds (Q1, Q2, Q3). The slowest cars drop out until top 10 battle for Pole Position.',
       whyItMatters: 'Starting first into Turn 1 provides clean air, strategic control, and avoids first-lap collisions.',
-      learnUrl: '/learn#topics',
+      learnUrl: '/explore/f1?tab=basics',
     },
   ],
   featuredLearnTopics: DEFAULT_FEATURED_LEARN_TOPICS,

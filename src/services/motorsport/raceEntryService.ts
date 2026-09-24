@@ -11,7 +11,7 @@
 
 import { Driver } from '../../types';
 import { clientCache, CACHE_TTL } from '../cache/clientCache';
-import { F1_DRIVERS_2026 } from '../mockData';
+import { F1_DRIVERS_2026, F1_RESERVES_2026 } from '../mockData';
 import { testGrandPrixService } from '../testGrandPrix/testGrandPrixService';
 
 export interface RaceEntry {
@@ -26,6 +26,8 @@ export interface RaceEntry {
 const RACE_SPECIFIC_ENTRY_OVERRIDES: Record<string, Partial<Driver>[]> = {
   // Can be populated for specific race replacements
 };
+
+import { getPredictionEligibleCompetitors } from './eventEntryService';
 
 /**
  * Authoritatively resolves race-eligible drivers for a specified race weekend.
@@ -52,28 +54,11 @@ export async function getEligibleDriversForRace(
   return clientCache.getOrFetch<Driver[]>(
     cacheKey,
     async () => {
-      // Baseline 2026 driver roster (22 drivers across 11 constructors)
-      const baseRoster = [...F1_DRIVERS_2026];
-
-      // Check for race-specific modifications
-      const overrides = RACE_SPECIFIC_ENTRY_OVERRIDES[raceWeekendId];
-      if (overrides && overrides.length > 0) {
-        overrides.forEach(override => {
-          if (override.id) {
-            const idx = baseRoster.findIndex(d => d.id === override.id);
-            if (idx >= 0) {
-              baseRoster[idx] = { ...baseRoster[idx], ...override } as Driver;
-            } else if (override.id && override.firstName && override.lastName) {
-              baseRoster.push(override as Driver);
-            }
-          }
-        });
-      }
-
-      // Ensure stable sorting by team then driver number
-      return baseRoster.sort((a, b) => a.team.localeCompare(b.team) || a.number - b.number);
+      // Authoritatively resolve from official event entry list
+      const eligible = await getPredictionEligibleCompetitors('f1', raceWeekendId, season);
+      return eligible.sort((a, b) => a.team.localeCompare(b.team) || a.number - b.number);
     },
-    { ttlMs: CACHE_TTL.LONG }
+    { ttlMs: CACHE_TTL.SHORT }
   );
 }
 
@@ -107,6 +92,7 @@ export const getEligibleDriversForWeekend = getEligibleDriversForRace;
 export function isValidDriverForSeason(driverId: string, season: number = 2026): boolean {
   if (season !== 2026) return false;
   if (F1_DRIVERS_2026.some(d => d.id === driverId)) return true;
+  if (F1_RESERVES_2026.some(d => d.id === driverId)) return true;
   try {
     const testDrivers = testGrandPrixService.getTestDrivers();
     if (testDrivers.some(d => d.id === driverId)) return true;

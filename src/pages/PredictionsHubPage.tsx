@@ -11,6 +11,8 @@ import { CountdownTimer } from '../components/common/CountdownTimer';
 import { LoadingState } from '../components/common/LoadingState';
 import { evaluateRoundState } from '../utils/raceLifecycle';
 import { PredictionGuideCard } from '../components/predictions/PredictionGuideCard';
+import { PredictionSpeedometer } from '../components/predictions/PredictionSpeedometer';
+import { testGrandPrixService } from '../services/testGrandPrix/testGrandPrixService';
 import { getResultsTimeline } from '../utils/predictionTimeline';
 import {
   Calendar,
@@ -183,16 +185,16 @@ export const PredictionsHubPage: React.FC = () => {
   return (
     <div className="container" style={{ padding: '3rem 1.25rem 5rem 1.25rem' }}>
       {/* Header */}
-      <div style={{ marginBottom: '2.5rem', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1.5rem' }}>
-        <div style={{ maxWidth: '800px' }}>
-          <div style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--f1-red)', letterSpacing: '0.12em', textTransform: 'uppercase' }}>
-            THE GRID • INTERACTIVE COMPETITION
+      <div style={{ marginBottom: '1.75rem', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1.25rem' }}>
+        <div style={{ maxWidth: '720px' }}>
+          <div style={{ fontSize: '0.74rem', fontWeight: 800, color: 'var(--f1-red)', letterSpacing: '0.12em', textTransform: 'uppercase', fontFamily: 'var(--font-mono)' }}>
+            THE GRID • PREDICTION BENCH
           </div>
-          <h1 style={{ fontSize: '2.25rem', fontWeight: 900, textTransform: 'uppercase', marginTop: '0.2rem' }}>
+          <h1 style={{ fontSize: 'clamp(1.8rem, 3.5vw, 2.25rem)', fontWeight: 900, textTransform: 'uppercase', margin: '0.2rem 0' }}>
             Prediction Bench
           </h1>
-          <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginTop: '0.3rem' }}>
-            Prediction Bench is The Grid's interactive competition layer. Put your strategy foresight to the test: pick the Podium Finishers (P1, P2, P3), Fastest Lap, Driver of the Day, and Race Strategy wildcards before the race locks to earn points and climb the championship leaderboard.
+          <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.5 }}>
+            Put your strategy foresight to the test. Pick Podium Finishers (P1–P3), Fastest Lap, Driver of the Day, and Strategy Wildcards to earn championship points.
           </p>
         </div>
 
@@ -212,14 +214,97 @@ export const PredictionsHubPage: React.FC = () => {
             color: 'var(--telemetry-cyan)',
             background: 'rgba(0, 210, 255, 0.08)',
             fontWeight: 800,
-            fontSize: '0.85rem',
+            fontSize: '0.82rem',
           }}
         >
-          <BookOpen size={16} /> {isGuideOpen ? 'Scoring & Rules Guide' : 'Show Scoring Guide'}
+          <BookOpen size={15} /> {isGuideOpen ? 'Scoring & Rules Guide' : 'Scoring Guide'}
         </button>
       </div>
 
-      {/* In-Page Prediction & Scoring Guide (Rendered outside on page) */}
+      {/* Multi-Championship Discipline Roadmap Ribbon */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.5rem',
+          flexWrap: 'wrap',
+          marginBottom: '2rem',
+          padding: '0.6rem 0.85rem',
+          borderRadius: '10px',
+          background: 'rgba(255, 255, 255, 0.02)',
+          border: '1px solid var(--border-subtle)',
+        }}
+      >
+        <span
+          style={{
+            fontSize: '0.7rem',
+            fontFamily: 'var(--font-mono)',
+            fontWeight: 800,
+            color: 'var(--text-muted)',
+            textTransform: 'uppercase',
+            letterSpacing: '0.08em',
+            marginRight: '0.25rem',
+          }}
+        >
+          PREDICTION DISCIPLINE:
+        </span>
+        <span
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '0.4rem',
+            padding: '0.2rem 0.6rem',
+            borderRadius: '6px',
+            background: 'rgba(225, 6, 0, 0.15)',
+            border: '1px solid rgba(225, 6, 0, 0.4)',
+            color: '#ffffff',
+            fontSize: '0.74rem',
+            fontFamily: 'var(--font-mono)',
+            fontWeight: 800,
+          }}
+        >
+          <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: 'var(--telemetry-green)' }} />
+          FORMULA 1 • AVAILABLE
+        </span>
+        <span style={{ padding: '0.2rem 0.55rem', borderRadius: '6px', background: 'rgba(255, 255, 255, 0.04)', border: '1px solid rgba(255, 255, 255, 0.08)', color: 'var(--text-muted)', fontSize: '0.72rem', fontFamily: 'var(--font-mono)' }}>
+          MotoGP™ • Later
+        </span>
+        <span style={{ padding: '0.2rem 0.55rem', borderRadius: '6px', background: 'rgba(255, 255, 255, 0.04)', border: '1px solid rgba(255, 255, 255, 0.08)', color: 'var(--text-muted)', fontSize: '0.72rem', fontFamily: 'var(--font-mono)' }}>
+          FIA WEC • Later
+        </span>
+        <span style={{ padding: '0.2rem 0.55rem', borderRadius: '6px', background: 'rgba(255, 255, 255, 0.04)', border: '1px solid rgba(255, 255, 255, 0.08)', color: 'var(--text-muted)', fontSize: '0.72rem', fontFamily: 'var(--font-mono)' }}>
+          Formula E • Later
+        </span>
+        <span style={{ padding: '0.2rem 0.55rem', borderRadius: '6px', background: 'rgba(255, 255, 255, 0.04)', border: '1px solid rgba(255, 255, 255, 0.08)', color: 'var(--text-muted)', fontSize: '0.72rem', fontFamily: 'var(--font-mono)' }}>
+          WRC Rally • Later
+        </span>
+      </div>
+
+      {/* Speedometer for Logged-In Users */}
+      {currentUser && !isGuest && (
+        <div style={{ marginBottom: '2.5rem' }}>
+          {(() => {
+            const testPts = currentUser.userId ? testGrandPrixService.getUserTestScore(currentUser.userId) : 0;
+            const prodPts = currentUser.totalPoints || 0;
+            const combinedPts = prodPts + testPts;
+
+            return (
+              <PredictionSpeedometer
+                points={combinedPts}
+                productionPoints={prodPts}
+                testPoints={testPts}
+                seasonRank={currentUser.seasonRank}
+                previousRank={currentUser.previousRank}
+                championshipName="Motorsport"
+                actionLink="#active-round-grid"
+                actionLabel="View Current Round"
+              />
+            );
+          })()}
+        </div>
+      )}
+
+      {/* In-Page Prediction & Scoring Guide */}
       <div style={{ marginBottom: '2.5rem' }}>
         <PredictionGuideCard
           isOpen={isGuideOpen}

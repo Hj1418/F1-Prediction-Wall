@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" width="500" height="500" viewBox="0 0 500 500" preserveAspectRatio="xMidYMid meet">
+    <desc>Nürburgring Nordschleife & GP-Strecke Track Layout (20.8 km)</desc>
+    <path d="M 120 420 
+             L 220 430 
+             C 240 432 260 415 270 395 
+             L 320 290 
+             C 335 260 365 245 400 250 
+             L 450 255 
+             C 475 260 490 235 480 210 
+             L 440 120 
+             C 430 95 400 80 375 90 
+             L 320 110 
+             C 290 120 260 100 265 70 
+             L 270 40 
+             C 272 15 240 5 220 20 
+             L 150 70 
+             C 125 90 105 125 110 155 
+             L 125 240 
+             C 130 270 105 295 75 290 
+             L 40 285 
+             C 15 280 5 315 25 335 
+             L 80 390 
+             C 95 405 105 418 120 420 
+             Z"
+          fill="none" 
+          stroke="#10b981" 
+          stroke-width="12" 
+          stroke-linecap="round" 
+          stroke-linejoin="round" />
+    <line x1="160" y1="410" x2="160" y2="440" stroke="#ffffff" stroke-width="4" />
+</svg>

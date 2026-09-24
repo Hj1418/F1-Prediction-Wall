@@ -124,6 +124,11 @@ export const api = {
     return getEligibleDriversForRace(raceWeekendId, season);
   },
 
+  async getOfficialEventEntryList(championshipId: string = 'f1', season: number = 2026, eventId: string) {
+    const { getOfficialEventEntryList } = await import('./motorsport/eventEntryService');
+    return getOfficialEventEntryList(championshipId, season, eventId);
+  },
+
   async getConstructors(): Promise<Constructor[]> {
     return clientCache.getOrFetch('f1_constructors_list', async () => {
       if (isLiveBackend) {

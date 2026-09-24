@@ -88,14 +88,11 @@ export const Footer: React.FC = () => {
               <Link to="/" style={linkStyle} onMouseEnter={e => (e.currentTarget.style.color = '#fff')} onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-secondary)')}>
                 <Home size={13} /> Home
               </Link>
-              <Link to="/learn" style={linkStyle} onMouseEnter={e => (e.currentTarget.style.color = '#fff')} onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-secondary)')}>
-                <BookOpen size={13} /> Learn Motorsport
-              </Link>
               <Link to="/races" style={linkStyle} onMouseEnter={e => (e.currentTarget.style.color = '#fff')} onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-secondary)')}>
                 <Calendar size={13} /> Race Weekends
               </Link>
-              <Link to="/championships" style={linkStyle} onMouseEnter={e => (e.currentTarget.style.color = '#fff')} onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-secondary)')}>
-                <Compass size={13} /> Explore Championships
+              <Link to="/explore" style={linkStyle} onMouseEnter={e => (e.currentTarget.style.color = '#fff')} onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-secondary)')}>
+                <Compass size={13} /> Explore Motorsport
               </Link>
               <Link to="/circuits" style={linkStyle} onMouseEnter={e => (e.currentTarget.style.color = '#fff')} onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-secondary)')}>
                 <MapPin size={13} /> Circuits

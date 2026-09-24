@@ -56,6 +56,8 @@ const DRIVER_EXTERNAL_MAPPING: Record<string, string> = {
   valtteri_bottas: 'bottas',
   perez: 'perez',
   sergio_perez: 'perez',
+  colapinto: 'colapinto',
+  franco_colapinto: 'colapinto',
 
   // F2 & F3 Feeder Drivers
   lindblad: 'lindblad',

@@ -19,7 +19,6 @@ import { DriverCard } from '../components/common/DriverCard';
 import { UserInitialsAvatar } from '../components/common/UserInitialsAvatar';
 import { PredictionGuideCard } from '../components/predictions/PredictionGuideCard';
 import { getResultsTimeline } from '../utils/predictionTimeline';
-import confetti from 'canvas-confetti';
 import {
   Lock,
   Save,
@@ -55,6 +54,7 @@ export const PredictionPage: React.FC = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [driverError, setDriverError] = useState(false);
   const [isGuideOpen, setIsGuideOpen] = useState(true);
+  const [justLocked, setJustLocked] = useState(false);
 
   // Driver modal selector state
   const [activeDriverField, setActiveDriverField] = useState<PredictionFieldConfig | null>(null);
@@ -254,20 +254,10 @@ export const PredictionPage: React.FC = () => {
 
       setPrediction(saved);
       setIsEditing(false);
+      setJustLocked(true);
+      setTimeout(() => setJustLocked(false), 4000);
       showToast('Prediction successfully submitted and locked for this round.', 'success');
       triggerDataRefresh();
-
-      // Fire celebratory podium confetti!
-      try {
-        confetti({
-          particleCount: 80,
-          spread: 70,
-          origin: { y: 0.6 },
-          colors: ['#e10600', '#ff8000', '#00e676', '#ffffff'],
-        });
-      } catch (_err) {
-        // Confetti non-critical
-      }
     } catch (err: any) {
       showToast(err.message || 'Failed to submit prediction', 'error');
     } finally {
@@ -297,7 +287,67 @@ export const PredictionPage: React.FC = () => {
   );
 
   return (
-    <div style={{ paddingBottom: '5rem' }}>
+    <div style={{ paddingBottom: '5rem', position: 'relative' }}>
+      {/* Short Lightweight Lock Confirmation Animation */}
+      {justLocked && (
+        <div
+          className="animate-lock-pop"
+          style={{
+            position: 'fixed',
+            top: '4.5rem',
+            right: '1.5rem',
+            zIndex: 9999,
+            background: 'rgba(10, 14, 23, 0.96)',
+            backdropFilter: 'blur(12px)',
+            WebkitBackdropFilter: 'blur(12px)',
+            border: '1px solid var(--telemetry-green)',
+            borderRadius: '12px',
+            padding: '0.85rem 1.25rem',
+            boxShadow: '0 8px 30px rgba(0, 230, 118, 0.25), 0 0 1px rgba(255, 255, 255, 0.2)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.75rem',
+            color: '#ffffff',
+            maxWidth: '90vw',
+          }}
+        >
+          <div
+            style={{
+              width: '32px',
+              height: '32px',
+              borderRadius: '50%',
+              backgroundColor: 'rgba(0, 230, 118, 0.15)',
+              border: '1px solid rgba(0, 230, 118, 0.4)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'var(--telemetry-green)',
+              fontWeight: 900,
+              fontSize: '1rem',
+              flexShrink: 0,
+            }}
+          >
+            ✓
+          </div>
+          <div>
+            <div
+              style={{
+                fontFamily: 'var(--font-mono)',
+                fontSize: '0.82rem',
+                fontWeight: 900,
+                color: 'var(--telemetry-green)',
+                letterSpacing: '0.08em',
+                textTransform: 'uppercase',
+              }}
+            >
+              PREDICTION LOCKED ✓
+            </div>
+            <div style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', marginTop: '0.15rem' }}>
+              Your strategy picks are securely recorded for scoring.
+            </div>
+          </div>
+        </div>
+      )}
       {/* Test Environment Banner */}
       {isTestRound && (
         <div

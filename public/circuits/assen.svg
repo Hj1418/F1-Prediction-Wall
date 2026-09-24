@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" width="500" height="500" viewBox="0 0 500 500" preserveAspectRatio="xMidYMid meet">
+    <desc>TT Circuit Assen Track Layout (4.542 km) Cathedral of Speed</desc>
+    <path d="M 120 400 
+             L 360 400 
+             C 400 400 440 370 435 330 
+             L 420 220 
+             C 415 170 370 140 320 150 
+             L 280 160 
+             C 240 170 210 140 220 100 
+             L 230 60 
+             C 235 25 195 5 165 25 
+             L 110 65 
+             C 80 85 75 125 95 155 
+             L 140 220 
+             C 160 250 145 290 115 305 
+             L 80 320 
+             C 50 335 55 380 90 395 
+             Z"
+          fill="none" 
+          stroke="#dc2626" 
+          stroke-width="12" 
+          stroke-linecap="round" 
+          stroke-linejoin="round" />
+    <line x1="240" y1="385" x2="240" y2="415" stroke="#ffffff" stroke-width="4" />
+</svg>

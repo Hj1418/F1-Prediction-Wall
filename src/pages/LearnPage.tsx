@@ -354,8 +354,20 @@ export const LearnPage: React.FC = () => {
     | 'rally'
     | 'motogp'
     | 'indian'
+    | 'gt'
     | 'glossary'
   >('overview');
+  const [activeDiscipline, setActiveDiscipline] = useState<
+    | 'getting_started'
+    | 'formula'
+    | 'endurance'
+    | 'motorcycle'
+    | 'rally'
+    | 'gt'
+    | 'indian'
+    | 'fundamentals'
+    | 'glossary'
+  >('getting_started');
   const [weekendFormat, setWeekendFormat] = useState<'standard' | 'sprint'>('standard');
   const [glossaryFilter, setGlossaryFilter] = useState('');
   const [glossaryCategory, setGlossaryCategory] = useState<string>('all');
@@ -556,69 +568,132 @@ export const LearnPage: React.FC = () => {
         </p>
       </header>
 
-      {/* Navigation Sub-Tabs */}
+      {/* Primary Discipline Navigation */}
+      <div style={{ marginBottom: '1.25rem' }}>
+        <div style={{ fontSize: '0.72rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em', fontFamily: 'var(--font-mono)', marginBottom: '0.6rem' }}>
+          EXPLORE BY MOTORSPORT DISCIPLINE
+        </div>
+        <div
+          style={{
+            display: 'flex',
+            gap: '0.5rem',
+            overflowX: 'auto',
+            whiteSpace: 'nowrap',
+            paddingBottom: '0.5rem',
+            scrollbarWidth: 'none',
+          }}
+        >
+          {[
+            { id: 'getting_started' as const, label: 'Getting Started', icon: Compass, defaultTab: 'overview' as const },
+            { id: 'formula' as const, label: 'Formula Racing', icon: Trophy, defaultTab: 'qualifying' as const },
+            { id: 'endurance' as const, label: 'Endurance Racing', icon: Activity, defaultTab: 'endurance' as const },
+            { id: 'motorcycle' as const, label: 'Motorcycle Racing', icon: Award, defaultTab: 'motogp' as const },
+            { id: 'rally' as const, label: 'Rally', icon: Compass, defaultTab: 'rally' as const },
+            { id: 'gt' as const, label: 'GT Racing', icon: Sliders, defaultTab: 'gt' as const },
+            { id: 'indian' as const, label: 'Indian Motorsport', icon: Flag, defaultTab: 'indian' as const },
+            { id: 'fundamentals' as const, label: 'Motorsport Fundamentals', icon: Scale, defaultTab: 'flags' as const },
+            { id: 'glossary' as const, label: 'Glossary', icon: HelpCircle, defaultTab: 'glossary' as const },
+          ].map(d => {
+            const Icon = d.icon;
+            const isDiscActive = activeDiscipline === d.id;
+            return (
+              <button
+                key={d.id}
+                type="button"
+                onClick={() => {
+                  setActiveDiscipline(d.id);
+                  setActiveTab(d.defaultTab);
+                }}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.45rem',
+                  padding: '0.55rem 0.95rem',
+                  borderRadius: '8px',
+                  background: isDiscActive ? 'rgba(225, 6, 0, 0.16)' : 'var(--bg-surface)',
+                  border: isDiscActive ? '1px solid var(--f1-red)' : '1px solid var(--border-subtle)',
+                  color: isDiscActive ? '#fff' : 'var(--text-secondary)',
+                  fontSize: '0.82rem',
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                  flexShrink: 0,
+                  letterSpacing: '0.02em',
+                }}
+              >
+                <Icon size={14} style={{ color: isDiscActive ? 'var(--f1-red)' : 'var(--text-muted)' }} />
+                <span>{d.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Topics Bar for Current Discipline */}
       <nav
         aria-label="Motorsport Knowledge Topics"
         style={{
           display: 'flex',
-          gap: '0.5rem',
+          gap: '0.45rem',
           overflowX: 'auto',
           whiteSpace: 'nowrap',
-          flexWrap: 'nowrap',
           maxWidth: '100%',
           marginBottom: '2rem',
           borderBottom: '1px solid var(--border-subtle)',
-          paddingBottom: '0.75rem',
-          WebkitOverflowScrolling: 'touch',
+          paddingBottom: '0.85rem',
           scrollbarWidth: 'none',
         }}
       >
         {[
-          { id: 'overview', label: 'The Championship', icon: Trophy },
-          { id: 'weekend', label: 'Weekend Anatomy', icon: Timer },
-          { id: 'qualifying', label: 'Knockout Qualifying', icon: Zap },
-          { id: 'aero', label: 'Active Aero (X & Z Mode)', icon: Wind },
-          { id: 'overtake', label: 'Overtake Mode', icon: Gauge },
-          { id: 'powerunit', label: '2026 Hybrid PU', icon: Zap },
-          { id: 'tyres', label: 'Tyres & Strategy', icon: Sliders },
-          { id: 'flags', label: 'Flags & Safety', icon: Flag },
-          { id: 'officials', label: 'Officials & Stewards', icon: Scale },
-          { id: 'points', label: 'Points System', icon: Trophy },
-          { id: 'ladder', label: 'Feeder Ladder (F4–F1)', icon: Layers },
-          { id: 'endurance', label: 'Endurance & WEC', icon: Activity },
-          { id: 'electric', label: 'Formula E (Electric)', icon: Zap },
-          { id: 'rally', label: 'Rally & Stages (WRC)', icon: Compass },
-          { id: 'motogp', label: 'MotoGP (Bikes)', icon: Award },
-          { id: 'indian', label: 'Indian Motorsport 🇮🇳', icon: Flag },
-          { id: 'glossary', label: 'Glossary', icon: HelpCircle },
-        ].map(tab => {
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id as typeof activeTab)}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                padding: '0.65rem 1.1rem',
-                background: isActive ? 'rgba(225, 6, 0, 0.12)' : 'var(--bg-surface)',
-                border: isActive ? '1px solid var(--f1-red)' : '1px solid var(--border-subtle)',
-                color: isActive ? '#fff' : 'var(--text-secondary)',
-                borderRadius: '8px',
-                fontSize: '0.85rem',
-                fontWeight: 700,
-                cursor: 'pointer',
-                transition: 'all 0.15s ease',
-                flexShrink: 0,
-              }}
-            >
-              <Icon size={16} style={{ color: isActive ? 'var(--f1-red)' : 'var(--text-muted)' }} />
-              <span>{tab.label}</span>
-            </button>
-          );
-        })}
+          { id: 'overview' as const, discipline: 'getting_started' as const, label: 'The Championship', icon: Trophy },
+          { id: 'weekend' as const, discipline: 'getting_started' as const, label: 'Weekend Anatomy', icon: Timer },
+          { id: 'qualifying' as const, discipline: 'formula' as const, label: 'Knockout Qualifying', icon: Zap },
+          { id: 'aero' as const, discipline: 'formula' as const, label: 'Active Aero (X & Z Mode)', icon: Wind },
+          { id: 'overtake' as const, discipline: 'formula' as const, label: 'Overtake Mode', icon: Gauge },
+          { id: 'powerunit' as const, discipline: 'formula' as const, label: '2026 Hybrid PU', icon: Zap },
+          { id: 'tyres' as const, discipline: 'formula' as const, label: 'Tyres & Strategy', icon: Sliders },
+          { id: 'ladder' as const, discipline: 'formula' as const, label: 'Feeder Ladder (F4–F1)', icon: Layers },
+          { id: 'electric' as const, discipline: 'formula' as const, label: 'Formula E (Electric)', icon: Zap },
+          { id: 'endurance' as const, discipline: 'endurance' as const, label: 'Endurance & WEC', icon: Activity },
+          { id: 'motogp' as const, discipline: 'motorcycle' as const, label: 'MotoGP (Bikes)', icon: Award },
+          { id: 'rally' as const, discipline: 'rally' as const, label: 'Rally & Stages (WRC)', icon: Compass },
+          { id: 'gt' as const, discipline: 'gt' as const, label: 'GT World Challenge & GT3', icon: Sliders },
+          { id: 'indian' as const, discipline: 'indian' as const, label: 'Indian Motorsport 🇮🇳', icon: Flag },
+          { id: 'flags' as const, discipline: 'fundamentals' as const, label: 'Flags & Safety', icon: Flag },
+          { id: 'officials' as const, discipline: 'fundamentals' as const, label: 'Officials & Stewards', icon: Scale },
+          { id: 'points' as const, discipline: 'fundamentals' as const, label: 'Points System', icon: Trophy },
+          { id: 'glossary' as const, discipline: 'glossary' as const, label: 'Glossary', icon: HelpCircle },
+        ]
+          .filter(topic => topic.discipline === activeDiscipline)
+          .map(tab => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveTab(tab.id)}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.45rem',
+                  padding: '0.5rem 0.9rem',
+                  background: isActive ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.03)',
+                  border: isActive ? '1px solid rgba(255, 255, 255, 0.3)' : '1px solid var(--border-subtle)',
+                  color: isActive ? '#fff' : 'var(--text-secondary)',
+                  borderRadius: '6px',
+                  fontSize: '0.8rem',
+                  fontWeight: isActive ? 800 : 600,
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                  flexShrink: 0,
+                }}
+              >
+                <Icon size={13} style={{ color: isActive ? 'var(--f1-red)' : 'var(--text-muted)' }} />
+                <span>{tab.label}</span>
+              </button>
+            );
+          })}
       </nav>
 
       {/* TAB 1: THE CHAMPIONSHIP */}
@@ -1258,6 +1333,60 @@ export const LearnPage: React.FC = () => {
                 <li><strong style={{ color: '#fff' }}>Madras International Circuit (MIC)</strong>: Historic 3.717 km technical proving ground in Irungattukottai.</li>
                 <li><strong style={{ color: '#fff' }}>Kari Motor Speedway</strong>: 2.1 km compact handling circuit in Coimbatore.</li>
                 <li><strong style={{ color: '#fff' }}>Chennai Street Circuit</strong>: 3.5 km FIA Grade 3 night street circuit around Island Grounds and Napier Bridge.</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* TAB: GT WORLD CHALLENGE & GT3 */}
+      {activeTab === 'gt' && (
+        <section style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+          <div>
+            <div style={{ color: '#d97706', fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '0.5rem', fontFamily: 'var(--font-mono)' }}>
+              SRO MOTORSPORTS GROUP / FIA GT3
+            </div>
+            <h2 style={{ fontSize: '1.6rem', fontWeight: 900, margin: '0 0 0.5rem', color: '#fff' }}>
+              GT Racing & Customer Sportscar Competition
+            </h2>
+            <p style={{ color: 'var(--text-secondary)', lineHeight: 1.6, fontSize: '0.92rem', maxWidth: '800px', margin: 0 }}>
+              GT racing bridges manufacturer prestige with customer privateers. Contested by homologated FIA GT3 supercars from Ferrari, Porsche, BMW, Mercedes-AMG, and Aston Martin, performance is equalized through strict Balance of Performance (BoP) ballast and air restrictors.
+            </p>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.25rem' }}>
+            <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: '12px', padding: '1.5rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem', fontWeight: 800, color: '#f59e0b' }}>DUAL CHAMPIONSHIP CUPS</span>
+                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Sprint & Endurance</span>
+              </div>
+              <h3 style={{ fontSize: '1.15rem', fontWeight: 800, margin: '0 0 0.5rem', color: '#fff' }}>
+                Sprint vs Endurance Cups
+              </h3>
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.55 }}>
+                Championships like Fanatec GT World Challenge Europe contest two complementary disciplines:
+              </p>
+              <ul style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', lineHeight: 1.6, margin: '0.5rem 0 0 1.25rem' }}>
+                <li><strong style={{ color: '#fff' }}>Sprint Cup:</strong> 60-minute flat-out sprints with a mandatory driver change pit window between minutes 25 and 35.</li>
+                <li><strong style={{ color: '#fff' }}>Endurance Cup:</strong> 3-hour, 1,000 km, or 24-hour marathons crowned by the iconic CrowdStrike 24 Hours of Spa.</li>
+              </ul>
+            </div>
+
+            <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: '12px', padding: '1.5rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem', fontWeight: 800, color: '#10b981' }}>FIA DRIVER GRADING</span>
+                <span style={{ fontSize: '0.7rem', color: '#10b981', fontWeight: 700 }}>Pro / Gold / Silver / Bronze</span>
+              </div>
+              <h3 style={{ fontSize: '1.15rem', fontWeight: 800, margin: '0 0 0.5rem', color: '#fff' }}>
+                Categorisations & Pro-Am Racing
+              </h3>
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.55 }}>
+                Drivers are categorized into Platinum, Gold, Silver, and Bronze to ensure fair sporting parity:
+              </p>
+              <ul style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', lineHeight: 1.6, margin: '0.5rem 0 0 1.25rem' }}>
+                <li><strong style={{ color: '#dc2626' }}>Pro Cup:</strong> Factory works drivers competing for overall glory.</li>
+                <li><strong style={{ color: '#f59e0b' }}>Gold & Silver Cup:</strong> Stepping stone for rising sportscar talents and junior single-seater graduates.</li>
+                <li><strong style={{ color: '#b45309' }}>Bronze Cup:</strong> True gentleman racers paired with professional coaches, with the class champion earning an automatic invitation to the 24 Hours of Le Mans.</li>
               </ul>
             </div>
           </div>

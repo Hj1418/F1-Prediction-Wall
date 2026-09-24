@@ -40,28 +40,38 @@ assert(homePageContent.includes('THE GRID'), 'Hero presents "THE GRID" headline'
 assert(homePageContent.includes('Your motorsport starting point'), 'Hero presents core platform tagline');
 assert(homePageContent.includes('NEXT UP IN MOTORSPORT'), 'Section 2 presents "NEXT UP IN MOTORSPORT"');
 assert(homePageContent.includes('Explore Motorsport'), 'Section 3 presents "Explore Motorsport"');
-assert(homePageContent.includes('Learn Motorsport'), 'Section 4 presents "Learn Motorsport"');
+assert(homePageContent.includes('Motorsport Fundamentals & Hubs'), 'Section 7 presents "Motorsport Fundamentals & Hubs"');
 assert(homePageContent.includes('Indian Motorsport'), 'Section 5 presents "Indian Motorsport"');
 assert(homePageContent.includes('PREDICTION BENCH'), 'Section 6 presents "PREDICTION BENCH"');
-assert(homePageContent.includes('More to Explore'), 'Section 7 presents "More to Explore"');
+assert(homePageContent.includes('More to Explore'), 'Section 8 presents "More to Explore"');
 
 // Check order of sections in the JSX
 const heroIdx = homePageContent.indexOf('1. HERO:');
-const nextUpIdx = homePageContent.indexOf('2. WHAT\'S HAPPENING / NEXT UP:');
-const exploreIdx = homePageContent.indexOf('3. EXPLORE MOTORSPORT:');
-const learnIdx = homePageContent.indexOf('4. LEARN MOTORSPORT:');
-const indiaIdx = homePageContent.indexOf('5. INDIAN MOTORSPORT:');
-const predIdx = homePageContent.indexOf('6. PREDICTION BENCH:');
-const exploreMoreIdx = homePageContent.indexOf('7. DISCOVER MORE / CONTENT:');
+const nextUpIdx = homePageContent.indexOf('2. NEXT / CURRENT RACE:');
+const predIdx = homePageContent.indexOf('3. YOUR PREDICTION PROGRESS:');
+const exploreIdx = homePageContent.indexOf('4. EXPLORE MOTORSPORT:');
+const indiaIdx = homePageContent.indexOf('5. LATEST / FEATURED:');
+const upcomingIdx = homePageContent.indexOf('6. UPCOMING RACES:');
+const hubsIdx = homePageContent.indexOf('7. EXPLORE MOTORSPORT HUBS:');
+const exploreMoreIdx = homePageContent.indexOf('8. DISCOVER MORE:');
 
 assert(
+  heroIdx !== -1 &&
+  nextUpIdx !== -1 &&
+  predIdx !== -1 &&
+  exploreIdx !== -1 &&
+  indiaIdx !== -1 &&
+  upcomingIdx !== -1 &&
+  hubsIdx !== -1 &&
+  exploreMoreIdx !== -1 &&
   heroIdx < nextUpIdx &&
-  nextUpIdx < exploreIdx &&
-  exploreIdx < learnIdx &&
-  learnIdx < indiaIdx &&
-  indiaIdx < predIdx &&
-  predIdx < exploreMoreIdx,
-  'Homepage sections follow strict 8-stage information hierarchy'
+  nextUpIdx < predIdx &&
+  predIdx < exploreIdx &&
+  exploreIdx < indiaIdx &&
+  indiaIdx < upcomingIdx &&
+  upcomingIdx < hubsIdx &&
+  hubsIdx < exploreMoreIdx,
+  'Homepage sections follow strict motorsport-first information hierarchy'
 );
 
 // -------------------------------------------------------------
@@ -124,7 +134,8 @@ for (const topicId of expectedTopics) {
 }
 
 assert(homePageContent.includes('activeLearnTab'), 'HomePage provides toggle between core curriculum and 30s insights');
-assert(homePageContent.includes('to="/learn"'), 'HomePage links to full Learn hub');
+assert(homePageContent.includes('to="/explore"'), 'HomePage links to full Explore hubs');
+assert(!homePageContent.includes('to="/learn"'), 'HomePage strictly contains no /learn links');
 
 // -------------------------------------------------------------
 // 5. Indian Motorsport Domestic Ecosystem Spotlight
@@ -189,7 +200,7 @@ clientCache.clear();
 console.log('\n7. More To Explore Discovery Paths:');
 assert(DEFAULT_DISCOVER_MORE.length === 4, `4 curated discovery paths defined (got ${DEFAULT_DISCOVER_MORE.length})`);
 
-const expectedPaths = ['/circuits', '/learn#topics', '/indian-motorsport#pathway', '/learn#official-updates'];
+const expectedPaths = ['/circuits', '/explore/f1?tab=basics', '/explore/indian-motorsport', '/explore'];
 for (const url of expectedPaths) {
   const exists = DEFAULT_DISCOVER_MORE.some(d => d.url === url);
   assert(exists, `Discovery item with URL "${url}" is configured`);

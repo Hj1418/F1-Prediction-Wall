@@ -43,9 +43,8 @@ export const MobileNavigation: React.FC<MobileNavigationProps> = ({
 
   const navItems = [
     { label: 'Home', path: '/', icon: Home, matchPrefix: '/' },
-    { label: 'Learn', path: '/learn', icon: BookOpen, matchPrefix: '/learn' },
     { label: 'Race Weekends', path: '/races', icon: CalendarDays, matchPrefix: '/races' },
-    { label: 'Explore Championships', path: '/championships', icon: Compass, matchPrefix: '/championships' },
+    { label: 'Explore Motorsport', path: '/explore', icon: Compass, matchPrefix: '/explore' },
     { label: 'Circuits', path: '/circuits', icon: MapPin, matchPrefix: '/circuits' },
     { label: 'Predictions', path: '/predictions', icon: CircleDot, matchPrefix: '/predictions' },
     { label: 'Leaderboard', path: '/leaderboard', icon: Trophy, matchPrefix: '/leaderboard' },
@@ -96,10 +95,10 @@ export const MobileNavigation: React.FC<MobileNavigationProps> = ({
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#ff4d4d', fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
             <Flag size={14} />
-            <span>The Grid • The F1 Community Hub</span>
+            <span>The Grid • The Motorsport Community Hub</span>
           </div>
           <p style={{ margin: '0.35rem 0 0', fontSize: '0.8rem', color: '#94a3b8', lineHeight: 1.35 }}>
-            Sign in with Google to explore circuits, follow race weekends, and compete on Prediction Bench.
+            Sign in with Google to explore motorsport hubs, follow race weekends, and compete on Prediction Bench.
           </p>
         </div>
       )}

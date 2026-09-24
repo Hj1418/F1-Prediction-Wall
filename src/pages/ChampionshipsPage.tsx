@@ -88,7 +88,7 @@ export const ChampionshipsPage: React.FC = () => {
               color: '#ffffff',
             }}
           >
-            THE MOTORSPORT UNIVERSE
+            EXPLORE THE WORLD OF MOTORSPORT
           </h1>
 
           <p
@@ -100,8 +100,7 @@ export const ChampionshipsPage: React.FC = () => {
               lineHeight: 1.55,
             }}
           >
-            Formula 1 is the starting point. Motorsport is the vision. Discover the championships,
-            unique formats, and vehicle architectures that define global racing.
+            Discover premier championships, technical machinery, elite competitors, and world-class circuits across global motorsport.
           </p>
 
           {/* Quick Stats Pill */}
@@ -125,9 +124,9 @@ export const ChampionshipsPage: React.FC = () => {
           >
             <span><strong style={{ color: '#fff' }}>10+</strong> Championships</span>
             <span style={{ color: 'var(--border-subtle)' }}>•</span>
-            <span><strong style={{ color: 'var(--f1-red)' }}>F1</strong> Active Starting Point</span>
+            <span><strong style={{ color: 'var(--telemetry-cyan)' }}>15+</strong> Global Circuits</span>
             <span style={{ color: 'var(--border-subtle)' }}>•</span>
-            <span><strong style={{ color: '#fff' }}>5</strong> Event Formats</span>
+            <span><strong style={{ color: '#fff' }}>5</strong> Racing Disciplines</span>
           </div>
 
           {/* Universal Search CTA */}
@@ -452,7 +451,7 @@ export const ChampionshipsPage: React.FC = () => {
 
                     {isF1 ? (
                       <Link
-                        to="/races"
+                        to="/explore/f1"
                         style={{
                           backgroundColor: 'var(--f1-red)',
                           color: '#ffffff',
@@ -471,7 +470,7 @@ export const ChampionshipsPage: React.FC = () => {
                       </Link>
                     ) : isChampionshipDataReady(champ.id) ? (
                       <Link
-                        to={champ.id === 'indian-motorsport' ? '/indian-motorsport' : `/championships/${champ.id}`}
+                        to={`/explore/${champ.id}`}
                         style={{
                           backgroundColor: champ.badgeColor,
                           color: '#ffffff',
@@ -486,7 +485,7 @@ export const ChampionshipsPage: React.FC = () => {
                           gap: '0.35rem',
                         }}
                       >
-                        {champ.id === 'indian-motorsport' ? 'EXPLORE ECOSYSTEM' : `EXPLORE ${champ.shortName.toUpperCase()}`} <ChevronRight size={13} />
+                        {champ.id === 'indian-motorsport' ? 'ENTER ECOSYSTEM HUB' : `ENTER ${champ.shortName.toUpperCase()} HUB`} <ChevronRight size={13} />
                       </Link>
                     ) : (
                       <a

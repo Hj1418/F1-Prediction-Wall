@@ -11,9 +11,8 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { label: 'HOME', path: '/', icon: Home },
-  { label: 'LEARN', path: '/learn', icon: BookOpen, matchPrefixes: ['/learn'] },
   { label: 'RACES', path: '/races', icon: CalendarDays, matchPrefixes: ['/races', '/weekends', '/schedule'] },
-  { label: 'EXPLORE', path: '/championships', icon: Compass, matchPrefixes: ['/championships', '/explore', '/circuits'] },
+  { label: 'EXPLORE', path: '/explore', icon: Compass, matchPrefixes: ['/explore', '/championships', '/circuits'] },
   { label: 'PREDICTIONS', path: '/predictions', icon: CircleDot, matchPrefixes: ['/predictions', '/predict'] },
   { label: 'LEADERBOARD', path: '/leaderboard', icon: Trophy, matchPrefixes: ['/leaderboard'] },
 ];

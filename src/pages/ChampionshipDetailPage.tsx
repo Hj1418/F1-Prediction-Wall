@@ -15,6 +15,10 @@ import {
   Flag,
   CheckCircle2,
   Zap,
+  MapPin,
+  ArrowRight,
+  BookOpen,
+  Sparkles,
 } from 'lucide-react';
 import { getChampionshipDetail } from '../services/motorsport/championshipDataService';
 import { ChampionshipDetailData } from '../types/motorsportDetail';
@@ -23,8 +27,11 @@ import { CompetitorProfileModal, CompetitorProfileData } from '../components/com
 import { TeamProfileModal, TeamProfileData } from '../components/team/TeamProfileModal';
 import { SourceProvenanceBadge } from '../components/common/SourceProvenanceBadge';
 import { FeederLadderView } from '../components/feeder/FeederLadderView';
+import { getCircuitsByChampionship } from '../services/circuits/globalCircuitsService';
+import { CircuitCard } from '../components/circuits/CircuitCard';
+import { getMotorsportBasics } from '../services/motorsport/motorsportBasicsService';
 
-type DetailTab = 'overview' | 'calendar' | 'standings' | 'teams' | 'feature';
+type DetailTab = 'overview' | 'basics' | 'calendar' | 'circuits' | 'standings' | 'teams' | 'feature';
 
 export const ChampionshipDetailPage: React.FC = () => {
   const { championshipId } = useParams<{ championshipId: string }>();
@@ -168,19 +175,35 @@ export const ChampionshipDetailPage: React.FC = () => {
     }
   };
 
+  const championshipCircuits = React.useMemo(() => {
+    if (!championshipId) return [];
+    return getCircuitsByChampionship(championshipId);
+  }, [championshipId]);
+
+  const basicsData = React.useMemo(() => {
+    return championshipId ? getMotorsportBasics(championshipId) : null;
+  }, [championshipId]);
+
   const navTabs = React.useMemo(() => {
     if (!data) return [];
+    const competitorLabel = data.competitorLabel || 'Driver';
+    const teamsTabLabel = competitorLabel === 'Rider'
+      ? `Riders & Teams (${data.teamsStandings.length})`
+      : `Teams & Grid (${data.teamsStandings.length})`;
+
     const list: Array<{ id: DetailTab; label: string; icon: React.ReactNode }> = [
       { id: 'overview', label: 'Overview & Specs', icon: <Layers size={15} /> },
-      { id: 'calendar', label: `Calendar (${data.rounds.length})`, icon: <Calendar size={15} /> },
+      { id: 'basics', label: 'Learn the Basics', icon: <BookOpen size={15} /> },
+      { id: 'circuits', label: `Circuits (${championshipCircuits.length})`, icon: <MapPin size={15} /> },
+      { id: 'teams', label: teamsTabLabel, icon: <Users size={15} /> },
       { id: 'standings', label: 'Standings', icon: <Trophy size={15} /> },
-      { id: 'teams', label: `Teams & Grid (${data.teamsStandings.length})`, icon: <Users size={15} /> },
+      { id: 'calendar', label: `Calendar (${data.rounds.length})`, icon: <Calendar size={15} /> },
     ];
     if (featureTab) {
       list.push(featureTab);
     }
     return list;
-  }, [data, featureTab]);
+  }, [data, featureTab, championshipCircuits.length]);
 
   const filteredDrivers = React.useMemo(() => {
     if (!data?.driversStandings) return [];
@@ -344,7 +367,7 @@ export const ChampionshipDetailPage: React.FC = () => {
             }}
           >
             <Link
-              to="/championships"
+              to="/explore"
               style={{
                 color: 'var(--text-secondary)',
                 textDecoration: 'none',
@@ -353,7 +376,7 @@ export const ChampionshipDetailPage: React.FC = () => {
                 gap: '0.35rem',
               }}
             >
-              <ArrowLeft size={14} /> EXPLORE
+              <ArrowLeft size={14} /> EXPLORE MOTORSPORT
             </Link>
             <span>/</span>
             <span style={{ color: data.heroBadgeColor, fontWeight: 700 }}>{data.shortName}</span>
@@ -469,97 +492,90 @@ export const ChampionshipDetailPage: React.FC = () => {
         </div>
       </section>
 
-      {/* F1 Dedicated Platform Ecosystem Launchpad */}
+      {/* F1 Dedicated Platform Prediction Launchpad */}
       {data.id === 'f1' && (
         <section
           style={{
-            backgroundColor: 'rgba(225, 6, 0, 0.04)',
-            borderBottom: '1px solid rgba(225, 6, 0, 0.2)',
+            backgroundColor: 'rgba(225, 6, 0, 0.05)',
+            borderBottom: '1px solid rgba(225, 6, 0, 0.25)',
             padding: '0.85rem 0',
           }}
         >
           <div className="container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <span style={{ fontSize: '0.75rem', fontFamily: 'var(--font-mono)', fontWeight: 800, color: 'var(--f1-red)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-                THE GRID • F1 ECOSYSTEM:
-              </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+              <span style={{ fontSize: '1.1rem' }}>🎯</span>
+              <div>
+                <span style={{ fontSize: '0.78rem', fontFamily: 'var(--font-mono)', fontWeight: 800, color: 'var(--f1-red)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+                  F1 PREDICTION BENCH ACTIVE
+                </span>
+                <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginLeft: '0.5rem' }}>
+                  Predict P1, P2, P3 & Fastest Lap for the 2026 Formula 1 season.
+                </span>
+              </div>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
+              <Link
+                to="/races"
+                style={{
+                  fontSize: '0.74rem',
+                  fontFamily: 'var(--font-mono)',
+                  color: 'var(--text-secondary)',
+                  textDecoration: 'none',
+                  padding: '0.35rem 0.6rem',
+                  borderRadius: '6px',
+                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                  border: '1px solid var(--border-subtle)',
+                }}
+              >
+                Races
+              </Link>
+              <Link
+                to="/circuits"
+                style={{
+                  fontSize: '0.74rem',
+                  fontFamily: 'var(--font-mono)',
+                  color: 'var(--text-secondary)',
+                  textDecoration: 'none',
+                  padding: '0.35rem 0.6rem',
+                  borderRadius: '6px',
+                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                  border: '1px solid var(--border-subtle)',
+                }}
+              >
+                Circuits
+              </Link>
+              <Link
+                to="/leaderboard"
+                style={{
+                  fontSize: '0.74rem',
+                  fontFamily: 'var(--font-mono)',
+                  color: 'var(--text-secondary)',
+                  textDecoration: 'none',
+                  padding: '0.35rem 0.6rem',
+                  borderRadius: '6px',
+                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                  border: '1px solid var(--border-subtle)',
+                }}
+              >
+                Leaderboard
+              </Link>
               <Link
                 to="/predictions"
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: '0.35rem',
-                  fontSize: '0.78rem',
+                  fontSize: '0.75rem',
                   fontWeight: 800,
                   fontFamily: 'var(--font-mono)',
-                  padding: '0.35rem 0.75rem',
+                  padding: '0.4rem 0.85rem',
                   borderRadius: '6px',
-                  backgroundColor: 'var(--bg-surface)',
-                  border: '1px solid var(--border-subtle)',
+                  backgroundColor: 'var(--f1-red)',
                   color: '#fff',
                   textDecoration: 'none',
                 }}
               >
-                PREDICTION BENCH →
-              </Link>
-              <Link
-                to="/races"
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '0.35rem',
-                  fontSize: '0.78rem',
-                  fontWeight: 800,
-                  fontFamily: 'var(--font-mono)',
-                  padding: '0.35rem 0.75rem',
-                  borderRadius: '6px',
-                  backgroundColor: 'var(--bg-surface)',
-                  border: '1px solid var(--border-subtle)',
-                  color: 'var(--text-secondary)',
-                  textDecoration: 'none',
-                }}
-              >
-                RACE WEEKENDS
-              </Link>
-              <Link
-                to="/leaderboard"
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '0.35rem',
-                  fontSize: '0.78rem',
-                  fontWeight: 800,
-                  fontFamily: 'var(--font-mono)',
-                  padding: '0.35rem 0.75rem',
-                  borderRadius: '6px',
-                  backgroundColor: 'var(--bg-surface)',
-                  border: '1px solid var(--border-subtle)',
-                  color: 'var(--text-secondary)',
-                  textDecoration: 'none',
-                }}
-              >
-                LEADERBOARD
-              </Link>
-              <Link
-                to="/circuits"
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '0.35rem',
-                  fontSize: '0.78rem',
-                  fontWeight: 800,
-                  fontFamily: 'var(--font-mono)',
-                  padding: '0.35rem 0.75rem',
-                  borderRadius: '6px',
-                  backgroundColor: 'var(--bg-surface)',
-                  border: '1px solid var(--border-subtle)',
-                  color: 'var(--text-secondary)',
-                  textDecoration: 'none',
-                }}
-              >
-                CIRCUITS GUIDE
+                PREDICT ON BENCH →
               </Link>
             </div>
           </div>
@@ -839,7 +855,234 @@ export const ChampionshipDetailPage: React.FC = () => {
           </div>
         )}
 
-        {/* TAB 2: CALENDAR */}
+        {/* TAB: LEARN THE BASICS */}
+        {activeTab === 'basics' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
+            {/* Header intro */}
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: data.heroBadgeColor, marginBottom: '0.5rem' }}>
+                <BookOpen size={18} />
+                <span style={{ fontSize: '0.78rem', fontWeight: 800, fontFamily: 'var(--font-mono)', textTransform: 'uppercase' }}>
+                  Beginner Knowledge & Fundamentals
+                </span>
+              </div>
+              <h2 style={{ fontSize: '1.75rem', fontWeight: 900, color: '#fff', margin: '0 0 0.5rem 0' }}>
+                Understand {data.shortName} in Minutes
+              </h2>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', margin: 0, maxWidth: '820px', lineHeight: 1.6 }}>
+                {basicsData?.oneLineIntro || data.tagline}
+              </p>
+            </div>
+
+            {/* Section 1: How It Works & Weekend Schedule */}
+            <div>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: 900, color: '#fff', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Clock size={18} style={{ color: data.heroBadgeColor }} /> How an Event Weekend Works
+              </h3>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', lineHeight: 1.6, marginBottom: '1.25rem', maxWidth: '800px' }}>
+                {basicsData?.howItWorks.overview || data.overviewSummary}
+              </p>
+              {basicsData?.howItWorks.weekendStructure && (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))', gap: '1rem' }}>
+                  {basicsData.howItWorks.weekendStructure.map((session, idx) => (
+                    <div
+                      key={idx}
+                      style={{
+                        backgroundColor: 'var(--bg-surface)',
+                        border: '1px solid var(--border-subtle)',
+                        borderRadius: '10px',
+                        padding: '1.1rem',
+                      }}
+                    >
+                      <div style={{ fontSize: '0.75rem', fontFamily: 'var(--font-mono)', fontWeight: 800, color: data.heroBadgeColor, marginBottom: '0.35rem' }}>
+                        SESSION {idx + 1}
+                      </div>
+                      <div style={{ fontSize: '0.92rem', fontWeight: 800, color: '#ffffff', marginBottom: '0.35rem' }}>
+                        {session.session}
+                      </div>
+                      <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+                        {session.description}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Section 2: Points & Scoring System */}
+            <div>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: 900, color: '#fff', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Trophy size={18} style={{ color: '#eab308' }} /> Points & Scoring System
+              </h3>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', lineHeight: 1.6, marginBottom: '1.25rem', maxWidth: '800px' }}>
+                {basicsData?.pointsAndScoring.summary || data.pointsSystemDescription}
+              </p>
+              {basicsData?.pointsAndScoring.pointsTable && (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: '0.6rem' }}>
+                  {basicsData.pointsAndScoring.pointsTable.map((pt, idx) => (
+                    <div
+                      key={idx}
+                      style={{
+                        backgroundColor: 'var(--bg-surface)',
+                        border: '1px solid var(--border-subtle)',
+                        borderRadius: '8px',
+                        padding: '0.75rem 0.85rem',
+                        textAlign: 'center',
+                      }}
+                    >
+                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase' }}>
+                        {pt.position}
+                      </div>
+                      <div style={{ fontSize: '0.95rem', fontWeight: 900, color: '#ffffff', fontFamily: 'var(--font-mono)', marginTop: '0.2rem' }}>
+                        {pt.points}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {basicsData?.pointsAndScoring.bonuses && (
+                <div style={{ marginTop: '0.85rem', display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                  {basicsData.pointsAndScoring.bonuses.map((b, idx) => (
+                    <div key={idx} style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                      <CheckCircle2 size={13} style={{ color: 'var(--telemetry-green)' }} />
+                      <span>{b}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Section 3: Key Rules & Regulations */}
+            <div>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: 900, color: '#fff', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Shield size={18} style={{ color: 'var(--telemetry-green)' }} /> Essential Rules & Regulations
+              </h3>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: '1rem' }}>
+                {(basicsData?.keyRegulations || [
+                  { rule: 'Spec Equality & Parity', explanation: data.specRegulationsSummary },
+                  { rule: 'Feeder Ladder Progression', explanation: data.feederLadderRole },
+                ]).map((reg, idx) => (
+                  <div
+                    key={idx}
+                    style={{
+                      backgroundColor: 'var(--bg-surface)',
+                      border: '1px solid var(--border-subtle)',
+                      borderRadius: '10px',
+                      padding: '1.25rem',
+                    }}
+                  >
+                    <div style={{ fontSize: '0.92rem', fontWeight: 800, color: '#ffffff', marginBottom: '0.4rem' }}>
+                      {reg.rule}
+                    </div>
+                    <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                      {reg.explanation}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Section 4: Machinery / Vehicle Architecture */}
+            <div>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: 900, color: '#fff', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Gauge size={18} style={{ color: data.heroBadgeColor }} /> What is Being Raced: {basicsData?.machineryOverview.vehicleType || data.technicalSpecs.chassis.split(' ')[0]}
+              </h3>
+              <div
+                style={{
+                  backgroundColor: 'var(--bg-surface)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: '12px',
+                  padding: '1.5rem',
+                }}
+              >
+                <div style={{ fontSize: '1rem', fontWeight: 800, color: '#ffffff', marginBottom: '0.75rem' }}>
+                  {basicsData?.machineryOverview.headline || `${data.technicalSpecs.engine} • ${data.technicalSpecs.topSpeed}`}
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))', gap: '0.85rem' }}>
+                  {(basicsData?.machineryOverview.keyHighlights || [
+                    `Chassis: ${data.technicalSpecs.chassis}`,
+                    `Engine / Powertrain: ${data.technicalSpecs.engine}`,
+                    `Top Speed: ${data.technicalSpecs.topSpeed}`,
+                    `Safety Rating: ${data.technicalSpecs.safetyRating}`,
+                  ]).map((hl, idx) => (
+                    <div key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
+                      <Zap size={14} style={{ color: data.heroBadgeColor, flexShrink: 0, marginTop: '2px' }} />
+                      <span>{hl}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Section 5: Beginner Topics & Takeaways */}
+            {basicsData?.beginnerTopics && basicsData.beginnerTopics.length > 0 && (
+              <div>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 900, color: '#fff', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <Sparkles size={18} style={{ color: data.heroBadgeColor }} /> Key Concepts You Should Know
+                </h3>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))', gap: '1.25rem' }}>
+                  {basicsData.beginnerTopics.map(topic => (
+                    <div
+                      key={topic.id}
+                      style={{
+                        backgroundColor: 'var(--bg-surface)',
+                        border: '1px solid var(--border-subtle)',
+                        borderRadius: '12px',
+                        padding: '1.35rem',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'space-between',
+                      }}
+                    >
+                      <div>
+                        <span
+                          style={{
+                            fontSize: '0.68rem',
+                            fontFamily: 'var(--font-mono)',
+                            fontWeight: 800,
+                            color: topic.badgeColor || data.heroBadgeColor,
+                            backgroundColor: `${topic.badgeColor || data.heroBadgeColor}18`,
+                            padding: '0.15rem 0.5rem',
+                            borderRadius: '4px',
+                            display: 'inline-block',
+                            marginBottom: '0.65rem',
+                          }}
+                        >
+                          {topic.badge}
+                        </span>
+                        <h4 style={{ fontSize: '1.05rem', fontWeight: 900, color: '#ffffff', margin: '0 0 0.4rem 0' }}>
+                          {topic.title}
+                        </h4>
+                        <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.5, margin: '0 0 1rem 0' }}>
+                          {topic.shortSummary}
+                        </p>
+                      </div>
+
+                      <div
+                        style={{
+                          backgroundColor: 'var(--bg-base)',
+                          border: '1px solid var(--border-subtle)',
+                          borderRadius: '8px',
+                          padding: '0.85rem',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '0.4rem',
+                        }}
+                      >
+                        {topic.keyPoints.map((pt, pIdx) => (
+                          <div key={pIdx} style={{ fontSize: '0.76rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'flex-start', gap: '0.45rem', lineHeight: 1.4 }}>
+                            <span style={{ color: topic.badgeColor || data.heroBadgeColor, fontWeight: 900 }}>•</span>
+                            <span>{pt}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
         {activeTab === 'calendar' && (
           <div>
             <div style={{ marginBottom: '1.5rem' }}>
@@ -1010,6 +1253,77 @@ export const ChampionshipDetailPage: React.FC = () => {
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* TAB: CIRCUITS & HOST VENUES */}
+        {activeTab === 'circuits' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: data.heroBadgeColor, marginBottom: '0.5rem' }}>
+                <MapPin size={18} />
+                <span style={{ fontSize: '0.78rem', fontWeight: 800, fontFamily: 'var(--font-mono)', textTransform: 'uppercase' }}>
+                  {data.name} Circuit Portfolio
+                </span>
+              </div>
+              <h2 style={{ fontSize: '1.75rem', fontWeight: 900, color: '#fff', margin: '0 0 0.5rem 0' }}>
+                Championship Circuits & Host Venues
+              </h2>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', margin: 0, maxWidth: '820px', lineHeight: 1.6 }}>
+                Explore the iconic racetracks, permanent facilities, and street circuits hosting the {data.name} calendar. Inspect high-precision track geometry, direction indicators, verified turns, and multi-championship hostings.
+              </p>
+            </div>
+
+            {championshipCircuits.length > 0 ? (
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 320px), 1fr))',
+                  gap: '1.5rem',
+                }}
+              >
+                {championshipCircuits.map(circuit => (
+                  <CircuitCard key={circuit.circuitId} circuit={circuit} />
+                ))}
+              </div>
+            ) : (
+              <div
+                style={{
+                  backgroundColor: 'var(--bg-surface)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: '12px',
+                  padding: '2.5rem',
+                  textAlign: 'center',
+                  color: 'var(--text-muted)',
+                }}
+              >
+                <MapPin size={32} style={{ opacity: 0.3, marginBottom: '0.75rem', color: data.heroBadgeColor }} />
+                <h3 style={{ color: '#fff', margin: '0 0 0.5rem 0' }}>Circuits Catalog In Preparation</h3>
+                <p style={{ margin: '0 0 1.25rem 0', fontSize: '0.85rem' }}>
+                  Dedicated circuit profiles for this championship are being verified and updated.
+                </p>
+                <Link
+                  to="/circuits"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.4rem',
+                    padding: '0.45rem 1rem',
+                    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: '6px',
+                    color: '#fff',
+                    fontSize: '0.78rem',
+                    fontWeight: 800,
+                    textDecoration: 'none',
+                    fontFamily: 'var(--font-mono)',
+                  }}
+                >
+                  <span>BROWSE GLOBAL CIRCUITS DIRECTORY</span>
+                  <ArrowRight size={13} />
+                </Link>
+              </div>
+            )}
           </div>
         )}
 

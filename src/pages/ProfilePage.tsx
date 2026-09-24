@@ -7,6 +7,8 @@ import { useApp } from '../context/AppContext';
 import { F1_CONSTRUCTORS_2026 } from '../services/mockData';
 import { CHAMPIONSHIPS_REGISTRY } from '../services/motorsport/motorsportRegistry';
 import { UserInitialsAvatar } from '../components/common/UserInitialsAvatar';
+import { PredictionSpeedometer } from '../components/predictions/PredictionSpeedometer';
+import { testGrandPrixService } from '../services/testGrandPrix/testGrandPrixService';
 import {
   Trophy,
   Award,
@@ -568,6 +570,28 @@ export const ProfilePage: React.FC = () => {
           >
             <Trophy size={14} color="#eab308" /> CHAMPIONSHIP STANDINGS
           </Link>
+        </div>
+
+        {/* Prediction Points Speedometer */}
+        <div style={{ marginBottom: '2.5rem' }}>
+          {(() => {
+            const testPts = profileUser?.userId ? testGrandPrixService.getUserTestScore(profileUser.userId) : 0;
+            const prodPts = profileUser.totalPoints || 0;
+            const combinedPts = prodPts + testPts;
+
+            return (
+              <PredictionSpeedometer
+                points={combinedPts}
+                productionPoints={prodPts}
+                testPoints={testPts}
+                seasonRank={profileUser.seasonRank}
+                previousRank={profileUser.previousRank}
+                championshipName={favChampionship?.shortName || 'Motorsport'}
+                actionLink="/predictions"
+                actionLabel="Make Predictions"
+              />
+            );
+          })()}
         </div>
 
         {/* Performance Telemetry Grid */}

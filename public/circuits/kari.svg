@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" width="500" height="500" viewBox="0 0 500 500" preserveAspectRatio="xMidYMid meet">
+    <desc>Kari Motor Speedway Track Layout (2.1 km) Anti-Clockwise</desc>
+    <path d="M 120 380 
+             L 360 380 
+             C 400 380 430 350 430 310 
+             L 430 220 
+             C 430 180 400 150 360 150 
+             L 300 150 
+             C 270 150 250 170 250 200 
+             L 250 230 
+             C 250 260 230 280 200 280 
+             L 160 280 
+             C 130 280 110 260 110 230 
+             L 110 160 
+             C 110 120 80 90 40 110 
+             C 20 125 20 160 35 180 
+             L 70 240 
+             C 85 265 85 300 70 330 
+             C 60 350 80 380 120 380 
+             Z"
+          fill="none" 
+          stroke="#ff9933" 
+          stroke-width="12" 
+          stroke-linecap="round" 
+          stroke-linejoin="round" />
+    <line x1="200" y1="365" x2="200" y2="395" stroke="#ffffff" stroke-width="4" />
+</svg>
