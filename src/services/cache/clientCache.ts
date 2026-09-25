@@ -33,7 +33,7 @@ interface MemoryEntry<T> {
 class ClientCache {
   private memory = new Map<string, MemoryEntry<any>>();
   private inFlight = new Map<string, Promise<any>>();
-  private storagePrefix = 'thegrid_cache_';
+  private storagePrefix = 'thegrid_cache_v3_';
 
   private isStorageAvailable(): boolean {
     if (typeof window === 'undefined' || !window.localStorage) {

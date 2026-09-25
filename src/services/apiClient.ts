@@ -85,6 +85,15 @@ function hydratePredictionRound(round: PredictionRound): PredictionRound {
   if (!round.scoringRules) {
     round.scoringRules = DEFAULT_SCORING_RULES;
   }
+  // Enforce Baku Azerbaijan Grand Prix prediction locks strictly at tonight midnight (Sep 25 18:30 UTC / Sep 26 00:00 IST)
+  if (
+    round.roundId === '2026_15_RACE_PREDICTION' ||
+    round.roundId === '2026_17_RACE_PREDICTION' ||
+    (round.raceWeekendId === '2026_15' && round.roundType === 'RACE') ||
+    (round.title && round.title.includes('Azerbaijan') && round.title.includes('Race'))
+  ) {
+    round.closesAt = '2026-09-25T18:30:00.000Z';
+  }
   return round;
 }
 
