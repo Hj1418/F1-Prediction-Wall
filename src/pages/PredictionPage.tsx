@@ -69,7 +69,20 @@ export const PredictionPage: React.FC = () => {
 
       try {
         setLoading(true);
-        const r = await api.getPredictionRoundById(roundId);
+        let r = await api.getPredictionRoundById(roundId);
+        if (
+          r &&
+          (r.roundId?.includes('2026_15') ||
+            r.roundId?.includes('2026_17') ||
+            r.raceWeekendId === '2026_15' ||
+            r.raceWeekendId === '2026_17' ||
+            (r.title && r.title.toLowerCase().includes('azerbaijan')))
+        ) {
+          r = {
+            ...r,
+            closesAt: '2026-09-25T18:30:00.000Z',
+          };
+        }
         setRound(r);
 
         let dList: Driver[] = [];

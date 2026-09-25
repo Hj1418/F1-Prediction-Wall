@@ -86,12 +86,14 @@ function hydratePredictionRound(round: PredictionRound): PredictionRound {
     round.scoringRules = DEFAULT_SCORING_RULES;
   }
   // Enforce Baku Azerbaijan Grand Prix prediction locks strictly at tonight midnight (Sep 25 18:30 UTC / Sep 26 00:00 IST)
-  if (
-    round.roundId === '2026_15_RACE_PREDICTION' ||
-    round.roundId === '2026_17_RACE_PREDICTION' ||
-    (round.raceWeekendId === '2026_15' && round.roundType === 'RACE') ||
-    (round.title && round.title.includes('Azerbaijan') && round.title.includes('Race'))
-  ) {
+  const isAzerbaijan =
+    (round.roundId && (round.roundId.includes('2026_15') || round.roundId.includes('2026_17'))) ||
+    round.raceWeekendId === '2026_15' ||
+    round.raceWeekendId === '2026_17' ||
+    (round.title && round.title.toLowerCase().includes('azerbaijan')) ||
+    (round.description && round.description.toLowerCase().includes('azerbaijan'));
+
+  if (isAzerbaijan && (round.roundType === 'RACE' || round.roundType === 'GRAND_PRIX' || round.type === 'RACE' || !round.roundType)) {
     round.closesAt = '2026-09-25T18:30:00.000Z';
   }
   return round;
@@ -323,7 +325,7 @@ export const api = {
     const cachedAll = clientCache.get<PredictionRound[]>('f1_prediction_rounds_all');
     if (cachedAll) {
       const found = cachedAll.find(r => r.roundId === roundId || r.id === roundId);
-      if (found) return found;
+      if (found) return hydratePredictionRound(found);
     }
 
     const inFlightAll = clientCache.getInFlight<PredictionRound[]>('f1_prediction_rounds_all');
@@ -331,7 +333,7 @@ export const api = {
       try {
         const allRounds = await inFlightAll;
         const found = allRounds.find(r => r.roundId === roundId || r.id === roundId);
-        if (found) return found;
+        if (found) return hydratePredictionRound(found);
       } catch {}
     }
 
@@ -346,7 +348,7 @@ export const api = {
         }
       }
       const mock = await mockApi.getPredictionRoundById(roundId);
-      if (mock && !isQualificationPredictionRound(mock)) return mock;
+      if (mock && !isQualificationPredictionRound(mock)) return hydratePredictionRound(mock);
 
       // Dynamic synthesis fallback if roundId represents a weekend prediction
       // e.g. "2026_15_RACE_PREDICTION" -> weekend "2026_15"
@@ -358,7 +360,7 @@ export const api = {
           const { generatePredictionRounds } = await import('./schedule/predictionRoundGenerator');
           const genRounds = generatePredictionRounds(weekend);
           const found = genRounds.find(r => r.roundId === roundId || r.id === roundId) || genRounds[0];
-          if (found) return found;
+          if (found) return hydratePredictionRound(found);
         }
       }
 
