@@ -61,7 +61,7 @@ const isProd = typeof import.meta !== 'undefined' && Boolean(import.meta.env?.PR
  * Fast network fetch with AbortController timeout.
  * Prevents Google Apps Script serverless cold-start latency from freezing the browser UI.
  */
-async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutMs: number = 4000): Promise<Response> {
+async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutMs: number = 8000): Promise<Response> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
@@ -374,17 +374,56 @@ export const api = {
       }
     } catch (_e) {}
 
+    const localKey = `thegrid_user_pred_${roundId}_${userId}`;
+    let fallbackPred: Prediction | null = null;
+    try {
+      const raw = localStorage.getItem(localKey) ||
+        (roundId.includes('2026_15') ? localStorage.getItem(`thegrid_user_pred_2026_17_RACE_PREDICTION_${userId}`) : null) ||
+        (roundId.includes('2026_17') ? localStorage.getItem(`thegrid_user_pred_2026_15_RACE_PREDICTION_${userId}`) : null);
+      if (raw) {
+        fallbackPred = JSON.parse(raw);
+      }
+    } catch {}
+
     const cacheKey = `user_pred_${roundId}_${userId}`;
     return clientCache.getOrFetch(cacheKey, async () => {
       if (isLiveBackend) {
         try {
-          const res = await fetchWithTimeout(`${API_BASE_URL}?action=getUserPrediction&roundId=${encodeURIComponent(roundId)}&userId=${encodeURIComponent(userId)}`);
+          const res = await fetchWithTimeout(
+            `${API_BASE_URL}?action=getUserPrediction&roundId=${encodeURIComponent(roundId)}&userId=${encodeURIComponent(userId)}`,
+            {},
+            10000
+          );
           const json: ApiResponse<Prediction> = await res.json();
-          if (json.success && json.data) return json.data;
+          if (json.success && json.data) {
+            try {
+              localStorage.setItem(localKey, JSON.stringify(json.data));
+            } catch {}
+            return json.data;
+          }
+
+          // Alias check for Azerbaijan Grand Prix round
+          if (roundId === '2026_15_RACE_PREDICTION' || roundId === '2026_17_RACE_PREDICTION') {
+            const aliasId = roundId === '2026_15_RACE_PREDICTION' ? '2026_17_RACE_PREDICTION' : '2026_15_RACE_PREDICTION';
+            const aliasRes = await fetchWithTimeout(
+              `${API_BASE_URL}?action=getUserPrediction&roundId=${encodeURIComponent(aliasId)}&userId=${encodeURIComponent(userId)}`,
+              {},
+              8000
+            );
+            const aliasJson: ApiResponse<Prediction> = await aliasRes.json();
+            if (aliasJson.success && aliasJson.data) {
+              try {
+                localStorage.setItem(localKey, JSON.stringify(aliasJson.data));
+                localStorage.setItem(`thegrid_user_pred_${aliasId}_${userId}`, JSON.stringify(aliasJson.data));
+              } catch {}
+              return aliasJson.data;
+            }
+          }
         } catch (e) {
           console.warn('Live API getUserPrediction failed or timed out:', e);
         }
       }
+      if (fallbackPred) return fallbackPred;
       return isProd ? null : mockApi.getUserPrediction(roundId, userId);
     }, { ttlMs: TTL.SHORT });
   },
@@ -405,7 +444,7 @@ export const api = {
       if (isLiveBackend) {
         try {
           const url = `${API_BASE_URL}?action=getUserWeekendPredictions&userId=${encodeURIComponent(userId)}${raceWeekendId ? `&raceWeekendId=${encodeURIComponent(raceWeekendId)}` : ''}`;
-          const res = await fetchWithTimeout(url);
+          const res = await fetchWithTimeout(url, {}, 10000);
           const json = await res.json();
           if (json.success && json.data) {
             if (Array.isArray(json.data)) {
@@ -464,7 +503,7 @@ export const api = {
           method: 'POST',
           headers: { 'Content-Type': 'text/plain;charset=utf-8' },
           body: JSON.stringify({ action: 'submitPrediction', ...payload }),
-        }, 8000);
+        }, 12000);
         const json: ApiResponse<Prediction> = await res.json();
         if (json.success && json.data) {
           saved = json.data;
@@ -479,6 +518,17 @@ export const api = {
           throw mockErr;
         }
       }
+    }
+
+    // Immediately persist in localStorage for instant restore and offline fallback
+    if (saved && saved.predictionData) {
+      try {
+        localStorage.setItem(`thegrid_user_pred_${payload.roundId}_${payload.userId}`, JSON.stringify(saved));
+        if (payload.roundId === '2026_15_RACE_PREDICTION' || payload.roundId === '2026_17_RACE_PREDICTION') {
+          const alias = payload.roundId === '2026_15_RACE_PREDICTION' ? '2026_17_RACE_PREDICTION' : '2026_15_RACE_PREDICTION';
+          localStorage.setItem(`thegrid_user_pred_${alias}_${payload.userId}`, JSON.stringify(saved));
+        }
+      } catch {}
     }
 
     // Invalidate prediction round and race context caches so fresh status is immediately reflected

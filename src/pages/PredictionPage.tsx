@@ -41,7 +41,7 @@ import {
 
 export const PredictionPage: React.FC = () => {
   const { roundId } = useParams<{ roundId: string }>();
-  const { currentUser, isAuthenticated, openLoginModal } = useAuth();
+  const { currentUser, isAuthenticated, isLoadingAuth, openLoginModal } = useAuth();
   const { showToast, triggerDataRefresh } = useApp();
 
   const [round, setRound] = useState<PredictionRound | null>(null);
@@ -65,6 +65,8 @@ export const PredictionPage: React.FC = () => {
   useEffect(() => {
     async function loadData() {
       if (!roundId) return;
+      if (isLoadingAuth) return; // Wait for authentication state to resolve first
+
       try {
         setLoading(true);
         const r = await api.getPredictionRoundById(roundId);
@@ -102,16 +104,34 @@ export const PredictionPage: React.FC = () => {
           ]);
 
           setWeekend(w);
-          setPrediction(existingPred);
           setOfficialResult(res);
           setUserScore(score);
 
           if (existingPred && existingPred.predictionData) {
+            setPrediction(existingPred);
             setFormData({ ...existingPred.predictionData });
             setIsEditing(false);
           } else {
-            setFormData({});
-            setIsEditing(true);
+            // Check local fallback
+            let fallback: Prediction | null = null;
+            if (currentUser?.userId) {
+              try {
+                const raw = localStorage.getItem(`thegrid_user_pred_${r.roundId}_${currentUser.userId}`) ||
+                  (r.roundId.includes('2026_15') ? localStorage.getItem(`thegrid_user_pred_2026_17_RACE_PREDICTION_${currentUser.userId}`) : null) ||
+                  (r.roundId.includes('2026_17') ? localStorage.getItem(`thegrid_user_pred_2026_15_RACE_PREDICTION_${currentUser.userId}`) : null);
+                if (raw) fallback = JSON.parse(raw);
+              } catch {}
+            }
+
+            if (fallback && fallback.predictionData) {
+              setPrediction(fallback);
+              setFormData({ ...fallback.predictionData });
+              setIsEditing(false);
+            } else {
+              setPrediction(null);
+              setFormData({});
+              setIsEditing(true);
+            }
           }
         }
       } catch (err) {
@@ -122,9 +142,9 @@ export const PredictionPage: React.FC = () => {
     }
 
     loadData();
-  }, [roundId, currentUser?.userId]);
+  }, [roundId, currentUser?.userId, isLoadingAuth]);
 
-  if (loading) {
+  if (loading || isLoadingAuth) {
     return (
       <div className="container" style={{ padding: '6rem 0', textAlign: 'center' }}>
         <div className="live-pulse" style={{ width: '12px', height: '12px', backgroundColor: 'var(--f1-red)', marginBottom: '1rem' }} />
