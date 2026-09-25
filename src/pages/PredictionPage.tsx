@@ -18,6 +18,7 @@ import { DriverSelectModal } from '../components/common/DriverSelectModal';
 import { DriverCard } from '../components/common/DriverCard';
 import { UserInitialsAvatar } from '../components/common/UserInitialsAvatar';
 import { PredictionGuideCard } from '../components/predictions/PredictionGuideCard';
+import { PredictionStoryShareModal } from '../components/predictions/PredictionStoryShareModal';
 import { getResultsTimeline } from '../utils/predictionTimeline';
 import {
   Lock,
@@ -35,6 +36,7 @@ import {
   ArrowLeft,
   BookOpen,
   CalendarClock,
+  Share2,
 } from 'lucide-react';
 
 export const PredictionPage: React.FC = () => {
@@ -55,6 +57,7 @@ export const PredictionPage: React.FC = () => {
   const [driverError, setDriverError] = useState(false);
   const [isGuideOpen, setIsGuideOpen] = useState(true);
   const [justLocked, setJustLocked] = useState(false);
+  const [showStoryModal, setShowStoryModal] = useState(false);
 
   // Driver modal selector state
   const [activeDriverField, setActiveDriverField] = useState<PredictionFieldConfig | null>(null);
@@ -798,11 +801,31 @@ export const PredictionPage: React.FC = () => {
               </div>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowStoryModal(true)}
+                  className="btn btn-primary btn-sm"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.45rem',
+                    fontSize: '0.8rem',
+                    fontWeight: 800,
+                    background: 'linear-gradient(135deg, #e10600 0%, #ff3b30 50%, #b30000 100%)',
+                    boxShadow: '0 2px 10px rgba(225, 6, 0, 0.45)',
+                    border: 'none',
+                    color: '#fff',
+                    letterSpacing: '0.03em',
+                  }}
+                  title="Share your predictions as an Instagram or WhatsApp Story"
+                >
+                  <Share2 size={14} /> Share as Story
+                </button>
                 {!isLocked && !isScored && (
                   <button
                     type="button"
                     onClick={() => setIsEditing(true)}
-                    className="btn btn-primary btn-sm"
+                    className="btn btn-secondary btn-sm"
                     style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem' }}
                   >
                     <Edit3 size={14} /> Edit My Picks
@@ -828,8 +851,29 @@ export const PredictionPage: React.FC = () => {
                 marginBottom: '1.5rem',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', color: 'var(--telemetry-green)', fontWeight: 900, fontSize: '0.8rem', letterSpacing: '0.08em', marginBottom: '0.35rem' }}>
-                <Lock size={15} /> YOUR PREDICTION 🔒
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '0.35rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', color: 'var(--telemetry-green)', fontWeight: 900, fontSize: '0.8rem', letterSpacing: '0.08em' }}>
+                  <Lock size={15} /> YOUR PREDICTION 🔒
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowStoryModal(true)}
+                  className="btn btn-secondary btn-sm"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.4rem',
+                    fontSize: '0.78rem',
+                    fontWeight: 800,
+                    padding: '0.3rem 0.75rem',
+                    borderRadius: '6px',
+                    borderColor: 'rgba(255, 255, 255, 0.25)',
+                    color: '#fff',
+                    background: 'rgba(255, 255, 255, 0.06)',
+                  }}
+                >
+                  <Share2 size={13} color="#e10600" /> Share as Story
+                </button>
               </div>
               <h3 style={{ fontSize: '1.35rem', fontWeight: 900, textTransform: 'uppercase', margin: '0 0 0.75rem 0', color: '#ffffff' }}>
                 {round.title}
@@ -1430,12 +1474,29 @@ export const PredictionPage: React.FC = () => {
                       <ArrowLeft size={16} /> Return to Prediction Hub
                     </Link>
                   ) : (
-                    <Link
-                      to={`/leaderboard?type=round&id=${round.roundId}`}
-                      className="btn btn-secondary"
-                    >
-                      <Trophy size={16} color="var(--telemetry-yellow)" /> View Session Leaderboard
-                    </Link>
+                    <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                      <button
+                        type="button"
+                        onClick={() => setShowStoryModal(true)}
+                        className="btn btn-primary"
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.45rem',
+                          background: 'linear-gradient(135deg, #e10600 0%, #ff3b30 50%, #b30000 100%)',
+                          border: 'none',
+                          fontWeight: 800,
+                        }}
+                      >
+                        <Share2 size={16} /> Share as Story
+                      </button>
+                      <Link
+                        to={`/leaderboard?type=round&id=${round.roundId}`}
+                        className="btn btn-secondary"
+                      >
+                        <Trophy size={16} color="var(--telemetry-yellow)" /> View Session Leaderboard
+                      </Link>
+                    </div>
                   )}
                 </div>
               )}
@@ -1454,6 +1515,19 @@ export const PredictionPage: React.FC = () => {
           selectedDriverId={formData[activeDriverField.id]}
           disabledDriverIds={getDisabledDriverIdsForField(activeDriverField.id)}
           onSelect={handleSelectDriver}
+        />
+      )}
+
+      {/* Story Share Modal */}
+      {showStoryModal && prediction && round && (
+        <PredictionStoryShareModal
+          isOpen={showStoryModal}
+          onClose={() => setShowStoryModal(false)}
+          prediction={prediction}
+          round={round}
+          weekend={weekend}
+          currentUser={currentUser}
+          drivers={drivers}
         />
       )}
     </div>
