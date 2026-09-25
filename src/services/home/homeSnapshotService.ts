@@ -387,13 +387,13 @@ export const DEFAULT_HOME_SNAPSHOT: HomeSnapshot = {
   featuredLearnTopics: DEFAULT_FEATURED_LEARN_TOPICS,
   discoverMoreItems: DEFAULT_DISCOVER_MORE,
   predictionHighlight: {
-    roundId: '2026_17_RACE_PREDICTION',
+    roundId: '2026_15_RACE_PREDICTION',
     roundName: 'Azerbaijan Grand Prix',
     grandPrix: 'Baku City Circuit',
     status: 'OPEN',
     deadlineNotice: 'Predictions lock before Grand Prix start',
     totalPointsAvailable: 60,
-    url: '/predict/2026_17_RACE_PREDICTION',
+    url: '/predict/2026_15_RACE_PREDICTION',
   },
 };
 

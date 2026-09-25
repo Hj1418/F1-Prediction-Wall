@@ -639,7 +639,25 @@ export const api = {
         const res = await fetch(url);
         const json: ApiResponse<Prediction[]> = await res.json();
         if (json.success && Array.isArray(json.data)) {
-          return json.data;
+          let list = [...json.data];
+          // If round is Azerbaijan GP (2026_15 or 2026_17), also query the alternate roundId to guarantee all submissions appear
+          if (roundId === '2026_15_RACE_PREDICTION' || roundId === '2026_17_RACE_PREDICTION') {
+            const aliasId = roundId === '2026_15_RACE_PREDICTION' ? '2026_17_RACE_PREDICTION' : '2026_15_RACE_PREDICTION';
+            try {
+              const aliasRes = await fetch(`${API_BASE_URL}?action=getAdminPredictions&roundId=${encodeURIComponent(aliasId)}`);
+              const aliasJson: ApiResponse<Prediction[]> = await aliasRes.json();
+              if (aliasJson.success && Array.isArray(aliasJson.data)) {
+                const existingPredIds = new Set(list.map(p => p.predictionId || p.userId));
+                for (const p of aliasJson.data) {
+                  if (!existingPredIds.has(p.predictionId || p.userId)) {
+                    list.push(p);
+                    existingPredIds.add(p.predictionId || p.userId);
+                  }
+                }
+              }
+            } catch (_aliasErr) {}
+          }
+          return list;
         }
       } catch (e: any) {
         console.error('Live API getAdminPredictions error:', e);

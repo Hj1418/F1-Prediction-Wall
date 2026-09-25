@@ -126,6 +126,12 @@ function doGet(e) {
       case 'getRoundScore':
         responseData = getRoundScore(e.parameter.roundId, e.parameter.userId);
         break;
+      case 'setBakuDeadlineMidnight':
+        responseData = setBakuPredictionDeadlineMidnight();
+        break;
+      case 'normalizeAzerbaijanPredictions':
+        responseData = normalizeAzerbaijanPredictionRoundIds();
+        break;
       default:
         return createJsonResponse({
           success: false,
@@ -233,6 +239,15 @@ function doPost(e) {
       case 'getAdminPredictions':
       case 'getPredictions':
         responseData = getAdminPredictions(payload.roundId);
+        break;
+      case 'setBakuDeadlineMidnight':
+        responseData = setBakuPredictionDeadlineMidnight();
+        break;
+      case 'adminUpdatePredictionRound':
+        responseData = adminUpdatePredictionRound(payload);
+        break;
+      case 'normalizeAzerbaijanPredictions':
+        responseData = normalizeAzerbaijanPredictionRoundIds();
         break;
       default:
         return createJsonResponse({
@@ -924,11 +939,22 @@ function adminCalculateScores(roundId) {
   const round = getPredictionRound(roundId);
   if (!round) throw new Error('Round not found');
 
+  const isAzerbaijan = roundId && (
+    roundId === '2026_15_RACE_PREDICTION' ||
+    roundId === '2026_17_RACE_PREDICTION' ||
+    roundId === '2026_15_RACE' ||
+    roundId === '2026_17_RACE'
+  );
+
   const resSheet = ss.getSheetByName(SHEET_NAMES.RESULTS);
   const resRows = resSheet.getDataRange().getValues();
   let official = null;
   for (let i = 1; i < resRows.length; i++) {
-    if (resRows[i][1] === roundId) {
+    const rowResRound = String(resRows[i][1] || '');
+    const isResMatch = isAzerbaijan
+      ? (rowResRound === '2026_15_RACE_PREDICTION' || rowResRound === '2026_17_RACE_PREDICTION' || rowResRound === '2026_15_RACE' || rowResRound === '2026_17_RACE')
+      : (rowResRound === roundId);
+    if (isResMatch) {
       official = JSON.parse(resRows[i][2] || '{}');
       break;
     }
@@ -943,14 +969,19 @@ function adminCalculateScores(roundId) {
   let scoredCount = 0;
 
   for (let i = 1; i < predRows.length; i++) {
-    if (predRows[i][2] === roundId) {
+    const rowRound = String(predRows[i][2] || '');
+    const isPredMatch = isAzerbaijan
+      ? (rowRound === '2026_15_RACE_PREDICTION' || rowRound === '2026_17_RACE_PREDICTION' || rowRound === '2026_15_RACE' || rowRound === '2026_17_RACE')
+      : (rowRound === roundId);
+
+    if (isPredMatch) {
       const predData = JSON.parse(predRows[i][3] || '{}');
       const userId = predRows[i][1];
       const calc = computeScore(predData, official);
 
       let existingScoreRow = -1;
       for (let j = 1; j < scoreRows.length; j++) {
-        if (scoreRows[j][1] === userId && scoreRows[j][2] === roundId) {
+        if (scoreRows[j][1] === userId && (scoreRows[j][2] === rowRound || (isAzerbaijan && (scoreRows[j][2] === '2026_15_RACE_PREDICTION' || scoreRows[j][2] === '2026_17_RACE_PREDICTION')))) {
           existingScoreRow = j + 1;
           break;
         }
@@ -1223,10 +1254,32 @@ function getAdminPredictions(roundId) {
   if (!predSheet) return [];
   const rows = predSheet.getDataRange().getValues();
   const list = [];
+
+  // Determine if roundId is Azerbaijan Grand Prix (matches 2026_15 or 2026_17)
+  const isAzerbaijan = roundId && (
+    roundId === '2026_15_RACE_PREDICTION' ||
+    roundId === '2026_17_RACE_PREDICTION' ||
+    roundId === '2026_15_RACE' ||
+    roundId === '2026_17_RACE'
+  );
+
   for (let i = 1; i < rows.length; i++) {
     const r = rows[i];
     if (!r[0]) continue;
-    if (roundId && String(r[2]) !== String(roundId)) continue;
+    const rowRound = String(r[2] || '');
+    if (roundId) {
+      if (isAzerbaijan) {
+        const isRowAzerbaijan = (
+          rowRound === '2026_15_RACE_PREDICTION' ||
+          rowRound === '2026_17_RACE_PREDICTION' ||
+          rowRound === '2026_15_RACE' ||
+          rowRound === '2026_17_RACE'
+        );
+        if (!isRowAzerbaijan) continue;
+      } else {
+        if (rowRound !== String(roundId)) continue;
+      }
+    }
     list.push({
       predictionId: r[0],
       userId: r[1],
@@ -2054,18 +2107,32 @@ function enqueueNotification(recipientEmail, recipientName, notificationType, su
 }
 
 function processNotificationQueue(batchLimit) {
-  const limit = batchLimit || 25;
+  // Sanitize batchLimit: when invoked by a time trigger, Apps Script passes an event object e
+  const limit = (typeof batchLimit === 'number' && !isNaN(batchLimit)) ? batchLimit : 25;
   const lock = LockService.getScriptLock();
+  let hasLock = false;
+
   try {
-    lock.waitLock(10000);
+    // Non-blocking lock try (max 5s) to avoid 60s trigger hang/timeout
+    hasLock = lock.tryLock(5000);
   } catch (lockErr) {
-    Logger.log('[EMAIL_LOCKED] Notification processor lock busy, skipping run.');
+    Logger.log('[EMAIL_LOCKED] Lock exception, skipping run: ' + lockErr.toString());
+    return { processed: 0, sent: 0, failed: 0, locked: true };
+  }
+
+  if (!hasLock) {
+    Logger.log('[EMAIL_BUSY] Another worker holds lock, skipping run.');
     return { processed: 0, sent: 0, failed: 0, locked: true };
   }
 
   try {
     Logger.log('[EMAIL_PROCESSING_STARTED] Checking queue (batch limit: ' + limit + ')...');
     const ss = SpreadsheetApp.getActiveSpreadsheet();
+    if (!ss) {
+      Logger.log('[EMAIL_ERROR] Active spreadsheet unavailable.');
+      return { processed: 0, sent: 0, failed: 0 };
+    }
+
     const queueSheet = ss.getSheetByName(SHEET_NAMES.NOTIFICATION_QUEUE);
     if (!queueSheet) return { processed: 0, sent: 0, failed: 0 };
 
@@ -2081,9 +2148,19 @@ function processNotificationQueue(batchLimit) {
     let sent = 0;
     let failed = 0;
 
+    let remainingQuota = 100;
+    try {
+      remainingQuota = MailApp.getRemainingDailyQuota();
+    } catch (_qErr) {}
+
     for (let i = 1; i < rows.length && processed < limit; i++) {
       const status = String(rows[i][6] || '').trim();
       if (status === 'PENDING' || status === 'RETRY') {
+        if (remainingQuota <= 0) {
+          Logger.log('[EMAIL_QUOTA_EXHAUSTED] Remaining daily quota is 0. Pausing.');
+          break;
+        }
+
         processed++;
         const rowIdx = i + 1;
         const queueId = rows[i][0];
@@ -2162,6 +2239,7 @@ function processNotificationQueue(batchLimit) {
           }
 
           MailApp.sendEmail(emailOpts);
+          remainingQuota--;
 
           queueSheet.getRange(rowIdx, 7).setValue('SENT');
           queueSheet.getRange(rowIdx, 9).setValue(attempts);
@@ -2195,9 +2273,111 @@ function processNotificationQueue(batchLimit) {
 
     Logger.log('[EMAIL_PROCESSING_COMPLETED] Processed: ' + processed + ', Sent: ' + sent + ', Failed: ' + failed);
     return { processed: processed, sent: sent, failed: failed };
+  } catch (outerErr) {
+    Logger.log('[EMAIL_OUTER_ERR] Unexpected error in notification processor: ' + outerErr.toString());
+    return { processed: 0, sent: 0, failed: 0, error: outerErr.toString() };
   } finally {
-    lock.releaseLock();
+    try {
+      if (lock && hasLock && lock.hasLock()) {
+        lock.releaseLock();
+      }
+    } catch (_releaseErr) {}
   }
+}
+
+/**
+ * Update a prediction round's attributes (e.g. closesAt, opensAt, status)
+ */
+function adminUpdatePredictionRound(payload) {
+  if (!payload || !payload.roundId) {
+    throw new Error('roundId is required to update prediction round');
+  }
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(SHEET_NAMES.PREDICTION_ROUNDS);
+  if (!sheet) throw new Error('PredictionRounds sheet not found');
+
+  const rows = sheet.getDataRange().getValues();
+  let found = false;
+  for (let i = 1; i < rows.length; i++) {
+    if (rows[i][0] === payload.roundId) {
+      if (payload.closesAt) sheet.getRange(i + 1, 8).setValue(payload.closesAt);
+      if (payload.opensAt) sheet.getRange(i + 1, 7).setValue(payload.opensAt);
+      if (payload.status) sheet.getRange(i + 1, 9).setValue(payload.status);
+      found = true;
+      break;
+    }
+  }
+
+  // Clear caches
+  try {
+    const cache = CacheService.getScriptCache();
+    cache.remove('pred_rounds_all');
+    if (payload.raceWeekendId) cache.remove('pred_rounds_' + payload.raceWeekendId);
+  } catch (_cErr) {}
+
+  return { success: found, roundId: payload.roundId };
+}
+
+/**
+ * Helper to update Azerbaijan Grand Prix (Baku) prediction closesAt deadline
+ * to tonight at 12:00 AM midnight IST (2026-09-25T18:30:00.000Z).
+ */
+function setBakuPredictionDeadlineMidnight() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(SHEET_NAMES.PREDICTION_ROUNDS);
+  if (!sheet) return { success: false, error: 'PredictionRounds sheet not found' };
+
+  const rows = sheet.getDataRange().getValues();
+  const newClosesAt = '2026-09-25T18:30:00.000Z'; // 12:00 AM midnight IST
+  let updatedCount = 0;
+
+  for (let i = 1; i < rows.length; i++) {
+    const roundId = String(rows[i][0] || '');
+    const weekendId = String(rows[i][1] || '');
+    const title = String(rows[i][4] || '');
+    if (
+      roundId.indexOf('2026_15') !== -1 ||
+      roundId.indexOf('2026_17') !== -1 ||
+      weekendId === '2026_15' ||
+      weekendId === '2026_17' ||
+      title.indexOf('Azerbaijan') !== -1
+    ) {
+      sheet.getRange(i + 1, 8).setValue(newClosesAt); // Column 8 is closesAt
+      updatedCount++;
+    }
+  }
+
+  try {
+    const cache = CacheService.getScriptCache();
+    cache.remove('pred_rounds_2026_15');
+    cache.remove('pred_rounds_2026_17');
+    cache.remove('pred_rounds_all');
+  } catch (_cErr) {}
+
+  Logger.log('[DEADLINE_UPDATED] Updated ' + updatedCount + ' rounds to deadline ' + newClosesAt);
+  return { success: true, updatedCount: updatedCount, closesAt: newClosesAt };
+}
+
+/**
+ * One-click migration to normalize all Azerbaijan Grand Prix predictions in the
+ * Predictions sheet from 2026_17_RACE_PREDICTION to 2026_15_RACE_PREDICTION.
+ */
+function normalizeAzerbaijanPredictionRoundIds() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(SHEET_NAMES.PREDICTIONS);
+  if (!sheet) return { success: false, error: 'Predictions sheet not found' };
+
+  const rows = sheet.getDataRange().getValues();
+  let migratedCount = 0;
+  for (let i = 1; i < rows.length; i++) {
+    const rowRound = String(rows[i][2] || '').trim();
+    if (rowRound === '2026_17_RACE_PREDICTION' || rowRound === '2026_17_RACE') {
+      sheet.getRange(i + 1, 3).setValue('2026_15_RACE_PREDICTION');
+      migratedCount++;
+    }
+  }
+  Logger.log('[MIGRATION] Migrated ' + migratedCount + ' predictions from 2026_17 to 2026_15_RACE_PREDICTION');
+  return { success: true, migratedCount: migratedCount };
 }
 
 /**
@@ -2262,13 +2442,13 @@ function setupEmailWorkerTrigger() {
   }
   Logger.log('[EMAIL_SETUP] Removed ' + removedCount + ' existing triggers.');
 
-  // Create clean 1-minute time-driven trigger
+  // Create clean 5-minute time-driven trigger (5 minutes stays well within quota and avoids Google RPC saturation)
   const newTrigger = ScriptApp.newTrigger('processNotificationQueue')
     .timeBased()
-    .everyMinutes(1)
+    .everyMinutes(5)
     .create();
 
-  Logger.log('[EMAIL_SETUP] Created new 1-minute time-driven trigger ID: ' + newTrigger.getUniqueId());
+  Logger.log('[EMAIL_SETUP] Created new 5-minute time-driven trigger ID: ' + newTrigger.getUniqueId());
 
   // Immediately process any pending items in queue
   const queueResult = processNotificationQueue(25);
@@ -2279,6 +2459,7 @@ function setupEmailWorkerTrigger() {
     senderAccount: 'thepaddockprediction14@gmail.com',
     quotaRemaining: quota,
     triggerCreated: true,
+    triggerInterval: '5 minutes',
     initialProcess: queueResult
   };
 }

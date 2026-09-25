@@ -387,23 +387,25 @@ export const PredictionSpeedometer: React.FC<PredictionSpeedometerProps> = ({
               {milestone.nextMilestone}
             </text>
 
-            {/* Animated Needle */}
-            <g
-              transform={`rotate(${needleAngle} ${cx} ${cy})`}
-              style={{
-                transition: prefersReducedMotion
-                  ? 'none'
-                  : 'transform 600ms cubic-bezier(0.16, 1, 0.3, 1)',
-                transformOrigin: `${cx}px ${cy}px`,
-              }}
-            >
-              {/* Needle Body */}
-              <polygon
-                points={`${cx - 2.5},${cy} ${cx},${cy - r + 8} ${cx + 2.5},${cy}`}
-                fill="var(--f1-red)"
-                filter="url(#needleGlow)"
-              />
-              <circle cx={cx} cy={cy - r + 8} r="2" fill="#ffffff" />
+            {/* Animated Needle - Anchor pivot perfectly to (cx, cy) */}
+            <g transform={`translate(${cx}, ${cy})`}>
+              <g
+                style={{
+                  transform: `rotate(${needleAngle}deg)`,
+                  transformOrigin: '0px 0px',
+                  transition: prefersReducedMotion
+                    ? 'none'
+                    : 'transform 600ms cubic-bezier(0.16, 1, 0.3, 1)',
+                }}
+              >
+                {/* Needle Body */}
+                <polygon
+                  points={`-2.5,0 0,${-r + 8} 2.5,0`}
+                  fill="var(--f1-red)"
+                  filter="url(#needleGlow)"
+                />
+                <circle cx={0} cy={-r + 8} r="2" fill="#ffffff" />
+              </g>
             </g>
 
             {/* Center Pivot Hub */}

@@ -731,7 +731,10 @@ export class MockApiService {
 
   public async getAdminPredictions(roundId?: string): Promise<Prediction[]> {
     if (roundId) {
-      return this.predictions.filter(p => p.roundId === roundId).map(p => ({ ...p }));
+      const isAzerbaijan = roundId === '2026_15_RACE_PREDICTION' || roundId === '2026_17_RACE_PREDICTION';
+      return this.predictions
+        .filter(p => isAzerbaijan ? (p.roundId === '2026_15_RACE_PREDICTION' || p.roundId === '2026_17_RACE_PREDICTION') : p.roundId === roundId)
+        .map(p => ({ ...p }));
     }
     return this.predictions.map(p => ({ ...p }));
   }

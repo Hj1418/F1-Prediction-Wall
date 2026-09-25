@@ -120,13 +120,13 @@ function setupEmailWorkerTrigger() {
   }
   Logger.log('[EMAIL_SETUP] Removed ' + removedCount + ' existing triggers.');
 
-  // Create clean 1-minute time-driven trigger
+  // Create clean 5-minute time-driven trigger
   const newTrigger = ScriptApp.newTrigger('processNotificationQueue')
     .timeBased()
-    .everyMinutes(1)
+    .everyMinutes(5)
     .create();
 
-  Logger.log('[EMAIL_SETUP] Created new 1-minute time-driven trigger ID: ' + newTrigger.getUniqueId());
+  Logger.log('[EMAIL_SETUP] Created new 5-minute time-driven trigger ID: ' + newTrigger.getUniqueId());
 
   // Immediately process any pending items in queue
   const queueResult = typeof processNotificationQueue === 'function' ? processNotificationQueue(25) : null;
@@ -137,6 +137,7 @@ function setupEmailWorkerTrigger() {
     senderAccount: 'thepaddockprediction14@gmail.com',
     quotaRemaining: quota,
     triggerCreated: true,
+    triggerInterval: '5 minutes',
     initialProcess: queueResult
   };
 }
