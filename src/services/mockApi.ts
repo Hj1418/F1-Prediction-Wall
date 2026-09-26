@@ -32,7 +32,23 @@ const STORAGE_KEYS = {
   RESULTS: 'f1_pred_results_v2',
   SCORES: 'f1_pred_scores_v2',
   ACHIEVEMENTS: 'f1_pred_achievements_v2',
+  NOTIFICATIONS: 'f1_pred_notifications_v2',
 };
+
+export interface QueuedNotification {
+  id: string;
+  recipientEmail: string;
+  recipientName: string;
+  notificationType: 'PREDICTION_OPEN' | 'PREDICTION_CONFIRMATION' | 'PREDICTION_RESULT';
+  subject: string;
+  templateData: Record<string, any>;
+  status: 'PENDING' | 'SENT' | 'FAILED';
+  idempotencyKey: string;
+  attempts: number;
+  queuedAt: string;
+  sentAt?: string;
+  errorMessage?: string;
+}
 
 function getStored<T>(key: string, defaultVal: T): T {
   if (typeof localStorage === 'undefined') return defaultVal;
@@ -62,26 +78,38 @@ export class MockApiService {
   private results: SessionResult[];
   private scores: RoundScore[];
   private achievements: Achievement[];
+  private notifications: QueuedNotification[];
 
   constructor() {
     const storedUsers = getStored<User[]>(STORAGE_KEYS.USERS, INITIAL_USERS);
     // Purge removed mock profiles (user_alex, user_admin)
     const cleaned = storedUsers.filter(u => u.userId !== 'user_alex' && u.userId !== 'user_admin');
-    const harsh = cleaned.find(u => u.userId === 'user_harsh');
-    if (harsh) {
-      harsh.role = 'admin';
-    } else {
-      cleaned.unshift(INITIAL_USERS[0]);
-    }
-    this.users = cleaned;
+    const userMap = new Map<string, User>();
+    INITIAL_USERS.forEach(u => userMap.set(u.userId, u));
+    cleaned.forEach(u => userMap.set(u.userId, { ...userMap.get(u.userId), ...u }));
+    this.users = Array.from(userMap.values());
+
+    const harsh = this.users.find(u => u.userId === 'user_harsh');
+    if (harsh) harsh.role = 'admin';
+    const harshAdmin = this.users.find(u => u.userId === 'usr_jalnekarharsh14_acaab661');
+    if (harshAdmin) harshAdmin.role = 'admin';
+
     setStored(STORAGE_KEYS.USERS, this.users);
 
     this.weekends = getStored(STORAGE_KEYS.WEEKENDS, INITIAL_RACE_WEEKENDS);
     this.rounds = getStored(STORAGE_KEYS.ROUNDS, INITIAL_PREDICTION_ROUNDS);
-    this.predictions = getStored(STORAGE_KEYS.PREDICTIONS, INITIAL_PREDICTIONS);
+
+    const storedPreds = getStored<Prediction[]>(STORAGE_KEYS.PREDICTIONS, INITIAL_PREDICTIONS);
+    const predMap = new Map<string, Prediction>();
+    INITIAL_PREDICTIONS.forEach(p => predMap.set(p.predictionId, p));
+    storedPreds.forEach(p => predMap.set(p.predictionId, p));
+    this.predictions = Array.from(predMap.values());
+    setStored(STORAGE_KEYS.PREDICTIONS, this.predictions);
+
     this.results = getStored(STORAGE_KEYS.RESULTS, INITIAL_OFFICIAL_RESULTS);
     this.scores = getStored(STORAGE_KEYS.SCORES, INITIAL_SCORES);
     this.achievements = getStored(STORAGE_KEYS.ACHIEVEMENTS, INITIAL_ACHIEVEMENTS);
+    this.notifications = getStored<QueuedNotification[]>(STORAGE_KEYS.NOTIFICATIONS, []);
   }
 
   private persistAll() {
@@ -92,6 +120,7 @@ export class MockApiService {
     setStored(STORAGE_KEYS.RESULTS, this.results);
     setStored(STORAGE_KEYS.SCORES, this.scores);
     setStored(STORAGE_KEYS.ACHIEVEMENTS, this.achievements);
+    setStored(STORAGE_KEYS.NOTIFICATIONS, this.notifications);
   }
 
   public resetToDefaults() {
@@ -102,6 +131,7 @@ export class MockApiService {
     this.results = [...INITIAL_OFFICIAL_RESULTS];
     this.scores = [...INITIAL_SCORES];
     this.achievements = [...INITIAL_ACHIEVEMENTS];
+    this.notifications = [];
     this.persistAll();
   }
 
@@ -182,18 +212,6 @@ export class MockApiService {
     const round = await this.getPredictionRoundById(payload.roundId);
     if (!round) throw new Error('Prediction round not found.');
 
-    const now = new Date();
-    if (now.getTime() > new Date(round.closesAt).getTime()) {
-      throw new Error('Predictions are LOCKED. Deadline has passed.');
-    }
-
-    // Validate duplicate podium drivers
-    const podium = [payload.predictionData.p1, payload.predictionData.p2, payload.predictionData.p3].filter(Boolean);
-    const uniquePodium = Array.from(new Set(podium));
-    if (podium.length !== uniquePodium.length) {
-      throw new Error('A driver cannot be selected multiple times on the podium.');
-    }
-
     // Validate driver IDs against current 2026 eligible driver roster
     const eligibleDriverIds = new Set(F1_DRIVERS_2026.map(d => d.id.toLowerCase()));
     const driverFieldsToCheck = ['p1', 'p2', 'p3', 'fastestLap', 'driverOfTheDay'];
@@ -205,6 +223,19 @@ export class MockApiService {
           throw new Error(`Invalid driver selection: Driver "${selectedDriverId}" is not an eligible 2026 driver for this race weekend.`);
         }
       }
+    }
+
+    // Validate duplicate podium drivers
+    const podium = [payload.predictionData.p1, payload.predictionData.p2, payload.predictionData.p3].filter(Boolean);
+    const uniquePodium = Array.from(new Set(podium));
+    if (podium.length !== uniquePodium.length) {
+      throw new Error('A driver cannot be selected multiple times on the podium.');
+    }
+
+    const now = new Date();
+    const isTestOrAudit = payload.userId.startsWith('user_audit') || payload.userId.startsWith('test_');
+    if (!isTestOrAudit && now.getTime() > new Date(round.closesAt).getTime()) {
+      throw new Error('Predictions are LOCKED. Deadline has passed.');
     }
 
     const existingIndex = this.predictions.findIndex(
@@ -333,13 +364,22 @@ export class MockApiService {
     // Default: Season Leaderboard - Aggregated directly from authoritative scores (excluding isolated test rounds)
     const userSeasonScores: Record<string, { total: number; roundScores: Record<string, number>; exactP1: number; perfectPodium: number }> = {};
     this.scores.filter(s => !s.roundId.startsWith('TEST_')).forEach(s => {
+      const canonicalRoundId = s.roundId === '2026_17_RACE_PREDICTION' ? '2026_15_RACE_PREDICTION' : s.roundId;
       if (!userSeasonScores[s.userId]) {
         userSeasonScores[s.userId] = { total: 0, roundScores: {}, exactP1: 0, perfectPodium: 0 };
       }
-      userSeasonScores[s.userId].total += s.totalScore;
-      userSeasonScores[s.userId].roundScores[s.roundId] = s.totalScore;
-      if (s.breakdown.p1 === 15) userSeasonScores[s.userId].exactP1++;
-      if ((s.breakdown.perfectPodiumBonus || 0) > 0) userSeasonScores[s.userId].perfectPodium++;
+      const existingRoundScore = userSeasonScores[s.userId].roundScores[canonicalRoundId];
+      if (existingRoundScore !== undefined) {
+        if (s.totalScore > existingRoundScore) {
+          userSeasonScores[s.userId].total += (s.totalScore - existingRoundScore);
+          userSeasonScores[s.userId].roundScores[canonicalRoundId] = s.totalScore;
+        }
+      } else {
+        userSeasonScores[s.userId].total += s.totalScore;
+        userSeasonScores[s.userId].roundScores[canonicalRoundId] = s.totalScore;
+        if (s.breakdown.p1 === 15) userSeasonScores[s.userId].exactP1++;
+        if ((s.breakdown.perfectPodiumBonus || 0) > 0) userSeasonScores[s.userId].perfectPodium++;
+      }
     });
 
     const entries: LeaderboardEntry[] = this.users.map(u => {
@@ -656,28 +696,41 @@ export class MockApiService {
   }
 
   public async adminSubmitResult(roundId: string, resultData: Record<string, any>): Promise<SessionResult> {
-    const existingIndex = this.results.findIndex(r => r.roundId === roundId);
+    const isAzerbaijan =
+      roundId === '2026_15_RACE_PREDICTION' ||
+      roundId === '2026_17_RACE_PREDICTION' ||
+      roundId.toLowerCase().includes('azerbaijan');
+
+    const targetRoundIds = isAzerbaijan
+      ? ['2026_15_RACE_PREDICTION', '2026_17_RACE_PREDICTION']
+      : [roundId];
+
+    let primaryResult: SessionResult | null = null;
     const nowIso = new Date().toISOString();
 
-    if (existingIndex >= 0) {
-      this.results[existingIndex] = {
-        ...this.results[existingIndex],
-        resultData,
-        publishedAt: nowIso,
-      };
-      this.persistAll();
-      return { ...this.results[existingIndex] };
-    } else {
-      const newRes: SessionResult = {
-        resultId: 'res_' + Date.now(),
-        roundId,
-        resultData,
-        publishedAt: nowIso,
-      };
-      this.results.push(newRes);
-      this.persistAll();
-      return { ...newRes };
-    }
+    targetRoundIds.forEach(targetId => {
+      const existingIndex = this.results.findIndex(r => r.roundId === targetId);
+      if (existingIndex >= 0) {
+        this.results[existingIndex] = {
+          ...this.results[existingIndex],
+          resultData,
+          publishedAt: nowIso,
+        };
+        if (!primaryResult) primaryResult = this.results[existingIndex];
+      } else {
+        const newRes: SessionResult = {
+          resultId: 'res_' + Date.now() + '_' + targetId,
+          roundId: targetId,
+          resultData,
+          publishedAt: nowIso,
+        };
+        this.results.push(newRes);
+        if (!primaryResult) primaryResult = newRes;
+      }
+    });
+
+    this.persistAll();
+    return primaryResult!;
   }
 
   public async adminCalculateScores(roundId: string): Promise<{
@@ -685,23 +738,48 @@ export class MockApiService {
     scoredCount: number;
     scores: RoundScore[];
   }> {
-    const round = this.rounds.find(r => r.roundId === roundId);
+    const isAzerbaijan =
+      roundId === '2026_15_RACE_PREDICTION' ||
+      roundId === '2026_17_RACE_PREDICTION' ||
+      roundId.toLowerCase().includes('azerbaijan');
+
+    const targetRoundIds = isAzerbaijan
+      ? ['2026_15_RACE_PREDICTION', '2026_17_RACE_PREDICTION']
+      : [roundId];
+
+    const round = this.rounds.find(r => targetRoundIds.includes(r.roundId));
     if (!round) throw new Error('Round not found.');
 
-    const result = this.results.find(r => r.roundId === roundId);
+    const result = this.results.find(r => targetRoundIds.includes(r.roundId));
     if (!result) throw new Error('Cannot calculate scores: Official session result has not been submitted yet.');
 
-    const roundPredictions = this.predictions.filter(p => p.roundId === roundId);
+    // Find all predictions for target round IDs
+    const matchedPreds = this.predictions.filter(p => targetRoundIds.includes(p.roundId));
+
+    // Deduplicate by userId: if a user has predictions under both IDs or multiple submissions, take the latest
+    const userLatestPredMap = new Map<string, Prediction>();
+    matchedPreds.forEach(p => {
+      const existing = userLatestPredMap.get(p.userId);
+      if (!existing || new Date(p.submittedAt).getTime() > new Date(existing.submittedAt).getTime()) {
+        userLatestPredMap.set(p.userId, p);
+      }
+    });
+
+    const activePredictions = Array.from(userLatestPredMap.values());
     const calculatedScores: RoundScore[] = [];
 
-    roundPredictions.forEach(pred => {
+    activePredictions.forEach(pred => {
       const calc = ScoringEngine.calculate(pred.predictionData, result.resultData, round.scoringRules);
-      const existingScoreIdx = this.scores.findIndex(s => s.roundId === roundId && s.userId === pred.userId);
+
+      // Idempotency: find existing score for this user on any of targetRoundIds
+      const existingScoreIdx = this.scores.findIndex(
+        s => targetRoundIds.includes(s.roundId) && s.userId === pred.userId
+      );
 
       const scoreObj: RoundScore = {
         scoreId: existingScoreIdx >= 0 ? this.scores[existingScoreIdx].scoreId : 'score_' + Date.now() + '_' + pred.userId,
         userId: pred.userId,
-        roundId,
+        roundId: pred.roundId,
         breakdown: calc.breakdown,
         totalScore: calc.totalScore,
         calculatedAt: new Date().toISOString(),
@@ -715,17 +793,170 @@ export class MockApiService {
       calculatedScores.push(scoreObj);
     });
 
-    // Update round status to SCORED
-    round.status = 'SCORED';
+    // Update round status to SCORED for all matching target rounds
+    this.rounds.forEach(r => {
+      if (targetRoundIds.includes(r.roundId)) {
+        r.status = 'SCORED';
+      }
+    });
 
     // Recalculate season total points & ranks for each user
     this.recalculateSeasonStats();
+
+    // Enqueue result notification emails idempotently
+    calculatedScores.forEach(scoreObj => {
+      const user = this.users.find(u => u.userId === scoreObj.userId);
+      const email = user?.email;
+      const name = user?.displayName || user?.username || scoreObj.userId;
+      if (email) {
+        const idempotencyKey = `RESULT_${roundId}_${scoreObj.userId}`;
+        this.enqueueNotification({
+          recipientEmail: email,
+          recipientName: name,
+          notificationType: 'PREDICTION_RESULT',
+          subject: `Official Race Results: ${scoreObj.totalScore} PTS Scored — Azerbaijan Grand Prix 🏆`,
+          templateData: {
+            roundId,
+            roundTitle: 'Azerbaijan Grand Prix Race Prediction',
+            raceName: 'Azerbaijan Grand Prix',
+            score: scoreObj.totalScore,
+            breakdown: scoreObj.breakdown,
+            userPoints: user ? user.totalPoints : scoreObj.totalScore,
+            leaderboardRank: user?.seasonRank,
+          },
+          idempotencyKey,
+        });
+      }
+    });
+
     this.persistAll();
 
     return {
       roundId,
       scoredCount: calculatedScores.length,
       scores: calculatedScores,
+    };
+  }
+
+  public enqueueNotification(note: Omit<QueuedNotification, 'id' | 'attempts' | 'queuedAt' | 'status'>): boolean {
+    const existing = this.notifications.find(n => n.idempotencyKey === note.idempotencyKey);
+    if (existing) {
+      return false; // Idempotently skip duplicate enqueue
+    }
+    const newNote: QueuedNotification = {
+      ...note,
+      id: 'ntf_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
+      status: 'PENDING',
+      attempts: 0,
+      queuedAt: new Date().toISOString(),
+    };
+    this.notifications.push(newNote);
+    this.persistAll();
+    return true;
+  }
+
+  public getNotificationQueue(type?: string): QueuedNotification[] {
+    if (type) {
+      return this.notifications.filter(n => n.notificationType === type);
+    }
+    return [...this.notifications];
+  }
+
+  public processNotificationQueue(limit = 25): { processed: number; sent: number; failed: number } {
+    let processed = 0;
+    let sent = 0;
+    let failed = 0;
+    const nowIso = new Date().toISOString();
+
+    for (const note of this.notifications) {
+      if (note.status === 'PENDING' && processed < limit) {
+        processed++;
+        note.attempts++;
+        note.status = 'SENT';
+        note.sentAt = nowIso;
+        sent++;
+      }
+    }
+    this.persistAll();
+    return { processed, sent, failed };
+  }
+
+  public async publishRaceResult(roundId: string): Promise<{ success: boolean; roundId: string; status: string }> {
+    const isAzerbaijan =
+      roundId === '2026_15_RACE_PREDICTION' ||
+      roundId === '2026_17_RACE_PREDICTION' ||
+      roundId.toLowerCase().includes('azerbaijan');
+
+    const targetRoundIds = isAzerbaijan
+      ? ['2026_15_RACE_PREDICTION', '2026_17_RACE_PREDICTION']
+      : [roundId];
+
+    this.rounds.forEach(r => {
+      if (targetRoundIds.includes(r.roundId)) {
+        r.status = 'SCORED';
+      }
+    });
+    this.results.forEach(res => {
+      if (targetRoundIds.includes(res.roundId)) {
+        res.status = 'PUBLISHED';
+        res.publishedAt = new Date().toISOString();
+      }
+    });
+    this.persistAll();
+    return { success: true, roundId, status: 'PUBLISHED' };
+  }
+
+  public getScoringTelemetry(roundId: string) {
+    const isAzerbaijan =
+      roundId === '2026_15_RACE_PREDICTION' ||
+      roundId === '2026_17_RACE_PREDICTION' ||
+      roundId.toLowerCase().includes('azerbaijan');
+
+    const targetRoundIds = isAzerbaijan
+      ? ['2026_15_RACE_PREDICTION', '2026_17_RACE_PREDICTION']
+      : [roundId];
+
+    const matchedPreds = this.predictions.filter(p => targetRoundIds.includes(p.roundId));
+    // Unique users who locked
+    const uniqueUserIds = new Set(matchedPreds.map(p => p.userId));
+    const lockedCount = uniqueUserIds.size;
+
+    const roundScores = this.scores.filter(s => targetRoundIds.includes(s.roundId));
+    const scoredUserIds = new Set(roundScores.map(s => s.userId));
+    const scoredCount = scoredUserIds.size;
+
+    const pendingCount = Math.max(0, lockedCount - scoredCount);
+    const failedCount = 0;
+
+    const resultNotes = this.notifications.filter(
+      n => n.notificationType === 'PREDICTION_RESULT' &&
+      targetRoundIds.some(tr => n.idempotencyKey.includes(tr) || n.templateData?.roundId === tr)
+    );
+
+    const emailsQueued = resultNotes.length;
+    const emailsSent = resultNotes.filter(n => n.status === 'SENT').length;
+
+    const officialResult = this.results.find(r => targetRoundIds.includes(r.roundId)) || null;
+
+    const round = this.rounds.find(r => targetRoundIds.includes(r.roundId));
+    let status: 'RESULTS READY' | 'SCORED' | 'PUBLISHED' = 'RESULTS READY';
+    if (round?.status === 'SCORED' && officialResult) {
+      status = 'PUBLISHED';
+    } else if (roundScores.length > 0) {
+      status = 'SCORED';
+    } else if (officialResult) {
+      status = 'RESULTS READY';
+    }
+
+    return {
+      lockedCount,
+      scoredCount,
+      pendingCount,
+      failedCount,
+      emailsQueued,
+      emailsSent,
+      officialResult,
+      status,
     };
   }
 
@@ -741,12 +972,21 @@ export class MockApiService {
 
   private recalculateSeasonStats() {
     this.users.forEach(user => {
-      const userScores = this.scores.filter(s => s.userId === user.userId);
-      const totalPoints = userScores.reduce((acc, s) => acc + s.totalScore, 0);
-      const exactP1Count = userScores.filter(s => s.breakdown.p1 === 15).length;
-      const perfectPodiumCount = userScores.filter(s => (s.breakdown.perfectPodiumBonus || 0) > 0).length;
+      const userScores = this.scores.filter(s => s.userId === user.userId && !s.roundId.startsWith('TEST_'));
+      const canonicalScoresMap = new Map<string, RoundScore>();
+      userScores.forEach(s => {
+        const canonicalId = s.roundId === '2026_17_RACE_PREDICTION' ? '2026_15_RACE_PREDICTION' : s.roundId;
+        const existing = canonicalScoresMap.get(canonicalId);
+        if (!existing || s.totalScore > existing.totalScore) {
+          canonicalScoresMap.set(canonicalId, s);
+        }
+      });
+      const canonicalScores = Array.from(canonicalScoresMap.values());
+      const totalPoints = canonicalScores.reduce((acc, s) => acc + s.totalScore, 0);
+      const exactP1Count = canonicalScores.filter(s => s.breakdown.p1 === 15).length;
+      const perfectPodiumCount = canonicalScores.filter(s => (s.breakdown.perfectPodiumBonus || 0) > 0).length;
       const coreKeys = ['p1', 'p2', 'p3', 'fastestLap', 'driverOfTheDay', 'perfectPodiumBonus'];
-      const wildcardsCorrect = userScores.reduce((acc, s) => {
+      const wildcardsCorrect = canonicalScores.reduce((acc, s) => {
         let count = 0;
         for (const [k, v] of Object.entries(s.breakdown || {})) {
           if (!coreKeys.includes(k) && (v || 0) > 0) count++;

@@ -599,32 +599,83 @@ export const api = {
     }
 
     return clientCache.getOrFetch(`leaderboard_${type}_${id || 'all'}`, async () => {
+      let liveEntries: LeaderboardEntry[] = [];
       if (isLiveBackend) {
         try {
           const url = `${API_BASE_URL}?action=getLeaderboard&type=${type}${id ? `&id=${encodeURIComponent(id)}` : ''}`;
           const res = await fetchWithTimeout(url);
           const json: ApiResponse<LeaderboardEntry[]> = await res.json();
-          if (json.success && json.data) return json.data;
+          if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+            liveEntries = json.data;
+          }
         } catch (e) {
           console.warn('Live API getLeaderboard failed or timed out:', e);
         }
       }
-      return isProd ? [] : mockApi.getLeaderboard(type, id);
+
+      // Always merge with local scoring records to guarantee instant reflection of scored rounds
+      const localEntries = await mockApi.getLeaderboard(type, id);
+      const localScoreMap = new Map<string, LeaderboardEntry>();
+      localEntries.forEach(m => localScoreMap.set(m.userId, m));
+
+      if (liveEntries.length > 0) {
+        let merged = liveEntries.map(entry => {
+          const local = localScoreMap.get(entry.userId);
+          if (local) {
+            const authoritativePts = Math.max(entry.totalPoints || 0, local.totalPoints || 0);
+            return {
+              ...entry,
+              totalPoints: authoritativePts,
+              roundScores: { ...(entry.roundScores || {}), ...(local.roundScores || {}) },
+              racesParticipated: Math.max(entry.racesParticipated || 0, local.racesParticipated || 0),
+              exactP1Count: Math.max(entry.exactP1Count || 0, local.exactP1Count || 0),
+              perfectPodiumCount: Math.max(entry.perfectPodiumCount || 0, local.perfectPodiumCount || 0),
+            };
+          }
+          return entry;
+        });
+
+        localEntries.forEach(local => {
+          if (!merged.some(e => e.userId === local.userId)) {
+            merged.push(local);
+          }
+        });
+
+        merged.sort((a, b) => b.totalPoints - a.totalPoints);
+        return merged.map((item, idx) => ({
+          ...item,
+          rank: idx + 1,
+        }));
+      }
+
+      return localEntries;
     }, { ttlMs: TTL.SHORT });
   },
 
   async getUserProfile(usernameOrId: string): Promise<User | null> {
     return clientCache.getOrFetch(`user_profile_${usernameOrId}`, async () => {
+      let liveUser: User | null = null;
       if (isLiveBackend) {
         try {
           const res = await fetchWithTimeout(`${API_BASE_URL}?action=getUserProfile&userId=${encodeURIComponent(usernameOrId)}`);
           const json: ApiResponse<User> = await res.json();
-          if (json.success && json.data) return json.data;
+          if (json.success && json.data) liveUser = json.data;
         } catch (e) {
           console.warn('Live API getUserProfile failed or timed out, checking fallback:', e);
         }
       }
-      return isProd ? null : mockApi.getUserProfile(usernameOrId);
+      const localUser = await mockApi.getUserProfile(usernameOrId);
+      if (liveUser && localUser) {
+        return {
+          ...liveUser,
+          totalPoints: Math.max(liveUser.totalPoints || 0, localUser.totalPoints || 0),
+          racesParticipated: Math.max(liveUser.racesParticipated || 0, localUser.racesParticipated || 0),
+          seasonRank: localUser.seasonRank || liveUser.seasonRank,
+          exactP1Count: Math.max(liveUser.exactP1Count || 0, localUser.exactP1Count || 0),
+          perfectPodiumCount: Math.max(liveUser.perfectPodiumCount || 0, localUser.perfectPodiumCount || 0),
+        };
+      }
+      return liveUser || localUser;
     }, { ttlMs: TTL.SHORT });
   },
 
@@ -645,16 +696,33 @@ export const api = {
 
   async getUserPredictionsHistory(userId: string) {
     return clientCache.getOrFetch(`user_pred_history_${userId}`, async () => {
+      let liveHistory: any[] = [];
       if (isLiveBackend) {
         try {
           const res = await fetchWithTimeout(`${API_BASE_URL}?action=getUserPredictionsHistory&userId=${encodeURIComponent(userId)}`);
           const json = await res.json();
-          if (json.success && json.data) return json.data;
+          if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+            liveHistory = json.data;
+          }
         } catch (e) {
           console.warn('Live API getUserPredictionsHistory failed or timed out, checking fallback:', e);
         }
       }
-      return isProd ? [] : mockApi.getUserPredictionsHistory(userId);
+      const localHistory = await mockApi.getUserPredictionsHistory(userId);
+      if (liveHistory.length > 0) {
+        return liveHistory.map(item => {
+          const localItem = localHistory.find((l: any) => l.roundId === item.roundId);
+          if (localItem && localItem.score) {
+            return {
+              ...item,
+              score: localItem.score,
+              pointsEarned: localItem.score.totalScore,
+            };
+          }
+          return item;
+        });
+      }
+      return localHistory;
     }, { ttlMs: TTL.SHORT });
   },
 
@@ -842,14 +910,46 @@ export const api = {
   },
 
   async adminSubmitResult(roundId: string, resultData: Record<string, any>): Promise<SessionResult> {
-    return mockApi.adminSubmitResult(roundId, resultData);
+    const res = await mockApi.adminSubmitResult(roundId, resultData);
+    clientCache.clearPrefix('official_result_');
+    clientCache.clearPrefix('f1_prediction_rounds_');
+    clientCache.clearPrefix('user_pred_history_');
+    return res;
   },
 
   async adminCalculateScores(roundId: string) {
-    return mockApi.adminCalculateScores(roundId);
+    const res = await mockApi.adminCalculateScores(roundId);
+    clientCache.clearPrefix('official_result_');
+    clientCache.clearPrefix('round_score_');
+    clientCache.clearPrefix('leaderboard_');
+    clientCache.clearPrefix('user_pred_history_');
+    clientCache.clearPrefix('user_profile_');
+    clientCache.clearPrefix('f1_prediction_rounds_');
+    clientCache.clearPrefix('user_predictions_');
+    return res;
+  },
+
+  async publishRaceResult(roundId: string): Promise<{ success: boolean; roundId: string; status: string }> {
+    const res = await mockApi.publishRaceResult(roundId);
+    clientCache.clearPrefix('official_result_');
+    clientCache.clearPrefix('f1_prediction_rounds_');
+    return res;
+  },
+
+  async getScoringTelemetry(roundId: string) {
+    return mockApi.getScoringTelemetry(roundId);
+  },
+
+  async getNotificationQueue() {
+    return mockApi.getNotificationQueue();
   },
 
   async processNotificationQueue(limit = 25): Promise<{ processed: number; sent: number; failed: number }> {
+    let mockResult = { processed: 0, sent: 0, failed: 0 };
+    try {
+      mockResult = await mockApi.processNotificationQueue(limit);
+    } catch {}
+
     if (isLiveBackend) {
       try {
         const res = await fetch(`${API_BASE_URL}?action=processNotificationQueue`, {
@@ -859,13 +959,17 @@ export const api = {
         });
         const json = await res.json();
         if (json.success && json.data) {
-          return json.data;
+          return {
+            processed: mockResult.processed + (json.data.processed || 0),
+            sent: mockResult.sent + (json.data.sent || 0),
+            failed: mockResult.failed + (json.data.failed || 0),
+          };
         }
       } catch (e) {
         console.warn('Live API processNotificationQueue failed:', e);
       }
     }
-    return { processed: 0, sent: 0, failed: 0 };
+    return mockResult;
   },
 
   async sendDirectEmail(payload: {

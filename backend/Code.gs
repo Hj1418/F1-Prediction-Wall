@@ -933,6 +933,57 @@ function submitPrediction(payload) {
   return savedPrediction;
 }
 
+function adminSubmitResult(payload) {
+  const roundId = payload.roundId;
+  const resultData = payload.resultData;
+  if (!roundId || !resultData) throw new Error('roundId and resultData are required');
+
+  const isAzerbaijan = roundId && (
+    roundId === '2026_15_RACE_PREDICTION' ||
+    roundId === '2026_17_RACE_PREDICTION' ||
+    roundId === '2026_15_RACE' ||
+    roundId === '2026_17_RACE'
+  );
+
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName(SHEET_NAMES.RESULTS);
+  if (!sheet) {
+    sheet = ss.insertSheet(SHEET_NAMES.RESULTS);
+    sheet.getRange(1, 1, 1, 4).setValues([['resultId', 'roundId', 'resultDataJson', 'publishedAt']]);
+    sheet.getRange(1, 1, 1, 4).setBackground('#e10600').setFontColor('#ffffff').setFontWeight('bold');
+  }
+
+  const rows = sheet.getDataRange().getValues();
+  const nowIso = new Date().toISOString();
+  const dataJson = typeof resultData === 'string' ? resultData : JSON.stringify(resultData);
+
+  const targetRounds = isAzerbaijan
+    ? ['2026_15_RACE_PREDICTION', '2026_17_RACE_PREDICTION']
+    : [roundId];
+
+  targetRounds.forEach(function(targetId) {
+    let existingRow = -1;
+    for (let i = 1; i < rows.length; i++) {
+      if (String(rows[i][1]) === targetId) {
+        existingRow = i + 1;
+        break;
+      }
+    }
+    if (existingRow > 0) {
+      sheet.getRange(existingRow, 3).setValue(dataJson);
+      sheet.getRange(existingRow, 4).setValue(nowIso);
+    } else {
+      sheet.appendRow(['res_' + Utilities.getUuid(), targetId, dataJson, nowIso]);
+    }
+  });
+
+  return {
+    roundId: roundId,
+    resultData: typeof resultData === 'string' ? JSON.parse(resultData) : resultData,
+    publishedAt: nowIso
+  };
+}
+
 function adminCalculateScores(roundId) {
   // Calculates scores idempotently
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -1169,9 +1220,12 @@ function getLeaderboard(type, id) {
     }
 
     if (include) {
-      userTotals[userId] = (userTotals[userId] || 0) + pts;
+      const normalizedRoundId = (roundId === '2026_17_RACE_PREDICTION' || roundId === '2026_17_RACE')
+        ? '2026_15_RACE_PREDICTION'
+        : roundId;
+
       if (!userBreakdowns[userId]) userBreakdowns[userId] = {};
-      userBreakdowns[userId][roundId] = pts;
+      userBreakdowns[userId][normalizedRoundId] = pts;
     }
   }
 
@@ -1181,7 +1235,15 @@ function getLeaderboard(type, id) {
   for (let i = 0; i < allUserIds.length; i++) {
     const uid = allUserIds[i];
     const u = usersMap[uid];
-    const pts = userTotals[uid] !== undefined ? userTotals[uid] : (type === 'season' ? u.totalPoints : 0);
+    const breakdown = userBreakdowns[uid] || {};
+    let pts = 0;
+    const roundsScored = Object.keys(breakdown);
+    for (let r = 0; r < roundsScored.length; r++) {
+      pts += Number(breakdown[roundsScored[r]] || 0);
+    }
+    if (roundsScored.length === 0 && type === 'season') {
+      pts = Number(u.totalPoints || 0);
+    }
     entries.push({
       userId: uid,
       username: u.username,
@@ -1189,10 +1251,10 @@ function getLeaderboard(type, id) {
       avatarUrl: u.avatarUrl,
       favouriteDriver: u.favouriteDriver,
       totalPoints: pts,
-      roundScores: userBreakdowns[uid] || {},
-      racesParticipated: Object.keys(userBreakdowns[uid] || {}).length,
-      avgPointsPerRace: Object.keys(userBreakdowns[uid] || {}).length > 0
-        ? Math.round((pts / Object.keys(userBreakdowns[uid] || {}).length) * 10) / 10
+      roundScores: breakdown,
+      racesParticipated: roundsScored.length,
+      avgPointsPerRace: roundsScored.length > 0
+        ? Math.round((pts / roundsScored.length) * 10) / 10
         : 0,
       exactP1Count: 0,
       perfectPodiumCount: 0

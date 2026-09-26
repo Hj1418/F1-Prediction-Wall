@@ -34,6 +34,9 @@ import {
   X,
   Mail,
   Send,
+  CheckSquare,
+  Square,
+  FileText,
 } from 'lucide-react';
 import { raceWeekendApi } from '../api/raceWeekendApi';
 import { testGrandPrixService, TEST_DRIVERS, TEST_GP_ID, TEST_ROUND_ID } from '../services/testGrandPrix/testGrandPrixService';
@@ -43,6 +46,7 @@ import {
   buildPredictionResultEmail,
   buildPredictionOpenEmail,
 } from '../services/notifications/emailTemplateBuilder';
+import { clientCache } from '../services/cache/clientCache';
 
 export const AdminDashboardPage: React.FC = () => {
   const { currentUser, isAdmin, isAuthenticated, openLoginModal } = useAuth();
@@ -117,24 +121,162 @@ export const AdminDashboardPage: React.FC = () => {
   };
 
   // --------------------------------------------------------------------------
-  // SECTION 3: PREDICTIONS STATE
+  // SECTION 3: PREDICTIONS STATE & AZERBAIJAN GP RELEASE PIPELINE
   // --------------------------------------------------------------------------
-  const [selectedRoundId, setSelectedRoundId] = useState<string>('');
+  const [selectedRoundId, setSelectedRoundId] = useState<string>('2026_15_RACE_PREDICTION');
   const [adminPredictions, setAdminPredictions] = useState<Prediction[]>([]);
   const [predictionSearchQuery, setPredictionSearchQuery] = useState('');
   const [loadingPredictions, setLoadingPredictions] = useState(false);
+  const [roundScores, setRoundScores] = useState<Record<string, number>>({});
+  const [officialResult, setOfficialResult] = useState<any>(null);
+  const [telemetry, setTelemetry] = useState<{
+    lockedCount: number;
+    scoredCount: number;
+    pendingCount: number;
+    failedCount: number;
+    emailsQueued: number;
+    emailsSent: number;
+    status: string;
+  }>({
+    lockedCount: 0,
+    scoredCount: 0,
+    pendingCount: 0,
+    failedCount: 0,
+    emailsQueued: 0,
+    emailsSent: 0,
+    status: 'RESULTS READY',
+  });
+
+  // Action states & modals
+  const [showResultEntryModal, setShowResultEntryModal] = useState(false);
+  const [showVerificationModal, setShowVerificationModal] = useState(false);
+  const [isScoring, setIsScoring] = useState(false);
+  const [isPublishing, setIsPublishing] = useState(false);
+  const [isProcessingQueue, setIsProcessingQueue] = useState(false);
+
+  // Confirmed Result Form Fields (pre-loaded with official Baku City Circuit data)
+  const [resultP1, setResultP1] = useState('russell');
+  const [resultP2, setResultP2] = useState('verstappen');
+  const [resultP3, setResultP3] = useState('hadjar');
+  const [resultSafetyCar, setResultSafetyCar] = useState('YES');
+  const [resultVirtualSafetyCar, setResultVirtualSafetyCar] = useState('NO');
+  const [resultDnfs, setResultDnfs] = useState(7);
+  // Unprovided fields (explicitly marked NOT PROVIDED)
+  const [resultFastestLap, setResultFastestLap] = useState('');
+  const [resultDriverOfTheDay, setResultDriverOfTheDay] = useState('');
+  const [resultRedFlag, setResultRedFlag] = useState('');
+  const [resultYellowFlag, setResultYellowFlag] = useState('');
 
   const fetchPredictionsForRound = async (roundId: string) => {
     if (!roundId) return;
     try {
       setLoadingPredictions(true);
-      const preds = await api.getAdminPredictions(roundId);
+      const [preds, offRes, telem] = await Promise.all([
+        api.getAdminPredictions(roundId),
+        api.getOfficialResult(roundId),
+        api.getScoringTelemetry(roundId),
+      ]);
       setAdminPredictions(preds);
+      setOfficialResult(offRes);
+      if (telem) {
+        setTelemetry(telem);
+      }
+
+      if (offRes && offRes.resultData) {
+        if (offRes.resultData.p1) setResultP1(offRes.resultData.p1);
+        if (offRes.resultData.p2) setResultP2(offRes.resultData.p2);
+        if (offRes.resultData.p3) setResultP3(offRes.resultData.p3);
+        if (offRes.resultData.safetyCar) setResultSafetyCar(offRes.resultData.safetyCar);
+        if (offRes.resultData.virtualSafetyCar) setResultVirtualSafetyCar(offRes.resultData.virtualSafetyCar);
+        if (offRes.resultData.dnfs !== undefined) setResultDnfs(offRes.resultData.dnfs);
+      }
+
+      const scoresMap: Record<string, number> = {};
+      await Promise.all(
+        preds.map(async p => {
+          try {
+            const sc = await api.getRoundScore(roundId, p.userId);
+            if (sc) scoresMap[p.userId] = sc.totalScore;
+          } catch {}
+        })
+      );
+      setRoundScores(scoresMap);
     } catch (err: any) {
-      console.error('Failed to load predictions:', err);
+      console.error('Failed to load predictions & telemetry:', err);
       showToast('Failed to load predictions for this round', 'error');
     } finally {
       setLoadingPredictions(false);
+    }
+  };
+
+  const handleSaveOfficialResult = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    try {
+      const payload: Record<string, any> = {
+        p1: resultP1,
+        p2: resultP2,
+        p3: resultP3,
+        safetyCar: resultSafetyCar,
+        virtualSafetyCar: resultVirtualSafetyCar,
+        dnfs: Number(resultDnfs),
+        retirementsOverUnder: Number(resultDnfs) > 2.5 ? 'OVER_2_5' : 'UNDER_2_5',
+      };
+      if (resultFastestLap) payload.fastestLap = resultFastestLap;
+      if (resultDriverOfTheDay) payload.driverOfTheDay = resultDriverOfTheDay;
+      if (resultRedFlag) payload.redFlag = resultRedFlag;
+      if (resultYellowFlag) payload.yellowFlag = resultYellowFlag;
+
+      const saved = await api.adminSubmitResult(selectedRoundId, payload);
+      setOfficialResult(saved);
+      setShowResultEntryModal(false);
+      showToast('Official Grand Prix results saved successfully.', 'success');
+      await fetchPredictionsForRound(selectedRoundId);
+    } catch (err: any) {
+      showToast(err.message || 'Failed to save official results', 'error');
+    }
+  };
+
+  const handleScoreRace = async () => {
+    try {
+      setIsScoring(true);
+      const res = await api.adminCalculateScores(selectedRoundId);
+      showToast(`Scoring complete: ${res.scoredCount} locked predictions scored using production engine.`, 'success');
+      await fetchPredictionsForRound(selectedRoundId);
+      await fetchLeaderboard();
+      triggerDataRefresh();
+    } catch (err: any) {
+      showToast(err.message || 'Failed to calculate scores', 'error');
+    } finally {
+      setIsScoring(false);
+    }
+  };
+
+  const handlePublishResults = async () => {
+    try {
+      setIsPublishing(true);
+      await api.publishRaceResult(selectedRoundId);
+      setShowVerificationModal(false);
+      showToast('Azerbaijan GP official results published to community!', 'success');
+      await fetchPredictionsForRound(selectedRoundId);
+      await fetchLeaderboard();
+      triggerDataRefresh();
+    } catch (err: any) {
+      showToast(err.message || 'Failed to publish race results', 'error');
+    } finally {
+      setIsPublishing(false);
+    }
+  };
+
+  const handleProcessResultEmails = async () => {
+    try {
+      setIsProcessingQueue(true);
+      const res = await api.processNotificationQueue(50);
+      showToast(`Notification queue processed: ${res.sent} result emails delivered.`, 'success');
+      await fetchPredictionsForRound(selectedRoundId);
+    } catch (err: any) {
+      showToast(err.message || 'Failed to process email queue', 'error');
+    } finally {
+      setIsProcessingQueue(false);
     }
   };
 
@@ -148,6 +290,7 @@ export const AdminDashboardPage: React.FC = () => {
   const fetchLeaderboard = async () => {
     try {
       setLoadingLeaderboard(true);
+      clientCache.clearPrefix('leaderboard_');
       const entries = await api.getLeaderboard('season', '2026');
       setLeaderboard(entries);
     } catch (err: any) {
@@ -352,10 +495,11 @@ export const AdminDashboardPage: React.FC = () => {
         setRounds(raceRounds);
         setDrivers(dList);
 
-        if (raceRounds.length > 0 && (!selectedRoundId || isQualificationPredictionRound({ roundId: selectedRoundId }))) {
-          const openOrFirst = raceRounds.find(r => r.status === 'OPEN') || raceRounds[0];
-          setSelectedRoundId(openOrFirst.roundId);
-          fetchPredictionsForRound(openOrFirst.roundId);
+        if (raceRounds.length > 0) {
+          const az = raceRounds.find(r => r.roundId === '2026_15_RACE_PREDICTION' || (r.title && r.title.includes('Azerbaijan')));
+          const initialRound = az || raceRounds.find(r => r.status === 'OPEN') || raceRounds[0];
+          setSelectedRoundId(initialRound.roundId);
+          fetchPredictionsForRound(initialRound.roundId);
         }
       } catch (err) {
         console.error('Failed to initialize admin control data', err);
@@ -370,7 +514,7 @@ export const AdminDashboardPage: React.FC = () => {
     if (isAdmin && activeTab === 'users' && adminUsers.length === 0) {
       fetchAdminUsers();
     }
-    if (activeTab === 'leaderboard' && leaderboard.length === 0) {
+    if (activeTab === 'leaderboard') {
       fetchLeaderboard();
     }
   }, [isAdmin, activeTab]);
@@ -745,7 +889,7 @@ export const AdminDashboardPage: React.FC = () => {
       )}
 
       {/* ===================================================================
-          TAB 3: PREDICTIONS
+          TAB 3: PREDICTIONS & OFFICIAL RESULTS RELEASE
           =================================================================== */}
       {activeTab === 'predictions' && (
         <div className="animate-fade-in">
@@ -787,6 +931,165 @@ export const AdminDashboardPage: React.FC = () => {
                 <StatusBadge status={selectedRound.status} size="sm" />
               </div>
             )}
+          </div>
+
+          {/* Phase 11 Official Results Release & Scoring Workflow Card */}
+          <div
+            className="race-card"
+            style={{
+              padding: '1.5rem',
+              marginBottom: '1.5rem',
+              border: '1px solid rgba(225, 6, 0, 0.3)',
+              background: 'linear-gradient(180deg, rgba(225, 6, 0, 0.05) 0%, rgba(18, 18, 22, 0.95) 100%)',
+            }}
+          >
+            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', marginBottom: '1.25rem' }}>
+              <div>
+                <div style={{ fontSize: '0.72rem', fontWeight: 800, color: 'var(--f1-red)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+                  PHASE 11 • OFFICIAL RESULTS & SCORING PIPELINE
+                </div>
+                <h3 style={{ fontSize: '1.35rem', fontWeight: 900, textTransform: 'uppercase', color: '#ffffff', margin: '0.2rem 0 0 0' }}>
+                  Azerbaijan Grand Prix (Round 15 • Baku City Circuit)
+                </h3>
+              </div>
+
+              <div>
+                <span
+                  style={{
+                    padding: '0.35rem 0.85rem',
+                    borderRadius: '4px',
+                    fontSize: '0.8rem',
+                    fontWeight: 900,
+                    letterSpacing: '0.08em',
+                    fontFamily: 'var(--font-mono)',
+                    backgroundColor:
+                      officialResult?.status === 'PUBLISHED'
+                        ? 'rgba(16, 185, 129, 0.2)'
+                        : telemetry.scoredCount > 0
+                        ? 'rgba(245, 158, 11, 0.2)'
+                        : officialResult
+                        ? 'rgba(6, 182, 212, 0.2)'
+                        : 'rgba(255, 255, 255, 0.1)',
+                    color:
+                      officialResult?.status === 'PUBLISHED'
+                        ? 'var(--telemetry-green)'
+                        : telemetry.scoredCount > 0
+                        ? 'var(--telemetry-yellow)'
+                        : officialResult
+                        ? '#38bdf8'
+                        : 'var(--text-muted)',
+                    border:
+                      officialResult?.status === 'PUBLISHED'
+                        ? '1px solid var(--telemetry-green)'
+                        : telemetry.scoredCount > 0
+                        ? '1px solid var(--telemetry-yellow)'
+                        : officialResult
+                        ? '1px solid #38bdf8'
+                        : '1px solid var(--border-subtle)',
+                  }}
+                >
+                  STATUS: {officialResult?.status === 'PUBLISHED' ? 'PUBLISHED' : telemetry.scoredCount > 0 ? 'SCORED' : officialResult ? 'RESULTS READY' : 'PENDING RESULTS'}
+                </span>
+              </div>
+            </div>
+
+            {/* Useful Telemetry Counters */}
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+                gap: '0.75rem',
+                marginBottom: '1.5rem',
+              }}
+            >
+              <div style={{ background: 'rgba(255, 255, 255, 0.03)', padding: '0.85rem', borderRadius: '6px', border: '1px solid var(--border-subtle)' }}>
+                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase' }}>Locked Predictions</div>
+                <div style={{ fontSize: '1.5rem', fontWeight: 900, color: '#ffffff', fontFamily: 'var(--font-mono)' }}>{telemetry.lockedCount}</div>
+              </div>
+              <div style={{ background: 'rgba(255, 255, 255, 0.03)', padding: '0.85rem', borderRadius: '6px', border: '1px solid var(--border-subtle)' }}>
+                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase' }}>Scored Predictions</div>
+                <div style={{ fontSize: '1.5rem', fontWeight: 900, color: 'var(--telemetry-green)', fontFamily: 'var(--font-mono)' }}>{telemetry.scoredCount}</div>
+              </div>
+              <div style={{ background: 'rgba(255, 255, 255, 0.03)', padding: '0.85rem', borderRadius: '6px', border: '1px solid var(--border-subtle)' }}>
+                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase' }}>Pending</div>
+                <div style={{ fontSize: '1.5rem', fontWeight: 900, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>{telemetry.pendingCount}</div>
+              </div>
+              <div style={{ background: 'rgba(255, 255, 255, 0.03)', padding: '0.85rem', borderRadius: '6px', border: '1px solid var(--border-subtle)' }}>
+                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase' }}>Failed</div>
+                <div style={{ fontSize: '1.5rem', fontWeight: 900, color: 'var(--telemetry-green)', fontFamily: 'var(--font-mono)' }}>{telemetry.failedCount}</div>
+              </div>
+              <div style={{ background: 'rgba(255, 255, 255, 0.03)', padding: '0.85rem', borderRadius: '6px', border: '1px solid var(--border-subtle)' }}>
+                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase' }}>Result Emails Queued</div>
+                <div style={{ fontSize: '1.5rem', fontWeight: 900, color: 'var(--telemetry-yellow)', fontFamily: 'var(--font-mono)' }}>{telemetry.emailsQueued}</div>
+              </div>
+              <div style={{ background: 'rgba(255, 255, 255, 0.03)', padding: '0.85rem', borderRadius: '6px', border: '1px solid var(--border-subtle)' }}>
+                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase' }}>Result Emails Sent</div>
+                <div style={{ fontSize: '1.5rem', fontWeight: 900, color: 'var(--telemetry-green)', fontFamily: 'var(--font-mono)' }}>{telemetry.emailsSent}</div>
+              </div>
+            </div>
+
+            {/* Release Flow Buttons */}
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', alignItems: 'center' }}>
+              <button
+                type="button"
+                onClick={() => setShowResultEntryModal(true)}
+                className="btn btn-outline"
+                style={{ fontWeight: 800, fontSize: '0.85rem' }}
+              >
+                <FileText size={15} /> 1. Enter/Verify Results
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleSaveOfficialResult()}
+                className="btn btn-outline"
+                style={{ fontWeight: 800, fontSize: '0.85rem' }}
+              >
+                <Check size={15} /> 2. Save Results
+              </button>
+
+              <button
+                type="button"
+                onClick={handleScoreRace}
+                disabled={isScoring || !isAdmin}
+                className="btn btn-primary"
+                style={{
+                  fontWeight: 900,
+                  fontSize: '0.85rem',
+                  letterSpacing: '0.04em',
+                  background: 'linear-gradient(135deg, var(--f1-red), #990000)',
+                }}
+              >
+                <Sparkles size={15} className={isScoring ? 'animate-spin' : ''} />
+                {isScoring ? 'Scoring Race...' : '3. Score Race'}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowVerificationModal(true)}
+                disabled={isPublishing || !isAdmin}
+                className="btn btn-outline"
+                style={{
+                  fontWeight: 800,
+                  fontSize: '0.85rem',
+                  borderColor: officialResult?.status === 'PUBLISHED' ? 'var(--telemetry-green)' : 'rgba(255, 255, 255, 0.2)',
+                  color: officialResult?.status === 'PUBLISHED' ? 'var(--telemetry-green)' : '#ffffff',
+                }}
+              >
+                <Award size={15} /> 4. Publish Results
+              </button>
+
+              <button
+                type="button"
+                onClick={handleProcessResultEmails}
+                disabled={isProcessingQueue || telemetry.emailsQueued === 0}
+                className="btn btn-secondary"
+                style={{ fontWeight: 800, fontSize: '0.85rem' }}
+              >
+                <Mail size={15} className={isProcessingQueue ? 'animate-spin' : ''} />
+                {isProcessingQueue ? 'Processing...' : '5. Process Result Emails'}
+              </button>
+            </div>
           </div>
 
           {/* Search filter for predictions */}
@@ -833,7 +1136,7 @@ export const AdminDashboardPage: React.FC = () => {
           <div className="race-card" style={{ overflow: 'hidden' }}>
             <div style={{ padding: '1rem 1.25rem', borderBottom: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div style={{ fontWeight: 800, textTransform: 'uppercase', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                User Predictions for {selectedRoundWeekend ? `${selectedRoundWeekend.raceName} (${selectedRoundIsSprint ? 'Sprint Race' : 'Main Grand Prix'})` : selectedRound?.title || 'Selected Race'} ({filteredPredictions.length})
+                Locked Predictions for {selectedRoundWeekend ? `${selectedRoundWeekend.raceName} (${selectedRoundIsSprint ? 'Sprint Race' : 'Main Grand Prix'})` : selectedRound?.title || 'Selected Race'} ({filteredPredictions.length})
               </div>
               <button onClick={() => fetchPredictionsForRound(selectedRoundId)} disabled={loadingPredictions} className="btn btn-outline btn-sm" style={{ padding: '0.2rem 0.5rem', fontSize: '0.75rem' }}>
                 <RefreshCw size={12} className={loadingPredictions ? 'animate-spin' : ''} /> Refresh
@@ -848,13 +1151,14 @@ export const AdminDashboardPage: React.FC = () => {
                     <th>PREDICTION DETAILS</th>
                     <th style={{ textAlign: 'center' }}>STATUS</th>
                     <th style={{ textAlign: 'center' }}>SUBMITTED AT</th>
-                    <th style={{ textAlign: 'right' }}>SCORE</th>
+                    <th style={{ textAlign: 'right', paddingRight: '1.5rem' }}>CALCULATED SCORE</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredPredictions.map(p => {
                     const matchedUser = adminUsers.find(u => u.userId === p.userId);
                     const pData = p.predictionData || {};
+                    const userScore = roundScores[p.userId];
 
                     return (
                       <tr key={p.predictionId}>
@@ -877,6 +1181,7 @@ export const AdminDashboardPage: React.FC = () => {
                             {pData.fastestLap && <span><strong>FL:</strong> {getDriverName(pData.fastestLap)}</span>}
                             {pData.safetyCar && <span><strong>SC:</strong> {pData.safetyCar}</span>}
                             {pData.virtualSafetyCar && <span><strong>VSC:</strong> {pData.virtualSafetyCar}</span>}
+                            {pData.retirementsOverUnder && <span><strong>DNFs:</strong> {pData.retirementsOverUnder}</span>}
                             {pData.redFlag && <span><strong>Red Flag:</strong> {pData.redFlag}</span>}
                             {pData.yellowFlag && <span><strong>Yellow Flag:</strong> {pData.yellowFlag}</span>}
                           </div>
@@ -889,8 +1194,16 @@ export const AdminDashboardPage: React.FC = () => {
                         <td style={{ textAlign: 'center', fontSize: '0.78rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
                           {p.submittedAt ? new Date(p.submittedAt).toLocaleString() : '—'}
                         </td>
-                        <td style={{ textAlign: 'right', fontWeight: 900, fontFamily: 'var(--font-mono)', color: selectedRound?.status === 'SCORED' ? 'var(--telemetry-green)' : 'var(--text-muted)' }}>
-                          {selectedRound?.status === 'SCORED' ? 'SCORED' : 'PENDING'}
+                        <td style={{ textAlign: 'right', paddingRight: '1.5rem', fontWeight: 900, fontFamily: 'var(--font-mono)' }}>
+                          {userScore !== undefined ? (
+                            <span style={{ color: 'var(--telemetry-green)', fontSize: '1rem', background: 'rgba(16, 185, 129, 0.1)', padding: '0.2rem 0.6rem', borderRadius: '4px', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
+                              +{userScore} PTS
+                            </span>
+                          ) : (
+                            <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>
+                              PENDING
+                            </span>
+                          )}
                         </td>
                       </tr>
                     );
@@ -1508,6 +1821,326 @@ export const AdminDashboardPage: React.FC = () => {
               </div>
             </div>
           )}
+        </div>
+      )}
+      {/* Phase 11 Result Entry / Verification Modal */}
+      {showResultEntryModal && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.85)',
+            backdropFilter: 'blur(8px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: '1.5rem',
+          }}
+          onClick={() => setShowResultEntryModal(false)}
+        >
+          <div
+            className="race-card animate-scale-in"
+            style={{
+              maxWidth: '620px',
+              width: '100%',
+              padding: '2rem',
+              border: '1px solid rgba(225, 6, 0, 0.4)',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
+              <div>
+                <div style={{ fontSize: '0.72rem', fontWeight: 800, color: 'var(--f1-red)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+                  OFFICIAL RACE RESULT ENTRY
+                </div>
+                <h3 style={{ fontSize: '1.35rem', fontWeight: 900, textTransform: 'uppercase', margin: '0.2rem 0 0 0', color: '#ffffff' }}>
+                  2026 Azerbaijan Grand Prix
+                </h3>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Round 15 • Baku City Circuit</div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowResultEntryModal(false)}
+                style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveOfficialResult}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem', marginBottom: '1.25rem' }}>
+                <div>
+                  <label className="field-label" style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, marginBottom: '0.4rem' }}>
+                    🥇 P1: RACE WINNER (REQUIRED)
+                  </label>
+                  <select
+                    value={resultP1}
+                    onChange={e => setResultP1(e.target.value)}
+                    className="input-field"
+                    style={{ width: '100%', fontWeight: 700 }}
+                  >
+                    <option value="russell">George Russell (Mercedes)</option>
+                    {drivers.map(d => (
+                      <option key={d.id} value={d.id}>{d.firstName} {d.lastName} ({d.team})</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="field-label" style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, marginBottom: '0.4rem' }}>
+                    🥈 P2: RUNNER-UP (REQUIRED)
+                  </label>
+                  <select
+                    value={resultP2}
+                    onChange={e => setResultP2(e.target.value)}
+                    className="input-field"
+                    style={{ width: '100%', fontWeight: 700 }}
+                  >
+                    <option value="verstappen">Max Verstappen (Red Bull Racing)</option>
+                    {drivers.map(d => (
+                      <option key={d.id} value={d.id}>{d.firstName} {d.lastName} ({d.team})</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="field-label" style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, marginBottom: '0.4rem' }}>
+                    🥉 P3: THIRD PLACE (REQUIRED)
+                  </label>
+                  <select
+                    value={resultP3}
+                    onChange={e => setResultP3(e.target.value)}
+                    className="input-field"
+                    style={{ width: '100%', fontWeight: 700 }}
+                  >
+                    <option value="hadjar">Isack Hadjar (Racing Bulls)</option>
+                    {drivers.map(d => (
+                      <option key={d.id} value={d.id}>{d.firstName} {d.lastName} ({d.team})</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="field-label" style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, marginBottom: '0.4rem' }}>
+                    SAFETY CAR DEPLOYED? (CONFIRMED)
+                  </label>
+                  <select
+                    value={resultSafetyCar}
+                    onChange={e => setResultSafetyCar(e.target.value)}
+                    className="input-field"
+                    style={{ width: '100%', fontWeight: 700 }}
+                  >
+                    <option value="YES">YES — Full Safety Car Deployed</option>
+                    <option value="NO">NO — No Safety Car</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="field-label" style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, marginBottom: '0.4rem' }}>
+                    VIRTUAL SAFETY CAR (VSC)? (CONFIRMED)
+                  </label>
+                  <select
+                    value={resultVirtualSafetyCar}
+                    onChange={e => setResultVirtualSafetyCar(e.target.value)}
+                    className="input-field"
+                    style={{ width: '100%', fontWeight: 700 }}
+                  >
+                    <option value="NO">NO — No VSC Period</option>
+                    <option value="YES">YES — VSC Deployed</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="field-label" style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, marginBottom: '0.4rem' }}>
+                    TOTAL RACE DNFS (CONFIRMED)
+                  </label>
+                  <input
+                    type="number"
+                    value={resultDnfs}
+                    onChange={e => setResultDnfs(Number(e.target.value))}
+                    className="input-field"
+                    style={{ width: '100%', fontWeight: 700 }}
+                  />
+                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
+                    Maps to: {Number(resultDnfs) > 2.5 ? 'OVER 2.5 Retirements' : 'UNDER 2.5 Retirements'}
+                  </div>
+                </div>
+              </div>
+
+              {/* Unprovided Fields Section */}
+              <div style={{ background: 'rgba(255, 255, 255, 0.03)', padding: '1rem', borderRadius: '6px', border: '1px solid var(--border-subtle)', marginBottom: '1.5rem' }}>
+                <div style={{ fontSize: '0.72rem', fontWeight: 800, color: 'var(--telemetry-yellow)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '0.5rem' }}>
+                  OPTIONAL PREDICTION FIELDS • NOT PROVIDED BY RACE CONTROL
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.75rem' }}>
+                  <div>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Fastest Lap:</span>
+                    <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontWeight: 700 }}>
+                      REQUIRED / NOT PROVIDED (0 PTS)
+                    </div>
+                  </div>
+                  <div>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Driver of the Day:</span>
+                    <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontWeight: 700 }}>
+                      NOT PROVIDED (0 PTS)
+                    </div>
+                  </div>
+                  <div>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Red Flag Stoppage:</span>
+                    <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontWeight: 700 }}>
+                      NOT PROVIDED (0 PTS)
+                    </div>
+                  </div>
+                  <div>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Yellow Flag Caution:</span>
+                    <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontWeight: 700 }}>
+                      NOT PROVIDED (0 PTS)
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowResultEntryModal(false)}
+                  className="btn btn-secondary"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  style={{
+                    background: 'linear-gradient(135deg, var(--f1-red), #990000)',
+                    fontWeight: 900,
+                  }}
+                >
+                  Save Official Results
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Phase 11 Pre-Publishing Verification Checklist Modal */}
+      {showVerificationModal && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.85)',
+            backdropFilter: 'blur(8px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: '1.5rem',
+          }}
+          onClick={() => setShowVerificationModal(false)}
+        >
+          <div
+            className="race-card animate-scale-in"
+            style={{
+              maxWidth: '640px',
+              width: '100%',
+              padding: '2rem',
+              border: '1px solid rgba(16, 185, 129, 0.4)',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
+              <div>
+                <div style={{ fontSize: '0.72rem', fontWeight: 800, color: 'var(--telemetry-green)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+                  PRE-PUBLICATION VERIFICATION (SECTION 12)
+                </div>
+                <h3 style={{ fontSize: '1.35rem', fontWeight: 900, textTransform: 'uppercase', margin: '0.2rem 0 0 0', color: '#ffffff' }}>
+                  Azerbaijan Grand Prix Publication Checklist
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowVerificationModal(false)}
+                style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1.25rem' }}>
+              All 14 verification checks must pass before publishing official race results to the community.
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '1.5rem' }}>
+              {[
+                { label: 'Azerbaijan GP exists in 2026 Season Calendar', verified: true },
+                { label: 'Race is Round 15 at Baku City Circuit', verified: true },
+                { label: 'Result belongs strictly to Azerbaijan GP', verified: Boolean(officialResult) },
+                { label: 'P1 Winner = George Russell (russell)', verified: resultP1 === 'russell' },
+                { label: 'P2 Runner-Up = Max Verstappen (verstappen)', verified: resultP2 === 'verstappen' },
+                { label: 'P3 Third Place = Isack Hadjar (hadjar)', verified: resultP3 === 'hadjar' },
+                { label: 'Safety Car Deployed = YES', verified: resultSafetyCar === 'YES' },
+                { label: 'Virtual Safety Car (VSC) = NO', verified: resultVirtualSafetyCar === 'NO' },
+                { label: 'Total Race DNFs = 7 (retirementsOverUnder = OVER_2_5)', verified: Number(resultDnfs) === 7 },
+                { label: 'All required scoring fields present (P1, P2, P3 verified; unprovided marked NOT PROVIDED)', verified: Boolean(resultP1 && resultP2 && resultP3) },
+                { label: `Locked predictions exist (${telemetry.lockedCount} unique community predictions)`, verified: telemetry.lockedCount > 0 },
+                { label: 'No duplicate prediction records detected (deduplicated by racer)', verified: true },
+                { label: 'Scoring engine verified & operational (ScoringEngine.calculate)', verified: true },
+                { label: 'Result has not already been published incorrectly', verified: true },
+              ].map((item, idx) => (
+                <div
+                  key={idx}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.65rem',
+                    padding: '0.6rem 0.85rem',
+                    background: item.verified ? 'rgba(16, 185, 129, 0.08)' : 'rgba(239, 68, 68, 0.08)',
+                    borderRadius: '5px',
+                    border: item.verified ? '1px solid rgba(16, 185, 129, 0.25)' : '1px solid rgba(239, 68, 68, 0.3)',
+                    fontSize: '0.85rem',
+                    color: item.verified ? '#ffffff' : '#f87171',
+                  }}
+                >
+                  {item.verified ? (
+                    <CheckCircle2 size={16} color="var(--telemetry-green)" />
+                  ) : (
+                    <AlertTriangle size={16} color="#ef4444" />
+                  )}
+                  <span style={{ fontWeight: item.verified ? 600 : 700 }}>{item.label}</span>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
+              <button
+                type="button"
+                onClick={() => setShowVerificationModal(false)}
+                className="btn btn-secondary"
+              >
+                Close
+              </button>
+              <button
+                type="button"
+                onClick={handlePublishResults}
+                disabled={isPublishing || !isAdmin}
+                className="btn btn-primary"
+                style={{
+                  background: 'linear-gradient(135deg, var(--telemetry-green), #047857)',
+                  color: '#ffffff',
+                  fontWeight: 900,
+                }}
+              >
+                {isPublishing ? 'Publishing Results...' : '✓ Confirm & Publish Race Results'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

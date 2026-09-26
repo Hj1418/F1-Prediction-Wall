@@ -237,6 +237,8 @@ export interface SessionResult {
   roundId: string;
   resultData: Record<string, any>;
   publishedAt: string;
+  status?: string;
+  isPublished?: boolean;
 }
 
 export interface ScoreBreakdown {
