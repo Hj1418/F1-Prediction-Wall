@@ -1,8 +1,9 @@
 name: Deploy to GitHub Pages
 
 on:
-  push:
-    branches: [ main ]
+  # Temporarily disabled automatic deployment on push so features can be tested locally first
+  # push:
+  #   branches: [ main ]
   workflow_dispatch:
 
 permissions:
