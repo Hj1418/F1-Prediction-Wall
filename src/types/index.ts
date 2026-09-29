@@ -136,7 +136,8 @@ export interface CircuitInfo {
 
 export function getCircuitName(circuit?: CircuitInfo | string): string {
   if (!circuit) return '';
-  return typeof circuit === 'string' ? circuit : circuit.name;
+  if (typeof circuit === 'string') return circuit;
+  return circuit.name || (circuit as any).circuitName || circuit.id || '';
 }
 
 export interface Session {

@@ -22,8 +22,10 @@
   --text-secondary: #94a3b8;
   --text-muted: #64748b;
 
-  --font-display: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
+  /* Consistent Motorsport Typography System: Option B (Rajdhani + Inter + JetBrains Mono) */
+  --font-display: 'Rajdhani', 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', 'IBM Plex Mono', monospace;
 
   --radius-sm: 6px;
   --radius-md: 10px;
@@ -43,11 +45,50 @@
 html, body {
   background-color: var(--bg-base);
   color: var(--text-primary);
-  font-family: var(--font-display);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   min-height: 100vh;
   overflow-x: hidden;
+  width: 100%;
+  max-width: 100vw;
+}
+
+/* Distinctive Motorsport Typography Hierarchy */
+h1, h2, h3, h4, h5, h6, .display-font {
+  font-family: var(--font-display);
+  letter-spacing: 0.03em;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+h1 {
+  font-size: clamp(1.65rem, 4vw, 2.5rem);
+  line-height: 1.15;
+  font-weight: 900;
+}
+
+h2 {
+  font-size: clamp(1.3rem, 3vw, 1.85rem);
+  line-height: 1.2;
+  font-weight: 800;
+}
+
+h3 {
+  font-size: clamp(1.05rem, 2.5vw, 1.4rem);
+  line-height: 1.25;
+  font-weight: 800;
+}
+
+p, span, li, a, label, input, select, textarea, button {
+  font-family: var(--font-body);
+}
+
+.data-font, .font-mono, .timing-value, .points-value {
+  font-family: var(--font-mono);
+  font-feature-settings: 'tnum' 1;
 }
 
 /* Background Racing Grid Texture */
@@ -477,9 +518,97 @@ select.input-field option, select.form-select option {
   padding: 0 1.25rem;
 }
 
+/* Responsive Table Wrapper */
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ==========================================================================
+   MOBILE-FIRST RESPONSIVE PERFECTION (360px, 390px, 430px, 768px, 900px, 1200px+)
+   ========================================================================== */
+
+/* Universal prevention of horizontal overflow */
+html, body, #root {
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+/* Tablet & Mobile (<= 768px) */
 @media (max-width: 768px) {
   .container {
     padding: 0 0.875rem;
+  }
+
+  .timing-table {
+    min-width: 520px;
+  }
+
+  /* Accessible Touch Targets: minimum 44px height */
+  .btn {
+    min-height: 44px;
+    padding: 0.65rem 1rem;
+    font-size: 0.82rem;
+  }
+
+  .btn-sm {
+    min-height: 38px;
+    padding: 0.45rem 0.8rem;
+    font-size: 0.78rem;
+  }
+
+  input[type="text"],
+  input[type="number"],
+  input[type="email"],
+  input[type="password"],
+  select,
+  .input-field {
+    min-height: 44px;
+    font-size: 16px !important; /* Prevents iOS auto-zoom on focus */
+  }
+
+  .race-card {
+    padding: 1.15rem;
+  }
+}
+
+/* Standard Mobile (<= 430px: iPhone 14/15/16 Pro Max, Plus, Pixel 7/8) */
+@media (max-width: 430px) {
+  .container {
+    padding: 0 0.75rem;
+  }
+
+  .race-card {
+    padding: 0.95rem;
+    border-radius: var(--radius-md);
+  }
+
+  /* Responsive header scales to avoid clipping */
+  h1 {
+    font-size: clamp(1.4rem, 6vw, 1.85rem);
+  }
+  h2 {
+    font-size: clamp(1.15rem, 5vw, 1.45rem);
+  }
+  h3 {
+    font-size: clamp(0.95rem, 4vw, 1.2rem);
+  }
+}
+
+/* Compact Mobile (<= 360px: iPhone SE, Galaxy A-series) */
+@media (max-width: 360px) {
+  .container {
+    padding: 0 0.5rem;
+  }
+
+  .race-card {
+    padding: 0.85rem;
+  }
+
+  .btn {
+    padding: 0.55rem 0.75rem;
+    font-size: 0.76rem;
   }
 }
 
@@ -507,6 +636,179 @@ select.input-field option, select.form-select option {
 .circuit-card:hover {
   border-color: rgba(255, 255, 255, 0.22) !important;
   box-shadow: 0 12px 32px -8px rgba(0, 0, 0, 0.6), 0 0 16px -2px rgba(225, 6, 0, 0.15);
+}
+
+/* Seamless Featured Circuit Blending */
+.circuit-blend-container {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justifyContent: center;
+  min-height: 220px;
+  width: 100%;
+}
+
+.circuit-blend-container .track-svg-animated {
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), filter 0.4s ease;
+}
+
+.race-card-interactive:hover .circuit-blend-container .track-svg-animated {
+  transform: scale(1.06);
+  filter: drop-shadow(0 0 24px rgba(225, 6, 0, 0.55)) drop-shadow(0 0 6px rgba(255, 255, 255, 0.5)) !important;
+}
+
+.circuit-telemetry-badge {
+  transition: all 0.25s ease;
+}
+
+.circuit-telemetry-badge:hover {
+  background: rgba(225, 6, 0, 0.12) !important;
+  border-color: rgba(225, 6, 0, 0.4) !important;
+  color: #ffffff !important;
+}
+
+/* ===================================================================
+   Upcoming Races & Global Schedule — Interactive Radar Styles
+   =================================================================== */
+.upcoming-race-card {
+  position: relative;
+  background: linear-gradient(165deg, rgba(22, 27, 34, 0.95) 0%, rgba(13, 17, 23, 0.98) 100%);
+  border: 1px solid var(--border-subtle);
+  border-radius: 14px;
+  overflow: hidden;
+  text-decoration: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 1.25rem;
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), 
+              border-color 0.25s ease, 
+              box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+              background 0.25s ease;
+  cursor: pointer;
+}
+
+.upcoming-race-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--card-accent, var(--f1-red));
+  opacity: 0.85;
+  transition: opacity 0.2s ease, height 0.2s ease;
+}
+
+.upcoming-race-card::after {
+  content: '';
+  position: absolute;
+  top: -40px;
+  right: -40px;
+  width: 140px;
+  height: 140px;
+  background: radial-gradient(circle, var(--card-accent-glow, rgba(225, 6, 0, 0.15)) 0%, transparent 70%);
+  opacity: 0.35;
+  pointer-events: none;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.upcoming-race-card:hover {
+  transform: translateY(-4px);
+  border-color: var(--card-accent, rgba(255, 255, 255, 0.25));
+  box-shadow: 0 16px 36px -10px var(--card-accent-glow, rgba(0, 0, 0, 0.5)), 0 0 0 1px var(--card-accent, rgba(255, 255, 255, 0.15));
+}
+
+.upcoming-race-card:hover::before {
+  opacity: 1;
+  height: 4px;
+}
+
+.upcoming-race-card:hover::after {
+  opacity: 0.85;
+  transform: scale(1.2);
+}
+
+.upcoming-race-card .card-event-name {
+  transition: color 0.2s ease;
+}
+
+.upcoming-race-card:hover .card-event-name {
+  color: #ffffff;
+}
+
+.upcoming-race-card .radar-cta-btn {
+  transition: all 0.2s ease;
+}
+
+.upcoming-race-card:hover .radar-cta-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: var(--card-accent, rgba(255, 255, 255, 0.3));
+}
+
+.upcoming-race-card .radar-cta-arrow {
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.upcoming-race-card:hover .radar-cta-arrow {
+  transform: translateX(3px);
+}
+
+/* Pulsing radar dot for live / upcoming telemetry tags */
+@keyframes radarPulse {
+  0% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 var(--pulse-color, rgba(16, 185, 129, 0.7));
+  }
+  70% {
+    transform: scale(1);
+    box-shadow: 0 0 0 6px rgba(16, 185, 129, 0);
+  }
+  100% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+  }
+}
+
+.radar-pulse-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  display: inline-block;
+  animation: radarPulse 2s infinite;
+}
+
+/* Series filter pills */
+.series-filter-pill {
+  padding: 0.35rem 0.8rem;
+  border-radius: 9999px;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  border: 1px solid var(--border-subtle);
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.series-filter-pill:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.series-filter-pill.active {
+  background: rgba(225, 6, 0, 0.15);
+  border-color: var(--f1-red);
+  color: #ffffff;
+  box-shadow: 0 0 12px -2px var(--f1-red-glow);
 }
 
 /* Hard Requirement: prefers-reduced-motion accessibility */

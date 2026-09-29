@@ -30,12 +30,67 @@ import {
 import { getAllChampionships } from '../services/motorsport/motorsportRegistry';
 import { PredictionSpeedometer } from '../components/predictions/PredictionSpeedometer';
 import { testGrandPrixService } from '../services/testGrandPrix/testGrandPrixService';
+import { getCircuitAssetUrl, CIRCUIT_SOURCE_MAPPING } from '../services/circuits/circuitRegistry';
+
+function getCircuitSvgForRace(circuitId?: string, circuitName?: string, grandPrixName?: string): string {
+  const normId = (circuitId || '').toLowerCase().trim().replace(/[-\s]+/g, '_');
+  const normCircuit = (circuitName || '').toLowerCase().trim();
+  const normGp = (grandPrixName || '').toLowerCase().trim();
+
+  // 1. Direct match in CIRCUIT_SOURCE_MAPPING by ID
+  if (CIRCUIT_SOURCE_MAPPING[normId]?.assetFile) {
+    return CIRCUIT_SOURCE_MAPPING[normId].assetFile;
+  }
+
+  // 2. Direct key or sourceId match
+  for (const [key, mapping] of Object.entries(CIRCUIT_SOURCE_MAPPING)) {
+    if (normId === key || normId.includes(key) || key.includes(normId)) {
+      return mapping.assetFile;
+    }
+    if (normCircuit.includes(mapping.sourceId) || normCircuit.includes(key)) {
+      return mapping.assetFile;
+    }
+    if (normGp.includes(mapping.sourceId) || normGp.includes(key)) {
+      return mapping.assetFile;
+    }
+  }
+
+  // 3. Name heuristics
+  if (normCircuit.includes('sepang') || normGp.includes('sepang') || normGp.includes('malaysia')) return 'sepang.svg';
+  if (normCircuit.includes('baku') || normGp.includes('azerbaijan') || normGp.includes('baku')) return 'baku.svg';
+  if (normCircuit.includes('bahrain') || normCircuit.includes('sakhir') || normGp.includes('bahrain')) return 'bahrain.svg';
+  if (normCircuit.includes('monza') || normGp.includes('italian') || normGp.includes('monza')) return 'monza.svg';
+  if (normCircuit.includes('silverstone') || normGp.includes('british')) return 'silverstone.svg';
+  if (normCircuit.includes('spa') || normGp.includes('belgian')) return 'spa.svg';
+  if (normCircuit.includes('monaco')) return 'monaco.svg';
+  if (normCircuit.includes('suzuka') || normGp.includes('japanese')) return 'suzuka.svg';
+  if (normCircuit.includes('melbourne') || normCircuit.includes('albert') || normGp.includes('australian')) return 'albert-park.svg';
+  if (normCircuit.includes('buddh') || normGp.includes('india')) return 'buddh.svg';
+  if (normCircuit.includes('yas marina') || normCircuit.includes('abu dhabi') || normGp.includes('abu dhabi')) return 'yas-marina.svg';
+  if (normCircuit.includes('cota') || normCircuit.includes('americas') || normCircuit.includes('austin')) return 'cota.svg';
+  if (normCircuit.includes('interlagos') || normGp.includes('brazil') || normGp.includes('são paulo') || normGp.includes('sao paulo')) return 'interlagos.svg';
+  if (normCircuit.includes('vegas') || normGp.includes('vegas')) return 'las-vegas.svg';
+  if (normCircuit.includes('losail') || normCircuit.includes('lusail') || normGp.includes('qatar')) return 'losail.svg';
+  if (normCircuit.includes('jeddah') || normGp.includes('saudi')) return 'jeddah.svg';
+  if (normCircuit.includes('miami')) return 'miami.svg';
+  if (normCircuit.includes('imola') || normGp.includes('emilia')) return 'imola.svg';
+  if (normCircuit.includes('barcelona') || normCircuit.includes('catalunya') || normGp.includes('spanish')) return 'barcelona.svg';
+  if (normCircuit.includes('zandvoort') || normGp.includes('dutch')) return 'zandvoort.svg';
+  if (normCircuit.includes('hungaroring') || normGp.includes('hungarian')) return 'hungaroring.svg';
+  if (normCircuit.includes('montreal') || normCircuit.includes('villeneuve') || normGp.includes('canadian')) return 'montreal.svg';
+  if (normCircuit.includes('spielberg') || normCircuit.includes('red bull ring') || normGp.includes('austrian')) return 'red-bull-ring.svg';
+  if (normCircuit.includes('shanghai') || normGp.includes('chinese')) return 'shanghai.svg';
+  if (normCircuit.includes('singapore') || normCircuit.includes('marina bay')) return 'singapore.svg';
+
+  return 'albert-park.svg';
+}
 
 export const HomePage: React.FC = () => {
   const { openSearch } = useApp();
   const { currentUser, isAuthenticated, openLoginModal } = useAuth();
   const [snapshot, setSnapshot] = useState<HomeSnapshot>(DEFAULT_HOME_SNAPSHOT);
   const [activeLearnTab, setActiveLearnTab] = useState<'topics' | 'thirty_seconds'>('topics');
+  const [selectedSeriesFilter, setSelectedSeriesFilter] = useState<string>('ALL');
   const [userPrediction, setUserPrediction] = useState<Prediction | null>(null);
   const [userScore, setUserScore] = useState<RoundScore | null>(null);
   const [drivers, setDrivers] = useState<Driver[]>([]);
@@ -65,7 +120,6 @@ export const HomePage: React.FC = () => {
   const {
     nextRace,
     racingNowOrNext,
-    indianMotorsport,
     featuredLearnTopics,
     understandIn30Seconds,
     discoverMoreItems,
@@ -387,143 +441,271 @@ export const HomePage: React.FC = () => {
           </div>
 
           {/* Primary Featured Event Card */}
-          <div
-            className="race-card-interactive"
-            style={{
-              background: 'linear-gradient(135deg, rgba(225, 6, 0, 0.08) 0%, rgba(22, 27, 34, 0.95) 100%)',
-              border: '1px solid rgba(225, 6, 0, 0.25)',
-              borderRadius: '14px',
-              padding: 'clamp(1rem, 3vw, 1.5rem)',
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))',
-              gap: '1.25rem',
-              alignItems: 'center',
-            }}
-          >
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.35rem' }}>
-                <span style={{ fontSize: '1.2rem' }}>{nextRace.flag}</span>
-                <span
-                  style={{
-                    fontFamily: 'var(--font-mono)',
-                    fontSize: '0.72rem',
-                    color: 'var(--text-muted)',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.06em',
-                  }}
-                >
-                  ROUND {nextRace.roundNumber} • FORMULA 1
-                </span>
-              </div>
-              <h2
+          {(() => {
+            const circuitSvgFile = getCircuitSvgForRace(nextRace.circuitId, nextRace.circuitName, nextRace.grandPrixName);
+            const circuitAssetUrl = getCircuitAssetUrl(circuitSvgFile);
+
+            return (
+              <div
+                className="race-card-interactive"
                 style={{
-                  fontSize: 'clamp(1.3rem, 4vw, 1.65rem)',
-                  fontWeight: 900,
-                  textTransform: 'uppercase',
-                  color: '#ffffff',
-                  margin: '0 0 0.25rem 0',
-                  letterSpacing: '-0.02em',
+                  background: 'linear-gradient(135deg, rgba(225, 6, 0, 0.08) 0%, rgba(22, 27, 34, 0.95) 100%)',
+                  border: '1px solid rgba(225, 6, 0, 0.25)',
+                  borderRadius: '14px',
+                  padding: 'clamp(1.1rem, 3vw, 1.6rem)',
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))',
+                  gap: '1.5rem',
+                  alignItems: 'center',
                 }}
               >
-                {nextRace.grandPrixName}
-              </h2>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '0.86rem', margin: '0 0 1rem 0' }}>
-                {nextRace.circuitName} • {nextRace.city}, {nextRace.country} • <strong style={{ color: '#fff' }}>{nextRace.dates}</strong>
-              </p>
-
-              <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
-                <Link
-                  to={`/races/${nextRace.roundNumber}`}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '0.4rem',
-                    padding: '0.55rem 1rem',
-                    borderRadius: '6px',
-                    backgroundColor: 'var(--f1-red)',
-                    color: '#ffffff',
-                    fontWeight: 800,
-                    fontSize: '0.78rem',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.04em',
-                    textDecoration: 'none',
-                  }}
-                >
-                  <span>Race Weekend</span>
-                  <ArrowRight size={13} />
-                </Link>
-                <Link
-                  to={`/circuits/${nextRace.circuitId || 'albert_park'}`}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '0.4rem',
-                    padding: '0.55rem 1rem',
-                    borderRadius: '6px',
-                    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                    border: '1px solid var(--border-subtle)',
-                    color: 'var(--text-secondary)',
-                    fontWeight: 700,
-                    fontSize: '0.78rem',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.04em',
-                    textDecoration: 'none',
-                  }}
-                >
-                  <MapPin size={13} />
-                  <span>Circuit Layout</span>
-                </Link>
-              </div>
-            </div>
-
-            {/* Session Breakdown Mini Cards */}
-            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-              {nextRace.sessions.map((s, idx) => (
-                <div
-                  key={idx}
-                  style={{
-                    flex: '1 1 80px',
-                    background: s.isKeySession ? 'rgba(225, 6, 0, 0.14)' : 'rgba(255, 255, 255, 0.04)',
-                    border: s.isKeySession ? '1px solid rgba(225, 6, 0, 0.4)' : '1px solid rgba(255, 255, 255, 0.08)',
-                    borderRadius: '8px',
-                    padding: '0.75rem 0.5rem',
-                    textAlign: 'center',
-                  }}
-                >
-                  <div
-                    style={{
-                      fontSize: '0.68rem',
-                      fontWeight: 800,
-                      color: s.isKeySession ? 'var(--f1-red)' : 'var(--text-muted)',
-                      fontFamily: 'var(--font-mono)',
-                    }}
-                  >
-                    {s.name}
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.35rem' }}>
+                    <span style={{ fontSize: '1.2rem' }}>{nextRace.flag}</span>
+                    <span
+                      style={{
+                        fontFamily: 'var(--font-mono)',
+                        fontSize: '0.72rem',
+                        color: 'var(--text-muted)',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.06em',
+                      }}
+                    >
+                      ROUND {nextRace.roundNumber} • FORMULA 1
+                    </span>
                   </div>
-                  <div
+                  <h2
                     style={{
-                      fontSize: '0.74rem',
-                      fontWeight: 700,
+                      fontSize: 'clamp(1.3rem, 4vw, 1.65rem)',
+                      fontWeight: 900,
+                      textTransform: 'uppercase',
                       color: '#ffffff',
-                      marginTop: '0.2rem',
+                      margin: '0 0 0.25rem 0',
+                      letterSpacing: '-0.02em',
                     }}
                   >
-                    {s.day}
+                    {nextRace.grandPrixName}
+                  </h2>
+                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.86rem', margin: '0 0 1rem 0' }}>
+                    {nextRace.circuitName} • {nextRace.city}, {nextRace.country} • <strong style={{ color: '#fff' }}>{nextRace.dates}</strong>
+                  </p>
+
+                  <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
+                    <Link
+                      to={`/races/${nextRace.roundNumber}`}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.4rem',
+                        padding: '0.55rem 1rem',
+                        borderRadius: '6px',
+                        backgroundColor: 'var(--f1-red)',
+                        color: '#ffffff',
+                        fontWeight: 800,
+                        fontSize: '0.78rem',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.04em',
+                        textDecoration: 'none',
+                      }}
+                    >
+                      <span>Race Weekend</span>
+                      <ArrowRight size={13} />
+                    </Link>
+                    <Link
+                      to={`/circuits/${nextRace.circuitId || 'albert_park'}`}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.4rem',
+                        padding: '0.55rem 1rem',
+                        borderRadius: '6px',
+                        backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                        border: '1px solid var(--border-subtle)',
+                        color: 'var(--text-secondary)',
+                        fontWeight: 700,
+                        fontSize: '0.78rem',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.04em',
+                        textDecoration: 'none',
+                      }}
+                    >
+                      <MapPin size={13} />
+                      <span>Circuit Layout</span>
+                    </Link>
                   </div>
+
+                  {/* Session Breakdown Mini Cards (if available) */}
+                  {nextRace.sessions && nextRace.sessions.length > 0 && (
+                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '1rem' }}>
+                      {nextRace.sessions.map((s, idx) => (
+                        <div
+                          key={idx}
+                          style={{
+                            flex: '1 1 75px',
+                            background: s.isKeySession ? 'rgba(225, 6, 0, 0.14)' : 'rgba(255, 255, 255, 0.04)',
+                            border: s.isKeySession ? '1px solid rgba(225, 6, 0, 0.4)' : '1px solid rgba(255, 255, 255, 0.08)',
+                            borderRadius: '8px',
+                            padding: '0.6rem 0.45rem',
+                            textAlign: 'center',
+                          }}
+                        >
+                          <div
+                            style={{
+                              fontSize: '0.65rem',
+                              fontWeight: 800,
+                              color: s.isKeySession ? 'var(--f1-red)' : 'var(--text-muted)',
+                              fontFamily: 'var(--font-mono)',
+                            }}
+                          >
+                            {s.name}
+                          </div>
+                          <div
+                            style={{
+                              fontSize: '0.72rem',
+                              fontWeight: 700,
+                              color: '#ffffff',
+                              marginTop: '0.15rem',
+                            }}
+                          >
+                            {s.day}
+                          </div>
+                          <div
+                            style={{
+                              fontSize: '0.66rem',
+                              color: 'var(--text-secondary)',
+                              fontFamily: 'var(--font-mono)',
+                              marginTop: '0.1rem',
+                            }}
+                          >
+                            {s.time}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Right side: Seamlessly Blended Circuit Graphic */}
+                <div
+                  className="circuit-blend-container"
+                  style={{
+                    position: 'relative',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    minHeight: '220px',
+                    width: '100%',
+                    padding: '0.5rem',
+                  }}
+                >
+                  {/* Ambient Telemetry Radar Rings */}
                   <div
                     style={{
-                      fontSize: '0.68rem',
-                      color: 'var(--text-secondary)',
-                      fontFamily: 'var(--font-mono)',
-                      marginTop: '0.15rem',
+                      position: 'absolute',
+                      width: '240px',
+                      height: '240px',
+                      borderRadius: '50%',
+                      border: '1px dashed rgba(255, 255, 255, 0.05)',
+                      pointerEvents: 'none',
+                    }}
+                  />
+                  <div
+                    style={{
+                      position: 'absolute',
+                      width: '160px',
+                      height: '160px',
+                      borderRadius: '50%',
+                      border: '1px dashed rgba(225, 6, 0, 0.08)',
+                      pointerEvents: 'none',
+                    }}
+                  />
+
+                  {/* Soft Radial Ambient Glow */}
+                  <div
+                    style={{
+                      position: 'absolute',
+                      width: '260px',
+                      height: '260px',
+                      borderRadius: '50%',
+                      background: 'radial-gradient(circle, rgba(225, 6, 0, 0.16) 0%, rgba(0, 240, 255, 0.04) 45%, transparent 70%)',
+                      filter: 'blur(18px)',
+                      pointerEvents: 'none',
+                    }}
+                  />
+
+                  {/* Clickable Circuit Track Link */}
+                  <Link
+                    to={`/circuits/${nextRace.circuitId || 'albert_park'}`}
+                    title={`Explore ${nextRace.circuitName} Circuit Layout`}
+                    style={{
+                      position: 'relative',
+                      zIndex: 1,
+                      width: '100%',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      textDecoration: 'none',
+                      cursor: 'pointer',
                     }}
                   >
-                    {s.time}
-                  </div>
+                    {/* Track SVG Vector */}
+                    <div
+                      style={{
+                        width: '100%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        padding: '0.75rem 0',
+                      }}
+                    >
+                      <img
+                        src={circuitAssetUrl}
+                        alt={`${nextRace.circuitName} track layout`}
+                        className="track-svg-animated"
+                        style={{
+                          maxHeight: '180px',
+                          maxWidth: '88%',
+                          width: 'auto',
+                          height: 'auto',
+                          objectFit: 'contain',
+                          filter: 'drop-shadow(0 0 16px rgba(225, 6, 0, 0.45)) drop-shadow(0 0 3px rgba(255, 255, 255, 0.4))',
+                        }}
+                      />
+                    </div>
+
+                    {/* Subtle Telemetry Footer Pill */}
+                    <div
+                      className="circuit-telemetry-badge"
+                      style={{
+                        marginTop: '0.65rem',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.45rem',
+                        padding: '0.3rem 0.75rem',
+                        borderRadius: '9999px',
+                        background: 'rgba(255, 255, 255, 0.03)',
+                        border: '1px solid rgba(255, 255, 255, 0.08)',
+                        fontSize: '0.72rem',
+                        fontFamily: 'var(--font-mono)',
+                        color: 'var(--text-secondary)',
+                        letterSpacing: '0.04em',
+                        textTransform: 'uppercase',
+                      }}
+                    >
+                      <Compass size={12} style={{ color: 'var(--f1-red)' }} />
+                      <span>{nextRace.circuitName}</span>
+                      <span style={{ opacity: 0.3 }}>•</span>
+                      <span style={{ color: 'var(--f1-red)', fontWeight: 800, display: 'inline-flex', alignItems: 'center', gap: '0.15rem' }}>
+                        CIRCUIT LAYOUT <ChevronRight size={12} />
+                      </span>
+                    </div>
+                  </Link>
                 </div>
-              ))}
-            </div>
-          </div>
+              </div>
+            );
+          })()}
         </section>
 
         {/* ===================================================================
@@ -887,214 +1069,310 @@ export const HomePage: React.FC = () => {
         </section>
 
         {/* ===================================================================
-            5. LATEST / FEATURED: Indian Motorsport & Domestic Spotlight
+            5. UPCOMING RACES: Interactive Multi-Category Racing Radar
             =================================================================== */}
-        <section style={{ marginTop: '3.5rem' }}>
-          <div
-            className="race-card-interactive"
-            style={{
-              background: 'linear-gradient(135deg, rgba(255, 153, 51, 0.08) 0%, rgba(22, 27, 34, 0.98) 100%)',
-              border: '1px solid rgba(255, 153, 51, 0.3)',
-              borderRadius: '14px',
-              padding: 'clamp(1rem, 3.5vw, 1.75rem)',
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))',
-              gap: '1.5rem',
-              alignItems: 'center',
-            }}
-          >
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.4rem' }}>
-                <span style={{ fontSize: '1.2rem' }}>🇮🇳</span>
-                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', fontWeight: 800, color: '#ff9933', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                  DOMESTIC SPOTLIGHT • INDIAN MOTORSPORT
-                </span>
-              </div>
-              <h2 style={{ fontSize: 'clamp(1.25rem, 3vw, 1.6rem)', fontWeight: 900, textTransform: 'uppercase', color: '#ffffff', margin: '0 0 0.4rem 0' }}>
-                India's Racing Ecosystem
-              </h2>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', lineHeight: 1.5, margin: '0 0 1.25rem 0' }}>
-                Explore domestic championships from the Indian Racing League (IRL) to FIA F4 India, national karting pathways, and iconic venues like Buddh International Circuit.
-              </p>
+        {(() => {
+          const upcomingRaces = (racingNowOrNext || []).filter(item => item.championshipId !== 'indian-motorsport');
+          const seriesFilterList = [
+            { id: 'ALL', label: 'All Series', badge: 'ALL', count: upcomingRaces.length, badgeColor: 'var(--f1-red)' },
+            ...Array.from(new Set(upcomingRaces.map(r => r.championshipId))).map(cId => {
+              const item = upcomingRaces.find(r => r.championshipId === cId)!;
+              return {
+                id: cId,
+                label: item.championshipName,
+                badge: item.badge,
+                badgeColor: item.badgeColor,
+                count: upcomingRaces.filter(r => r.championshipId === cId).length,
+              };
+            }),
+          ];
 
-              <Link
-                to={indianMotorsport.url}
+          const filteredRaces = selectedSeriesFilter === 'ALL'
+            ? upcomingRaces.slice(0, 4)
+            : upcomingRaces.filter(r => r.championshipId === selectedSeriesFilter || r.badge.toLowerCase() === selectedSeriesFilter.toLowerCase());
+
+          return (
+            <section style={{ marginTop: '3.5rem' }}>
+              <div
                 style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '0.45rem',
-                  padding: '0.55rem 1.1rem',
-                  borderRadius: '6px',
-                  backgroundColor: '#ff9933',
-                  color: '#0a0d14',
-                  fontWeight: 900,
-                  fontSize: '0.78rem',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.04em',
-                  textDecoration: 'none',
-                }}
-              >
-                <span>Explore Indian Motorsport</span>
-                <ArrowRight size={13} />
-              </Link>
-            </div>
-
-            {/* Quick Stat Chips */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.65rem' }}>
-              <div style={{ background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(255, 153, 51, 0.2)', borderRadius: '8px', padding: '0.85rem 0.5rem', textAlign: 'center' }}>
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.4rem', fontWeight: 900, color: '#ff9933' }}>
-                  {indianMotorsport.seriesCount}
-                </div>
-                <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginTop: '0.2rem' }}>
-                  Series
-                </div>
-              </div>
-              <div style={{ background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(255, 153, 51, 0.2)', borderRadius: '8px', padding: '0.85rem 0.5rem', textAlign: 'center' }}>
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.4rem', fontWeight: 900, color: '#ffffff' }}>
-                  {indianMotorsport.circuitsCount}
-                </div>
-                <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginTop: '0.2rem' }}>
-                  Tracks
-                </div>
-              </div>
-              <div style={{ background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(255, 153, 51, 0.2)', borderRadius: '8px', padding: '0.85rem 0.5rem', textAlign: 'center' }}>
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.4rem', fontWeight: 900, color: 'var(--telemetry-green)' }}>
-                  12
-                </div>
-                <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginTop: '0.2rem' }}>
-                  SL Points
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* ===================================================================
-            6. UPCOMING RACES: Multi-Category Racing Radar
-            =================================================================== */}
-        <section style={{ marginTop: '3.5rem' }}>
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'flex-end',
-              justifyContent: 'space-between',
-              marginBottom: '1.25rem',
-              flexWrap: 'wrap',
-              gap: '0.5rem',
-            }}
-          >
-            <div>
-              <span
-                style={{
-                  fontFamily: 'var(--font-mono)',
-                  fontSize: '0.72rem',
-                  fontWeight: 800,
-                  color: 'var(--text-muted)',
-                  letterSpacing: '0.1em',
-                  textTransform: 'uppercase',
-                }}
-              >
-                GLOBAL SCHEDULE
-              </span>
-              <h2 style={{ fontSize: '1.5rem', fontWeight: 900, textTransform: 'uppercase', margin: '0.2rem 0 0.35rem 0', color: '#fff' }}>
-                Upcoming Races & Weekends
-              </h2>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', margin: 0, maxWidth: '680px' }}>
-                Follow upcoming events across Formula 1, MotoGP, FIA WEC, Formula E, and WRC.
-              </p>
-            </div>
-            <Link
-              to="/races"
-              style={{
-                fontSize: '0.8rem',
-                color: 'var(--text-secondary)',
-                textDecoration: 'none',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.25rem',
-                fontWeight: 700,
-              }}
-            >
-              <span>Full Racing Schedule</span>
-              <ChevronRight size={14} />
-            </Link>
-          </div>
-
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 250px), 1fr))',
-              gap: '1rem',
-            }}
-          >
-            {racingNowOrNext.slice(0, 4).map((item, idx) => (
-              <Link
-                key={idx}
-                to={item.url}
-                className="race-card-interactive"
-                style={{
-                  background: 'var(--bg-surface)',
-                  border: '1px solid var(--border-subtle)',
-                  borderRadius: '12px',
-                  padding: '1.1rem',
-                  textDecoration: 'none',
                   display: 'flex',
-                  flexDirection: 'column',
+                  alignItems: 'flex-end',
                   justifyContent: 'space-between',
+                  marginBottom: '1.25rem',
+                  flexWrap: 'wrap',
+                  gap: '0.75rem',
                 }}
               >
                 <div>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                    <span
-                      style={{
-                        fontFamily: 'var(--font-mono)',
-                        fontSize: '0.68rem',
-                        fontWeight: 800,
-                        padding: '0.15rem 0.45rem',
-                        borderRadius: '4px',
-                        background: 'rgba(255, 255, 255, 0.06)',
-                        color: item.badgeColor || 'var(--text-primary)',
-                      }}
-                    >
-                      {item.badge}
-                    </span>
-                    <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
-                      {item.championshipName}
-                    </span>
-                  </div>
-
-                  <h3 style={{ fontSize: '0.98rem', fontWeight: 800, color: '#ffffff', margin: '0 0 0.25rem 0' }}>
-                    {item.eventName}
-                  </h3>
-                  <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', margin: 0 }}>
-                    {item.circuit} • {item.location}
+                  <span
+                    style={{
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: '0.72rem',
+                      fontWeight: 800,
+                      color: 'var(--text-muted)',
+                      letterSpacing: '0.1em',
+                      textTransform: 'uppercase',
+                    }}
+                  >
+                    GLOBAL SCHEDULE
+                  </span>
+                  <h2 style={{ fontSize: 'clamp(1.4rem, 3vw, 1.75rem)', fontWeight: 900, textTransform: 'uppercase', margin: '0.2rem 0 0.35rem 0', color: '#fff' }}>
+                    Upcoming Races & Weekends
+                  </h2>
+                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', margin: 0, maxWidth: '680px' }}>
+                    Follow upcoming events across Formula 1, MotoGP, FIA WEC, Formula E, and WRC.
                   </p>
                 </div>
-
-                <div
+                <Link
+                  to="/races"
                   style={{
+                    fontSize: '0.82rem',
+                    color: 'var(--text-secondary)',
+                    textDecoration: 'none',
                     display: 'flex',
                     alignItems: 'center',
-                    justifyContent: 'space-between',
-                    marginTop: '0.75rem',
-                    paddingTop: '0.6rem',
-                    borderTop: '1px solid var(--border-subtle)',
-                    fontSize: '0.72rem',
-                    fontFamily: 'var(--font-mono)',
-                    color: 'var(--text-muted)',
+                    gap: '0.3rem',
+                    fontWeight: 700,
+                    padding: '0.4rem 0.75rem',
+                    borderRadius: '6px',
+                    border: '1px solid rgba(255, 255, 255, 0.08)',
+                    background: 'rgba(255, 255, 255, 0.02)',
+                    transition: 'all 0.2s ease',
+                  }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.color = '#ffffff';
+                    e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.2)';
+                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.06)';
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.color = 'var(--text-secondary)';
+                    e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)';
+                    e.currentTarget.style.background = 'rgba(255, 255, 255, 0.02)';
                   }}
                 >
-                  <span style={{ color: 'var(--text-primary)', fontWeight: 700 }}>
-                    {item.dates}
-                  </span>
-                  <span style={{ color: 'var(--f1-red)', display: 'flex', alignItems: 'center' }}>
-                    <ChevronRight size={13} />
-                  </span>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </section>
+                  <span>Full Racing Schedule</span>
+                  <ChevronRight size={14} />
+                </Link>
+              </div>
+
+              {/* Interactive Series Filter Pills */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  overflowX: 'auto',
+                  paddingBottom: '0.5rem',
+                  marginBottom: '1.25rem',
+                  scrollbarWidth: 'none',
+                }}
+              >
+                {seriesFilterList.map(tab => {
+                  const isActive = selectedSeriesFilter === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => setSelectedSeriesFilter(tab.id)}
+                      className={`series-filter-pill ${isActive ? 'active' : ''}`}
+                      style={
+                        isActive && tab.badgeColor
+                          ? {
+                              borderColor: tab.badgeColor,
+                              background: `${tab.badgeColor}22`,
+                              boxShadow: `0 0 14px -3px ${tab.badgeColor}77`,
+                              color: '#ffffff',
+                            }
+                          : undefined
+                      }
+                    >
+                      <span
+                        style={{
+                          width: '7px',
+                          height: '7px',
+                          borderRadius: '50%',
+                          backgroundColor: tab.badgeColor || 'var(--f1-red)',
+                          display: 'inline-block',
+                        }}
+                      />
+                      <span>{tab.label}</span>
+                      <span
+                        style={{
+                          fontSize: '0.66rem',
+                          opacity: isActive ? 1 : 0.6,
+                          background: 'rgba(255, 255, 255, 0.1)',
+                          padding: '0.1rem 0.35rem',
+                          borderRadius: '4px',
+                        }}
+                      >
+                        {tab.count}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Interactive Upcoming Cards Grid */}
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))',
+                  gap: '1.15rem',
+                }}
+              >
+                {filteredRaces.map((item, idx) => {
+                  const accentColor = item.badgeColor || 'var(--f1-red)';
+                  return (
+                    <Link
+                      key={idx}
+                      to={item.url}
+                      className="upcoming-race-card"
+                      style={{
+                        '--card-accent': accentColor,
+                        '--card-accent-glow': `${accentColor}44`,
+                      } as React.CSSProperties}
+                    >
+                      <div>
+                        {/* Card Header: Series Badge & Status / Championship Name */}
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.85rem' }}>
+                          <span
+                            style={{
+                              fontFamily: 'var(--font-mono)',
+                              fontSize: '0.7rem',
+                              fontWeight: 800,
+                              padding: '0.2rem 0.55rem',
+                              borderRadius: '5px',
+                              background: `${accentColor}18`,
+                              border: `1px solid ${accentColor}44`,
+                              color: accentColor,
+                              letterSpacing: '0.05em',
+                            }}
+                          >
+                            {item.badge}
+                          </span>
+
+                          {item.statusTag ? (
+                            <span
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '0.35rem',
+                                fontFamily: 'var(--font-mono)',
+                                fontSize: '0.66rem',
+                                fontWeight: 700,
+                                letterSpacing: '0.06em',
+                                textTransform: 'uppercase',
+                                color: item.statusTag.includes('OPEN') ? 'var(--telemetry-green)' : 'var(--text-muted)',
+                                background: item.statusTag.includes('OPEN') ? 'rgba(16, 185, 129, 0.1)' : 'rgba(255, 255, 255, 0.04)',
+                                border: `1px solid ${item.statusTag.includes('OPEN') ? 'rgba(16, 185, 129, 0.3)' : 'rgba(255, 255, 255, 0.08)'}`,
+                                padding: '0.15rem 0.45rem',
+                                borderRadius: '4px',
+                              }}
+                            >
+                              <span
+                                className="radar-pulse-dot"
+                                style={{
+                                  '--pulse-color': item.statusTag.includes('OPEN') ? 'rgba(16, 185, 129, 0.7)' : 'rgba(255, 255, 255, 0.4)',
+                                  backgroundColor: item.statusTag.includes('OPEN') ? 'var(--telemetry-green)' : 'var(--text-muted)',
+                                } as React.CSSProperties}
+                              />
+                              {item.statusTag}
+                            </span>
+                          ) : (
+                            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>
+                              {item.championshipName}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Event Name */}
+                        <h3
+                          className="card-event-name"
+                          style={{
+                            fontFamily: 'var(--font-display)',
+                            fontSize: '1.15rem',
+                            fontWeight: 800,
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.03em',
+                            lineHeight: 1.25,
+                            color: '#ffffff',
+                            margin: '0 0 0.5rem 0',
+                          }}
+                        >
+                          {item.eventName}
+                        </h3>
+
+                        {/* Circuit & Location with MapPin */}
+                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.4rem', color: 'var(--text-secondary)', fontSize: '0.8rem', lineHeight: 1.4 }}>
+                          <MapPin size={13} style={{ color: accentColor, flexShrink: 0, marginTop: '0.15rem' }} />
+                          <span>{item.circuit} <span style={{ opacity: 0.45 }}>•</span> {item.location}</span>
+                        </div>
+                      </div>
+
+                      {/* Paddock Date & CTA Footer */}
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          marginTop: '1.25rem',
+                          paddingTop: '0.85rem',
+                          borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+                          gap: '0.5rem',
+                        }}
+                      >
+                        <div
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.4rem',
+                            background: 'rgba(255, 255, 255, 0.03)',
+                            border: '1px solid rgba(255, 255, 255, 0.08)',
+                            borderRadius: '6px',
+                            padding: '0.3rem 0.55rem',
+                          }}
+                        >
+                          <Calendar size={12} style={{ color: 'var(--text-muted)' }} />
+                          <span
+                            style={{
+                              color: '#ffffff',
+                              fontWeight: 700,
+                              fontFamily: 'var(--font-mono)',
+                              fontSize: '0.74rem',
+                              letterSpacing: '0.02em',
+                            }}
+                          >
+                            {item.dates}
+                          </span>
+                        </div>
+
+                        <div
+                          className="radar-cta-btn"
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.3rem',
+                            padding: '0.3rem 0.6rem',
+                            borderRadius: '6px',
+                            background: 'rgba(255, 255, 255, 0.04)',
+                            border: '1px solid rgba(255, 255, 255, 0.1)',
+                            fontSize: '0.72rem',
+                            fontWeight: 800,
+                            fontFamily: 'var(--font-mono)',
+                            color: accentColor,
+                            letterSpacing: '0.04em',
+                          }}
+                        >
+                          <span>RACE HUB</span>
+                          <ChevronRight size={13} className="radar-cta-arrow" />
+                        </div>
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
+            </section>
+          );
+        })()}
 
         {/* ===================================================================
             7. EXPLORE MOTORSPORT HUBS: Isolated Hubs & Technical Fundamentals

@@ -126,7 +126,7 @@ export const PredictionGuideModal: React.FC<PredictionGuideModalProps> = ({ isOp
               <Zap size={14} /> 2. Official Points Scoring Matrix
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '0.75rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
               {/* P1 Winner */}
               <div
                 style={{
@@ -144,7 +144,7 @@ export const PredictionGuideModal: React.FC<PredictionGuideModalProps> = ({ isOp
                   <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Exact P1 race winner</div>
                 </div>
                 <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 900, color: '#eab308', fontSize: '1.2rem' }}>
-                  +15 PTS
+                  +10 PTS
                 </div>
               </div>
 
@@ -165,7 +165,7 @@ export const PredictionGuideModal: React.FC<PredictionGuideModalProps> = ({ isOp
                   <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Exact 2nd place finisher</div>
                 </div>
                 <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 900, color: '#cbd5e1', fontSize: '1.2rem' }}>
-                  +10 PTS
+                  +7 PTS
                 </div>
               </div>
 
@@ -186,7 +186,7 @@ export const PredictionGuideModal: React.FC<PredictionGuideModalProps> = ({ isOp
                   <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Exact 3rd place finisher</div>
                 </div>
                 <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 900, color: '#d97706', fontSize: '1.2rem' }}>
-                  +10 PTS
+                  +5 PTS
                 </div>
               </div>
 
@@ -207,7 +207,112 @@ export const PredictionGuideModal: React.FC<PredictionGuideModalProps> = ({ isOp
                   <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Exact fastest lap setter</div>
                 </div>
                 <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 900, color: 'var(--telemetry-purple)', fontSize: '1.2rem' }}>
-                  +10 PTS
+                  +7 PTS
+                </div>
+              </div>
+
+              {/* Driver/Rider of the Day */}
+              <div
+                style={{
+                  background: 'var(--bg-surface-elevated)',
+                  border: '1px solid rgba(0, 230, 118, 0.3)',
+                  borderRadius: 'var(--radius-md)',
+                  padding: '0.85rem 1rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                }}
+              >
+                <div>
+                  <div style={{ fontWeight: 800, color: '#ffffff', fontSize: '0.9rem' }}>⭐ Driver/Rider of the Day</div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Official fan-voted award</div>
+                </div>
+                <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 900, color: 'var(--telemetry-green)', fontSize: '1.2rem' }}>
+                  +7 PTS
+                </div>
+              </div>
+
+              {/* Safety Car */}
+              <div
+                style={{
+                  background: 'var(--bg-surface-elevated)',
+                  border: '1px solid rgba(255, 204, 0, 0.3)',
+                  borderRadius: 'var(--radius-md)',
+                  padding: '0.85rem 1rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                }}
+              >
+                <div>
+                  <div style={{ fontWeight: 800, color: '#ffffff', fontSize: '0.9rem' }}>🟨 Safety Car Deployed</div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Physical Bernd Mayländer SC</div>
+                </div>
+                <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 900, color: '#ffcc00', fontSize: '1.2rem' }}>
+                  +5 PTS
+                </div>
+              </div>
+
+              {/* Virtual Safety Car */}
+              <div
+                style={{
+                  background: 'var(--bg-surface-elevated)',
+                  border: '1px solid rgba(255, 152, 0, 0.3)',
+                  borderRadius: 'var(--radius-md)',
+                  padding: '0.85rem 1rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                }}
+              >
+                <div>
+                  <div style={{ fontWeight: 800, color: '#ffffff', fontSize: '0.9rem' }}>🟪 Virtual Safety Car (VSC)</div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>VSC speed delta deployed</div>
+                </div>
+                <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 900, color: '#ff9800', fontSize: '1.2rem' }}>
+                  +5 PTS
+                </div>
+              </div>
+
+              {/* Red Flag */}
+              <div
+                style={{
+                  background: 'var(--bg-surface-elevated)',
+                  border: '1px solid rgba(239, 68, 68, 0.3)',
+                  borderRadius: 'var(--radius-md)',
+                  padding: '0.85rem 1rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                }}
+              >
+                <div>
+                  <div style={{ fontWeight: 800, color: '#ffffff', fontSize: '0.9rem' }}>🚩 Red Flag Stoppage</div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Session suspended</div>
+                </div>
+                <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 900, color: '#f87171', fontSize: '1.2rem' }}>
+                  +5 PTS
+                </div>
+              </div>
+
+              {/* Yellow Flag */}
+              <div
+                style={{
+                  background: 'var(--bg-surface-elevated)',
+                  border: '1px solid rgba(234, 179, 8, 0.3)',
+                  borderRadius: 'var(--radius-md)',
+                  padding: '0.85rem 1rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                }}
+              >
+                <div>
+                  <div style={{ fontWeight: 800, color: '#ffffff', fontSize: '0.9rem' }}>⚠️ Yellow Flag Caution</div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Yellow flag waved during race</div>
+                </div>
+                <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 900, color: '#eab308', fontSize: '1.2rem' }}>
+                  +4 PTS
                 </div>
               </div>
             </div>
@@ -238,11 +343,11 @@ export const PredictionGuideModal: React.FC<PredictionGuideModalProps> = ({ isOp
                   <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Driver finishes in top 3 in different slot</div>
                 </div>
                 <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 900, color: 'var(--telemetry-green)', fontSize: '1.1rem' }}>
-                  +5 PTS <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>/ each</span>
+                  +3 PTS <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>/ each</span>
                 </div>
               </div>
 
-              {/* Perfect Podium Bonus */}
+              {/* Maximum Points Banner */}
               <div
                 style={{
                   background: 'rgba(234, 179, 8, 0.08)',
@@ -256,12 +361,12 @@ export const PredictionGuideModal: React.FC<PredictionGuideModalProps> = ({ isOp
               >
                 <div>
                   <div style={{ fontWeight: 800, color: '#eab308', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                    <Sparkles size={16} /> PERFECT PODIUM BONUS
+                    <Sparkles size={16} /> MAXIMUM ACTIVE SCORE
                   </div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>P1, P2, and P3 all exactly correct!</div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Sum of all 9 active race weekend predictions</div>
                 </div>
                 <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 900, color: '#eab308', fontSize: '1.2rem' }}>
-                  +10 PTS
+                  55 PTS MAX
                 </div>
               </div>
             </div>

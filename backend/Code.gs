@@ -1092,20 +1092,47 @@ function computeScore(pred, official) {
   var p2Exact = pred.p2 && pred.p2 === official.p2 && !isDsq(pred.p2);
   var p3Exact = pred.p3 && pred.p3 === official.p3 && !isDsq(pred.p3);
 
-  b.p1 = p1Exact ? 15 : (!isDsq(pred.p1) && officialPodium.indexOf(pred.p1) !== -1 ? 5 : 0);
-  b.p2 = p2Exact ? 10 : (!isDsq(pred.p2) && officialPodium.indexOf(pred.p2) !== -1 ? 5 : 0);
-  b.p3 = p3Exact ? 10 : (!isDsq(pred.p3) && officialPodium.indexOf(pred.p3) !== -1 ? 5 : 0);
-  b.perfectPodiumBonus = (p1Exact && p2Exact && p3Exact) ? 10 : 0;
+  // Simplified Active Prediction Point System (Max 55 PTS)
+  // P1: 10 pts (podium wrong position: 3 pts)
+  // P2: 7 pts (podium wrong position: 3 pts)
+  // P3: 5 pts (podium wrong position: 3 pts)
+  b.p1 = p1Exact ? 10 : (!isDsq(pred.p1) && officialPodium.indexOf(pred.p1) !== -1 ? 3 : 0);
+  b.p2 = p2Exact ? 7 : (!isDsq(pred.p2) && officialPodium.indexOf(pred.p2) !== -1 ? 3 : 0);
+  b.p3 = p3Exact ? 5 : (!isDsq(pred.p3) && officialPodium.indexOf(pred.p3) !== -1 ? 3 : 0);
+  b.perfectPodiumBonus = 0;
 
-  b.fastestLap = (pred.fastestLap && pred.fastestLap === official.fastestLap && !isDsq(pred.fastestLap)) ? 10 : 0;
-  b.driverOfTheDay = (pred.driverOfTheDay && pred.driverOfTheDay === official.driverOfTheDay && !isDsq(pred.driverOfTheDay)) ? 10 : 0;
+  // Fastest Lap: 7 pts
+  b.fastestLap = (pred.fastestLap && pred.fastestLap === official.fastestLap && !isDsq(pred.fastestLap)) ? 7 : 0;
 
-  // Evaluate all dynamic wildcard & option fields (safetyCar, virtualSafetyCar, redFlag, etc.)
-  var standardFields = ['p1', 'p2', 'p3', 'perfectPodiumBonus', 'fastestLap', 'driverOfTheDay'];
+  // Driver/Rider of the Day: 7 pts
+  b.driverOfTheDay = (pred.driverOfTheDay && pred.driverOfTheDay === official.driverOfTheDay && !isDsq(pred.driverOfTheDay)) ? 7 : 0;
+
+  // Safety Car: 5 pts
+  if (pred.safetyCar !== undefined && official.safetyCar !== undefined) {
+    b.safetyCar = (String(pred.safetyCar).trim().toUpperCase() === String(official.safetyCar).trim().toUpperCase()) ? 5 : 0;
+  }
+
+  // Virtual Safety Car (VSC): 5 pts
+  if (pred.virtualSafetyCar !== undefined && official.virtualSafetyCar !== undefined) {
+    b.virtualSafetyCar = (String(pred.virtualSafetyCar).trim().toUpperCase() === String(official.virtualSafetyCar).trim().toUpperCase()) ? 5 : 0;
+  }
+
+  // Red Flag: 5 pts
+  if (pred.redFlag !== undefined && official.redFlag !== undefined) {
+    b.redFlag = (String(pred.redFlag).trim().toUpperCase() === String(official.redFlag).trim().toUpperCase()) ? 5 : 0;
+  }
+
+  // Yellow Flag: 4 pts
+  if (pred.yellowFlag !== undefined && official.yellowFlag !== undefined) {
+    b.yellowFlag = (String(pred.yellowFlag).trim().toUpperCase() === String(official.yellowFlag).trim().toUpperCase()) ? 4 : 0;
+  }
+
+  // Handle any legacy wildcard fields for historical rounds if present in prediction and official result
+  var activeFieldKeys = ['p1', 'p2', 'p3', 'perfectPodiumBonus', 'fastestLap', 'driverOfTheDay', 'safetyCar', 'virtualSafetyCar', 'redFlag', 'yellowFlag'];
   for (var key in pred) {
-    if (standardFields.indexOf(key) !== -1) continue;
+    if (activeFieldKeys.indexOf(key) !== -1) continue;
     if (pred[key] !== undefined && official[key] !== undefined) {
-      var pts = (key === 'wildCard') ? 15 : 10;
+      var pts = (key === 'wildCard') ? 5 : 5;
       if (String(pred[key]).trim().toUpperCase() === String(official[key]).trim().toUpperCase()) {
         b[key] = pts;
       } else {
@@ -1114,12 +1141,10 @@ function computeScore(pred, official) {
     }
   }
 
-  total = (b.p1 || 0) + (b.p2 || 0) + (b.p3 || 0) + (b.perfectPodiumBonus || 0) + (b.fastestLap || 0) + (b.driverOfTheDay || 0);
   for (var k in b) {
-    if (standardFields.indexOf(k) === -1) {
-      total += (b[k] || 0);
-    }
+    total += (b[k] || 0);
   }
+
   return { breakdown: b, totalScore: total };
 }
 

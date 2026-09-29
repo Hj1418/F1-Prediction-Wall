@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { api } from '../services/apiClient';
 import {
@@ -9,6 +9,7 @@ import {
   Driver,
   RaceWeekend,
   PredictionFieldConfig,
+  getCircuitName,
 } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
@@ -20,6 +21,7 @@ import { UserInitialsAvatar } from '../components/common/UserInitialsAvatar';
 import { PredictionGuideCard } from '../components/predictions/PredictionGuideCard';
 import { PredictionStoryShareModal } from '../components/predictions/PredictionStoryShareModal';
 import { getResultsTimeline } from '../utils/predictionTimeline';
+import { getDefaultPredictionFields } from '../services/schedule/predictionRoundGenerator';
 import {
   Lock,
   Save,
@@ -108,7 +110,7 @@ export const PredictionPage: React.FC = () => {
         setDriverError(dErr);
 
         if (r) {
-          const isScoredRound = r.status === 'SCORED';
+          const isScoredRound = r.status === 'SCORED' || r.status === 'COMPLETED';
           const [w, existingPred, res, score] = await Promise.all([
             api.getWeekendById(r.raceWeekendId),
             currentUser ? api.getUserPrediction(r.roundId, currentUser.userId) : Promise.resolve(null),
@@ -180,6 +182,33 @@ export const PredictionPage: React.FC = () => {
   }
 
   // Field category badge helper
+  const isMotoGP = Boolean(
+    (weekend as any)?.motorsport === 'motogp' ||
+    round.raceWeekendId?.toLowerCase().includes('motogp') ||
+    getCircuitName(weekend?.circuit)?.toLowerCase().includes('motogp') ||
+    String(round.title || '').toLowerCase().includes('motogp')
+  );
+  const competitorLabel = isMotoGP ? 'Rider' : 'Driver';
+
+  // Strictly 9 active prediction fields for new / in-progress predictions
+  const activePredictionFields = useMemo(() => {
+    return getDefaultPredictionFields(competitorLabel);
+  }, [competitorLabel]);
+
+  const isUpcoming = round.status === 'UPCOMING';
+  const isScored = round.status === 'SCORED' || (round.status === 'COMPLETED' && Boolean(officialResult));
+  const isLocked = round.status === 'LOCKED' || (round.status === 'COMPLETED' && !officialResult);
+  const isOpen = round.status === 'OPEN';
+  const isReadOnly = isLocked || isScored || isUpcoming;
+
+  // For historical / scored rounds, preserve existing prediction fields if present
+  const displayFields = useMemo(() => {
+    if (isScored && round.predictionFields && round.predictionFields.length > 0) {
+      return round.predictionFields;
+    }
+    return activePredictionFields;
+  }, [isScored, round.predictionFields, activePredictionFields]);
+
   const getFieldBadge = (fieldId: string) => {
     if (['p1', 'p2', 'p3'].includes(fieldId)) {
       return { label: 'PODIUM POSITION', color: '#ffb800', bg: 'rgba(255, 184, 0, 0.1)', icon: '🏆' };
@@ -187,8 +216,8 @@ export const PredictionPage: React.FC = () => {
     if (fieldId === 'fastestLap') {
       return { label: 'FASTEST LAP', color: '#b966ff', bg: 'rgba(185, 102, 255, 0.1)', icon: '⚡' };
     }
-    if (fieldId === 'driverOfTheDay') {
-      return { label: 'DRIVER OF THE DAY', color: '#00e676', bg: 'rgba(0, 230, 118, 0.1)', icon: '⭐' };
+    if (fieldId === 'driverOfTheDay' || fieldId === 'riderOfTheDay') {
+      return { label: `${competitorLabel.toUpperCase()} OF THE DAY`, color: '#00e676', bg: 'rgba(0, 230, 118, 0.1)', icon: '⭐' };
     }
     if (fieldId === 'safetyCar') {
       return { label: 'SAFETY CAR', color: '#ffcc00', bg: 'rgba(255, 204, 0, 0.12)', icon: '🟨' };
@@ -216,12 +245,6 @@ export const PredictionPage: React.FC = () => {
     }
     return { label: 'WILD CARD', color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.1)', icon: '🎲' };
   };
-
-  const isUpcoming = round.status === 'UPCOMING';
-  const isLocked = round.status === 'LOCKED';
-  const isScored = round.status === 'SCORED';
-  const isOpen = round.status === 'OPEN';
-  const isReadOnly = isLocked || isScored || isUpcoming;
 
   // Podium duplicate exclusion rules
   const podiumFields = ['p1', 'p2', 'p3'];
@@ -263,7 +286,7 @@ export const PredictionPage: React.FC = () => {
     }
 
     // Validate required fields
-    for (const field of (round.predictionFields || [])) {
+    for (const field of activePredictionFields) {
       if (field.required && !formData[field.id]) {
         showToast(`Please complete the required field: ${field.label}`, 'error');
         return;
@@ -274,7 +297,7 @@ export const PredictionPage: React.FC = () => {
     const podiumPicks = [formData.p1, formData.p2, formData.p3].filter(Boolean);
     const uniquePodiumPicks = new Set(podiumPicks);
     if (podiumPicks.length !== uniquePodiumPicks.size) {
-      showToast('A driver cannot be selected more than once across podium positions (P1, P2, P3).', 'error');
+      showToast('A competitor cannot be selected more than once across podium positions (P1, P2, P3).', 'error');
       return;
     }
 
@@ -424,7 +447,7 @@ export const PredictionPage: React.FC = () => {
                 gap: '0.3rem',
               }}
             >
-              <ChevronLeft size={14} /> Back to {isTestRound ? 'Prediction Hub' : (weekend ? weekend.raceName : 'Championship Calendar')}
+              <ChevronLeft size={14} /> Back to {isTestRound ? 'Prediction Hub' : (weekend ? (weekend.raceName || (weekend as any)?.name || 'Race Weekend') : 'Championship Calendar')}
             </Link>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
@@ -511,8 +534,8 @@ export const PredictionPage: React.FC = () => {
                   }}
                 >
                   {isTestRound
-                    ? `THE GRID • TEST BENCH • ${(weekend?.raceName || 'TEST GRAND PRIX').toUpperCase()}`
-                    : `THE GRID • PREDICTION BENCH • ${weekend?.raceName.toUpperCase()} • ${round.roundType.replace('_', ' ')}`}
+                    ? `THE GRID • TEST BENCH • ${(weekend?.raceName || (weekend as any)?.name || 'TEST GRAND PRIX').toUpperCase()}`
+                    : `THE GRID • PREDICTION BENCH • ${(weekend?.raceName || (weekend as any)?.name || 'GRAND PRIX').toUpperCase()} • ${(round.roundType || 'RACE').replace('_', ' ')}`}
                 </span>
                 <StatusBadge status={round.status} />
               </div>
@@ -932,6 +955,11 @@ export const PredictionPage: React.FC = () => {
                     <strong style={{ color: '#fff' }}>Fastest Lap</strong> — {getDriverName(prediction.predictionData.fastestLap)}
                   </span>
                 )}
+                {(prediction.predictionData?.driverOfTheDay || prediction.predictionData?.riderOfTheDay) && (
+                  <span style={{ color: 'var(--text-secondary)' }}>
+                    <strong style={{ color: '#fff' }}>{competitorLabel} of the Day</strong> — {getDriverName(prediction.predictionData.driverOfTheDay || prediction.predictionData.riderOfTheDay)}
+                  </span>
+                )}
                 {prediction.predictionData?.safetyCar && (
                   <span style={{ color: 'var(--text-secondary)' }}>
                     <strong style={{ color: '#fff' }}>Safety Car</strong> — {prediction.predictionData.safetyCar}
@@ -966,7 +994,7 @@ export const PredictionPage: React.FC = () => {
                 gap: '1.25rem',
               }}
             >
-              {(round.predictionFields || []).map(field => {
+              {displayFields.map(field => {
                 const userPickVal = prediction.predictionData?.[field.id];
                 const selectedDriver = field.type === 'driver' && userPickVal ? getDriverById(userPickVal) : null;
                 const officialVal = officialResult?.resultData?.[field.id];
@@ -1149,7 +1177,7 @@ export const PredictionPage: React.FC = () => {
                 gap: '1.5rem',
               }}
             >
-              {(round.predictionFields || []).map(field => {
+              {activePredictionFields.map(field => {
                 const currentValue = formData[field.id];
                 const selectedDriver = field.type === 'driver' && currentValue ? getDriverById(currentValue) : null;
                 const officialVal = officialResult?.resultData?.[field.id];
@@ -1392,7 +1420,7 @@ export const PredictionPage: React.FC = () => {
                     gap: '0.75rem',
                   }}
                 >
-                  {(round.predictionFields || []).map(f => {
+                  {activePredictionFields.map(f => {
                     const val = formData[f.id];
                     let displayVal = '— Not selected —';
                     if (f.type === 'driver' && val) {

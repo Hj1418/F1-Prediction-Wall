@@ -50,8 +50,7 @@ const heroIdx = homePageContent.indexOf('1. HERO:');
 const nextUpIdx = homePageContent.indexOf('2. NEXT / CURRENT RACE:');
 const predIdx = homePageContent.indexOf('3. YOUR PREDICTION PROGRESS:');
 const exploreIdx = homePageContent.indexOf('4. EXPLORE MOTORSPORT:');
-const indiaIdx = homePageContent.indexOf('5. LATEST / FEATURED:');
-const upcomingIdx = homePageContent.indexOf('6. UPCOMING RACES:');
+const upcomingIdx = homePageContent.indexOf('UPCOMING RACES:');
 const hubsIdx = homePageContent.indexOf('7. EXPLORE MOTORSPORT HUBS:');
 const exploreMoreIdx = homePageContent.indexOf('8. DISCOVER MORE:');
 
@@ -60,15 +59,13 @@ assert(
   nextUpIdx !== -1 &&
   predIdx !== -1 &&
   exploreIdx !== -1 &&
-  indiaIdx !== -1 &&
   upcomingIdx !== -1 &&
   hubsIdx !== -1 &&
   exploreMoreIdx !== -1 &&
   heroIdx < nextUpIdx &&
   nextUpIdx < predIdx &&
   predIdx < exploreIdx &&
-  exploreIdx < indiaIdx &&
-  indiaIdx < upcomingIdx &&
+  exploreIdx < upcomingIdx &&
   upcomingIdx < hubsIdx &&
   hubsIdx < exploreMoreIdx,
   'Homepage sections follow strict motorsport-first information hierarchy'
@@ -146,7 +143,7 @@ assert(DEFAULT_HOME_SNAPSHOT.indianMotorsport.circuitsCount === 4, 'Highlights 4
 assert(DEFAULT_HOME_SNAPSHOT.indianMotorsport.maxSuperLicencePoints === 12, 'Highlights 12 FIA Super Licence Points');
 assert(DEFAULT_HOME_SNAPSHOT.indianMotorsport.keySeries.includes('FIA F4 India'), 'Mentions FIA F4 India');
 assert(DEFAULT_HOME_SNAPSHOT.indianMotorsport.keySeries.includes('Indian Racing League (IRL)'), 'Mentions Indian Racing League');
-assert(homePageContent.includes('to={indianMotorsport.url}'), 'Links directly to /indian-motorsport');
+assert(DEFAULT_HOME_SNAPSHOT.indianMotorsport.url === '/indian-motorsport', 'Links directly to /indian-motorsport');
 
 // -------------------------------------------------------------
 // 6. Prediction Bench State Model & Server-Authoritative Status

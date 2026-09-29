@@ -910,6 +910,25 @@ export const api = {
   },
 
   async adminSubmitResult(roundId: string, resultData: Record<string, any>): Promise<SessionResult> {
+    if (isLiveBackend) {
+      try {
+        const res = await fetchWithTimeout(`${API_BASE_URL}?action=adminSubmitResult`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'adminSubmitResult', roundId, resultData }),
+        });
+        const json: ApiResponse<SessionResult> = await res.json();
+        if (json.success && json.data) {
+          try { await mockApi.adminSubmitResult(roundId, resultData); } catch {}
+          clientCache.clearPrefix('official_result_');
+          clientCache.clearPrefix('f1_prediction_rounds_');
+          clientCache.clearPrefix('user_pred_history_');
+          return json.data;
+        }
+      } catch (e) {
+        console.warn('Live API adminSubmitResult failed or timed out, syncing locally:', e);
+      }
+    }
     const res = await mockApi.adminSubmitResult(roundId, resultData);
     clientCache.clearPrefix('official_result_');
     clientCache.clearPrefix('f1_prediction_rounds_');
@@ -918,6 +937,29 @@ export const api = {
   },
 
   async adminCalculateScores(roundId: string) {
+    if (isLiveBackend) {
+      try {
+        const res = await fetchWithTimeout(`${API_BASE_URL}?action=adminCalculateScores`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'adminCalculateScores', roundId }),
+        });
+        const json = await res.json();
+        if (json.success && json.data) {
+          try { await mockApi.adminCalculateScores(roundId); } catch {}
+          clientCache.clearPrefix('official_result_');
+          clientCache.clearPrefix('round_score_');
+          clientCache.clearPrefix('leaderboard_');
+          clientCache.clearPrefix('user_pred_history_');
+          clientCache.clearPrefix('user_profile_');
+          clientCache.clearPrefix('f1_prediction_rounds_');
+          clientCache.clearPrefix('user_predictions_');
+          return json.data;
+        }
+      } catch (e) {
+        console.warn('Live API adminCalculateScores failed or timed out, running locally:', e);
+      }
+    }
     const res = await mockApi.adminCalculateScores(roundId);
     clientCache.clearPrefix('official_result_');
     clientCache.clearPrefix('round_score_');

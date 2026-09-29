@@ -8,6 +8,7 @@ import {
   User,
   Prediction,
   LeaderboardEntry,
+  getCircuitName,
 } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
@@ -37,6 +38,7 @@ import {
   CheckSquare,
   Square,
   FileText,
+  Save,
 } from 'lucide-react';
 import { raceWeekendApi } from '../api/raceWeekendApi';
 import { testGrandPrixService, TEST_DRIVERS, TEST_GP_ID, TEST_ROUND_ID } from '../services/testGrandPrix/testGrandPrixService';
@@ -154,18 +156,32 @@ export const AdminDashboardPage: React.FC = () => {
   const [isPublishing, setIsPublishing] = useState(false);
   const [isProcessingQueue, setIsProcessingQueue] = useState(false);
 
-  // Confirmed Result Form Fields (pre-loaded with official Baku City Circuit data)
+  // 9 Canonical Race Result Fields
   const [resultP1, setResultP1] = useState('russell');
   const [resultP2, setResultP2] = useState('verstappen');
   const [resultP3, setResultP3] = useState('hadjar');
-  const [resultSafetyCar, setResultSafetyCar] = useState('YES');
-  const [resultVirtualSafetyCar, setResultVirtualSafetyCar] = useState('NO');
-  const [resultDnfs, setResultDnfs] = useState(7);
-  // Unprovided fields (explicitly marked NOT PROVIDED)
-  const [resultFastestLap, setResultFastestLap] = useState('');
-  const [resultDriverOfTheDay, setResultDriverOfTheDay] = useState('');
-  const [resultRedFlag, setResultRedFlag] = useState('');
-  const [resultYellowFlag, setResultYellowFlag] = useState('');
+  const [resultFastestLap, setResultFastestLap] = useState('russell');
+  const [resultDriverOfTheDay, setResultDriverOfTheDay] = useState('verstappen');
+  const [resultSafetyCar, setResultSafetyCar] = useState<'YES' | 'NO'>('YES');
+  const [resultVirtualSafetyCar, setResultVirtualSafetyCar] = useState<'YES' | 'NO'>('NO');
+  const [resultRedFlag, setResultRedFlag] = useState<'YES' | 'NO'>('NO');
+  const [resultYellowFlag, setResultYellowFlag] = useState<'YES' | 'NO'>('YES');
+
+  // Manual Result Workflow Flags
+  const [isValidated, setIsValidated] = useState(true);
+  const [validationErrors, setValidationErrors] = useState<string[]>([]);
+  const [isResultSaved, setIsResultSaved] = useState(false);
+
+  const selectedRound = rounds.find(r => r.roundId === selectedRoundId);
+  const selectedRoundWeekend = weekends.find(w => w.raceWeekendId === selectedRound?.raceWeekendId);
+  const selectedRoundIsSprint = selectedRound?.roundType === 'SPRINT' || selectedRound?.roundId.includes('SPRINT');
+  const isMotoGP = Boolean(
+    (selectedRoundWeekend as any)?.motorsport === 'motogp' ||
+    selectedRound?.raceWeekendId?.toLowerCase().includes('motogp') ||
+    getCircuitName(selectedRoundWeekend?.circuit).toLowerCase().includes('motogp') ||
+    String(selectedRound?.title || '').toLowerCase().includes('motogp')
+  );
+  const competitorLabel = isMotoGP ? 'Rider' : 'Driver';
 
   const fetchPredictionsForRound = async (roundId: string) => {
     if (!roundId) return;
@@ -186,9 +202,20 @@ export const AdminDashboardPage: React.FC = () => {
         if (offRes.resultData.p1) setResultP1(offRes.resultData.p1);
         if (offRes.resultData.p2) setResultP2(offRes.resultData.p2);
         if (offRes.resultData.p3) setResultP3(offRes.resultData.p3);
-        if (offRes.resultData.safetyCar) setResultSafetyCar(offRes.resultData.safetyCar);
-        if (offRes.resultData.virtualSafetyCar) setResultVirtualSafetyCar(offRes.resultData.virtualSafetyCar);
-        if (offRes.resultData.dnfs !== undefined) setResultDnfs(offRes.resultData.dnfs);
+        if (offRes.resultData.fastestLap) setResultFastestLap(offRes.resultData.fastestLap);
+        if (offRes.resultData.driverOfTheDay || offRes.resultData.riderOfTheDay) {
+          setResultDriverOfTheDay(offRes.resultData.driverOfTheDay || offRes.resultData.riderOfTheDay);
+        }
+        if (offRes.resultData.safetyCar) setResultSafetyCar(offRes.resultData.safetyCar === 'NO' ? 'NO' : 'YES');
+        if (offRes.resultData.virtualSafetyCar) setResultVirtualSafetyCar(offRes.resultData.virtualSafetyCar === 'YES' ? 'YES' : 'NO');
+        if (offRes.resultData.redFlag) setResultRedFlag(offRes.resultData.redFlag === 'YES' ? 'YES' : 'NO');
+        if (offRes.resultData.yellowFlag) setResultYellowFlag(offRes.resultData.yellowFlag === 'NO' ? 'NO' : 'YES');
+        setIsValidated(true);
+        setIsResultSaved(true);
+        setValidationErrors([]);
+      } else {
+        setIsValidated(false);
+        setIsResultSaved(false);
       }
 
       const scoresMap: Record<string, number> = {};
@@ -209,27 +236,83 @@ export const AdminDashboardPage: React.FC = () => {
     }
   };
 
+  const handleValidateResult = (): boolean => {
+    const errors: string[] = [];
+    if (!selectedRound) {
+      errors.push('No race round selected.');
+    }
+    if (!resultP1) errors.push(`P1 ${competitorLabel} must be selected.`);
+    if (!resultP2) errors.push(`P2 ${competitorLabel} must be selected.`);
+    if (!resultP3) errors.push(`P3 ${competitorLabel} must be selected.`);
+
+    if (resultP1 && resultP2 && resultP3) {
+      if (new Set([resultP1, resultP2, resultP3]).size !== 3) {
+        errors.push(`P1, P2, and P3 cannot contain duplicate ${competitorLabel.toLowerCase()}s.`);
+      }
+    }
+
+    if (!resultFastestLap) {
+      errors.push(`Fastest Lap ${competitorLabel} must be selected.`);
+    }
+    if (!resultDriverOfTheDay) {
+      errors.push(`${competitorLabel} of the Day must be selected.`);
+    }
+
+    if (!['YES', 'NO'].includes(resultSafetyCar)) {
+      errors.push('Safety Car selection must be YES or NO.');
+    }
+    if (!['YES', 'NO'].includes(resultVirtualSafetyCar)) {
+      errors.push('Virtual Safety Car selection must be YES or NO.');
+    }
+    if (!['YES', 'NO'].includes(resultRedFlag)) {
+      errors.push('Red Flag selection must be YES or NO.');
+    }
+    if (!['YES', 'NO'].includes(resultYellowFlag)) {
+      errors.push('Yellow Flag selection must be YES or NO.');
+    }
+
+    setValidationErrors(errors);
+    if (errors.length === 0) {
+      setIsValidated(true);
+      showToast(`✓ RESULT VALID — All 9 fields verified for ${selectedRound?.title || 'race'}.`, 'success');
+      return true;
+    } else {
+      setIsValidated(false);
+      showToast(errors[0], 'error');
+      return false;
+    }
+  };
+
   const handleSaveOfficialResult = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
+    if (!selectedRound) return;
+
+    const valid = handleValidateResult();
+    if (!valid) return;
+
     try {
       const payload: Record<string, any> = {
+        roundId: selectedRound.roundId,
+        season: selectedRoundWeekend?.season || 2026,
+        round: selectedRoundWeekend?.roundNumber || 1,
+        race: selectedRound.title,
         p1: resultP1,
         p2: resultP2,
         p3: resultP3,
+        fastestLap: resultFastestLap,
+        driverOfTheDay: resultDriverOfTheDay,
+        riderOfTheDay: resultDriverOfTheDay,
         safetyCar: resultSafetyCar,
         virtualSafetyCar: resultVirtualSafetyCar,
-        dnfs: Number(resultDnfs),
-        retirementsOverUnder: Number(resultDnfs) > 2.5 ? 'OVER_2_5' : 'UNDER_2_5',
+        redFlag: resultRedFlag,
+        yellowFlag: resultYellowFlag,
       };
-      if (resultFastestLap) payload.fastestLap = resultFastestLap;
-      if (resultDriverOfTheDay) payload.driverOfTheDay = resultDriverOfTheDay;
-      if (resultRedFlag) payload.redFlag = resultRedFlag;
-      if (resultYellowFlag) payload.yellowFlag = resultYellowFlag;
 
       const saved = await api.adminSubmitResult(selectedRoundId, payload);
       setOfficialResult(saved);
+      setIsResultSaved(true);
       setShowResultEntryModal(false);
-      showToast('Official Grand Prix results saved successfully.', 'success');
+      showToast('✓ RESULT SAVED — Marked ready for scoring pipeline.', 'success');
       await fetchPredictionsForRound(selectedRoundId);
     } catch (err: any) {
       showToast(err.message || 'Failed to save official results', 'error');
@@ -571,10 +654,6 @@ export const AdminDashboardPage: React.FC = () => {
       (e.userId && e.userId.toLowerCase().includes(q))
     );
   });
-
-  const selectedRound = rounds.find(r => r.roundId === selectedRoundId);
-  const selectedRoundWeekend = weekends.find(w => w.raceWeekendId === selectedRound?.raceWeekendId);
-  const selectedRoundIsSprint = selectedRound?.roundType === 'SPRINT' || selectedRound?.roundId.includes('SPRINT');
 
   return (
     <div className="container" style={{ padding: '3rem 1.25rem 5rem 1.25rem' }}>
@@ -933,7 +1012,7 @@ export const AdminDashboardPage: React.FC = () => {
             )}
           </div>
 
-          {/* Phase 11 Official Results Release & Scoring Workflow Card */}
+          {/* Section 1 & 8 Official Results Release & Scoring Pipeline Card */}
           <div
             className="race-card"
             style={{
@@ -946,14 +1025,27 @@ export const AdminDashboardPage: React.FC = () => {
             <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', marginBottom: '1.25rem' }}>
               <div>
                 <div style={{ fontSize: '0.72rem', fontWeight: 800, color: 'var(--f1-red)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-                  PHASE 11 • OFFICIAL RESULTS & SCORING PIPELINE
+                  MANUAL RACE RESULT ENTRY & SCORING PIPELINE
                 </div>
                 <h3 style={{ fontSize: '1.35rem', fontWeight: 900, textTransform: 'uppercase', color: '#ffffff', margin: '0.2rem 0 0 0' }}>
-                  Azerbaijan Grand Prix (Round 15 • Baku City Circuit)
+                  {selectedRoundWeekend?.raceName || selectedRound?.title || 'Selected Grand Prix'} (Round {selectedRoundWeekend?.roundNumber || '—'} • {getCircuitName(selectedRoundWeekend?.circuit) || 'Circuit'})
                 </h3>
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
+                  Category: <strong style={{ color: '#fff' }}>{isMotoGP ? 'MotoGP' : 'Formula 1'}</strong> • Competitor Role: <strong style={{ color: 'var(--telemetry-cyan)' }}>{competitorLabel}</strong>
+                </div>
               </div>
 
-              <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                {isValidated && (
+                  <span style={{ fontSize: '0.75rem', fontWeight: 800, padding: '0.3rem 0.65rem', borderRadius: '4px', background: 'rgba(0, 230, 118, 0.15)', color: 'var(--telemetry-green)', border: '1px solid rgba(0, 230, 118, 0.3)', fontFamily: 'var(--font-mono)' }}>
+                    ✓ RESULT VALID
+                  </span>
+                )}
+                {isResultSaved && (
+                  <span style={{ fontSize: '0.75rem', fontWeight: 800, padding: '0.3rem 0.65rem', borderRadius: '4px', background: 'rgba(0, 210, 255, 0.15)', color: 'var(--telemetry-cyan)', border: '1px solid rgba(0, 210, 255, 0.3)', fontFamily: 'var(--font-mono)' }}>
+                    ✓ RESULT SAVED
+                  </span>
+                )}
                 <span
                   style={{
                     padding: '0.35rem 0.85rem',
@@ -991,6 +1083,200 @@ export const AdminDashboardPage: React.FC = () => {
                   STATUS: {officialResult?.status === 'PUBLISHED' ? 'PUBLISHED' : telemetry.scoredCount > 0 ? 'SCORED' : officialResult ? 'RESULTS READY' : 'PENDING RESULTS'}
                 </span>
               </div>
+            </div>
+
+            {/* Recalculation Alert */}
+            {telemetry.scoredCount > 0 && (
+              <div style={{ padding: '0.75rem 1rem', borderRadius: '6px', background: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245, 158, 11, 0.3)', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#fbbf24', fontSize: '0.84rem' }}>
+                <AlertTriangle size={16} />
+                <span>Existing result found. Updating the result will recalculate affected scores. Result already processed ({telemetry.scoredCount} predictions scored).</span>
+              </div>
+            )}
+
+            {/* MANUAL RACE RESULT WORKFLOW FORM */}
+            <div style={{ marginBottom: '1.5rem', background: 'rgba(0, 0, 0, 0.25)', padding: '1.25rem', borderRadius: '8px', border: '1px solid var(--border-subtle)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+                <div style={{ fontSize: '0.78rem', fontWeight: 900, letterSpacing: '0.08em', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                  RACE RESULT ({competitorLabel.toUpperCase()} SELECTION & EVENT OUTCOMES)
+                </div>
+                <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                  ROUND ID: {selectedRoundId}
+                </div>
+              </div>
+
+              {/* 9 Canonical Result Entry Fields */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))', gap: '1rem' }}>
+                <div>
+                  <label className="field-label" style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, marginBottom: '0.35rem', color: '#ffb800' }}>
+                    🥇 P1 {competitorLabel.toUpperCase()}
+                  </label>
+                  <select
+                    value={resultP1}
+                    onChange={e => { setResultP1(e.target.value); setIsValidated(false); setIsResultSaved(false); }}
+                    className="input-field"
+                    style={{ width: '100%', fontWeight: 700 }}
+                  >
+                    <option value="">Select {competitorLabel}</option>
+                    {drivers.map(d => (
+                      <option key={d.id} value={d.id}>{d.firstName} {d.lastName} ({d.team})</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="field-label" style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, marginBottom: '0.35rem', color: '#ffb800' }}>
+                    🥈 P2 {competitorLabel.toUpperCase()}
+                  </label>
+                  <select
+                    value={resultP2}
+                    onChange={e => { setResultP2(e.target.value); setIsValidated(false); setIsResultSaved(false); }}
+                    className="input-field"
+                    style={{ width: '100%', fontWeight: 700 }}
+                  >
+                    <option value="">Select {competitorLabel}</option>
+                    {drivers.map(d => (
+                      <option key={d.id} value={d.id}>{d.firstName} {d.lastName} ({d.team})</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="field-label" style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, marginBottom: '0.35rem', color: '#ffb800' }}>
+                    🥉 P3 {competitorLabel.toUpperCase()}
+                  </label>
+                  <select
+                    value={resultP3}
+                    onChange={e => { setResultP3(e.target.value); setIsValidated(false); setIsResultSaved(false); }}
+                    className="input-field"
+                    style={{ width: '100%', fontWeight: 700 }}
+                  >
+                    <option value="">Select {competitorLabel}</option>
+                    {drivers.map(d => (
+                      <option key={d.id} value={d.id}>{d.firstName} {d.lastName} ({d.team})</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="field-label" style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, marginBottom: '0.35rem', color: '#b966ff' }}>
+                    ⚡ FASTEST LAP {competitorLabel.toUpperCase()}
+                  </label>
+                  <select
+                    value={resultFastestLap}
+                    onChange={e => { setResultFastestLap(e.target.value); setIsValidated(false); setIsResultSaved(false); }}
+                    className="input-field"
+                    style={{ width: '100%', fontWeight: 700 }}
+                  >
+                    <option value="">Select {competitorLabel}</option>
+                    {drivers.map(d => (
+                      <option key={d.id} value={d.id}>{d.firstName} {d.lastName} ({d.team})</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="field-label" style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, marginBottom: '0.35rem', color: '#00e676' }}>
+                    ⭐ {competitorLabel.toUpperCase()} OF THE DAY
+                  </label>
+                  <select
+                    value={resultDriverOfTheDay}
+                    onChange={e => { setResultDriverOfTheDay(e.target.value); setIsValidated(false); setIsResultSaved(false); }}
+                    className="input-field"
+                    style={{ width: '100%', fontWeight: 700 }}
+                  >
+                    <option value="">Select {competitorLabel}</option>
+                    {drivers.map(d => (
+                      <option key={d.id} value={d.id}>{d.firstName} {d.lastName} ({d.team})</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* 4 Boolean Events */}
+                <div>
+                  <label className="field-label" style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, marginBottom: '0.35rem' }}>
+                    SAFETY CAR DEPLOYED?
+                  </label>
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    {(['YES', 'NO'] as const).map(opt => (
+                      <button
+                        key={opt}
+                        type="button"
+                        onClick={() => { setResultSafetyCar(opt); setIsValidated(false); setIsResultSaved(false); }}
+                        className={`btn btn-sm ${resultSafetyCar === opt ? 'btn-primary' : 'btn-outline'}`}
+                        style={{ flex: 1, fontWeight: 800 }}
+                      >
+                        {opt}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="field-label" style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, marginBottom: '0.35rem' }}>
+                    VIRTUAL SAFETY CAR (VSC)?
+                  </label>
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    {(['YES', 'NO'] as const).map(opt => (
+                      <button
+                        key={opt}
+                        type="button"
+                        onClick={() => { setResultVirtualSafetyCar(opt); setIsValidated(false); setIsResultSaved(false); }}
+                        className={`btn btn-sm ${resultVirtualSafetyCar === opt ? 'btn-primary' : 'btn-outline'}`}
+                        style={{ flex: 1, fontWeight: 800 }}
+                      >
+                        {opt}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="field-label" style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, marginBottom: '0.35rem' }}>
+                    RED FLAG STOPPAGE?
+                  </label>
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    {(['YES', 'NO'] as const).map(opt => (
+                      <button
+                        key={opt}
+                        type="button"
+                        onClick={() => { setResultRedFlag(opt); setIsValidated(false); setIsResultSaved(false); }}
+                        className={`btn btn-sm ${resultRedFlag === opt ? 'btn-primary' : 'btn-outline'}`}
+                        style={{ flex: 1, fontWeight: 800 }}
+                      >
+                        {opt}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="field-label" style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, marginBottom: '0.35rem' }}>
+                    YELLOW FLAG CAUTION?
+                  </label>
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    {(['YES', 'NO'] as const).map(opt => (
+                      <button
+                        key={opt}
+                        type="button"
+                        onClick={() => { setResultYellowFlag(opt); setIsValidated(false); setIsResultSaved(false); }}
+                        className={`btn btn-sm ${resultYellowFlag === opt ? 'btn-primary' : 'btn-outline'}`}
+                        style={{ flex: 1, fontWeight: 800 }}
+                      >
+                        {opt}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Validation errors */}
+              {validationErrors.length > 0 && (
+                <div style={{ marginTop: '0.75rem', padding: '0.65rem 0.85rem', borderRadius: '6px', background: 'rgba(225, 6, 0, 0.1)', border: '1px solid rgba(225, 6, 0, 0.3)', color: '#ff6b6b', fontSize: '0.78rem' }}>
+                  {validationErrors.map((err, idx) => (
+                    <div key={idx}>⚠️ {err}</div>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Useful Telemetry Counters */}
@@ -1032,20 +1318,21 @@ export const AdminDashboardPage: React.FC = () => {
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', alignItems: 'center' }}>
               <button
                 type="button"
-                onClick={() => setShowResultEntryModal(true)}
+                onClick={handleValidateResult}
                 className="btn btn-outline"
-                style={{ fontWeight: 800, fontSize: '0.85rem' }}
+                style={{ fontWeight: 800, fontSize: '0.85rem', borderColor: isValidated ? 'var(--telemetry-green)' : undefined, color: isValidated ? 'var(--telemetry-green)' : undefined }}
               >
-                <FileText size={15} /> 1. Enter/Verify Results
+                <Check size={15} /> {isValidated ? '✓ RESULT VALID' : 'VALIDATE RESULT'}
               </button>
 
               <button
                 type="button"
                 onClick={() => handleSaveOfficialResult()}
+                disabled={!isValidated}
                 className="btn btn-outline"
-                style={{ fontWeight: 800, fontSize: '0.85rem' }}
+                style={{ fontWeight: 800, fontSize: '0.85rem', borderColor: isResultSaved ? 'var(--telemetry-cyan)' : undefined, color: isResultSaved ? 'var(--telemetry-cyan)' : undefined }}
               >
-                <Check size={15} /> 2. Save Results
+                <Save size={15} /> {isResultSaved ? '✓ RESULT SAVED' : 'SUBMIT RESULT'}
               </button>
 
               <button
@@ -1061,7 +1348,16 @@ export const AdminDashboardPage: React.FC = () => {
                 }}
               >
                 <Sparkles size={15} className={isScoring ? 'animate-spin' : ''} />
-                {isScoring ? 'Scoring Race...' : '3. Score Race'}
+                {isScoring ? 'Scoring Race...' : 'SCORE RACE'}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowResultEntryModal(true)}
+                className="btn btn-outline"
+                style={{ fontWeight: 800, fontSize: '0.85rem' }}
+              >
+                <FileText size={15} /> Open Result Modal
               </button>
 
               <button
@@ -1076,7 +1372,7 @@ export const AdminDashboardPage: React.FC = () => {
                   color: officialResult?.status === 'PUBLISHED' ? 'var(--telemetry-green)' : '#ffffff',
                 }}
               >
-                <Award size={15} /> 4. Publish Results
+                <Award size={15} /> Publish Results
               </button>
 
               <button
@@ -1087,7 +1383,7 @@ export const AdminDashboardPage: React.FC = () => {
                 style={{ fontWeight: 800, fontSize: '0.85rem' }}
               >
                 <Mail size={15} className={isProcessingQueue ? 'animate-spin' : ''} />
-                {isProcessingQueue ? 'Processing...' : '5. Process Result Emails'}
+                {isProcessingQueue ? 'Processing...' : 'Process Result Emails'}
               </button>
             </div>
           </div>
@@ -1842,7 +2138,7 @@ export const AdminDashboardPage: React.FC = () => {
           <div
             className="race-card animate-scale-in"
             style={{
-              maxWidth: '620px',
+              maxWidth: '680px',
               width: '100%',
               padding: '2rem',
               border: '1px solid rgba(225, 6, 0, 0.4)',
@@ -1854,12 +2150,14 @@ export const AdminDashboardPage: React.FC = () => {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
               <div>
                 <div style={{ fontSize: '0.72rem', fontWeight: 800, color: 'var(--f1-red)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-                  OFFICIAL RACE RESULT ENTRY
+                  MANUAL RACE RESULT ENTRY (MODAL)
                 </div>
                 <h3 style={{ fontSize: '1.35rem', fontWeight: 900, textTransform: 'uppercase', margin: '0.2rem 0 0 0', color: '#ffffff' }}>
-                  2026 Azerbaijan Grand Prix
+                  {selectedRoundWeekend?.raceName || selectedRound?.title || 'Selected Grand Prix'}
                 </h3>
-                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Round 15 • Baku City Circuit</div>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                  Round {selectedRoundWeekend?.roundNumber || '—'} • {getCircuitName(selectedRoundWeekend?.circuit) || 'Circuit'} • Category: {isMotoGP ? 'MotoGP' : 'F1'} ({competitorLabel})
+                </div>
               </div>
               <button
                 type="button"
@@ -1873,16 +2171,16 @@ export const AdminDashboardPage: React.FC = () => {
             <form onSubmit={handleSaveOfficialResult}>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem', marginBottom: '1.25rem' }}>
                 <div>
-                  <label className="field-label" style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, marginBottom: '0.4rem' }}>
-                    🥇 P1: RACE WINNER (REQUIRED)
+                  <label className="field-label" style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, marginBottom: '0.4rem', color: '#ffb800' }}>
+                    🥇 P1: {competitorLabel.toUpperCase()} WINNER
                   </label>
                   <select
                     value={resultP1}
-                    onChange={e => setResultP1(e.target.value)}
+                    onChange={e => { setResultP1(e.target.value); setIsValidated(false); setIsResultSaved(false); }}
                     className="input-field"
                     style={{ width: '100%', fontWeight: 700 }}
                   >
-                    <option value="russell">George Russell (Mercedes)</option>
+                    <option value="">Select {competitorLabel}</option>
                     {drivers.map(d => (
                       <option key={d.id} value={d.id}>{d.firstName} {d.lastName} ({d.team})</option>
                     ))}
@@ -1890,16 +2188,16 @@ export const AdminDashboardPage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="field-label" style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, marginBottom: '0.4rem' }}>
-                    🥈 P2: RUNNER-UP (REQUIRED)
+                  <label className="field-label" style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, marginBottom: '0.4rem', color: '#ffb800' }}>
+                    🥈 P2: {competitorLabel.toUpperCase()} RUNNER-UP
                   </label>
                   <select
                     value={resultP2}
-                    onChange={e => setResultP2(e.target.value)}
+                    onChange={e => { setResultP2(e.target.value); setIsValidated(false); setIsResultSaved(false); }}
                     className="input-field"
                     style={{ width: '100%', fontWeight: 700 }}
                   >
-                    <option value="verstappen">Max Verstappen (Red Bull Racing)</option>
+                    <option value="">Select {competitorLabel}</option>
                     {drivers.map(d => (
                       <option key={d.id} value={d.id}>{d.firstName} {d.lastName} ({d.team})</option>
                     ))}
@@ -1907,16 +2205,50 @@ export const AdminDashboardPage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="field-label" style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, marginBottom: '0.4rem' }}>
-                    🥉 P3: THIRD PLACE (REQUIRED)
+                  <label className="field-label" style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, marginBottom: '0.4rem', color: '#ffb800' }}>
+                    🥉 P3: {competitorLabel.toUpperCase()} THIRD PLACE
                   </label>
                   <select
                     value={resultP3}
-                    onChange={e => setResultP3(e.target.value)}
+                    onChange={e => { setResultP3(e.target.value); setIsValidated(false); setIsResultSaved(false); }}
                     className="input-field"
                     style={{ width: '100%', fontWeight: 700 }}
                   >
-                    <option value="hadjar">Isack Hadjar (Racing Bulls)</option>
+                    <option value="">Select {competitorLabel}</option>
+                    {drivers.map(d => (
+                      <option key={d.id} value={d.id}>{d.firstName} {d.lastName} ({d.team})</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="field-label" style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, marginBottom: '0.4rem', color: '#b966ff' }}>
+                    ⚡ FASTEST LAP {competitorLabel.toUpperCase()}
+                  </label>
+                  <select
+                    value={resultFastestLap}
+                    onChange={e => { setResultFastestLap(e.target.value); setIsValidated(false); setIsResultSaved(false); }}
+                    className="input-field"
+                    style={{ width: '100%', fontWeight: 700 }}
+                  >
+                    <option value="">Select {competitorLabel}</option>
+                    {drivers.map(d => (
+                      <option key={d.id} value={d.id}>{d.firstName} {d.lastName} ({d.team})</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="field-label" style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, marginBottom: '0.4rem', color: '#00e676' }}>
+                    ⭐ {competitorLabel.toUpperCase()} OF THE DAY
+                  </label>
+                  <select
+                    value={resultDriverOfTheDay}
+                    onChange={e => { setResultDriverOfTheDay(e.target.value); setIsValidated(false); setIsResultSaved(false); }}
+                    className="input-field"
+                    style={{ width: '100%', fontWeight: 700 }}
+                  >
+                    <option value="">Select {competitorLabel}</option>
                     {drivers.map(d => (
                       <option key={d.id} value={d.id}>{d.firstName} {d.lastName} ({d.team})</option>
                     ))}
@@ -1925,85 +2257,91 @@ export const AdminDashboardPage: React.FC = () => {
 
                 <div>
                   <label className="field-label" style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, marginBottom: '0.4rem' }}>
-                    SAFETY CAR DEPLOYED? (CONFIRMED)
+                    SAFETY CAR DEPLOYED?
                   </label>
-                  <select
-                    value={resultSafetyCar}
-                    onChange={e => setResultSafetyCar(e.target.value)}
-                    className="input-field"
-                    style={{ width: '100%', fontWeight: 700 }}
-                  >
-                    <option value="YES">YES — Full Safety Car Deployed</option>
-                    <option value="NO">NO — No Safety Car</option>
-                  </select>
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    {(['YES', 'NO'] as const).map(opt => (
+                      <button
+                        key={opt}
+                        type="button"
+                        onClick={() => { setResultSafetyCar(opt); setIsValidated(false); setIsResultSaved(false); }}
+                        className={`btn btn-sm ${resultSafetyCar === opt ? 'btn-primary' : 'btn-outline'}`}
+                        style={{ flex: 1, fontWeight: 800 }}
+                      >
+                        {opt}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
                 <div>
                   <label className="field-label" style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, marginBottom: '0.4rem' }}>
-                    VIRTUAL SAFETY CAR (VSC)? (CONFIRMED)
+                    VIRTUAL SAFETY CAR (VSC)?
                   </label>
-                  <select
-                    value={resultVirtualSafetyCar}
-                    onChange={e => setResultVirtualSafetyCar(e.target.value)}
-                    className="input-field"
-                    style={{ width: '100%', fontWeight: 700 }}
-                  >
-                    <option value="NO">NO — No VSC Period</option>
-                    <option value="YES">YES — VSC Deployed</option>
-                  </select>
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    {(['YES', 'NO'] as const).map(opt => (
+                      <button
+                        key={opt}
+                        type="button"
+                        onClick={() => { setResultVirtualSafetyCar(opt); setIsValidated(false); setIsResultSaved(false); }}
+                        className={`btn btn-sm ${resultVirtualSafetyCar === opt ? 'btn-primary' : 'btn-outline'}`}
+                        style={{ flex: 1, fontWeight: 800 }}
+                      >
+                        {opt}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
                 <div>
                   <label className="field-label" style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, marginBottom: '0.4rem' }}>
-                    TOTAL RACE DNFS (CONFIRMED)
+                    RED FLAG STOPPAGE?
                   </label>
-                  <input
-                    type="number"
-                    value={resultDnfs}
-                    onChange={e => setResultDnfs(Number(e.target.value))}
-                    className="input-field"
-                    style={{ width: '100%', fontWeight: 700 }}
-                  />
-                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
-                    Maps to: {Number(resultDnfs) > 2.5 ? 'OVER 2.5 Retirements' : 'UNDER 2.5 Retirements'}
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    {(['YES', 'NO'] as const).map(opt => (
+                      <button
+                        key={opt}
+                        type="button"
+                        onClick={() => { setResultRedFlag(opt); setIsValidated(false); setIsResultSaved(false); }}
+                        className={`btn btn-sm ${resultRedFlag === opt ? 'btn-primary' : 'btn-outline'}`}
+                        style={{ flex: 1, fontWeight: 800 }}
+                      >
+                        {opt}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="field-label" style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, marginBottom: '0.4rem' }}>
+                    YELLOW FLAG CAUTION?
+                  </label>
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    {(['YES', 'NO'] as const).map(opt => (
+                      <button
+                        key={opt}
+                        type="button"
+                        onClick={() => { setResultYellowFlag(opt); setIsValidated(false); setIsResultSaved(false); }}
+                        className={`btn btn-sm ${resultYellowFlag === opt ? 'btn-primary' : 'btn-outline'}`}
+                        style={{ flex: 1, fontWeight: 800 }}
+                      >
+                        {opt}
+                      </button>
+                    ))}
                   </div>
                 </div>
               </div>
 
-              {/* Unprovided Fields Section */}
-              <div style={{ background: 'rgba(255, 255, 255, 0.03)', padding: '1rem', borderRadius: '6px', border: '1px solid var(--border-subtle)', marginBottom: '1.5rem' }}>
-                <div style={{ fontSize: '0.72rem', fontWeight: 800, color: 'var(--telemetry-yellow)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '0.5rem' }}>
-                  OPTIONAL PREDICTION FIELDS • NOT PROVIDED BY RACE CONTROL
+              {/* Validation errors */}
+              {validationErrors.length > 0 && (
+                <div style={{ marginBottom: '1.25rem', padding: '0.65rem 0.85rem', borderRadius: '6px', background: 'rgba(225, 6, 0, 0.1)', border: '1px solid rgba(225, 6, 0, 0.3)', color: '#ff6b6b', fontSize: '0.78rem' }}>
+                  {validationErrors.map((err, idx) => (
+                    <div key={idx}>⚠️ {err}</div>
+                  ))}
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.75rem' }}>
-                  <div>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Fastest Lap:</span>
-                    <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontWeight: 700 }}>
-                      REQUIRED / NOT PROVIDED (0 PTS)
-                    </div>
-                  </div>
-                  <div>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Driver of the Day:</span>
-                    <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontWeight: 700 }}>
-                      NOT PROVIDED (0 PTS)
-                    </div>
-                  </div>
-                  <div>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Red Flag Stoppage:</span>
-                    <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontWeight: 700 }}>
-                      NOT PROVIDED (0 PTS)
-                    </div>
-                  </div>
-                  <div>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Yellow Flag Caution:</span>
-                    <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontWeight: 700 }}>
-                      NOT PROVIDED (0 PTS)
-                    </div>
-                  </div>
-                </div>
-              </div>
+              )}
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', flexWrap: 'wrap' }}>
                 <button
                   type="button"
                   onClick={() => setShowResultEntryModal(false)}
@@ -2012,14 +2350,23 @@ export const AdminDashboardPage: React.FC = () => {
                   Cancel
                 </button>
                 <button
+                  type="button"
+                  onClick={handleValidateResult}
+                  className="btn btn-outline"
+                  style={{ fontWeight: 800, borderColor: isValidated ? 'var(--telemetry-green)' : undefined, color: isValidated ? 'var(--telemetry-green)' : undefined }}
+                >
+                  <Check size={15} /> {isValidated ? '✓ RESULT VALID' : 'VALIDATE RESULT'}
+                </button>
+                <button
                   type="submit"
+                  disabled={!isValidated}
                   className="btn btn-primary"
                   style={{
                     background: 'linear-gradient(135deg, var(--f1-red), #990000)',
                     fontWeight: 900,
                   }}
                 >
-                  Save Official Results
+                  <Save size={15} /> {isResultSaved ? '✓ RESULT SAVED' : 'SAVE OFFICIAL RESULTS'}
                 </button>
               </div>
             </form>
@@ -2087,7 +2434,8 @@ export const AdminDashboardPage: React.FC = () => {
                 { label: 'P3 Third Place = Isack Hadjar (hadjar)', verified: resultP3 === 'hadjar' },
                 { label: 'Safety Car Deployed = YES', verified: resultSafetyCar === 'YES' },
                 { label: 'Virtual Safety Car (VSC) = NO', verified: resultVirtualSafetyCar === 'NO' },
-                { label: 'Total Race DNFs = 7 (retirementsOverUnder = OVER_2_5)', verified: Number(resultDnfs) === 7 },
+                { label: 'Red Flag Stoppage = NO', verified: resultRedFlag === 'NO' },
+                { label: 'Yellow Flag Caution = YES', verified: resultYellowFlag === 'YES' },
                 { label: 'All required scoring fields present (P1, P2, P3 verified; unprovided marked NOT PROVIDED)', verified: Boolean(resultP1 && resultP2 && resultP3) },
                 { label: `Locked predictions exist (${telemetry.lockedCount} unique community predictions)`, verified: telemetry.lockedCount > 0 },
                 { label: 'No duplicate prediction records detected (deduplicated by racer)', verified: true },

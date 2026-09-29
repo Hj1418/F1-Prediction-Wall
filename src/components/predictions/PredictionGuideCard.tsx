@@ -78,7 +78,7 @@ export const PredictionGuideCard: React.FC<PredictionGuideCardProps> = ({
               color: 'var(--telemetry-green)',
             }}
           >
-            MAX 95 PTS / SESSION
+            MAX 55 PTS / RACE
           </span>
 
           {collapsible && (
@@ -139,7 +139,7 @@ export const PredictionGuideCard: React.FC<PredictionGuideCardProps> = ({
           {/* Section 2: Scoring Matrix */}
           <div>
             <div style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--telemetry-green)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-              <Zap size={14} /> 2. Official Points Scoring Matrix
+              <Zap size={14} /> 2. Official Points Scoring Matrix (55 PTS Max)
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
@@ -160,7 +160,7 @@ export const PredictionGuideCard: React.FC<PredictionGuideCardProps> = ({
                   <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Exact P1 race winner</div>
                 </div>
                 <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 900, color: '#eab308', fontSize: '1.15rem' }}>
-                  +15 PTS
+                  +10 PTS
                 </div>
               </div>
 
@@ -181,7 +181,7 @@ export const PredictionGuideCard: React.FC<PredictionGuideCardProps> = ({
                   <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Exact 2nd place finisher</div>
                 </div>
                 <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 900, color: '#cbd5e1', fontSize: '1.15rem' }}>
-                  +10 PTS
+                  +7 PTS
                 </div>
               </div>
 
@@ -202,7 +202,7 @@ export const PredictionGuideCard: React.FC<PredictionGuideCardProps> = ({
                   <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Exact 3rd place finisher</div>
                 </div>
                 <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 900, color: '#d97706', fontSize: '1.15rem' }}>
-                  +10 PTS
+                  +5 PTS
                 </div>
               </div>
 
@@ -223,7 +223,28 @@ export const PredictionGuideCard: React.FC<PredictionGuideCardProps> = ({
                   <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Exact fastest lap setter</div>
                 </div>
                 <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 900, color: 'var(--telemetry-purple)', fontSize: '1.15rem' }}>
-                  +10 PTS
+                  +7 PTS
+                </div>
+              </div>
+
+              {/* Driver/Rider of the Day */}
+              <div
+                style={{
+                  background: 'var(--bg-surface-elevated)',
+                  border: '1px solid rgba(0, 230, 118, 0.3)',
+                  borderRadius: 'var(--radius-md)',
+                  padding: '0.85rem 1rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                }}
+              >
+                <div>
+                  <div style={{ fontWeight: 800, color: '#ffffff', fontSize: '0.88rem' }}>⭐ Driver/Rider of Day</div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Official fan-voted award</div>
+                </div>
+                <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 900, color: 'var(--telemetry-green)', fontSize: '1.15rem' }}>
+                  +7 PTS
                 </div>
               </div>
 
@@ -244,7 +265,7 @@ export const PredictionGuideCard: React.FC<PredictionGuideCardProps> = ({
                   <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Full Bernd Mayländer SC deployed</div>
                 </div>
                 <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 900, color: '#ffcc00', fontSize: '1.15rem' }}>
-                  +10 PTS
+                  +5 PTS
                 </div>
               </div>
 
@@ -265,7 +286,7 @@ export const PredictionGuideCard: React.FC<PredictionGuideCardProps> = ({
                   <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>VSC delta restriction period</div>
                 </div>
                 <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 900, color: '#ff9800', fontSize: '1.15rem' }}>
-                  +10 PTS
+                  +5 PTS
                 </div>
               </div>
 
@@ -286,7 +307,7 @@ export const PredictionGuideCard: React.FC<PredictionGuideCardProps> = ({
                   <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Session suspended / red flagged</div>
                 </div>
                 <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 900, color: '#ff3b30', fontSize: '1.15rem' }}>
-                  +10 PTS
+                  +5 PTS
                 </div>
               </div>
 
@@ -307,7 +328,7 @@ export const PredictionGuideCard: React.FC<PredictionGuideCardProps> = ({
                   <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Sector or full course yellow flag</div>
                 </div>
                 <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 900, color: '#eab308', fontSize: '1.15rem' }}>
-                  +10 PTS
+                  +4 PTS
                 </div>
               </div>
             </div>
@@ -338,11 +359,11 @@ export const PredictionGuideCard: React.FC<PredictionGuideCardProps> = ({
                   <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Driver finishes in top 3 in different slot</div>
                 </div>
                 <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 900, color: 'var(--telemetry-green)', fontSize: '1.1rem' }}>
-                  +5 PTS <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>/ each</span>
+                  +3 PTS <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>/ each</span>
                 </div>
               </div>
 
-              {/* Perfect Podium Bonus */}
+              {/* Maximum Score */}
               <div
                 style={{
                   background: 'rgba(234, 179, 8, 0.08)',
@@ -356,12 +377,12 @@ export const PredictionGuideCard: React.FC<PredictionGuideCardProps> = ({
               >
                 <div>
                   <div style={{ fontWeight: 800, color: '#eab308', fontSize: '0.88rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                    <Sparkles size={15} /> PERFECT PODIUM BONUS
+                    <Sparkles size={15} /> MAXIMUM ACTIVE SCORE
                   </div>
-                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>P1, P2, and P3 all exactly correct!</div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Total possible weekend prediction points</div>
                 </div>
                 <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 900, color: '#eab308', fontSize: '1.15rem' }}>
-                  +10 PTS
+                  55 PTS MAX
                 </div>
               </div>
             </div>
