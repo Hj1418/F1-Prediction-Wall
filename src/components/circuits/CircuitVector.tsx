@@ -84,14 +84,53 @@ export const CircuitVector: React.FC<CircuitVectorProps> = ({
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: '0.4rem',
-            color: 'var(--text-muted, #94a3b8)',
-            fontSize: '0.8rem',
-            fontFamily: 'var(--font-mono, monospace)',
+            textAlign: 'center',
+            gap: '0.5rem',
+            padding: '1rem',
+            maxWidth: '280px',
+            zIndex: 1,
           }}
         >
-          <Compass size={24} style={{ opacity: 0.4 }} />
-          <span>Vector layout preview</span>
+          <div
+            style={{
+              width: variant === 'compact' ? '28px' : '42px',
+              height: variant === 'compact' ? '28px' : '42px',
+              borderRadius: '50%',
+              backgroundColor: 'rgba(255, 255, 255, 0.03)',
+              border: '1px dashed rgba(255, 255, 255, 0.18)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'var(--text-muted, #94a3b8)',
+              boxShadow: 'inset 0 0 12px rgba(0, 240, 255, 0.04)',
+            }}
+          >
+            <Compass size={variant === 'compact' ? 14 : 20} style={{ opacity: 0.7 }} />
+          </div>
+          <div
+            style={{
+              fontSize: variant === 'compact' ? '0.62rem' : '0.72rem',
+              fontWeight: 800,
+              fontFamily: 'var(--font-mono, monospace)',
+              letterSpacing: '0.06em',
+              color: 'var(--text-secondary, #cbd5e1)',
+              textTransform: 'uppercase',
+            }}
+          >
+            Diagram Pending Verification
+          </div>
+          {variant !== 'compact' && (
+            <div
+              style={{
+                fontSize: '0.66rem',
+                color: 'var(--text-muted, #64748b)',
+                lineHeight: 1.35,
+                fontFamily: 'system-ui, sans-serif',
+              }}
+            >
+              Authoritative vector geometry under audit
+            </div>
+          )}
         </div>
       )}
 

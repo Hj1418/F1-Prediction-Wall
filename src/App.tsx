@@ -59,6 +59,7 @@ const AppLayout: React.FC = () => {
             <Route path="/weekends/:raceWeekendId" element={<WeekendDashboardPage />} />
             <Route path="/learn" element={<Navigate to="/explore" replace />} />
             <Route path="/explore" element={<ChampionshipsPage />} />
+            <Route path="/explore/indian-motorsport" element={<IndianMotorsportPage />} />
             <Route path="/explore/:championshipId" element={<ChampionshipDetailPage />} />
             <Route path="/explore/:championshipId/circuits/:circuitId" element={<CircuitsPage />} />
             <Route path="/championships" element={<Navigate to="/explore" replace />} />

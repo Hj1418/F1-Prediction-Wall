@@ -100,8 +100,8 @@ assert.strictEqual(resolveCircuitId('Autodromo Nazionale Monza'), 'monza');
 pass('resolveCircuitId reuses existing circuitRegistry and accurately resolves Buddh & Melbourne');
 
 // Ensure local SVG asset mapping is preserved
-assert(CIRCUIT_SOURCE_MAPPING.buddh, 'CIRCUIT_SOURCE_MAPPING must include buddh');
-assert.strictEqual(CIRCUIT_SOURCE_MAPPING.buddh.assetFile, 'buddh.svg');
+assert(CIRCUIT_SOURCE_MAPPING.monza, 'CIRCUIT_SOURCE_MAPPING must include monza');
+assert.strictEqual(CIRCUIT_SOURCE_MAPPING.monza.assetFile, 'monza.svg');
 assert(F1_CIRCUITS_REGISTRY.buddh, 'F1_CIRCUITS_REGISTRY must contain buddh');
 pass('Local circuit SVG vectors are preserved without competing registry');
 

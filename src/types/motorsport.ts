@@ -50,7 +50,17 @@ export interface Championship {
   name: string;
   shortName: string;
   category: MotorsportCategoryId;
-  tier: 'Premier World Championship' | 'Feeder Ladder' | 'Endurance & SportsCar' | 'Electric Innovation' | 'Off-Road Rally' | 'Premier Motorcycle' | 'National Championship';
+  tier:
+    | 'Premier World Championship'
+    | 'Feeder Ladder'
+    | 'Endurance & SportsCar'
+    | 'Electric Innovation'
+    | 'Off-Road Rally'
+    | 'Premier Motorcycle'
+    | 'Intermediate Motorcycle Championship'
+    | 'Junior Motorcycle World Championship'
+    | 'National Championship'
+    | (string & {});
   governingBody: string;
   tagline: string;
   badgeColor: string;

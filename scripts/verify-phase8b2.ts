@@ -34,7 +34,7 @@ test('Buddh International Circuit exists in F1_CIRCUITS_REGISTRY', () => {
   assert.strictEqual(buddh.turns, 16);
   assert.strictEqual(buddh.lapRecord.time, '1:27.249');
   assert.strictEqual(buddh.lapRecord.driver, 'Sebastian Vettel');
-  assert.ok(typeof buddh.map === 'string' && buddh.map.includes('buddh.svg'));
+  assert.ok(!buddh.map || buddh.map === '', 'Buddh map must not point to unverified fake SVG per Section 31');
   assert.ok(buddh.facts.some(f => (f.title + ' ' + f.description).includes('MotoGP')));
   assert.ok(buddh.facts.some(f => (f.title + ' ' + f.description).includes('F4')));
 });
@@ -44,8 +44,8 @@ test('MOTORSPORT_CIRCUITS_REGISTRY is aliased to F1_CIRCUITS_REGISTRY and contai
   assert.ok(MOTORSPORT_CIRCUITS_REGISTRY['buddh']);
 });
 
-test('CIRCUIT_SOURCE_MAPPING includes buddh pointing to circuits/buddh.svg', () => {
-  assert.strictEqual(CIRCUIT_SOURCE_MAPPING['buddh'].assetFile, 'buddh.svg');
+test('CIRCUIT_SOURCE_MAPPING excludes unverified buddh SVG asset per Section 31', () => {
+  assert.strictEqual(CIRCUIT_SOURCE_MAPPING['buddh'], undefined);
 });
 
 test('normalizeCircuitId correctly maps buddh and greater_noida variants', () => {
@@ -82,15 +82,10 @@ test('CROSS_CHAMPIONSHIP_VENUES includes Silverstone, Monaco, Losail, and COTA',
   assert.ok(CROSS_CHAMPIONSHIP_VENUES['barcelona']);
 });
 
-// 3. Buddh SVG Vector Asset
-test('public/circuits/buddh.svg exists and is valid SVG vector data', () => {
+// 3. Section 31 Audit: Intentional Pending Diagram State
+test('Unverified approximate SVGs like buddh.svg are excluded per Section 31', () => {
   const svgPath = path.resolve(process.cwd(), 'public/circuits/buddh.svg');
-  assert.ok(fs.existsSync(svgPath), 'buddh.svg must exist in public/circuits/');
-  const content = fs.readFileSync(svgPath, 'utf8');
-  assert.ok(content.includes('<svg'), 'buddh.svg must have <svg> tag');
-  assert.ok(content.includes('<path'), 'buddh.svg must have track path definition');
-  assert.ok(content.includes('viewBox='), 'buddh.svg must have viewBox');
-  assert.ok(content.length > 500, 'buddh.svg should have substantial vector track data');
+  assert.ok(!fs.existsSync(svgPath), 'Unverified approximate buddh.svg must not exist per Section 31');
 });
 
 // 4. CircuitsPage.tsx verification

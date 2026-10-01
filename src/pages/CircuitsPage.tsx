@@ -99,7 +99,9 @@ export const CircuitsPage: React.FC = () => {
   // =========================================================================
   if (activeCircuit && currentLayout) {
     const isAntiClockwise = currentLayout.direction === 'Anti-Clockwise';
-    const crossHostings = activeCircuit.championships;
+    const crossHostings = championshipId
+      ? activeCircuit.championships.filter(ch => ch.championshipId === championshipId)
+      : activeCircuit.championships;
 
     return (
       <div className="circuit-detail-page" style={{ maxWidth: '1280px', margin: '0 auto', padding: '2rem 1rem 5rem' }}>
@@ -166,7 +168,7 @@ export const CircuitsPage: React.FC = () => {
           {/* Track Visualization with Direction & Multi-Layout Switcher */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             <CircuitVector
-              mapSvg={currentLayout.mapSvg || `${activeCircuit.circuitId}.svg`}
+              mapSvg={currentLayout.mapSvg}
               name={`${activeCircuit.name} - ${currentLayout.name}`}
               direction={currentLayout.direction}
               lengthKm={currentLayout.lengthKm}
@@ -527,11 +529,11 @@ export const CircuitsPage: React.FC = () => {
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#3b82f6', marginBottom: '0.5rem' }}>
                 <Trophy size={16} />
                 <span style={{ fontSize: '0.78rem', fontWeight: 800, fontFamily: 'var(--font-mono, monospace)', textTransform: 'uppercase' }}>
-                  GLOBAL MOTORSPORT HOSTING
+                  {championshipId ? `${championshipId.toUpperCase()} CALENDAR FIXTURE` : 'GLOBAL MOTORSPORT HOSTING'}
                 </span>
               </div>
               <h2 style={{ fontSize: '1.35rem', fontWeight: 800, margin: '0 0 1rem 0', color: '#ffffff' }}>
-                Hosted Series & Rounds
+                {championshipId ? 'Championship Round Context' : 'Hosted Series & Rounds'}
               </h2>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>

@@ -289,9 +289,10 @@ async function runTests() {
     assert(Boolean(leMans), 'WEC calendar features 24 Hours of Le Mans');
     assert(Boolean(leMans?.duration?.includes('24 Hours')), '24 Hours of Le Mans duration specifies 24 Hours');
     
-    // Test Qatar round duration
-    const qatar = wecDetail.rounds.find(r => r.officialTitle.includes('Qatar'));
-    assert(qatar?.duration?.includes('1812 km'), 'Qatar round duration specifies 1812 km');
+    // Test Barcelona round duration (official amended 2026 WEC programme)
+    const barcelona = wecDetail.rounds.find(r => r.officialTitle.includes('Barcelona'));
+    assert(Boolean(barcelona), 'WEC calendar features 6 Hours of Barcelona');
+    assert(Boolean(barcelona?.duration?.includes('6 Hours')), 'Barcelona round duration specifies 6 Hours');
 
     // Test Multi-Class Teams & Car Models
     assert(wecDetail.teamsStandings.length >= 12, `WEC has comprehensive team grid (got ${wecDetail.teamsStandings.length})`);
@@ -387,7 +388,7 @@ async function runTests() {
     const jwrc = wrcDetail.classes?.find(c => c.name === 'Junior WRC');
     assert(Boolean(rally1 && wrc2 && jwrc), 'All 3 rally tiers (Rally1, WRC2, Junior WRC) are defined');
 
-    assert(wrcDetail.rounds.length === 13, `WRC has 13 official calendar rounds (got ${wrcDetail.rounds.length})`);
+    assert(wrcDetail.rounds.length === 14, `WRC has 14 official calendar rounds (got ${wrcDetail.rounds.length})`);
 
     // Test surface variety
     const surfaces = new Set(wrcDetail.rounds.map(r => r.surface));
@@ -454,7 +455,7 @@ async function runTests() {
     const moto3 = motogpDetail.classes?.find(c => c.name === 'Moto3');
     assert(Boolean(premier && moto2 && moto3), 'All 3 motorcycle Grand Prix tiers (MotoGP, Moto2, Moto3) are defined');
 
-    assert(motogpDetail.rounds.length === 20, `MotoGP has 20 official calendar rounds (got ${motogpDetail.rounds.length})`);
+    assert(motogpDetail.rounds.length === 22, `MotoGP has 22 official calendar rounds (got ${motogpDetail.rounds.length})`);
 
     // Test Tissot Sprint and Grand Prix dual-race format in sessions
     const lusail = motogpDetail.rounds.find(r => r.officialTitle.includes('Qatar'));
@@ -464,13 +465,11 @@ async function runTests() {
     assert(Boolean(sprintSession), 'Qatar round features Saturday Tissot Sprint session');
     assert(Boolean(gpSession), 'Qatar round features Sunday Grand Prix session');
 
-    // Test Grand Prix of India
-    const gpIndia = motogpDetail.rounds.find(r => r.officialTitle.includes('India'));
-    assert(Boolean(gpIndia), 'MotoGP calendar includes Grand Prix of India at Buddh International Circuit');
-    if (gpIndia) {
-      assert(gpIndia.circuitName.includes('Buddh International Circuit'), 'Indian round is held at Buddh International Circuit');
-      assert(gpIndia.duration?.includes('1.06 km Straight'), 'Indian round highlights the 1.06 km back straight');
-    }
+    // Test Season Opener and Historic Return in 2026
+    const thailand = motogpDetail.rounds.find(r => r.officialTitle.includes('Thailand'));
+    assert(Boolean(thailand), 'MotoGP calendar features Thailand Grand Prix season opener');
+    const czechia = motogpDetail.rounds.find(r => r.officialTitle.includes('Czech') || r.circuitName.includes('Brno'));
+    assert(Boolean(czechia), 'MotoGP calendar features Czech Republic Grand Prix return at Brno');
 
     // Test Top Speed and Technical Specs
     assert(motogpDetail.technicalSpecs.topSpeed.includes('366.1 km/h'), 'MotoGP specifies 366.1 km/h all-time speed record');

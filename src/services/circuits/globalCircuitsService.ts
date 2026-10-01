@@ -9,8 +9,75 @@
  */
 
 import { CircuitEntity, CircuitLayout } from '../../types/circuit';
-import { CIRCUIT_SOURCE_MAPPING, F1_CIRCUITS_REGISTRY, getCircuitAssetUrl } from './circuitRegistry';
+import { CIRCUIT_SOURCE_MAPPING, F1_CIRCUITS_REGISTRY, getCircuitAssetUrl, normalizeCircuitId } from './circuitRegistry';
 import { getCrossChampionshipHostings } from './crossChampionshipVenues';
+import { ChampionshipRound } from '../../types/motorsportDetail';
+import { f1Data } from '../motorsport/data/f1Data';
+import { f2Data } from '../motorsport/data/f2Data';
+import { f3Data } from '../motorsport/data/f3Data';
+import { f4Data } from '../motorsport/data/f4Data';
+import { motogpData } from '../motorsport/data/motogpData';
+import { moto2Data } from '../motorsport/data/moto2Data';
+import { moto3Data } from '../motorsport/data/moto3Data';
+import { wecData } from '../motorsport/data/wecData';
+import { formulaEData } from '../motorsport/data/formulaEData';
+import { wrcData } from '../motorsport/data/wrcData';
+import { nascarData } from '../motorsport/data/nascarData';
+import { indycarData } from '../motorsport/data/indycarData';
+import { gtWorldChallengeData } from '../motorsport/data/gtWorldChallengeData';
+import { imsaData } from '../motorsport/data/imsaData';
+import { indianMotorsportData } from '../motorsport/data/indianMotorsportData';
+
+export const VERIFIED_CIRCUIT_SVGS = new Set([
+  'albert-park.svg',
+  'albert_park.svg',
+  'bahrain.svg',
+  'baku.svg',
+  'barcelona.svg',
+  'cota.svg',
+  'hungaroring.svg',
+  'imola.svg',
+  'interlagos.svg',
+  'jeddah.svg',
+  'las-vegas.svg',
+  'las_vegas.svg',
+  'losail.svg',
+  'madrid.svg',
+  'madring.svg',
+  'mexico.svg',
+  'miami.svg',
+  'monaco.svg',
+  'montreal.svg',
+  'monza.svg',
+  'red-bull-ring.svg',
+  'red_bull_ring.svg',
+  'sepang.svg',
+  'shanghai.svg',
+  'silverstone.svg',
+  'singapore.svg',
+  'spa.svg',
+  'suzuka.svg',
+  'yas-marina.svg',
+  'yas_marina.svg',
+  'zandvoort.svg',
+]);
+
+const CHAMPIONSHIP_STATIC_DATA_MAP: Record<string, { rounds?: ChampionshipRound[]; name: string; shortName: string; heroBadgeColor: string }> = {
+  f1: { rounds: f1Data.rounds, name: f1Data.name, shortName: f1Data.shortName, heroBadgeColor: f1Data.heroBadgeColor },
+  f2: { rounds: f2Data.rounds, name: f2Data.name, shortName: f2Data.shortName, heroBadgeColor: f2Data.heroBadgeColor },
+  f3: { rounds: f3Data.rounds, name: f3Data.name, shortName: f3Data.shortName, heroBadgeColor: f3Data.heroBadgeColor },
+  f4: { rounds: f4Data.rounds, name: f4Data.name, shortName: f4Data.shortName, heroBadgeColor: f4Data.heroBadgeColor },
+  motogp: { rounds: motogpData.rounds, name: motogpData.name, shortName: motogpData.shortName, heroBadgeColor: motogpData.heroBadgeColor },
+  moto2: { rounds: moto2Data.rounds, name: moto2Data.name, shortName: moto2Data.shortName, heroBadgeColor: moto2Data.heroBadgeColor },
+  moto3: { rounds: moto3Data.rounds, name: moto3Data.name, shortName: moto3Data.shortName, heroBadgeColor: moto3Data.heroBadgeColor },
+  wec: { rounds: wecData.rounds, name: wecData.name, shortName: wecData.shortName, heroBadgeColor: wecData.heroBadgeColor },
+  'formula-e': { rounds: formulaEData.rounds, name: formulaEData.name, shortName: formulaEData.shortName, heroBadgeColor: formulaEData.heroBadgeColor },
+  wrc: { rounds: wrcData.rounds, name: wrcData.name, shortName: wrcData.shortName, heroBadgeColor: wrcData.heroBadgeColor },
+  nascar: { rounds: nascarData.rounds, name: nascarData.name, shortName: nascarData.shortName, heroBadgeColor: nascarData.heroBadgeColor },
+  indycar: { rounds: indycarData.rounds, name: indycarData.name, shortName: indycarData.shortName, heroBadgeColor: indycarData.heroBadgeColor },
+  'gt-world-challenge': { rounds: gtWorldChallengeData.rounds, name: gtWorldChallengeData.name, shortName: gtWorldChallengeData.shortName, heroBadgeColor: gtWorldChallengeData.heroBadgeColor },
+  imsa: { rounds: imsaData.rounds, name: imsaData.name, shortName: imsaData.shortName, heroBadgeColor: imsaData.heroBadgeColor },
+};
 
 export const GLOBAL_CIRCUITS: Record<string, CircuitEntity> = {
   // =========================================================================
@@ -177,7 +244,6 @@ export const GLOBAL_CIRCUITS: Record<string, CircuitEntity> = {
         turns: 38,
         direction: 'Clockwise',
         type: 'Semi-Permanent',
-        mapSvg: 'lemans.svg',
         elevationChangeMeters: 45,
         longestStraightMeters: 2000,
         isPrimary: true,
@@ -197,7 +263,6 @@ export const GLOBAL_CIRCUITS: Record<string, CircuitEntity> = {
         turns: 14,
         direction: 'Clockwise',
         type: 'Permanent',
-        mapSvg: 'lemans.svg',
         longestStraightMeters: 674,
         isPrimary: false,
         lapRecord: {
@@ -415,7 +480,7 @@ export const GLOBAL_CIRCUITS: Record<string, CircuitEntity> = {
       timezone: 'Asia/Kolkata',
     },
     primaryDiscipline: 'india',
-    disciplines: ['india', 'motogp', 'f1'],
+    disciplines: ['india', 'indian-motorsport', 'motogp', 'f1', 'f4'],
     layouts: [
       {
         layoutId: 'buddh-gp',
@@ -424,7 +489,6 @@ export const GLOBAL_CIRCUITS: Record<string, CircuitEntity> = {
         turns: 16,
         direction: 'Clockwise',
         type: 'Permanent',
-        mapSvg: 'buddh.svg',
         elevationChangeMeters: 14,
         longestStraightMeters: 1060,
         isPrimary: true,
@@ -1011,7 +1075,6 @@ export const GLOBAL_CIRCUITS: Record<string, CircuitEntity> = {
         turns: 16,
         direction: 'Clockwise',
         type: 'Permanent',
-        mapSvg: 'nurburgring.svg',
         elevationChangeMeters: 56,
         isPrimary: true,
         lapRecord: {
@@ -1030,7 +1093,6 @@ export const GLOBAL_CIRCUITS: Record<string, CircuitEntity> = {
         turns: 73,
         direction: 'Clockwise',
         type: 'Permanent',
-        mapSvg: 'nurburgring.svg',
         elevationChangeMeters: 300,
         isPrimary: false,
         lapRecord: {
@@ -1129,7 +1191,7 @@ export const GLOBAL_CIRCUITS: Record<string, CircuitEntity> = {
       timezone: 'Asia/Kolkata',
     },
     primaryDiscipline: 'india',
-    disciplines: ['india'],
+    disciplines: ['india', 'indian-motorsport', 'f4'],
     layouts: [
       {
         layoutId: 'mmrt-full',
@@ -1138,7 +1200,6 @@ export const GLOBAL_CIRCUITS: Record<string, CircuitEntity> = {
         turns: 12,
         direction: 'Clockwise',
         type: 'Permanent',
-        mapSvg: 'mmrt.svg',
         longestStraightMeters: 650,
         isPrimary: true,
         lapRecord: {
@@ -1230,7 +1291,7 @@ export const GLOBAL_CIRCUITS: Record<string, CircuitEntity> = {
       timezone: 'Asia/Kolkata',
     },
     primaryDiscipline: 'india',
-    disciplines: ['india'],
+    disciplines: ['india', 'indian-motorsport', 'f4'],
     layouts: [
       {
         layoutId: 'kari-standard',
@@ -1239,7 +1300,6 @@ export const GLOBAL_CIRCUITS: Record<string, CircuitEntity> = {
         turns: 14,
         direction: 'Anti-Clockwise',
         type: 'Permanent',
-        mapSvg: 'kari.svg',
         longestStraightMeters: 450,
         isPrimary: true,
         lapRecord: {
@@ -1323,7 +1383,6 @@ export const GLOBAL_CIRCUITS: Record<string, CircuitEntity> = {
         turns: 23,
         direction: 'Anti-Clockwise',
         type: 'Road Course',
-        mapSvg: 'bathurst.svg',
         elevationChangeMeters: 174,
         longestStraightMeters: 1916,
         isPrimary: true,
@@ -1416,7 +1475,6 @@ export const GLOBAL_CIRCUITS: Record<string, CircuitEntity> = {
         turns: 18,
         direction: 'Clockwise',
         type: 'Permanent',
-        mapSvg: 'assen.svg',
         longestStraightMeters: 487,
         isPrimary: true,
         lapRecord: {
@@ -1506,7 +1564,6 @@ export const GLOBAL_CIRCUITS: Record<string, CircuitEntity> = {
         turns: 15,
         direction: 'Anti-Clockwise',
         type: 'Street',
-        mapSvg: 'tempelhof.svg',
         longestStraightMeters: 450,
         isPrimary: true,
         lapRecord: {
@@ -1649,6 +1706,359 @@ export const GLOBAL_CIRCUITS: Record<string, CircuitEntity> = {
     officialWebsite: 'https://acm.mc/en/edition/92e-rallye-automobile-monte-carlo',
     sourceAttribution: { source: 'FIA WRC / Automobile Club de Monaco', license: 'Official Rally Route' },
   },
+
+  // =========================================================================
+  // FUJI SPEEDWAY (FIA WEC, SUPER GT)
+  // =========================================================================
+  fuji: {
+    circuitId: 'fuji',
+    id: 'fuji',
+    name: 'Fuji Speedway',
+    shortName: 'Fuji Speedway',
+    location: {
+      city: 'Oyama, Suntō District',
+      region: 'Shizuoka Prefecture',
+      country: 'Japan',
+      countryCode: 'JP',
+      flag: '🇯🇵',
+      coordinates: { latitude: 35.3717, longitude: 138.9267 },
+      timezone: 'Asia/Tokyo',
+    },
+    primaryDiscipline: 'wec',
+    disciplines: ['wec', 'gt'],
+    layouts: [
+      {
+        layoutId: 'fuji-gp',
+        name: 'Grand Prix Circuit',
+        lengthKm: 4.563,
+        turns: 16,
+        direction: 'Clockwise',
+        type: 'Permanent',
+        longestStraightMeters: 1475,
+        elevationChangeMeters: 40,
+        isPrimary: true,
+        lapRecord: {
+          time: '1:18.426',
+          driver: 'Felipe Massa',
+          teamOrCar: 'Ferrari F2008',
+          year: 2008,
+          category: 'Formula 1',
+        },
+        championshipsHosted: ['wec', 'gt'],
+      },
+    ],
+    characteristics: {
+      speed: 'Very High',
+      braking: 'Heavy',
+      overtaking: 'Very High',
+      tyreWear: 'High',
+      downforce: 'Medium',
+      longestStraightMeters: 1475,
+      elevationChangeMeters: 40,
+      summary:
+        'Famous for its massive 1.475 km main straight under Mount Fuji, transitioning into a tight, technical uphill final sector demanding balanced aerodynamic compromise.',
+    },
+    history: {
+      openedYear: 1965,
+      firstMajorEvent: '1966 Indy 200 / 1976 Formula 1 Japanese Grand Prix',
+      historicalOverview:
+        'Redesigned by Hermann Tilke in 2005, Fuji Speedway has hosted legendary endurance battles and the famous 1976 F1 title decider between James Hunt and Niki Lauda.',
+      notableMoments: [
+        { year: 1976, title: 'Hunt vs Lauda Rain Duel', description: 'James Hunt clinched the 1976 World Championship in torrential rain at the foot of Mount Fuji.' },
+        { year: 2012, title: 'WEC Returns to Japan', description: 'Toyota took an emotional home victory at the inaugural 6 Hours of Fuji in the modern WEC era.' },
+      ],
+    },
+    championships: [
+      {
+        championshipId: 'wec',
+        championshipName: 'FIA WEC',
+        badge: 'WEC',
+        badgeColor: '#002b49',
+        eventName: '6 Hours of Fuji',
+        layoutId: 'fuji-gp',
+        layoutName: 'Grand Prix Circuit',
+        url: '/championships/wec',
+        datesOrSeason: 'September 2026',
+        notes: 'Hypercars slipstreaming at over 320 km/h along the 1.475 km straight.',
+      },
+    ],
+    didYouKnow: [
+      { category: 'SPEED', title: '1.475 km Full-Throttle Straight', fact: 'One of the longest straightaways in global motorsport, spanning nearly 1.5 kilometers.' },
+      { category: 'GENERAL', title: 'Mount Fuji Backdrop', fact: 'On clear days, the snow-capped peak of Mount Fuji dominates the skyline above the front straight.' },
+    ],
+    keyCorners: [
+      { number: '1', name: 'Turn 1 Hairpin', description: 'Massive braking zone from 320+ km/h creating primary overtaking opportunities.' },
+      { number: '3-5', name: 'Coca-Cola & 100R', description: 'High-speed sweeping right-hander loading the left tyres heavily.' },
+      { number: '13-16', name: 'Panasonic Sector 3', description: 'Uphill, blind off-camber technical corners punishing oversteering cars.' },
+    ],
+    shortDescription: 'World-renowned Japanese temple of speed—iconic 1.5 km straight beneath Mount Fuji paired with a twisting technical final sector.',
+    officialWebsite: 'https://www.fsw.tv',
+    sourceAttribution: { source: 'FIA WEC / ACO', license: 'Official FIA Grade 1 Venue' },
+  },
+
+  // =========================================================================
+  // DAYTONA INTERNATIONAL SPEEDWAY (IMSA, NASCAR)
+  // =========================================================================
+  daytona: {
+    circuitId: 'daytona',
+    id: 'daytona',
+    name: 'Daytona International Speedway',
+    shortName: 'Daytona',
+    location: {
+      city: 'Daytona Beach',
+      region: 'Florida',
+      country: 'United States',
+      countryCode: 'US',
+      flag: '🇺🇸',
+      coordinates: { latitude: 29.1856, longitude: -81.0697 },
+      timezone: 'America/New_York',
+    },
+    primaryDiscipline: 'imsa',
+    disciplines: ['imsa', 'nascar'],
+    layouts: [
+      {
+        layoutId: 'daytona-rc',
+        name: 'Rolex 24 Road Course',
+        lengthKm: 5.729,
+        turns: 12,
+        direction: 'Anti-Clockwise',
+        type: 'Road Course',
+        elevationChangeMeters: 10,
+        isPrimary: true,
+        championshipsHosted: ['imsa', 'nascar'],
+      },
+    ],
+    characteristics: {
+      speed: 'Very High',
+      braking: 'Heavy',
+      overtaking: 'High',
+      tyreWear: 'High',
+      summary:
+        'The World Center of Racing. Combines 31-degree high-banked tri-oval sections with an intricate infield road course and the famous Le Mans Chicane on the backstretch.',
+    },
+    history: {
+      openedYear: 1959,
+      firstMajorEvent: '1959 Daytona 500 / 1962 3 Hours of Daytona',
+      historicalOverview:
+        'Conceived by NASCAR founder Bill France Sr., Daytona is the spiritual heart of American motorsport, hosting both the Daytona 500 and the premier Rolex 24 endurance marathon.',
+      notableMoments: [
+        { year: 1966, title: 'Ford GT40 1-2-3 Sweep', description: 'Ken Miles and Lloyd Ruby led a historic Ford GT40 victory in the inaugural 24-hour race.' },
+      ],
+    },
+    championships: [
+      {
+        championshipId: 'imsa',
+        championshipName: 'IMSA WeatherTech',
+        badge: 'IMSA',
+        badgeColor: '#002b49',
+        eventName: 'Rolex 24 At Daytona',
+        layoutId: 'daytona-rc',
+        layoutName: 'Road Course',
+        url: '/championships/imsa',
+        datesOrSeason: 'January 2026',
+        notes: 'Season opener of the IMSA Michelin Endurance Cup.',
+      },
+      {
+        championshipId: 'nascar',
+        championshipName: 'NASCAR Cup Series',
+        badge: 'NASCAR',
+        badgeColor: '#ffd100',
+        eventName: 'Daytona 500',
+        layoutId: 'daytona-trioval',
+        layoutName: 'Tri-Oval',
+        url: '/championships/nascar',
+        datesOrSeason: 'February 2026',
+      },
+    ],
+    didYouKnow: [
+      { category: 'SPEED', title: '31° Steep Bankings', fact: 'The banking rises 31 degrees in the turns, making it difficult to even stand on without sliding down.' },
+    ],
+    keyCorners: [
+      { number: '1', name: 'Infield Horseshoe', description: 'Hard braking transition from high oval banking into the flat infield.' },
+      { number: '8', name: 'Le Mans Bus Stop Chicane', description: 'High-speed directional twitch down the 3,000-ft backstretch.' },
+    ],
+    shortDescription: 'America’s racing cathedral—legendary 31-degree banking and infield road course hosting the Rolex 24 and Daytona 500.',
+    officialWebsite: 'https://www.daytonainternationalspeedway.com',
+    sourceAttribution: { source: 'IMSA / NASCAR', license: 'Official Circuit Specification' },
+  },
+
+  // =========================================================================
+  // INDIANAPOLIS MOTOR SPEEDWAY (INDYCAR, NASCAR, IMSA)
+  // =========================================================================
+  indianapolis: {
+    circuitId: 'indianapolis',
+    id: 'indianapolis',
+    name: 'Indianapolis Motor Speedway',
+    shortName: 'Indianapolis (The Brickyard)',
+    location: {
+      city: 'Speedway / Indianapolis',
+      region: 'Indiana',
+      country: 'United States',
+      countryCode: 'US',
+      flag: '🇺🇸',
+      coordinates: { latitude: 39.795, longitude: -86.2347 },
+      timezone: 'America/Indiana/Indianapolis',
+    },
+    primaryDiscipline: 'indycar',
+    disciplines: ['indycar', 'nascar', 'imsa'],
+    layouts: [
+      {
+        layoutId: 'ims-oval',
+        name: '2.5-Mile Oval',
+        lengthKm: 4.023,
+        turns: 4,
+        direction: 'Anti-Clockwise',
+        type: 'Permanent',
+        isPrimary: true,
+        championshipsHosted: ['indycar', 'nascar'],
+      },
+      {
+        layoutId: 'ims-rc',
+        name: 'Grand Prix Road Course',
+        lengthKm: 3.925,
+        turns: 14,
+        direction: 'Clockwise',
+        type: 'Road Course',
+        isPrimary: false,
+        championshipsHosted: ['indycar', 'imsa'],
+      },
+    ],
+    characteristics: {
+      speed: 'Very High',
+      braking: 'Medium',
+      overtaking: 'High',
+      tyreWear: 'High',
+      summary:
+        'The historic Brickyard—the greatest spectacle in racing. Oval speeds exceed 380 km/h with zero margin for error, alongside a technical 14-turn infield road course.',
+    },
+    history: {
+      openedYear: 1909,
+      firstMajorEvent: '1911 Inaugural Indianapolis 500',
+      historicalOverview:
+        'Built in 1909 with 3.2 million paving bricks, Indianapolis is the world’s oldest purpose-built motor racing facility, hosting the world-famous Indy 500 on Memorial Day weekend.',
+      notableMoments: [
+        { year: 1911, title: 'Ray Harroun Wins First Indy 500', description: 'Ray Harroun won in the Marmon Wasp, pioneering the first rear-view mirror in motorsport history.' },
+      ],
+    },
+    championships: [
+      {
+        championshipId: 'indycar',
+        championshipName: 'NTT INDYCAR SERIES',
+        badge: 'INDY',
+        badgeColor: '#005596',
+        eventName: '110th Running of the Indianapolis 500',
+        layoutId: 'ims-oval',
+        layoutName: '2.5-Mile Oval',
+        url: '/championships/indycar',
+        datesOrSeason: 'May 2026',
+      },
+      {
+        championshipId: 'imsa',
+        championshipName: 'IMSA WeatherTech',
+        badge: 'IMSA',
+        badgeColor: '#002b49',
+        eventName: 'TireRack.com Battle on the Bricks',
+        layoutId: 'ims-rc',
+        layoutName: 'Road Course',
+        url: '/championships/imsa',
+        datesOrSeason: 'September 2026',
+      },
+    ],
+    didYouKnow: [
+      { category: 'HISTORY', title: 'The Yard of Bricks', fact: 'A 3-foot strip of the original 1909 paving bricks remains exposed at the start/finish line; winners kiss the bricks.' },
+    ],
+    keyCorners: [
+      { number: '1-4', name: 'The Four Corners', description: 'Flat-out 9-degree banked rectangular turns entered at 380+ km/h.' },
+    ],
+    shortDescription: 'The greatest spectacle in racing—home of the historic Indy 500, the Yard of Bricks, and high-speed American open-wheel warfare.',
+    officialWebsite: 'https://www.indianapolismotorspeedway.com',
+    sourceAttribution: { source: 'INDYCAR / IMSA', license: 'FIA Grade 1 / Grade 2 Facility' },
+  },
+
+  // =========================================================================
+  // WEATHERTECH RACEWAY LAGUNA SECA (INDYCAR, IMSA)
+  // =========================================================================
+  laguna_seca: {
+    circuitId: 'laguna_seca',
+    id: 'laguna_seca',
+    name: 'WeatherTech Raceway Laguna Seca',
+    shortName: 'Laguna Seca',
+    location: {
+      city: 'Monterey',
+      region: 'California',
+      country: 'United States',
+      countryCode: 'US',
+      flag: '🇺🇸',
+      coordinates: { latitude: 36.5844, longitude: -121.7536 },
+      timezone: 'America/Los_Angeles',
+    },
+    primaryDiscipline: 'indycar',
+    disciplines: ['indycar', 'imsa'],
+    layouts: [
+      {
+        layoutId: 'laguna-1',
+        name: 'Grand Prix Circuit',
+        lengthKm: 3.602,
+        turns: 11,
+        direction: 'Anti-Clockwise',
+        type: 'Permanent',
+        elevationChangeMeters: 55,
+        isPrimary: true,
+        championshipsHosted: ['indycar', 'imsa'],
+      },
+    ],
+    characteristics: {
+      speed: 'Medium',
+      braking: 'Heavy',
+      overtaking: 'Medium',
+      tyreWear: 'High',
+      elevationChangeMeters: 55,
+      summary:
+        'Nestled in the Monterey hills, Laguna Seca is world-famous for Turn 8 and 8A: The Corkscrew—a blind five-story plunge dropping 18 meters in seconds.',
+    },
+    history: {
+      openedYear: 1957,
+      firstMajorEvent: '1957 Pebble Beach Road Races Revival',
+      historicalOverview:
+        'Carved into the dry lake bed of Monterey County, Laguna Seca has provided the stage for historic CART/IndyCar title battles, MotoGP races, and sports car showdowns.',
+      notableMoments: [
+        { year: 1996, title: 'The Pass: Alex Zanardi', description: 'Alex Zanardi made an unbelievable divebomb pass on Bryan Herta through the dirt on the Corkscrew on the final lap.' },
+      ],
+    },
+    championships: [
+      {
+        championshipId: 'indycar',
+        championshipName: 'NTT INDYCAR SERIES',
+        badge: 'INDY',
+        badgeColor: '#005596',
+        eventName: 'Firestone Grand Prix of Monterey (Finale)',
+        layoutId: 'laguna-1',
+        layoutName: 'Grand Prix Circuit',
+        url: '/championships/indycar',
+        datesOrSeason: 'September 2026',
+      },
+      {
+        championshipId: 'imsa',
+        championshipName: 'IMSA WeatherTech',
+        badge: 'IMSA',
+        badgeColor: '#002b49',
+        eventName: 'Motul Course de Monterey',
+        layoutId: 'laguna-1',
+        layoutName: 'Grand Prix Circuit',
+        url: '/championships/imsa',
+        datesOrSeason: 'May 2026',
+      },
+    ],
+    didYouKnow: [
+      { category: 'TECHNICAL', title: '5-Story Corkscrew Plunge', fact: 'Turns 8 and 8A drop 59 feet (18 meters) between apexes, equal to dropping off a 5-story building while turning.' },
+    ],
+    keyCorners: [
+      { number: '8-8A', name: 'The Corkscrew', description: 'Blind left-to-right downhill plunge requiring zero throttle hesitation.' },
+    ],
+    shortDescription: 'California road racing icon—dramatic 55m elevation changes and the legendary five-story Corkscrew drop.',
+    officialWebsite: 'https://www.weathertechraceway.com',
+    sourceAttribution: { source: 'INDYCAR / IMSA', license: 'FIA Grade 2 Facility' },
+  },
 };
 
 /**
@@ -1657,7 +2067,7 @@ export const GLOBAL_CIRCUITS: Record<string, CircuitEntity> = {
 function metadataToCircuitEntity(meta: any): CircuitEntity {
   const hostings = getCrossChampionshipHostings(meta.circuitId);
   const mapping = CIRCUIT_SOURCE_MAPPING[meta.circuitId];
-  const mapSvg = mapping ? mapping.assetFile : `${meta.circuitId}.svg`;
+  const mapSvg = mapping ? mapping.assetFile : undefined;
 
   return {
     circuitId: meta.circuitId,
@@ -1783,6 +2193,10 @@ export function getGlobalCircuitById(circuitId?: string): CircuitEntity | undefi
   if (clean.includes('assen')) return GLOBAL_CIRCUITS.assen;
   if (clean.includes('tempelhof') || clean.includes('berlin')) return GLOBAL_CIRCUITS.tempelhof;
   if (clean.includes('turini') || clean.includes('monte_carlo_rally')) return GLOBAL_CIRCUITS.turini;
+  if (clean.includes('fuji')) return GLOBAL_CIRCUITS.fuji;
+  if (clean.includes('daytona')) return GLOBAL_CIRCUITS.daytona;
+  if (clean.includes('indianapolis') || clean.includes('brickyard')) return GLOBAL_CIRCUITS.indianapolis;
+  if (clean.includes('laguna')) return GLOBAL_CIRCUITS.laguna_seca;
 
   // Fallback to F1 registry if available
   if (F1_CIRCUITS_REGISTRY[clean]) {
@@ -1793,14 +2207,242 @@ export function getGlobalCircuitById(circuitId?: string): CircuitEntity | undefi
 }
 
 /**
- * Retrieves circuits that host a specific championship.
+ * Retrieves circuits strictly scoped to a championship's active calendar season.
+ *
+ * Architecture Invariant:
+ * Display list = ACTIVE MOTORSPORT -> ACTIVE CHAMPIONSHIP -> ACTIVE SEASON -> ACTIVE EVENTS -> EVENT CIRCUITS.
+ * NO cross-motorsport leakage, no global fallback when unavailable, and no fake track geometry.
  */
-export function getCircuitsByChampionship(championshipId: string): CircuitEntity[] {
-  const norm = championshipId.toLowerCase();
-  return getAllGlobalCircuits().filter(c =>
-    c.disciplines.includes(norm) ||
-    c.championships.some(ch => ch.championshipId.toLowerCase() === norm || ch.championshipId.toLowerCase().includes(norm))
-  );
+export function getCircuitsForChampionship(
+  championshipId: string,
+  providedRounds?: ChampionshipRound[],
+  championshipMeta?: { name?: string; heroBadgeColor?: string; shortName?: string }
+): CircuitEntity[] {
+  const normId = championshipId.toLowerCase().trim();
+
+  // If Indian motorsport ecosystem is requested
+  if (normId === 'indian-motorsport' || normId === 'indian-racing-league') {
+    return indianMotorsportData.circuits.map(c => {
+      const isBuddh = c.id === 'bic';
+      const base = isBuddh ? GLOBAL_CIRCUITS.buddh : undefined;
+      return {
+        circuitId: isBuddh ? 'buddh' : c.id,
+        id: isBuddh ? 'buddh' : c.id,
+        name: c.name,
+        shortName: c.name,
+        location: {
+          city: c.location,
+          country: 'India',
+          countryCode: 'IN',
+          flag: '🇮🇳',
+          region: c.state,
+        },
+        primaryDiscipline: 'indian-motorsport',
+        disciplines: ['indian-motorsport'],
+        layouts: [
+          {
+            layoutId: `${c.id}-layout`,
+            name: `${c.name} Layout`,
+            lengthKm: c.lengthKm,
+            turns: c.corners,
+            direction: c.direction || 'Clockwise',
+            type: (c.fiaGrade || '').toLowerCase().includes('street') ? 'Street' : 'Permanent',
+            mapSvg: undefined, // Authoritative geometry under audit
+            isPrimary: true,
+            championshipsHosted: ['indian-motorsport'],
+          },
+        ],
+        characteristics: base?.characteristics || {
+          speed: 'High',
+          braking: 'Medium',
+          overtaking: 'Medium',
+          tyreWear: 'Medium',
+          summary: `${c.name} is a premier ${c.fiaGrade} facility in ${c.state}, India.`,
+        },
+        history: base?.history || {
+          openedYear: c.openedYear,
+          historicalOverview: `${c.name} has played an instrumental role in Indian motorsport development since ${c.openedYear}.`,
+          notableMoments: (c.historicalHighlights || []).map(h => ({
+            year: c.openedYear,
+            title: 'Championship Milestone',
+            description: h,
+          })),
+        },
+        championships: [
+          {
+            championshipId: 'indian-motorsport',
+            championshipName: 'Indian Motorsport Ecosystem',
+            badge: 'INDIA',
+            badgeColor: '#ff9933',
+            eventName: `${c.name} Championship Fixture`,
+            url: `/explore/indian-motorsport/circuits/${isBuddh ? 'buddh' : c.id}`,
+            notes: `${c.fiaGrade} venue hosting Indian Racing League and F4 Indian Championship.`,
+          },
+        ],
+        didYouKnow: (c.historicalHighlights || []).map(h => ({
+          category: 'HISTORY',
+          title: 'Indian Racing Milestone',
+          fact: h,
+        })),
+        shortDescription: `${c.name} — ${c.fiaGrade} circuit in ${c.location}, ${c.state}.`,
+      };
+    });
+  }
+
+  // Look up rounds: use providedRounds first, then fallback to static championship data map
+  let rounds = providedRounds;
+  if (!rounds || rounds.length === 0) {
+    rounds = CHAMPIONSHIP_STATIC_DATA_MAP[normId]?.rounds;
+  }
+
+  // If no rounds are defined for this championship, return empty (honest unavailable state, NO fallback to global catalogue!)
+  if (!rounds || rounds.length === 0) {
+    return [];
+  }
+
+  const champMeta = CHAMPIONSHIP_STATIC_DATA_MAP[normId];
+  const champName = championshipMeta?.name || champMeta?.name || championshipId.toUpperCase();
+  const badge = championshipMeta?.shortName || champMeta?.shortName || championshipId.toUpperCase();
+  const badgeColor = championshipMeta?.heroBadgeColor || champMeta?.heroBadgeColor || '#e10600';
+
+  const seen = new Map<string, CircuitEntity>();
+
+  for (const round of rounds) {
+    const normKey = normalizeCircuitId({
+      id: round.circuitName,
+      name: round.circuitName,
+      locality: round.location,
+      country: round.country,
+    });
+
+    // Check existing in this championship's map to deduplicate multiple rounds at the same venue
+    const existing = seen.get(normKey);
+    if (existing) {
+      if (existing.eventDates && !existing.eventDates.includes(round.dates)) {
+        existing.eventDates += ` & ${round.dates}`;
+      }
+      continue;
+    }
+
+    // Resolve base circuit entity from registry if known
+    let baseEntity: CircuitEntity | undefined;
+    if (GLOBAL_CIRCUITS[normKey]) {
+      baseEntity = JSON.parse(JSON.stringify(GLOBAL_CIRCUITS[normKey]));
+    } else if (F1_CIRCUITS_REGISTRY[normKey]) {
+      baseEntity = metadataToCircuitEntity(F1_CIRCUITS_REGISTRY[normKey]);
+    }
+
+    const stableId = normKey && normKey !== 'circuit'
+      ? normKey
+      : round.circuitName.toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
+
+    let entity: CircuitEntity;
+
+    if (baseEntity) {
+      entity = {
+        ...baseEntity,
+        circuitId: baseEntity.circuitId || stableId,
+        id: baseEntity.id || stableId,
+        primaryDiscipline: normId,
+        disciplines: [normId],
+        championships: [
+          {
+            championshipId: normId,
+            championshipName: champName,
+            badge,
+            badgeColor,
+            eventName: round.officialTitle,
+            datesOrSeason: round.dates,
+            notes: `Round ${round.roundNumber} on the ${champName} calendar.`,
+            url: `/explore/${normId}/circuits/${baseEntity.circuitId || stableId}`,
+          },
+        ],
+        eventRound: round.roundNumber,
+        eventDates: round.dates,
+        eventTitle: round.officialTitle,
+      };
+    } else {
+      entity = {
+        circuitId: stableId,
+        id: stableId,
+        name: round.circuitName,
+        shortName: round.circuitName,
+        location: {
+          city: round.location,
+          country: round.country,
+          countryCode: round.countryCode,
+          flag: round.flag,
+        },
+        primaryDiscipline: normId,
+        disciplines: [normId],
+        layouts: [
+          {
+            layoutId: `${stableId}-layout`,
+            name: 'Official Event Layout',
+            lengthKm: round.circuitLengthKm || 4.5,
+            turns: 0,
+            direction: 'Clockwise',
+            type: 'Permanent',
+            isPrimary: true,
+            championshipsHosted: [normId],
+          },
+        ],
+        characteristics: {
+          speed: 'High',
+          braking: 'Medium',
+          overtaking: 'Medium',
+          tyreWear: 'Medium',
+          summary: `Official championship venue hosting the ${round.officialTitle}.`,
+        },
+        history: {
+          openedYear: 2000,
+          historicalOverview: `${round.circuitName} is a premier racing facility in ${round.location}, ${round.country}.`,
+          notableMoments: [],
+        },
+        championships: [
+          {
+            championshipId: normId,
+            championshipName: champName,
+            badge,
+            badgeColor,
+            eventName: round.officialTitle,
+            datesOrSeason: round.dates,
+            notes: `Round ${round.roundNumber} on the ${champName} calendar.`,
+            url: `/explore/${normId}/circuits/${stableId}`,
+          },
+        ],
+        didYouKnow: [],
+        shortDescription: `${round.circuitName} located in ${round.location}, ${round.country}.`,
+        eventRound: round.roundNumber,
+        eventDates: round.dates,
+        eventTitle: round.officialTitle,
+      };
+    }
+
+    // Verify SVG layout geometry: only retain mapSvg if verified SVG exists
+    if (entity.layouts) {
+      entity.layouts = entity.layouts.map(layout => {
+        if (!layout.mapSvg) return layout;
+        const cleanSvg = layout.mapSvg.replace(/^\/?(circuits\/)?/, '');
+        const isValid = VERIFIED_CIRCUIT_SVGS.has(cleanSvg);
+        return {
+          ...layout,
+          mapSvg: isValid ? cleanSvg : undefined,
+        };
+      });
+    }
+
+    seen.set(normKey, entity);
+  }
+
+  return Array.from(seen.values());
+}
+
+/**
+ * Retrieves circuits strictly scoped to a championship's active calendar season.
+ */
+export function getCircuitsByChampionship(championshipId: string, rounds?: ChampionshipRound[]): CircuitEntity[] {
+  return getCircuitsForChampionship(championshipId, rounds);
 }
 
 /**

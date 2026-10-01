@@ -191,9 +191,7 @@ export const PredictionPage: React.FC = () => {
   const competitorLabel = isMotoGP ? 'Rider' : 'Driver';
 
   // Strictly 9 active prediction fields for new / in-progress predictions
-  const activePredictionFields = useMemo(() => {
-    return getDefaultPredictionFields(competitorLabel);
-  }, [competitorLabel]);
+  const activePredictionFields = getDefaultPredictionFields(competitorLabel);
 
   const isUpcoming = round.status === 'UPCOMING';
   const isScored = round.status === 'SCORED' || (round.status === 'COMPLETED' && Boolean(officialResult));
@@ -202,12 +200,9 @@ export const PredictionPage: React.FC = () => {
   const isReadOnly = isLocked || isScored || isUpcoming;
 
   // For historical / scored rounds, preserve existing prediction fields if present
-  const displayFields = useMemo(() => {
-    if (isScored && round.predictionFields && round.predictionFields.length > 0) {
-      return round.predictionFields;
-    }
-    return activePredictionFields;
-  }, [isScored, round.predictionFields, activePredictionFields]);
+  const displayFields = (isScored && round.predictionFields && round.predictionFields.length > 0)
+    ? round.predictionFields
+    : activePredictionFields;
 
   const getFieldBadge = (fieldId: string) => {
     if (['p1', 'p2', 'p3'].includes(fieldId)) {

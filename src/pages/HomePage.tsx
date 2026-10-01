@@ -65,7 +65,6 @@ function getCircuitSvgForRace(circuitId?: string, circuitName?: string, grandPri
   if (normCircuit.includes('monaco')) return 'monaco.svg';
   if (normCircuit.includes('suzuka') || normGp.includes('japanese')) return 'suzuka.svg';
   if (normCircuit.includes('melbourne') || normCircuit.includes('albert') || normGp.includes('australian')) return 'albert-park.svg';
-  if (normCircuit.includes('buddh') || normGp.includes('india')) return 'buddh.svg';
   if (normCircuit.includes('yas marina') || normCircuit.includes('abu dhabi') || normGp.includes('abu dhabi')) return 'yas-marina.svg';
   if (normCircuit.includes('cota') || normCircuit.includes('americas') || normCircuit.includes('austin')) return 'cota.svg';
   if (normCircuit.includes('interlagos') || normGp.includes('brazil') || normGp.includes('são paulo') || normGp.includes('sao paulo')) return 'interlagos.svg';
@@ -460,18 +459,65 @@ export const HomePage: React.FC = () => {
                 }}
               >
                 <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.35rem' }}>
-                    <span style={{ fontSize: '1.2rem' }}>{nextRace.flag}</span>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.35rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <span style={{ fontSize: '1.2rem' }}>{nextRace.flag}</span>
+                      <span
+                        style={{
+                          fontFamily: 'var(--font-mono)',
+                          fontSize: '0.72rem',
+                          color: 'var(--text-muted)',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.06em',
+                        }}
+                      >
+                        ROUND {nextRace.roundNumber} • FORMULA 1
+                      </span>
+                    </div>
+
+                    {/* Prominent Prediction State Indicator */}
                     <span
                       style={{
                         fontFamily: 'var(--font-mono)',
-                        fontSize: '0.72rem',
-                        color: 'var(--text-muted)',
+                        fontSize: '0.68rem',
+                        fontWeight: 800,
+                        padding: '0.2rem 0.55rem',
+                        borderRadius: '4px',
+                        letterSpacing: '0.04em',
                         textTransform: 'uppercase',
-                        letterSpacing: '0.06em',
+                        backgroundColor:
+                          predictionHighlight.status === 'OPEN'
+                            ? 'rgba(0, 230, 118, 0.15)'
+                            : userPrediction
+                            ? 'rgba(255, 214, 0, 0.15)'
+                            : userScore
+                            ? 'rgba(157, 78, 221, 0.15)'
+                            : 'rgba(239, 68, 68, 0.15)',
+                        color:
+                          predictionHighlight.status === 'OPEN'
+                            ? 'var(--telemetry-green)'
+                            : userPrediction
+                            ? 'var(--telemetry-yellow)'
+                            : userScore
+                            ? 'var(--telemetry-purple)'
+                            : '#ef4444',
+                        border:
+                          predictionHighlight.status === 'OPEN'
+                            ? '1px solid rgba(0, 230, 118, 0.35)'
+                            : userPrediction
+                            ? '1px solid rgba(255, 214, 0, 0.35)'
+                            : userScore
+                            ? '1px solid rgba(157, 78, 221, 0.35)'
+                            : '1px solid rgba(239, 68, 68, 0.35)',
                       }}
                     >
-                      ROUND {nextRace.roundNumber} • FORMULA 1
+                      {predictionHighlight.status === 'OPEN'
+                        ? 'Prediction Open'
+                        : userPrediction
+                        ? '🔒 Prediction Locked'
+                        : userScore
+                        ? 'Result Available'
+                        : 'Prediction Closed'}
                     </span>
                   </div>
                   <h2
@@ -490,7 +536,76 @@ export const HomePage: React.FC = () => {
                     {nextRace.circuitName} • {nextRace.city}, {nextRace.country} • <strong style={{ color: '#fff' }}>{nextRace.dates}</strong>
                   </p>
 
-                  <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                    {/* Primary Prediction Action CTA */}
+                    {predictionHighlight.status === 'OPEN' ? (
+                      <Link
+                        to={`/predict/${predictionHighlight.roundId}`}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.45rem',
+                          padding: '0.55rem 1.15rem',
+                          borderRadius: '6px',
+                          backgroundColor: 'var(--f1-red)',
+                          color: '#ffffff',
+                          fontWeight: 800,
+                          fontSize: '0.8rem',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.04em',
+                          textDecoration: 'none',
+                          boxShadow: '0 0 14px rgba(225, 6, 0, 0.4)',
+                        }}
+                      >
+                        <Zap size={14} />
+                        <span>MAKE PREDICTION</span>
+                      </Link>
+                    ) : userPrediction ? (
+                      <Link
+                        to={`/predict/${predictionHighlight.roundId}`}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.45rem',
+                          padding: '0.55rem 1.15rem',
+                          borderRadius: '6px',
+                          backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                          border: '1px solid rgba(255, 255, 255, 0.2)',
+                          color: '#ffffff',
+                          fontWeight: 800,
+                          fontSize: '0.8rem',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.04em',
+                          textDecoration: 'none',
+                        }}
+                      >
+                        <Lock size={14} style={{ color: 'var(--telemetry-green)' }} />
+                        <span>VIEW PREDICTION</span>
+                      </Link>
+                    ) : userScore ? (
+                      <Link
+                        to={`/predict/${predictionHighlight.roundId}`}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.45rem',
+                          padding: '0.55rem 1.15rem',
+                          borderRadius: '6px',
+                          backgroundColor: 'rgba(157, 78, 221, 0.15)',
+                          border: '1px solid rgba(157, 78, 221, 0.4)',
+                          color: '#ffffff',
+                          fontWeight: 800,
+                          fontSize: '0.8rem',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.04em',
+                          textDecoration: 'none',
+                        }}
+                      >
+                        <Trophy size={14} style={{ color: 'var(--telemetry-purple)' }} />
+                        <span>VIEW RESULT</span>
+                      </Link>
+                    ) : null}
+
                     <Link
                       to={`/races/${nextRace.roundNumber}`}
                       style={{
@@ -499,9 +614,10 @@ export const HomePage: React.FC = () => {
                         gap: '0.4rem',
                         padding: '0.55rem 1rem',
                         borderRadius: '6px',
-                        backgroundColor: 'var(--f1-red)',
-                        color: '#ffffff',
-                        fontWeight: 800,
+                        backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                        border: '1px solid var(--border-subtle)',
+                        color: 'var(--text-primary)',
+                        fontWeight: 700,
                         fontSize: '0.78rem',
                         textTransform: 'uppercase',
                         letterSpacing: '0.04em',
@@ -945,128 +1061,8 @@ export const HomePage: React.FC = () => {
         </section>
 
         {/* ===================================================================
-            4. EXPLORE MOTORSPORT: Supported Championships Registry
+            4. EXPLORE MOTORSPORT: (Removed per product mandate - Discovery belongs exclusively in EXPLORE)
             =================================================================== */}
-        <section style={{ marginTop: '3.5rem' }}>
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'flex-end',
-              justifyContent: 'space-between',
-              marginBottom: '1.25rem',
-              flexWrap: 'wrap',
-              gap: '0.5rem',
-            }}
-          >
-            <div>
-              <span
-                style={{
-                  fontFamily: 'var(--font-mono)',
-                  fontSize: '0.72rem',
-                  fontWeight: 800,
-                  color: 'var(--text-muted)',
-                  letterSpacing: '0.1em',
-                  textTransform: 'uppercase',
-                }}
-              >
-                PLATFORM REGISTRY
-              </span>
-              <h2 style={{ fontSize: '1.5rem', fontWeight: 900, textTransform: 'uppercase', margin: '0.2rem 0 0.35rem 0', color: '#fff' }}>
-                Explore Motorsport
-              </h2>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', margin: 0, maxWidth: '680px' }}>
-                Discover racing disciplines, vehicle specs, and calendars across the global motorsport pyramid.
-              </p>
-            </div>
-            <Link
-              to="/championships"
-              style={{
-                fontSize: '0.8rem',
-                color: 'var(--text-secondary)',
-                textDecoration: 'none',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.25rem',
-                fontWeight: 700,
-              }}
-            >
-              <span>All 10 Championships</span>
-              <ChevronRight size={14} />
-            </Link>
-          </div>
-
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))',
-              gap: '1rem',
-            }}
-          >
-            {championships.slice(0, 6).map(c => (
-              <Link
-                key={c.id}
-                to={`/championships/${c.id}`}
-                className="race-card-interactive"
-                style={{
-                  background: 'var(--bg-surface)',
-                  border: '1px solid var(--border-subtle)',
-                  borderRadius: '12px',
-                  padding: '1.25rem',
-                  textDecoration: 'none',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'space-between',
-                }}
-              >
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.6rem' }}>
-                    <span
-                      style={{
-                        fontSize: '0.7rem',
-                        fontWeight: 800,
-                        padding: '0.15rem 0.5rem',
-                        borderRadius: '4px',
-                        background: `${c.badgeColor}18`,
-                        color: c.badgeColor,
-                        fontFamily: 'var(--font-mono)',
-                      }}
-                    >
-                      {c.shortName}
-                    </span>
-                    <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
-                      {c.governingBody}
-                    </span>
-                  </div>
-
-                  <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: '#ffffff', margin: '0 0 0.35rem 0' }}>
-                    {c.name}
-                  </h3>
-                  <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', margin: '0 0 0.85rem 0', lineHeight: 1.45 }}>
-                    {c.tagline}
-                  </p>
-                </div>
-
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    paddingTop: '0.65rem',
-                    borderTop: '1px solid var(--border-subtle)',
-                    fontSize: '0.72rem',
-                    fontFamily: 'var(--font-mono)',
-                    color: 'var(--text-muted)',
-                  }}
-                >
-                  <span>{c.topSpeed}</span>
-                  <span style={{ color: 'var(--f1-red)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
-                    Explore <ChevronRight size={12} />
-                  </span>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </section>
 
         {/* ===================================================================
             5. UPCOMING RACES: Interactive Multi-Category Racing Radar

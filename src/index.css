@@ -22,10 +22,10 @@
   --text-secondary: #94a3b8;
   --text-muted: #64748b;
 
-  /* Consistent Motorsport Typography System: Option B (Rajdhani + Inter + JetBrains Mono) */
-  --font-display: 'Rajdhani', 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --font-mono: 'JetBrains Mono', 'IBM Plex Mono', monospace;
+  /* Consistent Motorsport Typography System: System + Editorial + Monospace */
+  --font-display: 'Rajdhani', 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'JetBrains Mono', 'IBM Plex Mono', monospace;
 
   --radius-sm: 6px;
   --radius-md: 10px;

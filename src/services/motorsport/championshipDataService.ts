@@ -58,6 +58,26 @@ export async function getChampionshipDetail(
           const { motogpData } = await import('./data/motogpData');
           return motogpData;
         }
+        case 'moto2': {
+          const { moto2Data } = await import('./data/moto2Data');
+          return moto2Data;
+        }
+        case 'moto3': {
+          const { moto3Data } = await import('./data/moto3Data');
+          return moto3Data;
+        }
+        case 'imsa': {
+          const { imsaData } = await import('./data/imsaData');
+          return imsaData;
+        }
+        case 'indycar': {
+          const { indycarData } = await import('./data/indycarData');
+          return indycarData;
+        }
+        case 'nascar': {
+          const { nascarData } = await import('./data/nascarData');
+          return nascarData;
+        }
         default:
           return null;
       }
@@ -85,6 +105,22 @@ export async function getIndianMotorsportEcosystem() {
  * Returns whether a championship has rich deep data ready
  */
 export function isChampionshipDataReady(championshipId: string): boolean {
-  const readyIds = ['f1', 'f2', 'f3', 'f4', 'formula-e', 'wec', 'gt-world-challenge', 'wrc', 'motogp', 'indian-motorsport'];
+  const readyIds = [
+    'f1',
+    'f2',
+    'f3',
+    'f4',
+    'formula-e',
+    'wec',
+    'gt-world-challenge',
+    'wrc',
+    'motogp',
+    'moto2',
+    'moto3',
+    'indian-motorsport',
+    'imsa',
+    'indycar',
+    'nascar',
+  ];
   return readyIds.includes(championshipId.toLowerCase().trim());
 }

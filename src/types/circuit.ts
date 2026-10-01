@@ -123,4 +123,7 @@ export interface CircuitEntity {
   shortDescription: string;
   officialWebsite?: string;
   sourceAttribution?: CircuitSourceAttribution;
+  eventRound?: number;
+  eventDates?: string;
+  eventTitle?: string;
 }

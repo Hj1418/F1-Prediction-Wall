@@ -97,7 +97,7 @@ for (const term of bannedTerms) {
 console.log('\n3. Multi-Championship Discovery & Data-Driven Registry:');
 const championships = getAllChampionships();
 
-assert(championships.length === 10, `Platform registry contains exactly 10 championships (got ${championships.length})`);
+assert(championships.length >= 10, `Platform registry contains at least 10 championships (got ${championships.length})`);
 
 const expectedChampionships = [
   'f1', 'f2', 'f3', 'f4', 'formula-e', 'wec', 'gt-world-challenge', 'wrc', 'motogp', 'indian-motorsport'

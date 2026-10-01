@@ -22,6 +22,11 @@ export const CircuitCard: React.FC<CircuitCardProps> = ({
 
   const quickFact = circuit.didYouKnow?.[0];
 
+  const currentChampionshipId = circuit.championships[0]?.championshipId;
+  const circuitLink = currentChampionshipId && currentChampionshipId !== 'all'
+    ? `/explore/${currentChampionshipId}/circuits/${circuit.circuitId}`
+    : `/circuits/${circuit.circuitId}`;
+
   return (
     <article
       className={`circuit-card race-card-interactive ${className}`}
@@ -41,24 +46,39 @@ export const CircuitCard: React.FC<CircuitCardProps> = ({
       {/* Top Discipline & Location Bar */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
-          {circuit.championships.slice(0, 3).map(ch => (
+          {circuit.eventRound ? (
             <span
-              key={ch.championshipId}
               style={{
                 fontSize: '0.68rem',
                 fontFamily: 'var(--font-mono, monospace)',
                 fontWeight: 800,
-                color: ch.badgeColor,
-                backgroundColor: `${ch.badgeColor}18`,
-                border: `1px solid ${ch.badgeColor}35`,
+                color: circuit.championships[0]?.badgeColor || 'var(--f1-red, #e10600)',
+                backgroundColor: `${circuit.championships[0]?.badgeColor || '#e10600'}18`,
+                border: `1px solid ${circuit.championships[0]?.badgeColor || '#e10600'}35`,
                 borderRadius: '4px',
                 padding: '0.15rem 0.45rem',
                 letterSpacing: '0.04em',
               }}
             >
-              {ch.badge}
+              ROUND {circuit.eventRound} {circuit.eventDates ? `• ${circuit.eventDates}` : ''}
             </span>
-          ))}
+          ) : circuit.championships.length > 0 ? (
+            <span
+              style={{
+                fontSize: '0.68rem',
+                fontFamily: 'var(--font-mono, monospace)',
+                fontWeight: 800,
+                color: circuit.championships[0].badgeColor,
+                backgroundColor: `${circuit.championships[0].badgeColor}18`,
+                border: `1px solid ${circuit.championships[0].badgeColor}35`,
+                borderRadius: '4px',
+                padding: '0.15rem 0.45rem',
+                letterSpacing: '0.04em',
+              }}
+            >
+              {circuit.championships[0].badge}
+            </span>
+          ) : null}
           {circuit.layouts.length > 1 && (
             <span
               style={{
@@ -93,12 +113,12 @@ export const CircuitCard: React.FC<CircuitCardProps> = ({
 
       {/* Primary Track Visualization */}
       <Link
-        to={`/circuits/${circuit.circuitId}`}
+        to={circuitLink}
         aria-label={`View ${circuit.name} details`}
         style={{ textDecoration: 'none', display: 'block' }}
       >
         <CircuitVector
-          mapSvg={primaryLayout?.mapSvg || `${circuit.circuitId}.svg`}
+          mapSvg={primaryLayout?.mapSvg}
           name={circuit.name}
           direction={primaryLayout?.direction}
           lengthKm={primaryLayout?.lengthKm}
@@ -120,7 +140,7 @@ export const CircuitCard: React.FC<CircuitCardProps> = ({
           }}
         >
           <Link
-            to={`/circuits/${circuit.circuitId}`}
+            to={circuitLink}
             style={{ color: 'inherit', textDecoration: 'none' }}
           >
             {circuit.name}
@@ -216,7 +236,7 @@ export const CircuitCard: React.FC<CircuitCardProps> = ({
       {/* Bottom CTA Action Link */}
       <div style={{ marginTop: 'auto', paddingTop: '0.4rem', borderTop: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.06))' }}>
         <Link
-          to={`/circuits/${circuit.circuitId}`}
+          to={circuitLink}
           style={{
             display: 'inline-flex',
             alignItems: 'center',

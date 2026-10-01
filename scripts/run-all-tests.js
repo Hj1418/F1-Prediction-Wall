@@ -28,7 +28,10 @@ try {
   execSync('npx tsx scripts/verify-phase11-simplification.ts', { stdio: 'inherit' });
   execSync('npx tsx scripts/verify-azerbaijan-release.ts', { stdio: 'inherit' });
   execSync('npx tsx scripts/verify-motorsport-data-system.ts', { stdio: 'inherit' });
-  console.log('🏆 ALL UNIT, INTEGRATION, AUTH, ADMIN, BETA, RACING IDENTITY, AVATAR, FOUNDATION, PHASE 8A-8F, 9.1-9.3, PHASE 10, PHASE 11 & MOTORSPORT DATA SYSTEM TESTS PASSED PERFECTLY!\n');
+  execSync('npx tsx scripts/verify-master-ui-ux.ts', { stdio: 'inherit' });
+  execSync('npx tsx scripts/verify-hub-redesign-2026.ts', { stdio: 'inherit' });
+  execSync('npx tsx scripts/verify-season-sync-2026.ts', { stdio: 'inherit' });
+  console.log('🏆 ALL UNIT, INTEGRATION, AUTH, ADMIN, BETA, RACING IDENTITY, AVATAR, FOUNDATION, PHASE 8A-8F, 9.1-9.3, PHASE 10, PHASE 11 & MASTER UI/UX TESTS PASSED PERFECTLY!\n');
 } catch (err) {
   console.error('Test execution failed');
   process.exit(1);

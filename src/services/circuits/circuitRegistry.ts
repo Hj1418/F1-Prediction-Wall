@@ -40,8 +40,7 @@ export const CIRCUIT_SOURCE_MAPPING: Record<
   yas_marina: { circuitId: 'yas_marina', sourceId: 'yas-marina', layoutId: 'yas-marina-2', seasons: '2021-2026', assetFile: 'yas-marina.svg' },
   madrid: { circuitId: 'madrid', sourceId: 'madring', layoutId: 'madring-1', seasons: '2026', assetFile: 'madrid.svg' },
   madring: { circuitId: 'madring', sourceId: 'madring', layoutId: 'madring-1', seasons: '2026', assetFile: 'madrid.svg' },
-  sepang: { circuitId: 'sepang', sourceId: 'sepang', layoutId: 'sepang-1', seasons: '1999-2017,2026', assetFile: 'sepang.svg' },
-  buddh: { circuitId: 'buddh', sourceId: 'buddh', layoutId: 'buddh-1', seasons: '2011-2013,2023-2026', assetFile: 'buddh.svg' }
+  sepang: { circuitId: 'sepang', sourceId: 'sepang', layoutId: 'sepang-1', seasons: '1999-2017,2026', assetFile: 'sepang.svg' }
 };
 
 /**
@@ -1542,7 +1541,7 @@ export const F1_CIRCUITS_REGISTRY: Record<string, CircuitMetadata> = {
     laps: 60,
     raceDistance: '307.249 km',
     firstGrandPrix: 2011,
-    map: '/circuits/buddh.svg',
+    map: '',
     trackCharacter: {
       speed: 'Very High',
       braking: 'Heavy',
@@ -1596,50 +1595,92 @@ export const MOTORSPORT_CIRCUITS_REGISTRY = F1_CIRCUITS_REGISTRY;
 export function normalizeCircuitId(circuitInput?: CircuitInfo | string): string {
   if (!circuitInput) return 'monza';
 
-  let rawKey = '';
+  let rawName = '';
+  let rawLocality = '';
+  let rawId = '';
+
   if (typeof circuitInput === 'string') {
-    rawKey = circuitInput;
+    rawName = circuitInput;
+    rawId = circuitInput;
   } else {
-    rawKey = [
-      circuitInput.id,
-      (circuitInput as any).circuitId,
-      circuitInput.name,
-      circuitInput.locality,
-      circuitInput.country,
-    ].filter(Boolean).join(' ');
+    rawId = (circuitInput as any).circuitId || circuitInput.id || '';
+    rawName = circuitInput.name || '';
+    rawLocality = circuitInput.locality || '';
   }
 
-  const clean = rawKey.toLowerCase().replace(/[^a-z0-9]/g, '_');
+  const text = `${rawId} ${rawName} ${rawLocality}`.toLowerCase().replace(/[^a-z0-9]/g, '_');
 
-  if (clean.includes('buddh') || clean.includes('noida') || clean.includes('greater_noida')) return 'buddh';
-  if (clean.includes('madrid') || clean.includes('madring')) return 'madrid';
-  if (clean.includes('sepang') || clean.includes('malaysia')) return 'sepang';
-  if (clean.includes('monza') || clean.includes('italy')) return 'monza';
-  if (clean.includes('monaco') || clean.includes('monte_carlo')) return 'monaco';
-  if (clean.includes('silverstone') || clean.includes('britain') || clean.includes('british')) return 'silverstone';
-  if (clean.includes('spa') || clean.includes('francorchamps') || clean.includes('belgi')) return 'spa';
-  if (clean.includes('suzuka') || clean.includes('japan')) return 'suzuka';
-  if (clean.includes('red_bull') || clean.includes('austria') || clean.includes('spielberg')) return 'red_bull_ring';
-  if (clean.includes('interlagos') || clean.includes('brazil') || clean.includes('pace')) return 'interlagos';
-  if (clean.includes('bahrain') || clean.includes('sakhir')) return 'bahrain';
-  if (clean.includes('albert') || clean.includes('melbourne') || clean.includes('australi')) return 'albert_park';
-  if (clean.includes('jeddah') || clean.includes('saudi')) return 'jeddah';
-  if (clean.includes('shanghai') || clean.includes('china') || clean.includes('chinese')) return 'shanghai';
-  if (clean.includes('miami')) return 'miami';
-  if (clean.includes('imola') || clean.includes('emilia') || clean.includes('ferrari')) return 'imola';
-  if (clean.includes('villeneuve') || clean.includes('montreal') || clean.includes('canada')) return 'montreal';
-  if (clean.includes('barcelona') || clean.includes('catalunya')) return 'barcelona';
-  if (clean.includes('hungaroring') || clean.includes('hungary') || clean.includes('budapest')) return 'hungaroring';
-  if (clean.includes('zandvoort') || clean.includes('dutch') || clean.includes('netherlands')) return 'zandvoort';
-  if (clean.includes('baku') || clean.includes('azerbaijan')) return 'baku';
-  if (clean.includes('singapore') || clean.includes('marina_bay')) return 'singapore';
-  if (clean.includes('cota') || clean.includes('americas') || clean.includes('austin')) return 'cota';
-  if (clean.includes('mexico') || clean.includes('rodriguez')) return 'mexico';
-  if (clean.includes('vegas')) return 'las_vegas';
-  if (clean.includes('losail') || clean.includes('lusail') || clean.includes('qatar')) return 'losail';
-  if (clean.includes('yas') || clean.includes('marina') || clean.includes('dhabi')) return 'yas_marina';
+  // Specific canonical circuits first
+  if (text.includes('buddh') || text.includes('noida')) return 'buddh';
+  if (text.includes('madrid') || text.includes('madring')) return 'madrid';
+  if (text.includes('sepang')) return 'sepang';
+  if (text.includes('monaco') || text.includes('monte_carlo')) return 'monaco';
+  if (text.includes('silverstone')) return 'silverstone';
+  if (text.includes('francorchamps') || /(^|_)spa(_|$)/.test(text)) return 'spa';
+  if (text.includes('suzuka')) return 'suzuka';
+  if (text.includes('red_bull') || text.includes('spielberg')) return 'red_bull_ring';
+  if (text.includes('interlagos') || text.includes('jose_carlos_pace') || (text.includes('ayrton_senna') && !text.includes('goiania'))) return 'interlagos';
+  if (text.includes('bahrain') || text.includes('sakhir')) return 'bahrain';
+  if (text.includes('albert_park') || (text.includes('melbourne') && !text.includes('phillip'))) return 'albert_park';
+  if (text.includes('jeddah') || text.includes('corniche')) return 'jeddah';
+  if (text.includes('shanghai')) return 'shanghai';
+  if (text.includes('miami')) return 'miami';
+  if (text.includes('imola') || text.includes('enzo_e_dino') || text.includes('dino_ferrari')) return 'imola';
+  if (text.includes('villeneuve') || text.includes('montreal')) return 'montreal';
+  if (text.includes('barcelona') || text.includes('catalunya') || text.includes('montmelo')) return 'barcelona';
+  if (text.includes('hungaroring')) return 'hungaroring';
+  if (text.includes('zandvoort')) return 'zandvoort';
+  if (text.includes('baku')) return 'baku';
+  if (text.includes('singapore') || text.includes('marina_bay')) return 'singapore';
+  if (text.includes('cota') || text.includes('americas') || (text.includes('austin') && !text.includes('rally'))) return 'cota';
+  if (text.includes('mexico') || text.includes('rodriguez') || text.includes('hermanos')) return 'mexico';
+  if (text.includes('vegas')) return 'las_vegas';
+  if (text.includes('losail') || text.includes('lusail')) return 'losail';
+  if (text.includes('yas_marina') || text.includes('yas_island')) return 'yas_marina';
+  if (text.includes('monza')) return 'monza';
 
-  return clean || 'monza';
+  // Global & multi-discipline venues
+  if (text.includes('sarthe') || text.includes('le_mans') || text.includes('bugatti')) return 'lemans';
+  if (text.includes('fuji')) return 'fuji';
+  if (text.includes('assen')) return 'assen';
+  if (text.includes('nurburgring') || text.includes('nordschleife')) return 'nurburgring';
+  if (text.includes('bathurst') || text.includes('panorama')) return 'bathurst';
+  if (text.includes('daytona')) return 'daytona';
+  if (text.includes('indianapolis') || text.includes('brickyard')) return 'indianapolis';
+  if (text.includes('laguna')) return 'laguna_seca';
+  if (text.includes('tempelhof')) return 'tempelhof';
+  if (text.includes('turini')) return 'turini';
+  if (text.includes('mmrt') || text.includes('madras')) return 'mmrt';
+  if (text.includes('kari')) return 'kari';
+
+  // Specific motorsport venues (MotoGP, WEC, IndyCar, IMSA)
+  if (text.includes('jerez')) return 'jerez';
+  if (text.includes('mugello')) return 'mugello';
+  if (text.includes('misano')) return 'misano';
+  if (text.includes('motegi')) return 'motegi';
+  if (text.includes('aragon') || text.includes('motorland')) return 'aragon';
+  if (text.includes('sachsenring')) return 'sachsenring';
+  if (text.includes('brno')) return 'brno';
+  if (text.includes('balaton')) return 'balaton_park';
+  if (text.includes('mandalika')) return 'mandalika';
+  if (text.includes('phillip_island') || text.includes('phillip')) return 'phillip_island';
+  if (text.includes('buriram') || text.includes('chang')) return 'buriram';
+  if (text.includes('portimao') || text.includes('algarve')) return 'algarve';
+  if (text.includes('ricardo_tormo') || text.includes('cheste')) return 'ricardo_tormo';
+  if (text.includes('sebring')) return 'sebring';
+  if (text.includes('road_atlanta')) return 'road_atlanta';
+  if (text.includes('watkins_glen')) return 'watkins_glen';
+  if (text.includes('road_america')) return 'road_america';
+  if (text.includes('st_petersburg')) return 'st_petersburg';
+  if (text.includes('long_beach')) return 'long_beach';
+  if (text.includes('barber')) return 'barber';
+  if (text.includes('mid_ohio')) return 'mid_ohio';
+
+  const cleanFallback = rawName
+    ? rawName.toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '')
+    : rawId.toLowerCase().replace(/[^a-z0-9]/g, '_');
+
+  return cleanFallback || 'circuit';
 }
 
 /**
