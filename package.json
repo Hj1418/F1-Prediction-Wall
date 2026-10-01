@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build:calendar": "npx tsx scripts/generate-calendar.ts",
+    "build": "npx tsx scripts/generate-calendar.ts && tsc -b && vite build",
     "predeploy": "npm run build",
     "deploy": "gh-pages -d dist",
     "test": "node scripts/run-all-tests.js",

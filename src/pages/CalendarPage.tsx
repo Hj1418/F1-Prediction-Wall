@@ -1,10 +1,11 @@
-import React, { useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   Search,
   Grid,
   Clock,
   List,
+  CalendarPlus,
 } from 'lucide-react';
 import {
   getAllGlobalCalendarEvents,
@@ -14,12 +15,16 @@ import {
 import { CalendarMonthView } from '../components/calendar/CalendarMonthView';
 import { CalendarWeekView } from '../components/calendar/CalendarWeekView';
 import { CalendarListView } from '../components/calendar/CalendarListView';
+import { AddToGoogleCalendarModal } from '../components/calendar/AddToGoogleCalendarModal';
 
 type CalendarViewMode = 'month' | 'week' | 'list';
 
 export const CalendarPage: React.FC = () => {
   // Use October 1, 2026 as reference anchor date for deterministic season sync
   const referenceDate = useMemo(() => new Date('2026-10-01T12:00:00Z'), []);
+
+  // Modal state
+  const [isCalendarModalOpen, setIsCalendarModalOpen] = useState(false);
 
   // URL state synchronization
   const [searchParams, setSearchParams] = useSearchParams();
@@ -113,79 +118,129 @@ export const CalendarPage: React.FC = () => {
         }}
       >
         <div className="container">
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-            <h1
-              style={{
-                fontSize: 'clamp(2rem, 4vw, 3rem)',
-                fontWeight: 900,
-                color: '#ffffff',
-                margin: 0,
-                letterSpacing: '-0.02em',
-                lineHeight: 1.1,
-              }}
-            >
-              RACE CALENDAR
-            </h1>
-
-            <p
-              style={{
-                fontSize: 'clamp(0.95rem, 1.6vw, 1.05rem)',
-                color: 'var(--text-secondary, #cbd5e1)',
-                maxWidth: '650px',
-                margin: 0,
-                lineHeight: 1.5,
-              }}
-            >
-              See what’s happening across motorsport.
-            </p>
-
-            {/* Quick Search Input */}
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.6rem',
-                backgroundColor: 'var(--bg-surface, #131722)',
-                border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.1))',
-                borderRadius: '8px',
-                padding: '0.4rem 0.8rem',
-                maxWidth: '380px',
-                marginTop: '0.4rem',
-              }}
-            >
-              <Search size={15} style={{ color: 'var(--text-muted, #94a3b8)' }} />
-              <input
-                type="text"
-                placeholder="Search event, circuit, or city..."
-                value={searchQuery}
-                onChange={e => handleSearchChange(e.target.value)}
-                aria-label="Search race calendar"
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'flex-start',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '1rem',
+            }}
+          >
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', flex: 1, minWidth: '280px' }}>
+              <h1
                 style={{
-                  background: 'transparent',
-                  border: 'none',
-                  outline: 'none',
+                  fontSize: 'clamp(2rem, 4vw, 3rem)',
+                  fontWeight: 900,
                   color: '#ffffff',
-                  fontSize: '0.84rem',
-                  fontFamily: 'var(--font-mono, monospace)',
-                  width: '100%',
+                  margin: 0,
+                  letterSpacing: '-0.02em',
+                  lineHeight: 1.1,
                 }}
-              />
-              {searchQuery && (
-                <button
-                  type="button"
-                  onClick={() => handleSearchChange('')}
-                  aria-label="Clear search"
+              >
+                RACE CALENDAR
+              </h1>
+
+              <p
+                style={{
+                  fontSize: 'clamp(0.95rem, 1.6vw, 1.05rem)',
+                  color: 'var(--text-secondary, #cbd5e1)',
+                  maxWidth: '650px',
+                  margin: 0,
+                  lineHeight: 1.5,
+                }}
+              >
+                See what’s happening across motorsport.
+              </p>
+
+              {/* Quick Search Input */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.6rem',
+                  backgroundColor: 'var(--bg-surface, #131722)',
+                  border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.1))',
+                  borderRadius: '8px',
+                  padding: '0.4rem 0.8rem',
+                  maxWidth: '380px',
+                  marginTop: '0.4rem',
+                }}
+              >
+                <Search size={15} style={{ color: 'var(--text-muted, #94a3b8)' }} />
+                <input
+                  type="text"
+                  placeholder="Search event, circuit, or city..."
+                  value={searchQuery}
+                  onChange={e => handleSearchChange(e.target.value)}
+                  aria-label="Search race calendar"
                   style={{
                     background: 'transparent',
                     border: 'none',
-                    color: 'var(--text-muted, #94a3b8)',
-                    cursor: 'pointer',
-                    fontSize: '0.75rem',
+                    outline: 'none',
+                    color: '#ffffff',
+                    fontSize: '0.84rem',
+                    fontFamily: 'var(--font-mono, monospace)',
+                    width: '100%',
                   }}
-                >
-                  ✕
-                </button>
-              )}
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => handleSearchChange('')}
+                    aria-label="Clear search"
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      color: 'var(--text-muted, #94a3b8)',
+                      cursor: 'pointer',
+                      fontSize: '0.75rem',
+                    }}
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* + ADD TO GOOGLE CALENDAR ACTION */}
+            <div style={{ alignSelf: 'flex-start', paddingTop: '0.25rem' }}>
+              <button
+                type="button"
+                id="btn-add-to-google-calendar"
+                onClick={() => setIsCalendarModalOpen(true)}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  padding: '0.6rem 1.1rem',
+                  minHeight: '44px',
+                  borderRadius: '8px',
+                  border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.16))',
+                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                  color: '#ffffff',
+                  fontFamily: 'var(--font-mono, monospace)',
+                  fontSize: '0.78rem',
+                  fontWeight: 800,
+                  letterSpacing: '0.04em',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                  whiteSpace: 'nowrap',
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.backgroundColor = 'rgba(225, 6, 0, 0.12)';
+                  e.currentTarget.style.borderColor = 'var(--f1-red, #e10600)';
+                  e.currentTarget.style.color = '#ffffff';
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.05)';
+                  e.currentTarget.style.borderColor = 'var(--border-subtle, rgba(255, 255, 255, 0.16))';
+                  e.currentTarget.style.color = '#ffffff';
+                }}
+              >
+                <CalendarPlus size={15} style={{ color: 'var(--f1-red, #e10600)' }} />
+                <span>+ ADD TO GOOGLE CALENDAR</span>
+              </button>
             </div>
           </div>
         </div>
@@ -424,6 +479,12 @@ export const CalendarPage: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* 4. GOOGLE CALENDAR SUBSCRIPTION MODAL */}
+      <AddToGoogleCalendarModal
+        isOpen={isCalendarModalOpen}
+        onClose={() => setIsCalendarModalOpen(false)}
+      />
     </div>
   );
 };
