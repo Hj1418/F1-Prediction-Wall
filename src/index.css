@@ -822,3 +822,62 @@ html, body, #root {
     scroll-behavior: auto !important;
   }
 }
+
+/* Motorsport Hub Section Navigator Responsive & Editorial Tab Styles */
+.hub-nav-desktop {
+  display: flex !important;
+}
+.hub-nav-mobile {
+  display: none !important;
+}
+
+.hub-nav-tab-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.7rem 0.65rem;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-secondary, #94a3b8);
+  font-family: var(--font-mono, monospace);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 150ms ease, border-color 150ms ease;
+  margin-bottom: -1px;
+}
+
+.hub-nav-tab-btn:hover {
+  color: #ffffff !important;
+  border-bottom-color: rgba(225, 6, 0, 0.5) !important;
+}
+
+.hub-nav-tab-btn[data-active="true"] {
+  color: #ffffff !important;
+  font-weight: 800 !important;
+  border-bottom-color: var(--f1-red, #e10600) !important;
+}
+
+.hub-nav-tab-btn:focus-visible {
+  outline: 2px solid var(--f1-red, #e10600);
+  outline-offset: 2px;
+}
+
+@media (max-width: 860px) {
+  .hub-nav-desktop {
+    display: none !important;
+  }
+  .hub-nav-mobile {
+    display: block !important;
+  }
+}
+
+.hub-section-anchor {
+  scroll-margin-top: 115px;
+}
+

@@ -1640,7 +1640,8 @@ export function normalizeCircuitId(circuitInput?: CircuitInfo | string): string 
   if (text.includes('monza')) return 'monza';
 
   // Global & multi-discipline venues
-  if (text.includes('sarthe') || text.includes('le_mans') || text.includes('bugatti')) return 'lemans';
+  if (text.includes('bugatti')) return 'bugatti';
+  if (text.includes('sarthe') || text.includes('le_mans')) return 'lemans';
   if (text.includes('fuji')) return 'fuji';
   if (text.includes('assen')) return 'assen';
   if (text.includes('nurburgring') || text.includes('nordschleife')) return 'nurburgring';
@@ -1712,8 +1713,7 @@ export function getCircuitMetadata(circuit?: CircuitInfo | string): CircuitMetad
     drsZones: 2,
     laps: 55,
     raceDistance: '305.000 km',
-    firstGrandPrix: 2000,
-    map: '/circuits/monza.svg',
+    map: '',
     trackCharacter: {
       speed: 'High',
       braking: 'Medium',

@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import {
   Home,
   Compass,
+  Calendar,
   CircleDot,
   Trophy,
   User as UserIcon,
@@ -232,6 +233,17 @@ export const MobileNavigation: React.FC<MobileNavigationProps> = ({
             </div>
           )}
         </div>
+
+        {/* CALENDAR */}
+        <Link
+          to="/calendar"
+          onClick={onClose}
+          className={`mobile-nav-drawer__link ${isItemActive('/calendar') ? 'mobile-nav-drawer__link--active' : ''}`}
+          style={{ minHeight: '44px' }}
+        >
+          <Calendar size={18} style={{ color: isItemActive('/calendar') ? 'var(--f1-red)' : 'var(--text-secondary)' }} />
+          <span>Calendar</span>
+        </Link>
 
         {/* PREDICTIONS */}
         <Link

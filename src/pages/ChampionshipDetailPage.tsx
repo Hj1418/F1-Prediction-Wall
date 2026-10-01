@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, Link, Navigate } from 'react-router-dom';
+import { useParams, Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ArrowLeft,
   Calendar,
@@ -32,6 +32,31 @@ import { getCircuitsByChampionship } from '../services/circuits/globalCircuitsSe
 import { CircuitCard } from '../components/circuits/CircuitCard';
 import { getMotorsportBasics } from '../services/motorsport/motorsportBasicsService';
 import { resolveChampionshipCurrentEvent, getEventStatusBadge, getCurrentEventStatus } from '../services/schedule/eventStatusResolver';
+import { MotorsportHubSectionNavigator } from '../components/motorsport/MotorsportHubSectionNavigator';
+
+export type HubSectionId =
+  | 'learn'
+  | 'season'
+  | 'drivers'
+  | 'teams'
+  | 'championships'
+  | 'circuits'
+  | 'calendar'
+  | 'rules';
+
+export function normalizeHubSection(rawSection?: string): HubSectionId {
+  if (!rawSection) return 'learn';
+  const s = rawSection.toLowerCase().trim();
+  if (s === 'overview' || s === 'basics' || s === 'how-it-works' || s === 'learn') return 'learn';
+  if (s === 'season' || s === 'current-season') return 'season';
+  if (s === 'drivers' || s === 'riders' || s === 'crews' || s === 'standings') return 'drivers';
+  if (s === 'teams' || s === 'manufacturers' || s === 'constructors') return 'teams';
+  if (s === 'championships' || s === 'series' || s === 'ladder') return 'championships';
+  if (s === 'circuits' || s === 'tracks' || s === 'venues' || s === 'rallies') return 'circuits';
+  if (s === 'calendar' || s === 'schedule' || s === 'rounds') return 'calendar';
+  if (s === 'rules' || s === 'regulations') return 'rules';
+  return 'learn';
+}
 
 type DetailTab =
   | 'overview'
@@ -44,13 +69,23 @@ type DetailTab =
   | 'calendar'
   | 'rules'
   | 'standings'
-  | 'feature';
+  | 'feature'
+  | 'learn'
+  | 'championships';
 
 export const ChampionshipDetailPage: React.FC = () => {
-  const { championshipId } = useParams<{ championshipId: string }>();
+  const { championshipId, section } = useParams<{ championshipId: string; section?: string }>();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+
+  // Route-based active section with fallback to 'learn'
+  const activeSection: HubSectionId = React.useMemo(() => {
+    return normalizeHubSection(section || searchParams.get('section') || undefined);
+  }, [section, searchParams]);
+
   const [data, setData] = useState<ChampionshipDetailData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<DetailTab>('overview');
+  const [activeTab, setActiveTabState] = useState<DetailTab>('overview');
   const [standingsSubTab, setStandingsSubTab] = useState<'drivers' | 'teams'>('drivers');
   const [selectedClass, setSelectedClass] = useState<string>('all');
   const [selectedSeason, setSelectedSeason] = useState<number>(2026);
@@ -58,7 +93,6 @@ export const ChampionshipDetailPage: React.FC = () => {
   const [prevChampionshipId, setPrevChampionshipId] = useState(championshipId);
   const [selectedCompetitor, setSelectedCompetitor] = useState<CompetitorProfileData | null>(null);
   const [selectedTeam, setSelectedTeam] = useState<TeamProfileData | null>(null);
-  const tabsScrollRef = React.useRef<HTMLDivElement>(null);
 
   const currentEventResult = React.useMemo(() => {
     if (!data?.rounds || data.rounds.length === 0) return null;
@@ -74,14 +108,19 @@ export const ChampionshipDetailPage: React.FC = () => {
     setSelectedClass('all');
   }
 
-  useEffect(() => {
-    if (tabsScrollRef.current) {
-      const activeEl = tabsScrollRef.current.querySelector<HTMLElement>('[data-active="true"]');
-      if (activeEl) {
-        activeEl.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-      }
-    }
-  }, [activeTab]);
+  const handleSectionSelect = (sectionId: string) => {
+    const target = normalizeHubSection(sectionId);
+    setActiveTabState(target as DetailTab);
+    const targetUrl = target === 'learn'
+      ? `/explore/${championshipId}/learn`
+      : `/explore/${championshipId}/${target}`;
+    navigate(targetUrl);
+    window.scrollTo({ top: 320, behavior: 'smooth' });
+  };
+
+  const setActiveTab = (tab: DetailTab | string) => {
+    handleSectionSelect(tab);
+  };
 
   useEffect(() => {
     let isMounted = true;
@@ -201,12 +240,14 @@ export const ChampionshipDetailPage: React.FC = () => {
     return championshipId ? getMotorsportBasics(championshipId) : null;
   }, [championshipId]);
 
+  const competitorLabel = data?.competitorLabel || 'Driver';
+  const competitorPlural = competitorLabel === 'Rider' ? 'Riders' : competitorLabel === 'Crew' ? 'Crews & Drivers' : 'Drivers';
+  const teamsLabel = data?.id === 'wrc' ? 'Manufacturers' : (data?.id === 'wec' ? 'Teams & Manufacturers' : (competitorLabel === 'Rider' ? 'Teams & Grid' : 'Teams & Constructors'));
+  const circuitsLabel = data?.id === 'wrc' ? `RALLIES & STAGES (${data?.rounds.length || 0})` : `CIRCUITS (${championshipCircuits.length})`;
+
   const navTabs = React.useMemo(() => {
     if (!data) return [];
-    const competitorLabel = data.competitorLabel || 'Driver';
-    const competitorPlural = competitorLabel === 'Rider' ? 'Riders' : competitorLabel === 'Crew' ? 'Crews & Drivers' : 'Drivers';
     const teamsLabel = data.id === 'wrc' ? 'Manufacturers' : (data.id === 'wec' ? 'Teams & Manufacturers' : (competitorLabel === 'Rider' ? 'Teams & Grid' : 'Teams & Constructors'));
-    const circuitsLabel = data.id === 'wrc' ? `RALLIES & STAGES (${data.rounds.length})` : `CIRCUITS (${championshipCircuits.length})`;
 
     return [
       { id: 'overview' as DetailTab, label: '1. OVERVIEW', icon: <Layers size={14} /> },
@@ -219,7 +260,7 @@ export const ChampionshipDetailPage: React.FC = () => {
       { id: 'calendar' as DetailTab, label: `8. CALENDAR (${data.rounds.length})`, icon: <Calendar size={14} /> },
       { id: 'rules' as DetailTab, label: '9. RULES & REGULATIONS', icon: <CheckCircle2 size={14} /> },
     ];
-  }, [data, championshipCircuits.length]);
+  }, [data, competitorPlural, circuitsLabel]);
 
   const filteredDrivers = React.useMemo(() => {
     if (!data?.driversStandings) return [];
@@ -685,67 +726,16 @@ export const ChampionshipDetailPage: React.FC = () => {
         </div>
       </section>
 
-      {/* 3. TABS NAVIGATION */}
-      <section
-        style={{
-          borderBottom: '1px solid var(--border-subtle)',
-          backgroundColor: 'var(--bg-base)',
-          position: 'sticky',
-          top: 0,
-          zIndex: 15,
-          backdropFilter: 'blur(8px)',
-        }}
-      >
-        <div className="container" style={{ paddingLeft: '1rem', paddingRight: '1rem' }}>
-          <div
-            ref={tabsScrollRef}
-            style={{
-              display: 'flex',
-              gap: '0.45rem',
-              overflowX: 'auto',
-              padding: '0.65rem 0',
-              scrollbarWidth: 'none',
-              msOverflowStyle: 'none',
-              WebkitOverflowScrolling: 'touch',
-            }}
-          >
-            {navTabs.map(tab => {
-              const isActive = activeTab === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  id={`tab-${tab.id}`}
-                  data-active={isActive ? 'true' : 'false'}
-                  onClick={() => setActiveTab(tab.id)}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '0.45rem',
-                    padding: '0.6rem 1.1rem',
-                    minHeight: '44px',
-                    minWidth: '44px',
-                    borderRadius: '8px',
-                    fontSize: '0.8rem',
-                    fontWeight: 800,
-                    fontFamily: 'var(--font-mono)',
-                    backgroundColor: isActive ? data.heroBadgeColor : 'transparent',
-                    color: isActive ? '#ffffff' : 'var(--text-secondary)',
-                    border: isActive ? `1px solid ${data.heroBadgeColor}` : '1px solid transparent',
-                    cursor: 'pointer',
-                    whiteSpace: 'nowrap',
-                    transition: 'all 0.15s ease',
-                    flexShrink: 0,
-                    touchAction: 'pan-x',
-                  }}
-                >
-                  {tab.icon}
-                  <span>{tab.label}</span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      </section>
+      {/* 3. PERSISTENT MOTORSPORT HUB SECTION NAVIGATOR */}
+      <MotorsportHubSectionNavigator
+        activeSection={activeSection}
+        onSectionSelect={handleSectionSelect}
+        competitorPlural={competitorPlural}
+        teamsLabel={teamsLabel}
+        circuitsLabel={circuitsLabel}
+        calendarLabel={`CALENDAR (${data.rounds.length})`}
+        accentColor={data.heroBadgeColor}
+      />
 
       {/* 4. TAB CONTENTS */}
       <main className="container" style={{ paddingTop: '2rem' }}>
@@ -791,8 +781,9 @@ export const ChampionshipDetailPage: React.FC = () => {
           </div>
         )}
 
-        {/* TAB 1: OVERVIEW — BEGINNER-FIRST EDITORIAL INTEL */}
-        {activeTab === 'overview' && (
+        {/* PILLAR 1: OVERVIEW / LEARN — BEGINNER-FIRST EDITORIAL INTEL */}
+        {activeSection === 'learn' && (
+        <section id="hub-overview" data-section="learn" className="hub-section-anchor" style={{ marginBottom: '4rem' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
             {/* 1. WHAT IS THIS SPORT? */}
             <section style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
@@ -1343,10 +1334,12 @@ export const ChampionshipDetailPage: React.FC = () => {
               </section>
             )}
           </div>
+        </section>
         )}
 
-        {/* TAB 2: CURRENT SEASON */}
-        {activeTab === 'season' && (
+        {/* PILLAR 2: CURRENT SEASON */}
+        {activeSection === 'season' && (
+        <section id="hub-season" data-section="season" className="hub-section-anchor" style={{ marginBottom: '4rem' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: data.heroBadgeColor, marginBottom: '0.5rem' }}>
@@ -1581,10 +1574,12 @@ export const ChampionshipDetailPage: React.FC = () => {
               </button>
             </div>
           </div>
+        </section>
         )}
 
-        {/* TAB 3: HOW IT WORKS / BASICS */}
-        {activeTab === 'basics' && (
+        {/* PILLAR 3: HOW IT WORKS / BASICS */}
+        {(activeSection as any) === 'basics' && (
+        <section id="hub-basics" data-section="basics" className="hub-section-anchor" style={{ marginBottom: '4rem' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
             {/* Header intro */}
             <div>
@@ -1810,8 +1805,12 @@ export const ChampionshipDetailPage: React.FC = () => {
               </div>
             )}
           </div>
+        </section>
         )}
-        {activeTab === 'calendar' && (
+
+        {/* PILLAR 8: CALENDAR */}
+        {activeSection === 'calendar' && (
+        <section id="hub-calendar" data-section="calendar" className="hub-section-anchor" style={{ marginBottom: '4rem' }}>
           <div>
             <div style={{ marginBottom: '1.5rem' }}>
               <h2 style={{ fontSize: '1.35rem', fontWeight: 900, margin: '0 0 0.5rem 0', color: '#fff' }}>
@@ -2003,10 +2002,12 @@ export const ChampionshipDetailPage: React.FC = () => {
               ))}
             </div>
           </div>
+        </section>
         )}
 
-        {/* TAB: CIRCUITS & HOST VENUES */}
-        {activeTab === 'circuits' && (
+        {/* PILLAR 7: CIRCUITS & HOST VENUES */}
+        {activeSection === 'circuits' && (
+        <section id="hub-circuits" data-section="circuits" className="hub-section-anchor" style={{ marginBottom: '4rem' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: data.heroBadgeColor, marginBottom: '0.5rem' }}>
@@ -2117,36 +2118,18 @@ export const ChampionshipDetailPage: React.FC = () => {
               >
                 <MapPin size={32} style={{ opacity: 0.3, marginBottom: '0.75rem', color: data.heroBadgeColor }} />
                 <h3 style={{ color: '#fff', margin: '0 0 0.5rem 0' }}>Circuits Catalog In Preparation</h3>
-                <p style={{ margin: '0 0 1.25rem 0', fontSize: '0.85rem' }}>
+                <p style={{ margin: '0', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
                   Dedicated circuit profiles for this championship are being verified and updated.
                 </p>
-                <Link
-                  to="/circuits"
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '0.4rem',
-                    padding: '0.45rem 1rem',
-                    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                    border: '1px solid var(--border-subtle)',
-                    borderRadius: '6px',
-                    color: '#fff',
-                    fontSize: '0.78rem',
-                    fontWeight: 800,
-                    textDecoration: 'none',
-                    fontFamily: 'var(--font-mono)',
-                  }}
-                >
-                  <span>BROWSE GLOBAL CIRCUITS DIRECTORY</span>
-                  <ArrowRight size={13} />
-                </Link>
               </div>
             )}
           </div>
+        </section>
         )}
 
-        {/* TAB 4: DRIVERS / STANDINGS */}
-        {(activeTab === 'standings' || activeTab === 'drivers') && (
+        {/* PILLAR 4: DRIVERS / STANDINGS */}
+        {activeSection === 'drivers' && (
+        <section id="hub-drivers" data-section="drivers" className="hub-section-anchor" style={{ marginBottom: '4rem' }}>
           <div>
             {/* Sub Tabs: Drivers vs Teams */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '1rem' }}>
@@ -2543,10 +2526,12 @@ export const ChampionshipDetailPage: React.FC = () => {
               </div>
             )}
           </div>
+        </section>
         )}
 
-        {/* TAB 4: TEAMS & DRIVERS */}
-        {activeTab === 'teams' && (
+        {/* PILLAR 5: TEAMS */}
+        {activeSection === 'teams' && (
+        <section id="hub-teams" data-section="teams" className="hub-section-anchor" style={{ marginBottom: '4rem' }}>
           <div>
             <div style={{ marginBottom: '1.25rem' }}>
               <h2 style={{ fontSize: '1.35rem', fontWeight: 900, margin: '0 0 0.35rem 0', color: '#fff' }}>
@@ -2785,126 +2770,241 @@ export const ChampionshipDetailPage: React.FC = () => {
               })}
             </div>
           </div>
+        </section>
         )}
 
-        {/* TAB 6: CHAMPIONSHIPS / SERIES & LADDER PROGRESSION */}
-        {(activeTab === 'series' || activeTab === 'feature') && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
-            {/* VARIANT A: Dedicated Technical & Sporting Innovation Guide (e.g. Formula E Gen3 Evo & Energy) */}
-            {data.featureGuide && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+        {/* PILLAR 6: CHAMPIONSHIPS / SERIES & LADDER PROGRESSION */}
+        {(activeSection === 'championships' || (activeSection as any) === 'series') && (
+        <section id="hub-series" data-section="championships" className="hub-section-anchor" style={{ marginBottom: '4rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+            {/* Header */}
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: data.heroBadgeColor, marginBottom: '0.4rem' }}>
+                <Award size={18} />
+                <span style={{ fontSize: '0.78rem', fontWeight: 800, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                  CHAMPIONSHIP STRUCTURE & WORLD TITLES
+                </span>
+              </div>
+              <h2 style={{ fontSize: '1.75rem', fontWeight: 900, color: '#fff', margin: '0 0 0.5rem 0' }}>
+                {data.name} Championship
+              </h2>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', margin: 0, maxWidth: '820px', lineHeight: 1.6 }}>
+                {data.tagline || `Official FIA world championship structure, competing titles, scoring merit, and sporting hierarchy.`}
+              </p>
+            </div>
+
+            {/* Dual Championship Titles: Drivers & Constructors / Teams */}
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))',
+                gap: '1.25rem',
+              }}
+            >
+              {/* Title 1: Drivers' / Riders' World Championship */}
+              <div
+                style={{
+                  backgroundColor: 'var(--bg-surface)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: '12px',
+                  padding: '1.5rem',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'space-between',
+                  gap: '1.25rem',
+                }}
+              >
                 <div>
-                  <h2 style={{ fontSize: '1.35rem', fontWeight: 900, marginBottom: '0.4rem', color: '#fff' }}>
-                    {data.featureGuide.tabTitle}
-                  </h2>
-                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', margin: 0, lineHeight: 1.55 }}>
-                    {data.featureGuide.tabDescription}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                    <span
+                      style={{
+                        fontSize: '0.72rem',
+                        fontFamily: 'var(--font-mono)',
+                        fontWeight: 800,
+                        color: 'var(--telemetry-yellow, #ffd600)',
+                        backgroundColor: 'rgba(255, 214, 0, 0.1)',
+                        border: '1px solid rgba(255, 214, 0, 0.25)',
+                        padding: '0.2rem 0.6rem',
+                        borderRadius: '4px',
+                        textTransform: 'uppercase',
+                      }}
+                    >
+                      INDIVIDUAL TITLE
+                    </span>
+                    <Trophy size={18} style={{ color: 'var(--telemetry-yellow, #ffd600)' }} />
+                  </div>
+                  <h3 style={{ fontSize: '1.25rem', fontWeight: 900, color: '#ffffff', margin: '0 0 0.4rem 0' }}>
+                    World {competitorPlural} Championship
+                  </h3>
+                  <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.55, margin: 0 }}>
+                    Awarded to the individual {competitorLabel.toLowerCase()} who accumulates the most championship points across all scheduled Grand Prix rounds throughout the {data.seasonYear || 2026} season.
                   </p>
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                  {data.featureGuide.sections.map((sec, sIdx) => (
-                    <div
-                      key={sIdx}
+                {data.driversStandings && data.driversStandings.length > 0 && (
+                  <div
+                    style={{
+                      backgroundColor: 'rgba(255, 255, 255, 0.02)',
+                      border: '1px solid var(--border-subtle)',
+                      borderRadius: '8px',
+                      padding: '0.85rem 1rem',
+                    }}
+                  >
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', marginBottom: '0.35rem' }}>
+                      Current Championship Leader
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                      <span style={{ fontSize: '1.05rem', fontWeight: 900, color: '#ffffff' }}>
+                        {data.driversStandings[0].driverName}
+                      </span>
+                      <span style={{ fontSize: '0.88rem', fontWeight: 800, fontFamily: 'var(--font-mono)', color: 'var(--telemetry-yellow, #ffd600)' }}>
+                        {data.driversStandings[0].points} PTS
+                      </span>
+                    </div>
+                    <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
+                      {data.driversStandings[0].teamName} • #{data.driversStandings[0].carNumber}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Title 2: Constructors' / Teams' Championship */}
+              <div
+                style={{
+                  backgroundColor: 'var(--bg-surface)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: '12px',
+                  padding: '1.5rem',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'space-between',
+                  gap: '1.25rem',
+                }}
+              >
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                    <span
                       style={{
-                        backgroundColor: 'var(--bg-surface)',
-                        border: '1px solid var(--border-subtle)',
-                        borderLeft: `4px solid ${sec.badgeColor || data.heroBadgeColor}`,
-                        borderRadius: '12px',
-                        padding: '1.5rem',
+                        fontSize: '0.72rem',
+                        fontFamily: 'var(--font-mono)',
+                        fontWeight: 800,
+                        color: data.heroBadgeColor,
+                        backgroundColor: `${data.heroBadgeColor}18`,
+                        border: `1px solid ${data.heroBadgeColor}44`,
+                        padding: '0.2rem 0.6rem',
+                        borderRadius: '4px',
+                        textTransform: 'uppercase',
                       }}
                     >
-                      <div
-                        style={{
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'flex-start',
-                          flexWrap: 'wrap',
-                          gap: '0.75rem',
-                          marginBottom: '0.75rem',
-                        }}
-                      >
-                        <div>
-                          <h3 style={{ fontSize: '1.15rem', fontWeight: 900, color: '#fff', margin: '0 0 0.25rem 0' }}>
-                            {sec.title}
-                          </h3>
-                          {sec.subtitle && (
-                            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
-                              {sec.subtitle}
-                            </div>
-                          )}
-                        </div>
-                        {sec.badge && (
-                          <span
-                            style={{
-                              fontSize: '0.68rem',
-                              fontFamily: 'var(--font-mono)',
-                              fontWeight: 800,
-                              backgroundColor: `${sec.badgeColor || data.heroBadgeColor}22`,
-                              color: sec.badgeColor || data.heroBadgeColor,
-                              border: `1px solid ${sec.badgeColor || data.heroBadgeColor}55`,
-                              padding: '0.2rem 0.6rem',
-                              borderRadius: '6px',
-                              letterSpacing: '0.04em',
-                            }}
-                          >
-                            {sec.badge}
-                          </span>
-                        )}
-                      </div>
-
-                      <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', lineHeight: 1.6, margin: '0 0 1.25rem 0' }}>
-                        {sec.description}
-                      </p>
-
-                      {/* Optional Key Metrics Grid */}
-                      {sec.metrics && sec.metrics.length > 0 && (
-                        <div
-                          style={{
-                            display: 'grid',
-                            gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-                            gap: '0.75rem',
-                            marginBottom: '1.25rem',
-                          }}
-                        >
-                          {sec.metrics.map((m, mIdx) => (
-                            <div
-                              key={mIdx}
-                              style={{
-                                backgroundColor: 'rgba(255, 255, 255, 0.02)',
-                                border: '1px solid rgba(255, 255, 255, 0.06)',
-                                borderRadius: '8px',
-                                padding: '0.75rem 1rem',
-                              }}
-                            >
-                              <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', marginBottom: '0.2rem' }}>
-                                {m.label}
-                              </div>
-                              <div style={{ fontSize: '1rem', fontWeight: 800, color: '#fff', fontFamily: 'var(--font-mono)' }}>
-                                {m.value}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-
-                      {/* Optional Detailed Points */}
-                      {sec.details && sec.details.length > 0 && (
-                        <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.05)', paddingTop: '0.85rem' }}>
-                          <ul style={{ margin: 0, paddingLeft: '1.2rem', color: 'var(--text-secondary)', fontSize: '0.82rem', lineHeight: 1.6 }}>
-                            {sec.details.map((detail, dIdx) => (
-                              <li key={dIdx} style={{ marginBottom: '0.25rem' }}>
-                                {detail}
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-                    </div>
-                  ))}
+                      TEAM / FACTORY TITLE
+                    </span>
+                    <Shield size={18} style={{ color: data.heroBadgeColor }} />
+                  </div>
+                  <h3 style={{ fontSize: '1.25rem', fontWeight: 900, color: '#ffffff', margin: '0 0 0.4rem 0' }}>
+                    World {teamsLabel} Championship
+                  </h3>
+                  <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.55, margin: 0 }}>
+                    Awarded to the {data.id === 'wrc' ? 'manufacturer' : 'constructor/team'} with the highest combined points total scored across both car entries over the course of the championship.
+                  </p>
                 </div>
+
+                {data.teamsStandings && data.teamsStandings.length > 0 && (
+                  <div
+                    style={{
+                      backgroundColor: 'rgba(255, 255, 255, 0.02)',
+                      border: '1px solid var(--border-subtle)',
+                      borderRadius: '8px',
+                      padding: '0.85rem 1rem',
+                    }}
+                  >
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', marginBottom: '0.35rem' }}>
+                      Current Constructors Leader
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                      <span style={{ fontSize: '1.05rem', fontWeight: 900, color: '#ffffff' }}>
+                        {data.teamsStandings[0].teamName}
+                      </span>
+                      <span style={{ fontSize: '0.88rem', fontWeight: 800, fontFamily: 'var(--font-mono)', color: '#ffffff' }}>
+                        {data.teamsStandings[0].points} PTS
+                      </span>
+                    </div>
+                    <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
+                      {data.teamsStandings[0].country} • {data.teamsStandings[0].wins} Wins
+                    </div>
+                  </div>
+                )}
               </div>
-            )}
+            </div>
+
+            {/* Championship Scoring Summary */}
+            <div
+              style={{
+                backgroundColor: 'var(--bg-surface)',
+                border: '1px solid var(--border-subtle)',
+                borderRadius: '12px',
+                padding: '1.5rem',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem', marginBottom: '0.85rem' }}>
+                <div>
+                  <h3 style={{ fontSize: '1.15rem', fontWeight: 900, color: '#fff', margin: '0 0 0.35rem 0' }}>
+                    Championship Points & Title Merit
+                  </h3>
+                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.86rem', margin: 0, maxWidth: '750px', lineHeight: 1.55 }}>
+                    {data.pointsSystemDescription || `Points accumulate across the full championship calendar to crown the official world champions.`}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleSectionSelect('rules')}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.4rem',
+                    padding: '0.45rem 0.85rem',
+                    borderRadius: '6px',
+                    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                    border: '1px solid var(--border-subtle)',
+                    color: '#ffffff',
+                    fontSize: '0.76rem',
+                    fontWeight: 800,
+                    fontFamily: 'var(--font-mono)',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <span>SEE RULES & REGULATIONS</span>
+                  <ArrowRight size={13} style={{ color: data.heroBadgeColor }} />
+                </button>
+              </div>
+
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  padding: '0.65rem 0.85rem',
+                  borderRadius: '6px',
+                  backgroundColor: 'rgba(255, 255, 255, 0.02)',
+                  border: '1px solid rgba(255, 255, 255, 0.05)',
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '0.78rem',
+                  color: 'var(--text-secondary)',
+                  flexWrap: 'wrap',
+                }}
+              >
+                <span style={{ color: data.heroBadgeColor, fontWeight: 800 }}>P1: 25 pts</span>
+                <span>•</span>
+                <span style={{ color: '#fff' }}>P2: 18 pts</span>
+                <span>•</span>
+                <span style={{ color: '#fff' }}>P3: 15 pts</span>
+                <span>•</span>
+                <span style={{ color: '#fff' }}>P4: 12 pts</span>
+                <span>•</span>
+                <span style={{ color: '#fff' }}>P5: 10 pts</span>
+                <span>•</span>
+                <span style={{ color: 'var(--text-muted)' }}>Top 10 score points</span>
+              </div>
+            </div>
 
             {/* VARIANT B: Feeder Ladder & FIA Super Licence Guide (for single-seater ladder) */}
             {['f2', 'f3', 'f4'].includes(data.id) ? (
@@ -3193,10 +3293,12 @@ export const ChampionshipDetailPage: React.FC = () => {
               </div>
             ) : null}
           </div>
+        </section>
         )}
 
-        {/* TAB 9: RULES & REGULATIONS */}
-        {activeTab === 'rules' && (
+        {/* PILLAR 9: RULES & REGULATIONS */}
+        {activeSection === 'rules' && (
+        <section id="hub-rules" data-section="rules" className="hub-section-anchor" style={{ marginBottom: '4rem' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: data.heroBadgeColor, marginBottom: '0.5rem' }}>
@@ -3213,7 +3315,7 @@ export const ChampionshipDetailPage: React.FC = () => {
               </p>
             </div>
 
-            {/* Points System Breakdown */}
+            {/* 1. SPORTING REGULATIONS */}
             <div
               style={{
                 backgroundColor: 'var(--bg-surface)',
@@ -3222,8 +3324,25 @@ export const ChampionshipDetailPage: React.FC = () => {
                 padding: '1.5rem',
               }}
             >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                <span
+                  style={{
+                    fontSize: '0.7rem',
+                    fontWeight: 800,
+                    letterSpacing: '0.08em',
+                    textTransform: 'uppercase',
+                    color: data.heroBadgeColor,
+                    padding: '0.15rem 0.5rem',
+                    borderRadius: '4px',
+                    backgroundColor: `${data.heroBadgeColor}15`,
+                    border: `1px solid ${data.heroBadgeColor}35`,
+                  }}
+                >
+                  SPORTING REGULATIONS
+                </span>
+              </div>
               <h3 style={{ fontSize: '1.15rem', fontWeight: 900, color: '#fff', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <Award size={18} style={{ color: data.heroBadgeColor }} /> Official Points System
+                <Award size={18} style={{ color: data.heroBadgeColor }} /> Official Points System & Classification
               </h3>
               <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', lineHeight: 1.55, margin: '0 0 1rem 0' }}>
                 {data.pointsSystemDescription}
@@ -3253,7 +3372,7 @@ export const ChampionshipDetailPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Technical Regulations Summary */}
+            {/* 2. TECHNICAL REGULATIONS */}
             <div
               style={{
                 backgroundColor: 'var(--bg-surface)',
@@ -3262,6 +3381,23 @@ export const ChampionshipDetailPage: React.FC = () => {
                 padding: '1.5rem',
               }}
             >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                <span
+                  style={{
+                    fontSize: '0.7rem',
+                    fontWeight: 800,
+                    letterSpacing: '0.08em',
+                    textTransform: 'uppercase',
+                    color: 'var(--telemetry-cyan, #00e5ff)',
+                    padding: '0.15rem 0.5rem',
+                    borderRadius: '4px',
+                    backgroundColor: 'rgba(0, 229, 255, 0.12)',
+                    border: '1px solid rgba(0, 229, 255, 0.3)',
+                  }}
+                >
+                  TECHNICAL REGULATIONS
+                </span>
+              </div>
               <h3 style={{ fontSize: '1.15rem', fontWeight: 900, color: '#fff', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <Shield size={18} style={{ color: data.heroBadgeColor }} /> Technical & Vehicle Specifications
               </h3>
@@ -3293,6 +3429,131 @@ export const ChampionshipDetailPage: React.FC = () => {
                 </div>
               </div>
             </div>
+
+            {/* Technical Regulations / Feature Guide (e.g. 2026 Regulations, Active Aero, MOM) */}
+            {data.featureGuide && (
+              <div
+                style={{
+                  backgroundColor: 'var(--bg-surface)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: '12px',
+                  padding: '1.5rem',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '1.25rem',
+                }}
+              >
+                <div style={{ borderBottom: '1px solid var(--border-subtle)', paddingBottom: '1rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+                    <span
+                      style={{
+                        fontSize: '0.72rem',
+                        fontWeight: 800,
+                        letterSpacing: '0.08em',
+                        textTransform: 'uppercase',
+                        color: data.heroBadgeColor,
+                        padding: '0.2rem 0.55rem',
+                        borderRadius: '4px',
+                        backgroundColor: `${data.heroBadgeColor}15`,
+                        border: `1px solid ${data.heroBadgeColor}35`,
+                      }}
+                    >
+                      {data.featureGuide.tabLabel || 'Technical Regulations'}
+                    </span>
+                  </div>
+                  <h3 style={{ fontSize: '1.35rem', fontWeight: 900, color: '#fff', margin: '0.4rem 0 0.5rem 0' }}>
+                    {data.featureGuide.tabTitle}
+                  </h3>
+                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: 1.6, margin: 0 }}>
+                    {data.featureGuide.tabDescription}
+                  </p>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                  {data.featureGuide.sections.map((section, sIdx) => (
+                    <div
+                      key={sIdx}
+                      style={{
+                        backgroundColor: 'rgba(255, 255, 255, 0.02)',
+                        border: '1px solid var(--border-subtle)',
+                        borderRadius: '10px',
+                        padding: '1.25rem',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                        <div>
+                          <span
+                            style={{
+                              fontSize: '0.68rem',
+                              fontWeight: 800,
+                              letterSpacing: '0.06em',
+                              textTransform: 'uppercase',
+                              color: section.badgeColor || data.heroBadgeColor,
+                              padding: '0.15rem 0.45rem',
+                              borderRadius: '4px',
+                              backgroundColor: `${section.badgeColor || data.heroBadgeColor}18`,
+                              marginRight: '0.5rem',
+                            }}
+                          >
+                            {section.badge}
+                          </span>
+                          <span style={{ fontSize: '1.05rem', fontWeight: 800, color: '#ffffff' }}>
+                            {section.title}
+                          </span>
+                        </div>
+                        {section.subtitle && (
+                          <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                            {section.subtitle}
+                          </span>
+                        )}
+                      </div>
+
+                      <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', lineHeight: 1.6, margin: '0 0 1rem 0' }}>
+                        {section.description}
+                      </p>
+
+                      {section.metrics && section.metrics.length > 0 && (
+                        <div
+                          style={{
+                            display: 'grid',
+                            gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))',
+                            gap: '0.75rem',
+                            marginBottom: '1rem',
+                          }}
+                        >
+                          {section.metrics.map((m, mIdx) => (
+                            <div
+                              key={mIdx}
+                              style={{
+                                padding: '0.65rem 0.85rem',
+                                borderRadius: '6px',
+                                backgroundColor: 'rgba(255, 255, 255, 0.04)',
+                                border: '1px solid var(--border-subtle)',
+                              }}
+                            >
+                              <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                                {m.label}
+                              </div>
+                              <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#ffffff', marginTop: '0.2rem' }}>
+                                {m.value}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {section.details && section.details.length > 0 && (
+                        <ul style={{ margin: 0, paddingLeft: '1.25rem', color: 'var(--text-secondary)', fontSize: '0.84rem', lineHeight: 1.65 }}>
+                          {section.details.map((detail, dIdx) => (
+                            <li key={dIdx} style={{ marginBottom: '0.35rem' }}>{detail}</li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Beginner FAQs */}
             {data.faqs && data.faqs.length > 0 && (
@@ -3334,6 +3595,7 @@ export const ChampionshipDetailPage: React.FC = () => {
               </div>
             )}
           </div>
+        </section>
         )}
       </main>
 

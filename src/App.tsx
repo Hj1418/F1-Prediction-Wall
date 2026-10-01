@@ -25,6 +25,7 @@ const CircuitsPage = lazy(() => import('./pages/CircuitsPage').then(m => ({ defa
 const ChampionshipsPage = lazy(() => import('./pages/ChampionshipsPage').then(m => ({ default: m.ChampionshipsPage })));
 const ChampionshipDetailPage = lazy(() => import('./pages/ChampionshipDetailPage').then(m => ({ default: m.ChampionshipDetailPage })));
 const IndianMotorsportPage = lazy(() => import('./pages/IndianMotorsportPage').then(m => ({ default: m.IndianMotorsportPage })));
+const CalendarPage = lazy(() => import('./pages/CalendarPage').then(m => ({ default: m.CalendarPage })));
 const UniversalSearchModal = lazy(() => import('./components/search/UniversalSearchModal').then(m => ({ default: m.UniversalSearchModal })));
 
 const AppLayout: React.FC = () => {
@@ -52,18 +53,21 @@ const AppLayout: React.FC = () => {
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-            <Route path="/schedule" element={<WeekendsPage />} />
-            <Route path="/races" element={<WeekendsPage />} />
+            <Route path="/calendar" element={<CalendarPage />} />
+            <Route path="/schedule" element={<CalendarPage />} />
+            <Route path="/races" element={<CalendarPage />} />
             <Route path="/races/:round" element={<WeekendDashboardPage />} />
-            <Route path="/weekends" element={<WeekendsPage />} />
+            <Route path="/weekends" element={<CalendarPage />} />
             <Route path="/weekends/:raceWeekendId" element={<WeekendDashboardPage />} />
             <Route path="/learn" element={<Navigate to="/explore" replace />} />
             <Route path="/explore" element={<ChampionshipsPage />} />
             <Route path="/explore/indian-motorsport" element={<IndianMotorsportPage />} />
             <Route path="/explore/:championshipId" element={<ChampionshipDetailPage />} />
             <Route path="/explore/:championshipId/circuits/:circuitId" element={<CircuitsPage />} />
+            <Route path="/explore/:championshipId/:section" element={<ChampionshipDetailPage />} />
             <Route path="/championships" element={<Navigate to="/explore" replace />} />
             <Route path="/championships/:championshipId" element={<ChampionshipDetailPage />} />
+            <Route path="/championships/:championshipId/:section" element={<ChampionshipDetailPage />} />
             <Route path="/circuits" element={<CircuitsPage />} />
             <Route path="/circuits/:circuitId" element={<CircuitsPage />} />
             <Route path="/indian-motorsport" element={<IndianMotorsportPage />} />
