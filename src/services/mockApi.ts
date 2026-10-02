@@ -285,23 +285,17 @@ export class MockApiService {
     if (type === 'round' && targetId) {
       const roundScores = this.scores.filter(s => s.roundId === targetId);
       const entries: LeaderboardEntry[] = roundScores.map(s => {
-        const u = this.users.find(usr => usr.userId === s.userId) || {
-          displayName: 'Racer',
-          username: s.userId,
-          avatarUrl: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80',
-          favouriteDriver: 'verstappen',
-          exactP1Count: 0,
-          perfectPodiumCount: 0,
-        };
+        const u = this.users.find(usr => usr.userId === s.userId);
+        const publicUsername = u?.username || 'Grid User';
         return {
           rank: 0,
           previousRank: 0,
           rankChange: 0,
           userId: s.userId,
-          username: u.username,
-          displayName: u.displayName,
-          avatarUrl: u.avatarUrl,
-          favouriteDriver: u.favouriteDriver,
+          username: publicUsername,
+          displayName: publicUsername,
+          avatarUrl: u?.avatarUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80',
+          favouriteDriver: u?.favouriteDriver || 'verstappen',
           totalPoints: s.totalScore,
           racesParticipated: 1,
           avgPointsPerRace: s.totalScore,
@@ -329,23 +323,17 @@ export class MockApiService {
         });
 
       const entries: LeaderboardEntry[] = Object.keys(userWeekendScores).map(uid => {
-        const u = this.users.find(usr => usr.userId === uid) || {
-          displayName: 'Racer',
-          username: uid,
-          avatarUrl: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80',
-          favouriteDriver: 'norris',
-          exactP1Count: 0,
-          perfectPodiumCount: 0,
-        };
+        const u = this.users.find(usr => usr.userId === uid);
+        const publicUsername = u?.username || 'Grid User';
         return {
           rank: 0,
           previousRank: 0,
           rankChange: 0,
           userId: uid,
-          username: u.username,
-          displayName: u.displayName,
-          avatarUrl: u.avatarUrl,
-          favouriteDriver: u.favouriteDriver,
+          username: publicUsername,
+          displayName: publicUsername,
+          avatarUrl: u?.avatarUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80',
+          favouriteDriver: u?.favouriteDriver || 'norris',
           totalPoints: userWeekendScores[uid].total,
           roundScores: userWeekendScores[uid].roundScores,
           racesParticipated: Object.keys(userWeekendScores[uid].roundScores).length,
@@ -388,14 +376,15 @@ export class MockApiService {
       const racesParticipated = scoreData ? Object.keys(scoreData.roundScores).length : (u.racesParticipated || 0);
       const exactP1Count = scoreData ? scoreData.exactP1 : (u.exactP1Count || 0);
       const perfectPodiumCount = scoreData ? scoreData.perfectPodium : (u.perfectPodiumCount || 0);
+      const publicUsername = u.username || 'Grid User';
 
       return {
         rank: 0,
         previousRank: u.previousRank || 1,
         rankChange: 0,
         userId: u.userId,
-        username: u.username,
-        displayName: u.displayName,
+        username: publicUsername,
+        displayName: publicUsername,
         avatarUrl: u.avatarUrl,
         favouriteDriver: u.favouriteDriver,
         totalPoints,
@@ -488,26 +477,31 @@ export class MockApiService {
     return { ...match };
   }
 
-  public async googleLogin(payload: { email: string; displayName?: string; photoUrl?: string; accessToken?: string }): Promise<User> {
+  public async googleLogin(payload: { email: string; displayName?: string; photoUrl?: string; accessToken?: string; username?: string }): Promise<User> {
     const cleanEmail = payload.email.toLowerCase().trim();
     const match = this.users.find(u => u.email.toLowerCase() === cleanEmail);
     if (match) {
+      if ((!match.username || match.username.trim() === '') && payload.username) {
+        match.username = payload.username.trim();
+        this.persistAll();
+      }
       return { ...match, isNewUser: false };
     }
 
-    const baseUsername = cleanEmail.split('@')[0].replace(/[^a-z0-9_]/g, '') || 'racer';
-    let cleanUsername = baseUsername;
-    let suffix = 1;
-    while (this.users.some(u => u.username.toLowerCase() === cleanUsername)) {
-      cleanUsername = `${baseUsername}${suffix}`;
-      suffix++;
+    // New user creation: do NOT automatically generate a username from their Google name or email!
+    let chosenUsername = '';
+    if (payload.username && typeof payload.username === 'string' && payload.username.trim()) {
+      const avail = await this.checkUsername(payload.username);
+      if (avail.available && avail.username) {
+        chosenUsername = avail.username;
+      }
     }
 
     const newUser: User = {
-      userId: `usr_${cleanUsername}_${Date.now().toString(36)}`,
+      userId: `usr_${Date.now().toString(36)}_${Math.random().toString(36).substring(2, 6)}`,
       email: cleanEmail,
-      displayName: payload.displayName || cleanUsername,
-      username: cleanUsername,
+      displayName: payload.displayName || 'Racer',
+      username: chosenUsername, // Empty if not yet chosen by user during onboarding!
       avatarUrl: payload.photoUrl || '',
       favouriteDriver: 'verstappen',
       favouriteConstructor: 'red_bull',
@@ -576,31 +570,31 @@ export class MockApiService {
   }
 
   public async checkUsername(rawUsername: string, excludeUserId?: string): Promise<{ available: boolean; reason?: string; username?: string }> {
-    if (!rawUsername || typeof rawUsername !== 'string') {
-      return { available: false, reason: 'Racer Tag is required.' };
+    if (!rawUsername || typeof rawUsername !== 'string' || !rawUsername.trim()) {
+      return { available: false, reason: 'Username cannot be empty.' };
     }
-    const cleanUsername = rawUsername.trim().toLowerCase();
+    const cleanUsername = rawUsername.trim();
     if (cleanUsername.length < 3 || cleanUsername.length > 20) {
-      return { available: false, reason: 'Racer Tag must be between 3 and 20 characters.' };
+      return { available: false, reason: 'Username must be between 3 and 20 characters.' };
     }
-    if (!/^[a-z0-9_]+$/.test(cleanUsername)) {
-      return { available: false, reason: 'Racer Tag can only contain lowercase letters, numbers, and underscores.' };
+    if (!/^[a-zA-Z0-9_-]+$/.test(cleanUsername)) {
+      return { available: false, reason: 'Username can only contain letters, numbers, underscores, and hyphens.' };
     }
     const reserved = [
       'admin', 'administrator', 'system', 'f1', 'fia', 'root', 'official',
       'predictionbench', 'support', 'help', 'null', 'undefined', 'moderator',
-      'staff', 'api', 'bot', 'security', 'guest'
+      'staff', 'api', 'bot', 'security', 'guest', 'grid_user'
     ];
-    if (reserved.includes(cleanUsername)) {
-      return { available: false, reason: 'This Racer Tag is reserved.' };
+    if (reserved.includes(cleanUsername.toLowerCase())) {
+      return { available: false, reason: 'This username is reserved.' };
     }
     const exclude = excludeUserId ? excludeUserId.trim().toLowerCase() : '';
     const exists = this.users.some(u => {
       if (exclude && u.userId.toLowerCase() === exclude) return false;
-      return (u.username || '').toLowerCase() === cleanUsername;
+      return (u.username || '').toLowerCase() === cleanUsername.toLowerCase();
     });
     if (exists) {
-      return { available: false, reason: 'This Racer Tag is already taken.' };
+      return { available: false, reason: 'Username is already taken.' };
     }
     return { available: true, username: cleanUsername };
   }

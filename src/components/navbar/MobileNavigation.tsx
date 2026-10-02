@@ -33,6 +33,8 @@ const MOTORSPORT_HUBS = [
   { name: 'Formula 4', path: '/explore/f4', badge: 'F4', color: '#10b981' },
   { name: 'Formula E', path: '/explore/formula-e', badge: 'FE', color: '#00d2be' },
   { name: 'MotoGP', path: '/explore/motogp', badge: 'MotoGP', color: '#dc2626' },
+  { name: 'Moto2', path: '/explore/moto2', badge: 'Moto2', color: '#3b82f6' },
+  { name: 'Moto3', path: '/explore/moto3', badge: 'Moto3', color: '#10b981' },
   { name: 'FIA WEC', path: '/explore/wec', badge: 'WEC', color: '#2563eb' },
   { name: 'GT World Challenge', path: '/explore/gt-world-challenge', badge: 'GT3', color: '#f59e0b' },
   { name: 'WRC Rally', path: '/explore/wrc', badge: 'WRC', color: '#f97316' },
@@ -50,7 +52,7 @@ export const MobileNavigation: React.FC<MobileNavigationProps> = ({
 
   if (!isOpen) return null;
 
-  const userDisplayName = currentUser?.displayName || currentUser?.username || 'Racer';
+  const userDisplayName = currentUser?.username || 'Grid User';
 
   const isItemActive = (path: string) => {
     if (path === '/') return location.pathname === '/';

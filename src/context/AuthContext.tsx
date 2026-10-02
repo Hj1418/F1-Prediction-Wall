@@ -86,6 +86,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (profile) {
               setCurrentUser(profile);
               setIsAuthenticated(true);
+              if (!profile.username || profile.username.trim() === '') {
+                setOnboardingUser(profile);
+              }
               if (profile.role === 'admin') {
                 const users = await api.getAllUsers();
                 if (users && users.length > 0) setAllUsers(users);
@@ -147,6 +150,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.setItem(AUTH_STATUS_KEY, 'authenticated');
     localStorage.setItem(CURRENT_USER_KEY, user.userId);
     setAuthModalOpen(false);
+    if (!user.username || user.username.trim() === '') {
+      setOnboardingUser(user);
+    }
     await refreshUsers();
   };
 
@@ -157,6 +163,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.setItem(AUTH_STATUS_KEY, 'authenticated');
     localStorage.setItem(CURRENT_USER_KEY, newUser.userId);
     setAuthModalOpen(false);
+    if (!newUser.username || newUser.username.trim() === '') {
+      setOnboardingUser(newUser);
+    }
     await refreshUsers();
     return newUser;
   };
@@ -193,8 +202,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.setItem(CURRENT_USER_KEY, user.userId);
     setAuthModalOpen(false);
 
-    // Only first-time users (isNewUser: true) trigger the lightweight Welcome to The Grid modal
-    if (user.isNewUser) {
+    // Prompt user to choose username if they do not already have one
+    if (user.isNewUser || !user.username || user.username.trim() === '') {
       setOnboardingUser(user);
     }
 

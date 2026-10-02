@@ -1,7 +1,8 @@
 import React, { useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { X, Calendar, MapPin, Flag, Zap, ArrowRight, Compass } from 'lucide-react';
+import { X, Calendar, MapPin, Flag, Zap, ArrowRight, Compass, Clock } from 'lucide-react';
 import { GlobalCalendarEvent } from '../../services/calendar/globalCalendarService';
+import { formatIstTime } from '../../utils/istTimeUtils';
 
 export interface CalendarEventModalProps {
   event: GlobalCalendarEvent | null;
@@ -205,6 +206,17 @@ export const CalendarEventModal: React.FC<CalendarEventModalProps> = ({ event, o
             </div>
             <div style={{ fontSize: '0.86rem', fontWeight: 800, color: '#ffffff', fontFamily: 'var(--font-mono, monospace)' }}>
               {event.dates}
+            </div>
+          </div>
+
+          {/* Timing (IST) */}
+          <div>
+            <div style={{ fontSize: '0.68rem', color: 'var(--text-muted, #94a3b8)', fontFamily: 'var(--font-mono, monospace)', display: 'flex', alignItems: 'center', gap: '0.3rem', marginBottom: '0.2rem' }}>
+              <Clock size={13} style={{ color: event.seriesColor }} />
+              <span>START TIME (IST)</span>
+            </div>
+            <div style={{ fontSize: '0.86rem', fontWeight: 800, color: event.startTimeUtc ? 'var(--telemetry-yellow, #ffd600)' : 'var(--text-muted, #94a3b8)', fontFamily: 'var(--font-mono, monospace)' }}>
+              {formatIstTime(event.startTimeUtc)}
             </div>
           </div>
 

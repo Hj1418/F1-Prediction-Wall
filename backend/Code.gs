@@ -1271,8 +1271,8 @@ function getLeaderboard(type, id) {
     }
     entries.push({
       userId: uid,
-      username: u.username,
-      displayName: u.displayName,
+      username: u.username || 'Grid User',
+      displayName: u.username || 'Grid User', // PRIVACY: Never expose real name or Google displayName in public leaderboard data
       avatarUrl: u.avatarUrl,
       favouriteDriver: u.favouriteDriver,
       totalPoints: pts,
@@ -1702,8 +1702,8 @@ function googleLogin(payload) {
         userId: String(existingRow[userIdCol]),
         googleSubjectId: googleSubjectId || String(subCol !== undefined ? existingRow[subCol] || '' : ''),
         email: String(existingRow[emailCol]),
-        displayName: String(existingRow[displayNameCol] || displayName || email.split('@')[0]),
-        username: String(existingRow[usernameCol] || email.split('@')[0]),
+        displayName: String(existingRow[displayNameCol] || displayName || 'Racer'),
+        username: String(existingRow[usernameCol] || ''),
         avatarUrl: String((avatarCol !== undefined ? existingRow[avatarCol] : '') || photoUrl || ''),
         favouriteDriver: String((favDriverCol !== undefined ? existingRow[favDriverCol] : '') || 'verstappen'),
         favouriteConstructor: String((favConstCol !== undefined ? existingRow[favConstCol] : '') || 'red_bull'),
@@ -1717,16 +1717,18 @@ function googleLogin(payload) {
     }
 
     // CASE A — NEW USER: Create user record in USERS
-    const baseUsername = (payload.username || email.split('@')[0]).toLowerCase().replace(/[^a-z0-9_]/g, '') || 'racer';
-    let cleanUsername = baseUsername;
-    let suffix = 1;
-    while (rows.some(function(r, idx) { return idx > 0 && String(r[usernameCol]).toLowerCase() === cleanUsername; })) {
-      cleanUsername = baseUsername + suffix;
-      suffix++;
+    // Do NOT automatically generate a username from Google name or email.
+    // Accept valid user-selected username if provided in payload; otherwise leave empty for onboarding.
+    let cleanUsername = '';
+    if (payload.username && typeof payload.username === 'string' && payload.username.trim()) {
+      const avail = checkUsernameAvailability(payload.username);
+      if (avail.available) {
+        cleanUsername = avail.username;
+      }
     }
 
-    const userId = 'usr_' + cleanUsername + '_' + Utilities.getUuid().substring(0, 8);
-    const resolvedDisplayName = displayName || cleanUsername;
+    const userId = 'usr_' + Utilities.getUuid().replace(/-/g, '').substring(0, 12);
+    const resolvedDisplayName = displayName || 'Racer';
     const avatarUrl = photoUrl || '';
     const favouriteDriver = payload.favouriteDriver || 'verstappen';
     const favouriteConstructor = payload.favouriteConstructor || 'red_bull';
@@ -1939,18 +1941,18 @@ const RESERVED_USERNAMES = [
 ];
 
 function checkUsernameAvailability(rawUsername, excludeUserId) {
-  if (!rawUsername || typeof rawUsername !== 'string') {
-    return { available: false, reason: 'Racer Tag is required.' };
+  if (!rawUsername || typeof rawUsername !== 'string' || !rawUsername.trim()) {
+    return { available: false, reason: 'Username cannot be empty.' };
   }
-  const cleanUsername = rawUsername.trim().toLowerCase();
+  const cleanUsername = rawUsername.trim();
   if (cleanUsername.length < 3 || cleanUsername.length > 20) {
-    return { available: false, reason: 'Racer Tag must be between 3 and 20 characters.' };
+    return { available: false, reason: 'Username must be between 3 and 20 characters.' };
   }
-  if (!/^[a-z0-9_]+$/.test(cleanUsername)) {
-    return { available: false, reason: 'Racer Tag can only contain lowercase letters, numbers, and underscores.' };
+  if (!/^[a-zA-Z0-9_-]+$/.test(cleanUsername)) {
+    return { available: false, reason: 'Username can only contain letters, numbers, underscores, and hyphens.' };
   }
-  if (RESERVED_USERNAMES.indexOf(cleanUsername) !== -1) {
-    return { available: false, reason: 'This Racer Tag is reserved.' };
+  if (RESERVED_USERNAMES.indexOf(cleanUsername.toLowerCase()) !== -1) {
+    return { available: false, reason: 'This username is reserved.' };
   }
 
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -1974,14 +1976,15 @@ function checkUsernameAvailability(rawUsername, excludeUserId) {
   }
 
   const exclude = excludeUserId ? String(excludeUserId).trim().toLowerCase() : '';
+  const searchLower = cleanUsername.toLowerCase();
   for (let i = 1; i < rows.length; i++) {
     const rowUid = String(rows[i][uidCol] || '').trim().toLowerCase();
     if (exclude && rowUid === exclude) {
       continue;
     }
     const rowUser = String(rows[i][uCol] || '').trim().toLowerCase();
-    if (rowUser === cleanUsername) {
-      return { available: false, reason: 'This Racer Tag is already taken.' };
+    if (rowUser === searchLower) {
+      return { available: false, reason: 'Username is already taken.' };
     }
   }
 
@@ -1989,60 +1992,71 @@ function checkUsernameAvailability(rawUsername, excludeUserId) {
 }
 
 function updateUser(payload) {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName(SHEET_NAMES.USERS);
-  if (!sheet) throw new Error('Users sheet not found');
-  ensureUserHeaders(sheet);
-
-  const rows = sheet.getDataRange().getValues();
-  const userId = payload.userId;
-  const updates = payload.updates || {};
-
-  const headers = rows[0] || [];
-  const colMap = {};
-  for (let c = 0; c < headers.length; c++) {
-    colMap[String(headers[c]).trim()] = c;
+  const lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(10000);
+  } catch (e) {
+    throw new Error('Database is busy, please retry in a moment.');
   }
 
-  // If updating username, perform strict validation & uniqueness check
-  let cleanUsername = null;
-  if (updates.username !== undefined) {
-    const availability = checkUsernameAvailability(updates.username, userId);
-    if (!availability.available) {
-      throw new Error(availability.reason || 'Invalid or unavailable Racer Tag.');
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = ss.getSheetByName(SHEET_NAMES.USERS);
+    if (!sheet) throw new Error('Users sheet not found');
+    ensureUserHeaders(sheet);
+
+    const rows = sheet.getDataRange().getValues();
+    const userId = payload.userId;
+    const updates = payload.updates || {};
+
+    const headers = rows[0] || [];
+    const colMap = {};
+    for (let c = 0; c < headers.length; c++) {
+      colMap[String(headers[c]).trim()] = c;
     }
-    cleanUsername = availability.username;
-  }
 
-  for (let i = 1; i < rows.length; i++) {
-    const uid = colMap['userId'] !== undefined ? rows[i][colMap['userId']] : rows[i][0];
-    if (uid === userId) {
-      const rowIdx = i + 1;
-      if (cleanUsername !== null && colMap['username'] !== undefined) {
-        sheet.getRange(rowIdx, colMap['username'] + 1).setValue(cleanUsername);
+    // If updating username, perform strict validation & uniqueness check
+    let cleanUsername = null;
+    if (updates.username !== undefined) {
+      const availability = checkUsernameAvailability(updates.username, userId);
+      if (!availability.available) {
+        throw new Error(availability.reason || 'Invalid or unavailable username.');
       }
-      if (updates.displayName !== undefined && colMap['displayName'] !== undefined) {
-        sheet.getRange(rowIdx, colMap['displayName'] + 1).setValue(String(updates.displayName).trim());
-      }
-      if (updates.avatarUrl !== undefined && colMap['avatarUrl'] !== undefined) {
-        sheet.getRange(rowIdx, colMap['avatarUrl'] + 1).setValue(updates.avatarUrl);
-      }
-      if (updates.favouriteDriver !== undefined && colMap['favouriteDriver'] !== undefined) {
-        sheet.getRange(rowIdx, colMap['favouriteDriver'] + 1).setValue(updates.favouriteDriver);
-      }
-      if (updates.favouriteConstructor !== undefined && colMap['favouriteConstructor'] !== undefined) {
-        sheet.getRange(rowIdx, colMap['favouriteConstructor'] + 1).setValue(updates.favouriteConstructor);
-      }
-      if (updates.bio !== undefined && colMap['bio'] !== undefined) {
-        sheet.getRange(rowIdx, colMap['bio'] + 1).setValue(updates.bio);
-      }
-
-      // Return authoritative fresh user profile
-      const updatedProfile = getUserProfile(userId);
-      return updatedProfile || { success: true, userId: userId };
+      cleanUsername = availability.username;
     }
+
+    for (let i = 1; i < rows.length; i++) {
+      const uid = colMap['userId'] !== undefined ? rows[i][colMap['userId']] : rows[i][0];
+      if (uid === userId) {
+        const rowIdx = i + 1;
+        if (cleanUsername !== null && colMap['username'] !== undefined) {
+          sheet.getRange(rowIdx, colMap['username'] + 1).setValue(cleanUsername);
+        }
+        if (updates.displayName !== undefined && colMap['displayName'] !== undefined) {
+          sheet.getRange(rowIdx, colMap['displayName'] + 1).setValue(String(updates.displayName).trim());
+        }
+        if (updates.avatarUrl !== undefined && colMap['avatarUrl'] !== undefined) {
+          sheet.getRange(rowIdx, colMap['avatarUrl'] + 1).setValue(updates.avatarUrl);
+        }
+        if (updates.favouriteDriver !== undefined && colMap['favouriteDriver'] !== undefined) {
+          sheet.getRange(rowIdx, colMap['favouriteDriver'] + 1).setValue(updates.favouriteDriver);
+        }
+        if (updates.favouriteConstructor !== undefined && colMap['favouriteConstructor'] !== undefined) {
+          sheet.getRange(rowIdx, colMap['favouriteConstructor'] + 1).setValue(updates.favouriteConstructor);
+        }
+        if (updates.bio !== undefined && colMap['bio'] !== undefined) {
+          sheet.getRange(rowIdx, colMap['bio'] + 1).setValue(updates.bio);
+        }
+
+        // Return authoritative fresh user profile
+        const updatedProfile = getUserProfile(userId);
+        return updatedProfile || { success: true, userId: userId };
+      }
+    }
+    throw new Error('User not found in database');
+  } finally {
+    lock.releaseLock();
   }
-  throw new Error('User not found in database');
 }
 
 function getUserAchievements(userId) {

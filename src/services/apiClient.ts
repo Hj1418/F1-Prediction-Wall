@@ -795,7 +795,7 @@ export const api = {
     return mockApi.getAdminPredictions(roundId);
   },
 
-  async googleLogin(payload: { email: string; displayName?: string; photoUrl?: string; accessToken?: string }): Promise<User> {
+  async googleLogin(payload: { email: string; displayName?: string; photoUrl?: string; accessToken?: string; username?: string }): Promise<User> {
     if (!isLiveBackend && isProd) {
       throw new Error('Live database connection is required for Google authentication.');
     }

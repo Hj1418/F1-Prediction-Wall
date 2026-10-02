@@ -45,7 +45,7 @@ export const UserProfileMenu: React.FC<UserProfileMenuProps> = ({
     setIsOpen(false);
   }, [location.pathname]);
 
-  const userDisplayName = currentUser?.displayName || currentUser?.username || 'Racer';
+  const userDisplayName = currentUser?.username || 'Grid User';
 
   return (
     <div className="navbar-actions">
@@ -118,8 +118,8 @@ export const UserProfileMenu: React.FC<UserProfileMenuProps> = ({
                 showBorder={false}
               />
               <div style={{ minWidth: 0, flex: 1 }}>
-                <div className="user-dropdown__header-name">{currentUser?.displayName}</div>
-                <div className="user-dropdown__header-handle">@{currentUser?.username}</div>
+                <div className="user-dropdown__header-name">{currentUser?.username || 'Grid User'}</div>
+                <div className="user-dropdown__header-handle">@{currentUser?.username || 'user'}</div>
                 <div className="user-dropdown__header-stats">
                   <span style={{ fontSize: '0.72rem', fontFamily: 'var(--font-mono)', color: 'var(--telemetry-yellow)', fontWeight: 700 }}>
                     {currentUser?.totalPoints ?? 0} PTS

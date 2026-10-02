@@ -390,11 +390,12 @@ export const motogpData: ChampionshipDetailData = {
       circuitLengthKm: 4.801,
       duration: 'Stop-and-Go / 24 Laps',
       status: 'UPCOMING',
+      startTimeUtc: '2026-10-04T09:00:00Z',
       sessions: [
         { name: 'Practice Sessions', day: 'Friday', durationMinutes: 105, description: 'Severe front braking into 90-degree corner.' },
         { name: 'Qualifying 1 & 2', day: 'Saturday', durationMinutes: 40, description: 'Motegi pole battle.' },
         { name: 'Tissot Sprint', day: 'Saturday', durationMinutes: 25, description: '12-lap sprint.' },
-        { name: 'Grand Prix of Japan', day: 'Sunday', durationMinutes: 50, description: '24-lap Grand Prix.' },
+        { name: 'Grand Prix of Japan', day: 'Sunday', durationMinutes: 50, description: '24-lap Grand Prix.', startTimeUtc: '2026-10-04T09:00:00Z' },
       ],
     },
     {

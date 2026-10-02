@@ -204,7 +204,7 @@ export const LeaderboardPage: React.FC = () => {
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
             <UserInitialsAvatar
-              name={userEntry.displayName}
+              name={userEntry.username || 'Grid User'}
               imageUrl={userEntry.avatarUrl}
               size={46}
             />
@@ -213,7 +213,7 @@ export const LeaderboardPage: React.FC = () => {
                 YOUR POSITION
               </div>
               <div style={{ fontSize: '1.4rem', fontWeight: 900, textTransform: 'uppercase' }}>
-                {userEntry.displayName}
+                {userEntry.username || 'Grid User'}
               </div>
             </div>
           </div>
@@ -313,7 +313,7 @@ export const LeaderboardPage: React.FC = () => {
                 <tr>
                   <th style={{ width: '60px', textAlign: 'center' }}>POS</th>
                   {tab === 'season' && <th style={{ width: '60px', textAlign: 'center' }}>+/-</th>}
-                  <th>RACER</th>
+                  <th>USERNAME</th>
                   {tab === 'season' && <th style={{ textAlign: 'center' }}>RACES</th>}
                   {tab === 'season' && <th style={{ textAlign: 'center' }}>EXACT P1</th>}
                   {tab === 'season' && <th style={{ textAlign: 'center' }}>PERFECT PODIUM</th>}
@@ -377,7 +377,7 @@ export const LeaderboardPage: React.FC = () => {
                         </td>
                       )}
 
-                      {/* Racer Profile */}
+                      {/* Racer Profile: Username Only */}
                       <td>
                         <Link
                           to={`/profile/${entry.username}`}
@@ -390,23 +390,18 @@ export const LeaderboardPage: React.FC = () => {
                           }}
                         >
                           <UserInitialsAvatar
-                            name={entry.displayName}
+                            name={entry.username || 'Grid User'}
                             imageUrl={entry.avatarUrl}
                             size={32}
                             showBorder={false}
                           />
-                          <div>
-                            <div style={{ fontWeight: 800, fontSize: '0.9rem', color: '#fff', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                              {entry.displayName}
-                              {isLeader && (
-                                <span title="Championship Leader" style={{ display: 'inline-flex', alignItems: 'center' }}>
-                                  <Crown size={14} color="#eab308" />
-                                </span>
-                              )}
-                            </div>
-                            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                              @{entry.username}
-                            </div>
+                          <div style={{ fontWeight: 800, fontSize: '0.9rem', color: '#fff', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                            {entry.username || 'Grid User'}
+                            {isLeader && (
+                              <span title="Championship Leader" style={{ display: 'inline-flex', alignItems: 'center' }}>
+                                <Crown size={14} color="#eab308" />
+                              </span>
+                            )}
                           </div>
                         </Link>
                       </td>

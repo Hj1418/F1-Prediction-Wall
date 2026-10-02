@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { api } from '../services/apiClient';
 import { User, Achievement, Driver, Constructor } from '../types';
 import { useAuth } from '../context/AuthContext';
@@ -39,6 +39,7 @@ const GLOBAL_CONSTRUCTORS_LIST = [
 
 export const ProfilePage: React.FC = () => {
   const { username } = useParams<{ username: string }>();
+  const navigate = useNavigate();
   const { currentUser, updateProfile, openLoginModal } = useAuth();
   const { showToast } = useApp();
 
@@ -55,6 +56,68 @@ export const ProfilePage: React.FC = () => {
   const [selectedFavChampionship, setSelectedFavChampionship] = useState('');
   const [isEditingBio, setIsEditingBio] = useState(false);
   const [selectedBio, setSelectedBio] = useState('');
+  const [isEditingUsername, setIsEditingUsername] = useState(false);
+  const [newUsername, setNewUsername] = useState('');
+  const [usernameStatus, setUsernameStatus] = useState<'idle' | 'checking' | 'available' | 'unavailable' | 'invalid'>('idle');
+  const [usernameMessage, setUsernameMessage] = useState('');
+
+  useEffect(() => {
+    if (!isEditingUsername) return;
+    const raw = newUsername.trim();
+    if (!raw) {
+      setUsernameStatus('invalid');
+      setUsernameMessage('Username cannot be empty');
+      return;
+    }
+    if (raw.length < 3 || raw.length > 20) {
+      setUsernameStatus('invalid');
+      setUsernameMessage('Must be 3 to 20 characters');
+      return;
+    }
+    if (!/^[a-zA-Z0-9_-]+$/.test(raw)) {
+      setUsernameStatus('invalid');
+      setUsernameMessage('Letters, numbers, _, - only');
+      return;
+    }
+    if (raw.toLowerCase() === (currentUser?.username || '').toLowerCase()) {
+      setUsernameStatus('available');
+      setUsernameMessage('Current username');
+      return;
+    }
+
+    setUsernameStatus('checking');
+    setUsernameMessage('Checking availability...');
+    const timer = setTimeout(async () => {
+      try {
+        const res = await api.checkUsername(raw, currentUser?.userId);
+        if (res.available) {
+          setUsernameStatus('available');
+          setUsernameMessage('Username available');
+        } else {
+          setUsernameStatus('unavailable');
+          setUsernameMessage(res.reason || 'Username already taken');
+        }
+      } catch {
+        setUsernameStatus('unavailable');
+        setUsernameMessage('Could not verify availability');
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [newUsername, isEditingUsername, currentUser?.userId, currentUser?.username]);
+
+  const handleSaveUsername = async () => {
+    const clean = newUsername.trim();
+    if (!clean || usernameStatus !== 'available') return;
+    try {
+      await updateProfile({ username: clean });
+      setProfileUser(prev => prev ? { ...prev, username: clean } : null);
+      setIsEditingUsername(false);
+      showToast('Username updated successfully!', 'success');
+      navigate(`/profile/${clean}`, { replace: true });
+    } catch (e: any) {
+      showToast(e?.message || 'Failed to update username', 'error');
+    }
+  };
 
   useEffect(() => {
     async function loadProfile() {
@@ -209,7 +272,7 @@ export const ProfilePage: React.FC = () => {
             <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
               <div style={{ position: 'relative' }}>
                 <UserInitialsAvatar
-                  name={profileUser.displayName}
+                  name={profileUser.username || 'Grid User'}
                   imageUrl={profileUser.avatarUrl}
                   size={90}
                   style={{
@@ -242,7 +305,7 @@ export const ProfilePage: React.FC = () => {
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
                   <h1 style={{ fontSize: '2rem', fontWeight: 900, textTransform: 'uppercase' }}>
-                    {profileUser.displayName}
+                    {profileUser.username || 'Grid User'}
                   </h1>
                   {profileUser.role === 'admin' && (
                     <span
@@ -263,9 +326,102 @@ export const ProfilePage: React.FC = () => {
                   )}
                 </div>
 
-                <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
-                  @{profileUser.username} • Joined {new Date(profileUser.createdAt).toLocaleDateString(undefined, { month: 'short', year: 'numeric' })}
-                </div>
+                {/* Username with edit affordance for profile owner */}
+                {isOwner && isEditingUsername ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', marginTop: '0.5rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                      <div
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          backgroundColor: 'var(--bg-input, #131722)',
+                          border: `1px solid ${
+                            usernameStatus === 'available'
+                              ? 'var(--telemetry-green, #10b981)'
+                              : usernameStatus === 'unavailable' || usernameStatus === 'invalid'
+                              ? 'var(--f1-red, #e10600)'
+                              : 'var(--border-subtle, rgba(255, 255, 255, 0.15))'
+                          }`,
+                          borderRadius: '6px',
+                          padding: '0.2rem 0.5rem',
+                        }}
+                      >
+                        <span style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: '0.85rem' }}>@</span>
+                        <input
+                          type="text"
+                          value={newUsername}
+                          onChange={e => setNewUsername(e.target.value.replace(/\s+/g, ''))}
+                          maxLength={20}
+                          style={{
+                            background: 'transparent',
+                            border: 'none',
+                            outline: 'none',
+                            color: '#ffffff',
+                            fontFamily: 'var(--font-mono)',
+                            fontSize: '0.85rem',
+                            fontWeight: 700,
+                            width: '140px',
+                          }}
+                          autoFocus
+                        />
+                      </div>
+                      <button
+                        onClick={handleSaveUsername}
+                        disabled={usernameStatus !== 'available'}
+                        className="btn btn-primary btn-sm"
+                        style={{ padding: '0.25rem 0.6rem', fontSize: '0.75rem' }}
+                      >
+                        Save
+                      </button>
+                      <button
+                        onClick={() => setIsEditingUsername(false)}
+                        className="btn btn-outline btn-sm"
+                        style={{ padding: '0.25rem 0.6rem', fontSize: '0.75rem' }}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                    <span
+                      style={{
+                        fontSize: '0.72rem',
+                        fontFamily: 'var(--font-mono)',
+                        color:
+                          usernameStatus === 'available'
+                            ? 'var(--telemetry-green, #10b981)'
+                            : usernameStatus === 'unavailable' || usernameStatus === 'invalid'
+                            ? 'var(--f1-red, #e10600)'
+                            : 'var(--text-muted)',
+                      }}
+                    >
+                      {usernameStatus === 'available' && '✓ '}
+                      {usernameMessage}
+                    </span>
+                  </div>
+                ) : (
+                  <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.2rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <span>@{profileUser.username || 'Grid User'} • Joined {new Date(profileUser.createdAt).toLocaleDateString(undefined, { month: 'short', year: 'numeric' })}</span>
+                    {isOwner && (
+                      <button
+                        onClick={() => {
+                          setIsEditingUsername(true);
+                          setNewUsername(profileUser.username || '');
+                        }}
+                        style={{
+                          background: 'transparent',
+                          border: 'none',
+                          color: 'var(--text-muted)',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          padding: '2px',
+                        }}
+                        title="Edit Username"
+                      >
+                        <Edit2 size={13} />
+                      </button>
+                    )}
+                  </div>
+                )}
 
                 {/* Favourite Driver, Constructor & Championship Chips */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.75rem', flexWrap: 'wrap' }}>

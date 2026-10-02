@@ -172,214 +172,64 @@ export const HomePage: React.FC = () => {
       {/* ===================================================================
           1. HERO: The Front Door to All Motorsport
           =================================================================== */}
-      <section
-        style={{
-          background: 'radial-gradient(ellipse at 50% -10%, rgba(225, 6, 0, 0.22) 0%, var(--bg-base) 70%)',
-          borderBottom: '1px solid var(--border-subtle)',
-          padding: '3.5rem 1.25rem 2.75rem 1.25rem',
-          position: 'relative',
-          overflow: 'hidden',
-          textAlign: 'center',
-        }}
-      >
-        <div style={{ maxWidth: '960px', margin: '0 auto', position: 'relative', zIndex: 1 }}>
-          {/* Motorsport Category Ribbon */}
-          <div
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '0.6rem',
-              padding: '0.35rem 0.85rem',
-              borderRadius: '9999px',
-              background: 'rgba(255, 255, 255, 0.05)',
-              border: '1px solid rgba(255, 255, 255, 0.1)',
-              color: 'var(--text-secondary)',
-              fontSize: '0.74rem',
-              fontWeight: 800,
-              letterSpacing: '0.1em',
-              textTransform: 'uppercase',
-              marginBottom: '1.25rem',
-              fontFamily: 'var(--font-mono)',
-              maxWidth: '100%',
-              overflowX: 'auto',
-              whiteSpace: 'nowrap',
-              WebkitOverflowScrolling: 'touch',
-              scrollbarWidth: 'none',
-              boxSizing: 'border-box',
-            }}
-          >
-            <span style={{ color: 'var(--f1-red)' }}>F1</span>
-            <span style={{ opacity: 0.3 }}>•</span>
-            <span>F2</span>
-            <span style={{ opacity: 0.3 }}>•</span>
-            <span>F3</span>
-            <span style={{ opacity: 0.3 }}>•</span>
-            <span>F4</span>
-            <span style={{ opacity: 0.3 }}>•</span>
-            <span style={{ color: '#00d2be' }}>FE</span>
-            <span style={{ opacity: 0.3 }}>•</span>
-            <span style={{ color: '#0090d0' }}>WEC</span>
-            <span style={{ opacity: 0.3 }}>•</span>
-            <span style={{ color: '#d97706' }}>GT</span>
-            <span style={{ opacity: 0.3 }}>•</span>
-            <span style={{ color: '#ea580c' }}>WRC</span>
-            <span style={{ opacity: 0.3 }}>•</span>
-            <span style={{ color: '#dc2626' }}>MotoGP</span>
-            <span style={{ opacity: 0.3 }}>•</span>
-            <span style={{ color: '#ff9933' }}>INDIA 🇮🇳</span>
-          </div>
-
-          <h1
-            style={{
-              fontSize: 'clamp(2.5rem, 5.5vw, 4rem)',
-              fontWeight: 900,
-              letterSpacing: '-0.035em',
-              lineHeight: 1.1,
-              margin: '0 0 0.85rem 0',
-              color: '#ffffff',
-            }}
-          >
-            THE GRID
+      <section className="home-hero-section">
+        <div className="home-hero-container">
+          {/* THE GRID Headline */}
+          <h1 className="home-hero-brand-title" aria-label="THE GRID">
+            THE <span className="home-hero-grid-accent">GRID</span>
           </h1>
 
-          <p
-            style={{
-              fontSize: 'clamp(1rem, 2vw, 1.18rem)',
-              color: 'var(--text-secondary)',
-              maxWidth: '680px',
-              margin: '0 auto 1.25rem auto',
-              lineHeight: 1.5,
-            }}
-          >
-            Your motorsport starting point. Discover, follow, learn and predict across global motorsport — from Formula 1 to MotoGP, WEC, and Indian Motorsport.
-          </p>
-
-          {/* 4 Core Platform Pillars */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '1.25rem',
-              flexWrap: 'wrap',
-              marginBottom: '1.75rem',
-              fontFamily: 'var(--font-mono)',
-              fontSize: '0.78rem',
-              fontWeight: 800,
-              letterSpacing: '0.1em',
-              color: 'var(--text-muted)',
-            }}
-          >
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', color: '#00d2be' }}>
-              <BookOpen size={13} /> LEARN
-            </span>
-            <span style={{ opacity: 0.4 }}>/</span>
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', color: '#ffd600' }}>
-              <Calendar size={13} /> FOLLOW
-            </span>
-            <span style={{ opacity: 0.4 }}>/</span>
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', color: '#3b82f6' }}>
-              <Compass size={13} /> EXPLORE
-            </span>
-            <span style={{ opacity: 0.4 }}>/</span>
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', color: 'var(--f1-red)' }}>
-              <Zap size={13} /> COMPETE
-            </span>
+          <div className="home-hero-tagline" aria-label="Your motorsport starting point">
+            YOUR MOTORSPORT <span className="home-hero-tagline-accent">STARTING POINT</span>
           </div>
 
-          {/* Hero Action Buttons */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '0.75rem',
-              flexWrap: 'wrap',
-            }}
-          >
-            <Link
-              to="/championships"
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '0.5rem',
-                padding: '0.7rem 1.35rem',
-                borderRadius: '8px',
-                backgroundColor: 'var(--f1-red)',
-                color: '#ffffff',
-                fontWeight: 800,
-                fontSize: '0.85rem',
-                textTransform: 'uppercase',
-                letterSpacing: '0.04em',
-                textDecoration: 'none',
-                boxShadow: '0 4px 14px rgba(225, 6, 0, 0.4)',
-                transition: 'all 0.15s ease',
-              }}
-            >
+          <p className="home-hero-description">
+            Your motorsport starting point. Discover, follow, learn and predict across the world of motorsport — from Formula 1 to MotoGP, WEC, and Indian Motorsport.
+          </p>
+
+          {/* 4 Core Platform Pillars (Compact & Editorial) */}
+          <div className="home-pillar-grid">
+            <div className="home-pillar-item">
+              <div className="home-pillar-header">
+                <BookOpen size={14} style={{ color: '#00d2be' }} />
+                <span>LEARN</span>
+              </div>
+              <p className="home-pillar-desc">Understand the sport</p>
+            </div>
+            <div className="home-pillar-item">
+              <div className="home-pillar-header">
+                <Calendar size={14} style={{ color: '#ffd600' }} />
+                <span>FOLLOW</span>
+              </div>
+              <p className="home-pillar-desc">Stay updated</p>
+            </div>
+            <div className="home-pillar-item">
+              <div className="home-pillar-header">
+                <Compass size={14} style={{ color: '#3b82f6' }} />
+                <span>EXPLORE</span>
+              </div>
+              <p className="home-pillar-desc">Dive deeper</p>
+            </div>
+            <div className="home-pillar-item">
+              <div className="home-pillar-header">
+                <Zap size={14} style={{ color: 'var(--f1-red)' }} />
+                <span>COMPETE</span>
+              </div>
+              <p className="home-pillar-desc">Test your knowledge</p>
+            </div>
+          </div>
+
+          {/* Hero Action Buttons: Explore Motorsport ↓ Global Calendar */}
+          <div className="home-hero-cta-row">
+            <Link to="/explore" className="home-hero-primary-cta">
               <Compass size={16} />
               <span>Explore Motorsport</span>
             </Link>
 
-            <Link
-              to="/races"
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '0.5rem',
-                padding: '0.7rem 1.35rem',
-                borderRadius: '8px',
-                backgroundColor: 'var(--bg-surface-elevated)',
-                color: '#ffffff',
-                border: '1px solid var(--border-medium)',
-                fontWeight: 700,
-                fontSize: '0.85rem',
-                textTransform: 'uppercase',
-                letterSpacing: '0.04em',
-                textDecoration: 'none',
-                transition: 'all 0.15s ease',
-              }}
-            >
+            <Link to="/calendar" className="home-hero-secondary-cta">
               <Calendar size={16} />
               <span>Global Calendar</span>
             </Link>
-
-            <button
-              type="button"
-              onClick={openSearch}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '0.5rem',
-                padding: '0.7rem 1.1rem',
-                borderRadius: '8px',
-                backgroundColor: 'rgba(255, 255, 255, 0.04)',
-                color: 'var(--text-secondary)',
-                border: '1px solid var(--border-subtle)',
-                fontWeight: 600,
-                fontSize: '0.85rem',
-                cursor: 'pointer',
-                transition: 'all 0.15s ease',
-              }}
-            >
-              <Search size={15} />
-              <span>Search</span>
-              <kbd
-                style={{
-                  background: 'rgba(255, 255, 255, 0.08)',
-                  border: '1px solid rgba(255, 255, 255, 0.15)',
-                  borderRadius: '4px',
-                  padding: '0.1rem 0.35rem',
-                  fontSize: '0.68rem',
-                  color: 'var(--text-muted)',
-                  fontFamily: 'var(--font-mono)',
-                }}
-              >
-                ⌘K
-              </kbd>
-            </button>
           </div>
         </div>
       </section>
@@ -443,48 +293,24 @@ export const HomePage: React.FC = () => {
           {(() => {
             const circuitSvgFile = getCircuitSvgForRace(nextRace.circuitId, nextRace.circuitName, nextRace.grandPrixName);
             const circuitAssetUrl = getCircuitAssetUrl(circuitSvgFile);
+            const locationText = nextRace.city && nextRace.country && nextRace.city.toLowerCase() !== nextRace.country.toLowerCase()
+              ? `${nextRace.city}, ${nextRace.country}`
+              : (nextRace.city || nextRace.country || '');
 
             return (
-              <div
-                className="race-card-interactive"
-                style={{
-                  background: 'linear-gradient(135deg, rgba(225, 6, 0, 0.08) 0%, rgba(22, 27, 34, 0.95) 100%)',
-                  border: '1px solid rgba(225, 6, 0, 0.25)',
-                  borderRadius: '14px',
-                  padding: 'clamp(1.1rem, 3vw, 1.6rem)',
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))',
-                  gap: '1.5rem',
-                  alignItems: 'center',
-                }}
-              >
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.35rem' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <span style={{ fontSize: '1.2rem' }}>{nextRace.flag}</span>
-                      <span
-                        style={{
-                          fontFamily: 'var(--font-mono)',
-                          fontSize: '0.72rem',
-                          color: 'var(--text-muted)',
-                          textTransform: 'uppercase',
-                          letterSpacing: '0.06em',
-                        }}
-                      >
-                        ROUND {nextRace.roundNumber} • FORMULA 1
-                      </span>
-                    </div>
+              <div className="featured-next-up-card race-card-interactive">
+                <div className="featured-card-left">
+                  {/* Top Meta Row: Series badge + Round + Prediction Status pill */}
+                  <div className="featured-card-meta-row">
+                    <span className="featured-series-badge">F1</span>
+                    <span className="featured-round-label">
+                      ROUND {nextRace.roundNumber} • FORMULA 1
+                    </span>
 
-                    {/* Prominent Prediction State Indicator */}
+                    {/* Prominent Inline Prediction State Indicator */}
                     <span
+                      className="featured-status-pill"
                       style={{
-                        fontFamily: 'var(--font-mono)',
-                        fontSize: '0.68rem',
-                        fontWeight: 800,
-                        padding: '0.2rem 0.55rem',
-                        borderRadius: '4px',
-                        letterSpacing: '0.04em',
-                        textTransform: 'uppercase',
                         backgroundColor:
                           predictionHighlight.status === 'OPEN'
                             ? 'rgba(0, 230, 118, 0.15)'
@@ -512,7 +338,7 @@ export const HomePage: React.FC = () => {
                       }}
                     >
                       {predictionHighlight.status === 'OPEN'
-                        ? 'Prediction Open'
+                        ? '● Prediction Open'
                         : userPrediction
                         ? '🔒 Prediction Locked'
                         : userScore
@@ -520,24 +346,27 @@ export const HomePage: React.FC = () => {
                         : 'Prediction Closed'}
                     </span>
                   </div>
-                  <h2
-                    style={{
-                      fontSize: 'clamp(1.3rem, 4vw, 1.65rem)',
-                      fontWeight: 900,
-                      textTransform: 'uppercase',
-                      color: '#ffffff',
-                      margin: '0 0 0.25rem 0',
-                      letterSpacing: '-0.02em',
-                    }}
-                  >
+
+                  {/* Grand Prix Title */}
+                  <h2 className="featured-card-title">
                     {nextRace.grandPrixName}
                   </h2>
-                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.86rem', margin: '0 0 1rem 0' }}>
-                    {nextRace.circuitName} • {nextRace.city}, {nextRace.country} • <strong style={{ color: '#fff' }}>{nextRace.dates}</strong>
+
+                  {/* Clean Location & Date */}
+                  <p className="featured-card-location">
+                    <span>{nextRace.circuitName}</span>
+                    {locationText && (
+                      <>
+                        <span style={{ opacity: 0.35 }}>•</span>
+                        <span>{locationText}</span>
+                      </>
+                    )}
+                    <span style={{ opacity: 0.35 }}>•</span>
+                    <strong style={{ color: '#ffffff' }}>{nextRace.dates}</strong>
                   </p>
 
-                  <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap', alignItems: 'center' }}>
-                    {/* Primary Prediction Action CTA */}
+                  {/* Action Buttons: Primary Prediction CTA + Race Weekend */}
+                  <div className="featured-card-actions">
                     {predictionHighlight.status === 'OPEN' ? (
                       <Link
                         to={`/predict/${predictionHighlight.roundId}`}
@@ -545,16 +374,17 @@ export const HomePage: React.FC = () => {
                           display: 'inline-flex',
                           alignItems: 'center',
                           gap: '0.45rem',
-                          padding: '0.55rem 1.15rem',
+                          padding: '0.6rem 1.25rem',
                           borderRadius: '6px',
                           backgroundColor: 'var(--f1-red)',
                           color: '#ffffff',
                           fontWeight: 800,
-                          fontSize: '0.8rem',
+                          fontSize: '0.82rem',
                           textTransform: 'uppercase',
                           letterSpacing: '0.04em',
                           textDecoration: 'none',
-                          boxShadow: '0 0 14px rgba(225, 6, 0, 0.4)',
+                          boxShadow: '0 0 16px rgba(225, 6, 0, 0.45)',
+                          transition: 'all 0.15s ease',
                         }}
                       >
                         <Zap size={14} />
@@ -567,13 +397,13 @@ export const HomePage: React.FC = () => {
                           display: 'inline-flex',
                           alignItems: 'center',
                           gap: '0.45rem',
-                          padding: '0.55rem 1.15rem',
+                          padding: '0.6rem 1.25rem',
                           borderRadius: '6px',
                           backgroundColor: 'rgba(255, 255, 255, 0.08)',
                           border: '1px solid rgba(255, 255, 255, 0.2)',
                           color: '#ffffff',
                           fontWeight: 800,
-                          fontSize: '0.8rem',
+                          fontSize: '0.82rem',
                           textTransform: 'uppercase',
                           letterSpacing: '0.04em',
                           textDecoration: 'none',
@@ -589,13 +419,13 @@ export const HomePage: React.FC = () => {
                           display: 'inline-flex',
                           alignItems: 'center',
                           gap: '0.45rem',
-                          padding: '0.55rem 1.15rem',
+                          padding: '0.6rem 1.25rem',
                           borderRadius: '6px',
                           backgroundColor: 'rgba(157, 78, 221, 0.15)',
                           border: '1px solid rgba(157, 78, 221, 0.4)',
                           color: '#ffffff',
                           fontWeight: 800,
-                          fontSize: '0.8rem',
+                          fontSize: '0.82rem',
                           textTransform: 'uppercase',
                           letterSpacing: '0.04em',
                           textDecoration: 'none',
@@ -612,213 +442,66 @@ export const HomePage: React.FC = () => {
                         display: 'inline-flex',
                         alignItems: 'center',
                         gap: '0.4rem',
-                        padding: '0.55rem 1rem',
+                        padding: '0.6rem 1.15rem',
                         borderRadius: '6px',
-                        backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                        border: '1px solid var(--border-subtle)',
+                        backgroundColor: 'rgba(255, 255, 255, 0.06)',
+                        border: '1px solid var(--border-medium)',
                         color: 'var(--text-primary)',
                         fontWeight: 700,
-                        fontSize: '0.78rem',
+                        fontSize: '0.82rem',
                         textTransform: 'uppercase',
                         letterSpacing: '0.04em',
                         textDecoration: 'none',
+                        transition: 'all 0.15s ease',
                       }}
                     >
                       <span>Race Weekend</span>
                       <ArrowRight size={13} />
                     </Link>
-                    <Link
-                      to={`/circuits/${nextRace.circuitId || 'albert_park'}`}
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '0.4rem',
-                        padding: '0.55rem 1rem',
-                        borderRadius: '6px',
-                        backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                        border: '1px solid var(--border-subtle)',
-                        color: 'var(--text-secondary)',
-                        fontWeight: 700,
-                        fontSize: '0.78rem',
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.04em',
-                        textDecoration: 'none',
-                      }}
-                    >
-                      <MapPin size={13} />
-                      <span>Circuit Layout</span>
-                    </Link>
                   </div>
 
-                  {/* Session Breakdown Mini Cards (if available) */}
+                  {/* Session Breakdown Mini Pills (if available) */}
                   {nextRace.sessions && nextRace.sessions.length > 0 && (
-                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '1rem' }}>
+                    <div style={{ display: 'flex', gap: '0.45rem', flexWrap: 'wrap', marginTop: '0.45rem' }}>
                       {nextRace.sessions.map((s, idx) => (
                         <div
                           key={idx}
                           style={{
-                            flex: '1 1 75px',
                             background: s.isKeySession ? 'rgba(225, 6, 0, 0.14)' : 'rgba(255, 255, 255, 0.04)',
-                            border: s.isKeySession ? '1px solid rgba(225, 6, 0, 0.4)' : '1px solid rgba(255, 255, 255, 0.08)',
-                            borderRadius: '8px',
-                            padding: '0.6rem 0.45rem',
-                            textAlign: 'center',
+                            border: s.isKeySession ? '1px solid rgba(225, 6, 0, 0.35)' : '1px solid rgba(255, 255, 255, 0.08)',
+                            borderRadius: '4px',
+                            padding: '0.2rem 0.5rem',
+                            fontSize: '0.68rem',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.35rem',
                           }}
                         >
-                          <div
-                            style={{
-                              fontSize: '0.65rem',
-                              fontWeight: 800,
-                              color: s.isKeySession ? 'var(--f1-red)' : 'var(--text-muted)',
-                              fontFamily: 'var(--font-mono)',
-                            }}
-                          >
-                            {s.name}
-                          </div>
-                          <div
-                            style={{
-                              fontSize: '0.72rem',
-                              fontWeight: 700,
-                              color: '#ffffff',
-                              marginTop: '0.15rem',
-                            }}
-                          >
-                            {s.day}
-                          </div>
-                          <div
-                            style={{
-                              fontSize: '0.66rem',
-                              color: 'var(--text-secondary)',
-                              fontFamily: 'var(--font-mono)',
-                              marginTop: '0.1rem',
-                            }}
-                          >
-                            {s.time}
-                          </div>
+                          <span style={{ fontWeight: 800, color: s.isKeySession ? 'var(--f1-red)' : 'var(--text-muted)' }}>{s.name}</span>
+                          <span style={{ color: '#fff', fontWeight: 600 }}>{s.day}</span>
+                          <span style={{ color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)' }}>{s.time}</span>
                         </div>
                       ))}
                     </div>
                   )}
                 </div>
 
-                {/* Right side: Seamlessly Blended Circuit Graphic */}
-                <div
-                  className="circuit-blend-container"
-                  style={{
-                    position: 'relative',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    minHeight: '220px',
-                    width: '100%',
-                    padding: '0.5rem',
-                  }}
+                {/* Right side: Compact Framed Circuit Graphic */}
+                <Link
+                  to={`/circuits/${nextRace.circuitId || 'albert_park'}`}
+                  className="featured-circuit-frame"
+                  title={`Explore ${nextRace.circuitName} Circuit Layout`}
                 >
-                  {/* Ambient Telemetry Radar Rings */}
-                  <div
-                    style={{
-                      position: 'absolute',
-                      width: '240px',
-                      height: '240px',
-                      borderRadius: '50%',
-                      border: '1px dashed rgba(255, 255, 255, 0.05)',
-                      pointerEvents: 'none',
-                    }}
+                  <img
+                    src={circuitAssetUrl}
+                    alt={`${nextRace.circuitName} track layout`}
+                    className="featured-track-img"
                   />
-                  <div
-                    style={{
-                      position: 'absolute',
-                      width: '160px',
-                      height: '160px',
-                      borderRadius: '50%',
-                      border: '1px dashed rgba(225, 6, 0, 0.08)',
-                      pointerEvents: 'none',
-                    }}
-                  />
-
-                  {/* Soft Radial Ambient Glow */}
-                  <div
-                    style={{
-                      position: 'absolute',
-                      width: '260px',
-                      height: '260px',
-                      borderRadius: '50%',
-                      background: 'radial-gradient(circle, rgba(225, 6, 0, 0.16) 0%, rgba(0, 240, 255, 0.04) 45%, transparent 70%)',
-                      filter: 'blur(18px)',
-                      pointerEvents: 'none',
-                    }}
-                  />
-
-                  {/* Clickable Circuit Track Link */}
-                  <Link
-                    to={`/circuits/${nextRace.circuitId || 'albert_park'}`}
-                    title={`Explore ${nextRace.circuitName} Circuit Layout`}
-                    style={{
-                      position: 'relative',
-                      zIndex: 1,
-                      width: '100%',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      textDecoration: 'none',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    {/* Track SVG Vector */}
-                    <div
-                      style={{
-                        width: '100%',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        padding: '0.75rem 0',
-                      }}
-                    >
-                      <img
-                        src={circuitAssetUrl}
-                        alt={`${nextRace.circuitName} track layout`}
-                        className="track-svg-animated"
-                        style={{
-                          maxHeight: '180px',
-                          maxWidth: '88%',
-                          width: 'auto',
-                          height: 'auto',
-                          objectFit: 'contain',
-                          filter: 'drop-shadow(0 0 16px rgba(225, 6, 0, 0.45)) drop-shadow(0 0 3px rgba(255, 255, 255, 0.4))',
-                        }}
-                      />
-                    </div>
-
-                    {/* Subtle Telemetry Footer Pill */}
-                    <div
-                      className="circuit-telemetry-badge"
-                      style={{
-                        marginTop: '0.65rem',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '0.45rem',
-                        padding: '0.3rem 0.75rem',
-                        borderRadius: '9999px',
-                        background: 'rgba(255, 255, 255, 0.03)',
-                        border: '1px solid rgba(255, 255, 255, 0.08)',
-                        fontSize: '0.72rem',
-                        fontFamily: 'var(--font-mono)',
-                        color: 'var(--text-secondary)',
-                        letterSpacing: '0.04em',
-                        textTransform: 'uppercase',
-                      }}
-                    >
-                      <Compass size={12} style={{ color: 'var(--f1-red)' }} />
-                      <span>{nextRace.circuitName}</span>
-                      <span style={{ opacity: 0.3 }}>•</span>
-                      <span style={{ color: 'var(--f1-red)', fontWeight: 800, display: 'inline-flex', alignItems: 'center', gap: '0.15rem' }}>
-                        CIRCUIT LAYOUT <ChevronRight size={12} />
-                      </span>
-                    </div>
-                  </Link>
-                </div>
+                  <div className="featured-circuit-label">
+                    <span>{nextRace.circuitName}</span>
+                    <ChevronRight size={12} style={{ color: 'var(--f1-red)' }} />
+                  </div>
+                </Link>
               </div>
             );
           })()}

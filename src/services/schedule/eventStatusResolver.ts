@@ -31,11 +31,15 @@ export interface EventDateSubject {
   [key: string]: any;
 }
 
+import { formatIsoDateString, getIstDateParts } from '../../utils/istTimeUtils';
+
 export interface EventDateBounds {
   start: Date;
   end: Date;
   startMs: number;
   endMs: number;
+  startDateIso: string;
+  endDateIso: string;
 }
 
 const MONTH_MAP: Record<string, number> = {
@@ -55,24 +59,50 @@ const MONTH_MAP: Record<string, number> = {
 
 /**
  * Parses any date representation (ISO 8601 or range strings like "Oct 02 – Oct 04", "Sep 24 – Sep 26")
- * into normalized start and end Date bounds.
+ * into normalized start and end Date bounds with canonical ISO dates.
  */
 export function parseEventDateBounds(event: EventDateSubject, defaultYear: number = 2026): EventDateBounds {
+  const rawYear = event.season || event.seasonYear || defaultYear;
+  const numYear = typeof rawYear === 'number' ? rawYear : parseInt(String(rawYear).split('-')[0], 10) || defaultYear;
+
   // 1. Direct ISO startDate / endDate
   if (event.startDate && event.endDate) {
     const start = new Date(event.startDate);
     const end = new Date(event.endDate);
     if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
-      return { start, end, startMs: start.getTime(), endMs: end.getTime() };
+      let startDateIso: string;
+      let endDateIso: string;
+
+      if (/^\d{4}-\d{2}-\d{2}$/.test(event.startDate.trim())) {
+        startDateIso = event.startDate.trim();
+      } else {
+        const p = getIstDateParts(start);
+        startDateIso = formatIsoDateString(p.year, p.month, p.day);
+      }
+
+      if (/^\d{4}-\d{2}-\d{2}$/.test(event.endDate.trim())) {
+        endDateIso = event.endDate.trim();
+      } else {
+        const p = getIstDateParts(end);
+        endDateIso = formatIsoDateString(p.year, p.month, p.day);
+      }
+
+      return {
+        start,
+        end,
+        startMs: start.getTime(),
+        endMs: end.getTime(),
+        startDateIso,
+        endDateIso,
+      };
     }
   }
 
   // 2. Parse human readable string from dates field (e.g. "Oct 02 – Oct 04", "Sep 24 – Sep 26", "2–4 Oct 2026")
   const rawDates = (event.dates || '').trim();
-  const year = event.season || event.seasonYear || defaultYear;
 
   if (rawDates) {
-    // Pattern A: "Month Day – Month Day" or "Month Day – Day" (e.g. "Oct 02 – Oct 04", "Mar 13 – Mar 15", "Feb 27 – Mar 01")
+    // Pattern A: "Month Day – Month Day" (e.g. "Oct 02 – Oct 04", "Mar 13 – Mar 15", "Feb 27 – Mar 01")
     const matchTwoMonth = rawDates.match(/([a-zA-Z]+)\s+(\d{1,2})\s*[–\-—]\s*([a-zA-Z]+)\s+(\d{1,2})/);
     if (matchTwoMonth) {
       const startM = MONTH_MAP[matchTwoMonth[1].toLowerCase()] ?? 0;
@@ -80,9 +110,11 @@ export function parseEventDateBounds(event: EventDateSubject, defaultYear: numbe
       const endM = MONTH_MAP[matchTwoMonth[3].toLowerCase()] ?? startM;
       const endD = parseInt(matchTwoMonth[4], 10);
 
-      const start = new Date(Date.UTC(year, startM, startD, 0, 0, 0));
-      const end = new Date(Date.UTC(year, endM, endD, 23, 59, 59));
-      return { start, end, startMs: start.getTime(), endMs: end.getTime() };
+      const start = new Date(Date.UTC(numYear, startM, startD, 0, 0, 0));
+      const end = new Date(Date.UTC(numYear, endM, endD, 23, 59, 59));
+      const startDateIso = formatIsoDateString(numYear, startM, startD);
+      const endDateIso = formatIsoDateString(numYear, endM, endD);
+      return { start, end, startMs: start.getTime(), endMs: end.getTime(), startDateIso, endDateIso };
     }
 
     // Pattern B: "Month Day – Day" (e.g. "Oct 02 – 04" or "Oct 2 – 4")
@@ -92,9 +124,11 @@ export function parseEventDateBounds(event: EventDateSubject, defaultYear: numbe
       const startD = parseInt(matchSameMonth[2], 10);
       const endD = parseInt(matchSameMonth[3], 10);
 
-      const start = new Date(Date.UTC(year, m, startD, 0, 0, 0));
-      const end = new Date(Date.UTC(year, m, endD, 23, 59, 59));
-      return { start, end, startMs: start.getTime(), endMs: end.getTime() };
+      const start = new Date(Date.UTC(numYear, m, startD, 0, 0, 0));
+      const end = new Date(Date.UTC(numYear, m, endD, 23, 59, 59));
+      const startDateIso = formatIsoDateString(numYear, m, startD);
+      const endDateIso = formatIsoDateString(numYear, m, endD);
+      return { start, end, startMs: start.getTime(), endMs: end.getTime(), startDateIso, endDateIso };
     }
 
     // Pattern C: "Day–Day Month Year" (e.g. "2–4 Oct 2026" or "18–20 Sep 2026")
@@ -103,17 +137,43 @@ export function parseEventDateBounds(event: EventDateSubject, defaultYear: numbe
       const startD = parseInt(matchEuro[1], 10);
       const endD = parseInt(matchEuro[2], 10);
       const m = MONTH_MAP[matchEuro[3].toLowerCase()] ?? 0;
-      const y = matchEuro[4] ? parseInt(matchEuro[4], 10) : year;
+      const y = matchEuro[4] ? parseInt(matchEuro[4], 10) : numYear;
 
       const start = new Date(Date.UTC(y, m, startD, 0, 0, 0));
       const end = new Date(Date.UTC(y, m, endD, 23, 59, 59));
-      return { start, end, startMs: start.getTime(), endMs: end.getTime() };
+      const startDateIso = formatIsoDateString(y, m, startD);
+      const endDateIso = formatIsoDateString(y, m, endD);
+      return { start, end, startMs: start.getTime(), endMs: end.getTime(), startDateIso, endDateIso };
+    }
+
+    // Pattern D: Single day "Month Day" (e.g. "May 24" or "Oct 04")
+    const matchSingle = rawDates.match(/([a-zA-Z]+)\s+(\d{1,2})(?:\s+(\d{4}))?/);
+    if (matchSingle) {
+      const m = MONTH_MAP[matchSingle[1].toLowerCase()] ?? 0;
+      const d = parseInt(matchSingle[2], 10);
+      const y = matchSingle[3] ? parseInt(matchSingle[3], 10) : numYear;
+
+      const start = new Date(Date.UTC(y, m, d, 0, 0, 0));
+      const end = new Date(Date.UTC(y, m, d, 23, 59, 59));
+      const dateIso = formatIsoDateString(y, m, d);
+      return { start, end, startMs: start.getTime(), endMs: end.getTime(), startDateIso: dateIso, endDateIso: dateIso };
+    }
+  }
+
+  // 3. Direct timestamp startTimeUtc
+  if (event.startTimeUtc) {
+    const t = new Date(event.startTimeUtc);
+    if (!isNaN(t.getTime())) {
+      const p = getIstDateParts(t);
+      const dateIso = formatIsoDateString(p.year, p.month, p.day);
+      return { start: t, end: t, startMs: t.getTime(), endMs: t.getTime(), startDateIso: dateIso, endDateIso: dateIso };
     }
   }
 
   // Fallback safe date
-  const fallback = new Date(Date.UTC(year, 0, 1, 0, 0, 0));
-  return { start: fallback, end: fallback, startMs: fallback.getTime(), endMs: fallback.getTime() };
+  const fallback = new Date(Date.UTC(numYear, 0, 1, 0, 0, 0));
+  const fallbackIso = formatIsoDateString(numYear, 0, 1);
+  return { start: fallback, end: fallback, startMs: fallback.getTime(), endMs: fallback.getTime(), startDateIso: fallbackIso, endDateIso: fallbackIso };
 }
 
 /**

@@ -47,116 +47,28 @@ export const ChampionshipsPage: React.FC = () => {
   return (
     <div className="championships-page" style={{ paddingBottom: '5rem' }}>
       {/* 1. HERO HEADER */}
-      <section
-        style={{
-          background: 'radial-gradient(ellipse at 50% -20%, rgba(225, 6, 0, 0.18) 0%, var(--bg-base) 70%)',
-          borderBottom: '1px solid var(--border-subtle)',
-          padding: '3.5rem 0 2.5rem 0',
-          position: 'relative',
-        }}
-      >
+      <section className="explore-hero-section">
         <div className="container" style={{ textAlign: 'center' }}>
-          <div
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              padding: '0.35rem 0.9rem',
-              borderRadius: '9999px',
-              background: 'rgba(255, 255, 255, 0.05)',
-              border: '1px solid var(--border-subtle)',
-              color: 'var(--text-secondary)',
-              fontSize: '0.74rem',
-              fontWeight: 800,
-              letterSpacing: '0.12em',
-              textTransform: 'uppercase',
-              marginBottom: '1rem',
-              fontFamily: 'var(--font-mono)',
-            }}
-          >
-            <Compass size={14} style={{ color: 'var(--f1-red)' }} />
-            <span>EXPLORE MOTORSPORT</span>
-          </div>
-
-          <h1
-            style={{
-              fontSize: 'clamp(2.2rem, 4.5vw, 3.4rem)',
-              fontWeight: 900,
-              letterSpacing: '-0.03em',
-              lineHeight: 1.15,
-              margin: '0 0 0.85rem 0',
-              color: '#ffffff',
-            }}
-          >
-            EXPLORE THE WORLD OF MOTORSPORT
+          <h1 className="explore-hero-title">
+            THE WORLD OF <span className="explore-hero-title-accent">MOTORSPORT</span>
           </h1>
 
-          <p
-            style={{
-              fontSize: 'clamp(0.95rem, 2vw, 1.15rem)',
-              color: 'var(--text-secondary)',
-              maxWidth: '680px',
-              margin: '0 auto 1.5rem auto',
-              lineHeight: 1.55,
-            }}
-          >
-            Discover premier championships, technical machinery, elite competitors, and world-class circuits across global motorsport.
+          <p className="explore-hero-description">
+            From open-wheel to endurance, from two wheels to rally — discover championships, teams, circuits and stories from across motorsport.
           </p>
 
-          {/* Quick Stats Pill */}
-          <div
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexWrap: 'wrap',
-              gap: '0.6rem 1rem',
-              padding: '0.5rem 1.25rem',
-              borderRadius: '30px',
-              background: 'var(--bg-surface)',
-              border: '1px solid var(--border-subtle)',
-              fontSize: '0.8rem',
-              fontFamily: 'var(--font-mono)',
-              color: 'var(--text-secondary)',
-              maxWidth: '100%',
-              boxSizing: 'border-box',
-            }}
-          >
-            <span><strong style={{ color: '#fff' }}>10+</strong> Championships</span>
-            <span style={{ color: 'var(--border-subtle)' }}>•</span>
-            <span><strong style={{ color: 'var(--telemetry-cyan)' }}>15+</strong> Global Circuits</span>
-            <span style={{ color: 'var(--border-subtle)' }}>•</span>
-            <span><strong style={{ color: '#fff' }}>5</strong> Racing Disciplines</span>
-          </div>
-
           {/* Universal Search CTA */}
-          <div style={{ marginTop: '1.25rem' }}>
+          <div className="explore-hero-search-wrapper">
             <button
               type="button"
               onClick={openSearch}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '0.65rem',
-                padding: '0.6rem 1.25rem',
-                borderRadius: '8px',
-                background: 'rgba(255, 255, 255, 0.05)',
-                border: '1px solid rgba(255, 255, 255, 0.15)',
-                color: '#ffffff',
-                fontSize: '0.85rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-                transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
-                maxWidth: '100%',
-                boxSizing: 'border-box',
-              }}
+              className="explore-search-trigger"
             >
-              <Search size={15} style={{ color: 'var(--f1-red)', flexShrink: 0 }} />
-              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                Search drivers, teams, circuits & regulations...
+              <Search size={16} style={{ color: 'var(--f1-red)', flexShrink: 0 }} />
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, textAlign: 'left' }}>
+                Search drivers, teams, circuits, championships...
               </span>
-              <kbd className="hero-search-kbd" style={{ fontSize: '0.65rem', padding: '0.15rem 0.4rem', borderRadius: '4px', background: 'rgba(255, 255, 255, 0.1)', border: '1px solid rgba(255, 255, 255, 0.15)', color: 'var(--text-muted)', fontFamily: 'monospace', flexShrink: 0 }}>⌘K</kbd>
+              <kbd className="hero-search-kbd" style={{ fontSize: '0.65rem', padding: '0.15rem 0.45rem', borderRadius: '4px', background: 'rgba(255, 255, 255, 0.1)', border: '1px solid rgba(255, 255, 255, 0.15)', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', flexShrink: 0 }}>⌘K</kbd>
             </button>
           </div>
         </div>
@@ -265,243 +177,94 @@ export const ChampionshipsPage: React.FC = () => {
       {/* 3. CHAMPIONSHIPS GRID */}
       <section style={{ padding: '2.5rem 0' }}>
         <div className="container">
+          <div className="explore-section-header">
+            <h2 className="explore-section-title">BROWSE BY MOTORSPORT</h2>
+            <span className="explore-section-subtitle">Select a championship to enter its dedicated hub</span>
+          </div>
+
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 300px), 1fr))',
-              gap: '1.5rem',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 310px), 1fr))',
+              gap: '1.25rem',
             }}
           >
             {filteredChampionships.map(champ => {
               const isF1 = champ.isF1StartingPoint;
+              const hasHub = isF1 || isChampionshipDataReady(champ.id);
+              const destinationUrl = isF1
+                ? '/explore/f1'
+                : hasHub
+                ? `/explore/${champ.id}`
+                : champ.officialUrl;
 
               return (
                 <div
                   key={champ.id}
+                  className="explore-card"
                   style={{
-                    backgroundColor: 'var(--bg-surface)',
-                    border: isF1 ? '1px solid rgba(225, 6, 0, 0.45)' : '1px solid var(--border-subtle)',
-                    borderRadius: '12px',
-                    padding: '1.5rem',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'space-between',
-                    gap: '1.25rem',
-                    boxShadow: isF1 ? '0 0 20px rgba(225, 6, 0, 0.1)' : 'none',
-                    transition: 'transform 0.15s ease, border-color 0.15s ease',
-                  }}
+                    '--card-accent': champ.badgeColor,
+                    '--card-glow': `${champ.badgeColor}33`,
+                  } as React.CSSProperties}
                 >
-                  <div>
-                    {/* Header: Tier + Badge */}
-                    <div
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        marginBottom: '0.75rem',
-                      }}
-                    >
+                  <div className="explore-card-body">
+                    {/* Top: Short identifier badge & vehicle/discipline */}
+                    <div className="explore-card-top">
                       <span
+                        className="explore-card-badge"
                         style={{
-                          fontSize: '0.7rem',
-                          fontFamily: 'var(--font-mono)',
-                          fontWeight: 800,
+                          backgroundColor: `${champ.badgeColor}18`,
                           color: champ.badgeColor,
-                          letterSpacing: '0.08em',
-                          textTransform: 'uppercase',
+                          border: `1px solid ${champ.badgeColor}40`,
                         }}
                       >
-                        {champ.tier}
+                        {champ.shortName}
                       </span>
-                      {isF1 ? (
-                        <span
-                          style={{
-                            fontSize: '0.68rem',
-                            fontFamily: 'var(--font-mono)',
-                            fontWeight: 800,
-                            backgroundColor: 'rgba(225, 6, 0, 0.15)',
-                            color: 'var(--f1-red)',
-                            border: '1px solid rgba(225, 6, 0, 0.35)',
-                            padding: '0.15rem 0.5rem',
-                            borderRadius: '4px',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '0.3rem',
-                          }}
-                        >
-                          <Sparkles size={11} /> ACTIVE HUB
-                        </span>
-                      ) : isChampionshipDataReady(champ.id) ? (
-                        <span
-                          style={{
-                            fontSize: '0.68rem',
-                            fontFamily: 'var(--font-mono)',
-                            fontWeight: 800,
-                            backgroundColor: `${champ.badgeColor}22`,
-                            color: champ.badgeColor,
-                            border: `1px solid ${champ.badgeColor}55`,
-                            padding: '0.15rem 0.5rem',
-                            borderRadius: '4px',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '0.3rem',
-                          }}
-                        >
-                          <Sparkles size={11} /> {champ.id === 'indian-motorsport' ? 'ECOSYSTEM READY' : 'DATA READY'}
-                        </span>
-                      ) : null}
+                      <span className="explore-card-discipline">
+                        {champ.vehicleType.split('(')[0].trim()}
+                      </span>
                     </div>
 
-                    {/* Title & Tagline */}
-                    <h2
-                      style={{
-                        fontSize: '1.3rem',
-                        fontWeight: 900,
-                        margin: '0 0 0.35rem 0',
-                        color: '#ffffff',
-                        letterSpacing: '-0.01em',
-                      }}
-                    >
-                      {champ.shortName}
-                    </h2>
-                    <div
-                      style={{
-                        fontSize: '0.8rem',
-                        color: 'var(--text-secondary)',
-                        lineHeight: 1.45,
-                        marginBottom: '1rem',
-                        fontWeight: 500,
-                      }}
-                    >
+                    {/* Motorsport Name */}
+                    <h3 className="explore-card-name" style={{ marginTop: '0.85rem' }}>
+                      {champ.name}
+                    </h3>
+
+                    {/* Tagline */}
+                    <p className="explore-card-tagline">
                       {champ.tagline}
-                    </div>
-
-                    {/* Snapshot attributes */}
-                    <div
-                      style={{
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '0.5rem',
-                        padding: '0.75rem',
-                        borderRadius: '8px',
-                        backgroundColor: 'var(--bg-base)',
-                        border: '1px solid var(--border-subtle)',
-                        fontSize: '0.75rem',
-                        marginBottom: '1rem',
-                      }}
-                    >
-                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <span style={{ color: 'var(--text-muted)' }}>Governing Body:</span>
-                        <span style={{ color: '#ffffff', fontWeight: 600 }}>{champ.governingBody}</span>
-                      </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <span style={{ color: 'var(--text-muted)' }}>Vehicle Type:</span>
-                        <span style={{ color: '#ffffff', fontWeight: 600, maxWidth: '60%', textAlign: 'right' }}>
-                          {champ.vehicleType.split('(')[0]}
-                        </span>
-                      </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <span style={{ color: 'var(--text-muted)' }}>Top Speed:</span>
-                        <span style={{ color: 'var(--telemetry-green, #00e676)', fontWeight: 700, fontFamily: 'var(--font-mono)' }}>
-                          {champ.topSpeed}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Beginner Explanation */}
-                    <p
-                      style={{
-                        fontSize: '0.78rem',
-                        color: 'var(--text-secondary)',
-                        margin: 0,
-                        lineHeight: 1.5,
-                      }}
-                    >
-                      {champ.beginnerOverview}
                     </p>
                   </div>
 
-                  {/* Actions Footer */}
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      paddingTop: '0.85rem',
-                      borderTop: '1px solid var(--border-subtle)',
-                    }}
-                  >
+                  {/* Footer: Overview action & Enter Hub affordance */}
+                  <div className="explore-card-footer">
                     <button
+                      type="button"
                       onClick={() => setActiveChampionship(champ)}
-                      style={{
-                        background: 'transparent',
-                        border: 'none',
-                        color: 'var(--text-secondary)',
-                        fontSize: '0.78rem',
-                        fontWeight: 700,
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '0.35rem',
-                        cursor: 'pointer',
-                        padding: '0.3rem 0',
-                      }}
+                      className="explore-card-info-btn"
                     >
-                      <Info size={14} /> Full Details
+                      <Info size={13} />
+                      <span>Overview</span>
                     </button>
 
-                    {isF1 ? (
+                    {hasHub ? (
                       <Link
-                        to="/explore/f1"
-                        style={{
-                          backgroundColor: 'var(--f1-red)',
-                          color: '#ffffff',
-                          textDecoration: 'none',
-                          padding: '0.45rem 0.9rem',
-                          borderRadius: '6px',
-                          fontSize: '0.75rem',
-                          fontWeight: 800,
-                          fontFamily: 'var(--font-mono)',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '0.35rem',
-                        }}
+                        to={destinationUrl}
+                        className="explore-card-action"
                       >
-                        ENTER F1 HUB <ChevronRight size={13} />
-                      </Link>
-                    ) : isChampionshipDataReady(champ.id) ? (
-                      <Link
-                        to={`/explore/${champ.id}`}
-                        style={{
-                          backgroundColor: champ.badgeColor,
-                          color: '#ffffff',
-                          textDecoration: 'none',
-                          padding: '0.45rem 0.9rem',
-                          borderRadius: '6px',
-                          fontSize: '0.75rem',
-                          fontWeight: 800,
-                          fontFamily: 'var(--font-mono)',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '0.35rem',
-                        }}
-                      >
-                        {champ.id === 'indian-motorsport' ? 'ENTER ECOSYSTEM HUB' : `ENTER ${champ.shortName.toUpperCase()} HUB`} <ChevronRight size={13} />
+                        <span>ENTER HUB</span>
+                        <ChevronRight size={13} />
                       </Link>
                     ) : (
                       <a
                         href={champ.officialUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        style={{
-                          color: 'var(--text-muted)',
-                          textDecoration: 'none',
-                          fontSize: '0.75rem',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '0.3rem',
-                        }}
+                        className="explore-card-action"
+                        style={{ background: 'transparent', borderColor: 'var(--border-subtle)' }}
                       >
-                        Official Site <ExternalLink size={12} />
+                        <span>OFFICIAL SITE</span>
+                        <ExternalLink size={12} />
                       </a>
                     )}
                   </div>

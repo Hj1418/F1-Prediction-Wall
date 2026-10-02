@@ -30,6 +30,14 @@ import {
   EventLiveStatus,
 } from '../schedule/eventStatusResolver';
 import { normalizeCircuitId, CIRCUIT_SOURCE_MAPPING } from '../circuits/circuitRegistry';
+import {
+  isEventOnCalendarDateInIst,
+  sortEventsChronologicalIst,
+  formatIstTime,
+  formatIstTimeShort,
+  getEventTimeForCalendarDate,
+  getCompactEventName,
+} from '../../utils/istTimeUtils';
 
 export interface GlobalCalendarEvent {
   id: string;
@@ -55,11 +63,20 @@ export interface GlobalCalendarEvent {
   predictionUrl?: string;
   hubUrl: string;
   circuitUrl: string;
+  startTimeUtc?: string;
+  // Canonical normalized fields per architectural requirement
+  weekendStartDate: string;
+  weekendEndDate: string;
+  primaryStartDateTime?: string;
+  primaryStartTimeIST: string;
+  primaryStartTimeShort: string;
+  timezone: string;
   sessions?: Array<{
     name: string;
     day: string;
     durationMinutes?: number;
     description?: string;
+    startTimeUtc?: string;
   }>;
 }
 
@@ -120,6 +137,27 @@ function roundToCalendarEvent(
 
   const eventId = `${seriesId}-${data.seasonYear}-r${round.roundNumber}`;
 
+  // Extract authoritative primary race/event start time (if reliably defined)
+  let startTimeUtc = round.startTimeUtc;
+  if (!startTimeUtc && round.sessions && round.sessions.length > 0) {
+    const raceSession = round.sessions.find(s =>
+      Boolean(s.startTimeUtc) ||
+      s.name.toLowerCase().includes('grand prix') ||
+      s.name.toLowerCase().includes('race') ||
+      s.name.toLowerCase().includes('power stage')
+    );
+    if (raceSession?.startTimeUtc) {
+      startTimeUtc = raceSession.startTimeUtc;
+    }
+  }
+
+  const weekendStartDate = dateBounds.startDateIso;
+  const weekendEndDate = dateBounds.endDateIso;
+  const primaryStartDateTime = startTimeUtc;
+  const primaryStartTimeIST = formatIstTime(startTimeUtc);
+  const primaryStartTimeShort = formatIstTimeShort(startTimeUtc);
+  const timezone = 'Asia/Kolkata';
+
   return {
     id: eventId,
     seriesId,
@@ -144,6 +182,13 @@ function roundToCalendarEvent(
     predictionUrl: hasPrediction ? '/predictions' : undefined,
     hubUrl: `/explore/${seriesId}`,
     circuitUrl: `/explore/${seriesId}/circuits/${normKey}`,
+    startTimeUtc,
+    weekendStartDate,
+    weekendEndDate,
+    primaryStartDateTime,
+    primaryStartTimeIST,
+    primaryStartTimeShort,
+    timezone,
     sessions: round.sessions,
   };
 }
@@ -305,14 +350,19 @@ export function getNextUpEvents(
 }
 
 /**
- * Checks if an event is active on a specific calendar day (UTC)
+ * Checks if an event is active on a specific calendar day in IST (UTC+05:30)
  */
 export function isEventOnDate(event: GlobalCalendarEvent, date: Date): boolean {
-  const targetDayStart = Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate(), 0, 0, 0);
-  const targetDayEnd = Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate(), 23, 59, 59);
-
-  return event.dateBounds.startMs <= targetDayEnd && event.dateBounds.endMs >= targetDayStart;
+  return isEventOnCalendarDateInIst(event, date);
 }
+
+export {
+  sortEventsChronologicalIst,
+  formatIstTime,
+  formatIstTimeShort,
+  getEventTimeForCalendarDate,
+  getCompactEventName,
+};
 
 /**
  * Groups events by day of week for the Week View.

@@ -486,12 +486,12 @@ export const PredictionPage: React.FC = () => {
                     }}
                   >
                     <UserInitialsAvatar
-                      name={currentUser.displayName}
+                      name={currentUser.username || 'Grid User'}
                       imageUrl={currentUser.avatarUrl}
                       size={18}
                       showBorder={false}
                     />
-                    <span>{currentUser.displayName}</span>
+                    <span>{currentUser.username || 'Grid User'}</span>
                   </div>
                 </>
               ) : (

@@ -37,6 +37,7 @@ export interface ChampionshipWeekendSession {
   durationMinutes: number;
   description: string;
   formatHighlight?: string;
+  startTimeUtc?: string;
 }
 
 export interface ChampionshipClass {
@@ -66,6 +67,7 @@ export interface ChampionshipRound {
   sessions: ChampionshipWeekendSession[];
   featureLaps?: number;
   sprintLaps?: number;
+  startTimeUtc?: string;
 }
 
 export interface ChampionshipDriverStanding {

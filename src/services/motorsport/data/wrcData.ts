@@ -320,10 +320,11 @@ export const wrcData: ChampionshipDetailData = {
       totalStages: 16,
       competitiveDistanceKm: 266.1,
       status: 'UPCOMING',
+      startTimeUtc: '2026-10-04T05:30:00Z',
       sessions: [
         { name: 'Ittiri Shakedown', day: 'Thursday', durationMinutes: 150, description: 'Hard rocky road testing under scorching Mediterranean heat.' },
         { name: 'Monte Lerno & Tula Stages', day: 'Friday–Saturday', durationMinutes: 440, description: 'Famous Micky’s Jump launches cars off a high blind hilltop crest.' },
-        { name: 'Sassari - Argentiera Power Stage', day: 'Sunday', durationMinutes: 90, description: 'Scenic seaside coastal sprint finishing on the white sand beach.' },
+        { name: 'Sassari - Argentiera Power Stage', day: 'Sunday', durationMinutes: 90, description: 'Scenic seaside coastal sprint finishing on the white sand beach.', startTimeUtc: '2026-10-04T05:30:00Z' },
       ],
     },
     {
