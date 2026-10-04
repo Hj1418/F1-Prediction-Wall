@@ -106,10 +106,24 @@ export class MockApiService {
     this.predictions = Array.from(predMap.values());
     setStored(STORAGE_KEYS.PREDICTIONS, this.predictions);
 
-    this.results = getStored(STORAGE_KEYS.RESULTS, INITIAL_OFFICIAL_RESULTS);
-    this.scores = getStored(STORAGE_KEYS.SCORES, INITIAL_SCORES);
+    const storedResults = getStored<SessionResult[]>(STORAGE_KEYS.RESULTS, INITIAL_OFFICIAL_RESULTS);
+    const resultMap = new Map<string, SessionResult>();
+    INITIAL_OFFICIAL_RESULTS.forEach(r => resultMap.set(r.roundId, r));
+    storedResults.forEach(r => resultMap.set(r.roundId, r));
+    this.results = Array.from(resultMap.values());
+    setStored(STORAGE_KEYS.RESULTS, this.results);
+
+    const storedScores = getStored<RoundScore[]>(STORAGE_KEYS.SCORES, INITIAL_SCORES);
+    const scoreMap = new Map<string, RoundScore>();
+    INITIAL_SCORES.forEach(s => scoreMap.set(`${s.roundId}_${s.userId}`, s));
+    storedScores.forEach(s => scoreMap.set(`${s.roundId}_${s.userId}`, s));
+    this.scores = Array.from(scoreMap.values());
+    setStored(STORAGE_KEYS.SCORES, this.scores);
+
     this.achievements = getStored(STORAGE_KEYS.ACHIEVEMENTS, INITIAL_ACHIEVEMENTS);
     this.notifications = getStored<QueuedNotification[]>(STORAGE_KEYS.NOTIFICATIONS, []);
+
+    this.recalculateSeasonStats();
   }
 
   private persistAll() {
@@ -408,6 +422,7 @@ export class MockApiService {
   }
 
   public async getUserProfile(usernameOrId: string): Promise<User | null> {
+    this.recalculateSeasonStats();
     const u = this.users.find(
       user => user.username.toLowerCase() === usernameOrId.toLowerCase() || user.userId === usernameOrId
     );
@@ -436,6 +451,7 @@ export class MockApiService {
   }
 
   public async getAllUsers(): Promise<User[]> {
+    this.recalculateSeasonStats();
     return [...this.users];
   }
 
@@ -964,7 +980,7 @@ export class MockApiService {
     return this.predictions.map(p => ({ ...p }));
   }
 
-  private recalculateSeasonStats() {
+  public recalculateSeasonStats() {
     this.users.forEach(user => {
       const userScores = this.scores.filter(s => s.userId === user.userId && !s.roundId.startsWith('TEST_'));
       const canonicalScoresMap = new Map<string, RoundScore>();
@@ -988,7 +1004,19 @@ export class MockApiService {
         return acc + count;
       }, 0);
 
+      // Best single weekend
+      const weekendMap: Record<string, number> = {};
+      canonicalScores.forEach(s => {
+        const round = this.rounds.find(r => r.roundId === s.roundId);
+        const wId = round?.raceWeekendId || (s.roundId.startsWith('2026_15') ? '2026_15' : s.roundId);
+        weekendMap[wId] = (weekendMap[wId] || 0) + s.totalScore;
+      });
+      const weekendTotals = Object.values(weekendMap);
+      const bestWeekendScore = weekendTotals.length > 0 ? Math.max(0, ...weekendTotals) : 0;
+
       user.totalPoints = totalPoints;
+      user.racesParticipated = canonicalScores.length;
+      user.bestWeekendScore = bestWeekendScore;
       user.exactP1Count = exactP1Count;
       user.perfectPodiumCount = perfectPodiumCount;
       user.wildcardsCorrect = wildcardsCorrect;
@@ -1000,6 +1028,8 @@ export class MockApiService {
       user.previousRank = user.seasonRank || (idx + 1);
       user.seasonRank = idx + 1;
     });
+
+    setStored(STORAGE_KEYS.USERS, this.users);
   }
 }
 

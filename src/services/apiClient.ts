@@ -43,6 +43,7 @@ import { f3Data } from './motorsport/data/f3Data';
 import { wecData } from './motorsport/data/wecData';
 import { motogpData } from './motorsport/data/motogpData';
 import { testGrandPrixService } from './testGrandPrix/testGrandPrixService';
+import { calculateUserStatsFromHistory } from '../utils/predictionScoring';
 
 const isTestEnv = typeof window === 'undefined';
 
@@ -665,17 +666,87 @@ export const api = {
         }
       }
       const localUser = await mockApi.getUserProfile(usernameOrId);
+      let user: User | null = null;
       if (liveUser && localUser) {
-        return {
+        user = {
           ...liveUser,
           totalPoints: Math.max(liveUser.totalPoints || 0, localUser.totalPoints || 0),
           racesParticipated: Math.max(liveUser.racesParticipated || 0, localUser.racesParticipated || 0),
           seasonRank: localUser.seasonRank || liveUser.seasonRank,
+          previousRank: localUser.previousRank || liveUser.previousRank || 1,
           exactP1Count: Math.max(liveUser.exactP1Count || 0, localUser.exactP1Count || 0),
           perfectPodiumCount: Math.max(liveUser.perfectPodiumCount || 0, localUser.perfectPodiumCount || 0),
+          wildcardsCorrect: Math.max(liveUser.wildcardsCorrect || 0, localUser.wildcardsCorrect || 0),
+          bestWeekendScore: Math.max(liveUser.bestWeekendScore || 0, localUser.bestWeekendScore || 0),
         };
+      } else {
+        user = liveUser || localUser;
       }
-      return liveUser || localUser;
+
+      if (!user) {
+        try {
+          const leaderboard = await this.getLeaderboard('season');
+          const lbEntry = leaderboard.find(
+            e => e.userId === usernameOrId ||
+                 (e.username && e.username.toLowerCase() === usernameOrId.toLowerCase()) ||
+                 (e.displayName && e.displayName.toLowerCase() === usernameOrId.toLowerCase())
+          );
+          if (lbEntry) {
+            user = {
+              userId: lbEntry.userId,
+              username: lbEntry.username || usernameOrId,
+              displayName: lbEntry.displayName || lbEntry.username || usernameOrId,
+              email: `${lbEntry.userId}@thegrid.mock`,
+              avatarUrl: lbEntry.avatarUrl || '',
+              favouriteDriver: 'norris',
+              role: 'user',
+              totalPoints: lbEntry.totalPoints || 0,
+              seasonRank: lbEntry.rank || 1,
+              previousRank: lbEntry.previousRank || lbEntry.rank || 1,
+              racesParticipated: lbEntry.racesParticipated || 0,
+              exactP1Count: lbEntry.exactP1Count || 0,
+              perfectPodiumCount: lbEntry.perfectPodiumCount || 0,
+              wildcardsCorrect: 0,
+              bestWeekendScore: lbEntry.totalPoints || 0,
+              createdAt: new Date().toISOString(),
+            };
+          }
+        } catch (_err) {}
+      }
+
+      if (user) {
+        // Cross-reference with canonical season leaderboard to guarantee data parity
+        try {
+          const leaderboard = await this.getLeaderboard('season');
+          const lbEntry = leaderboard.find(
+            e => e.userId === user!.userId || (e.username && e.username.toLowerCase() === user!.username.toLowerCase())
+          );
+          if (lbEntry) {
+            user.totalPoints = Math.max(user.totalPoints || 0, lbEntry.totalPoints || 0);
+            user.seasonRank = lbEntry.rank || user.seasonRank;
+            user.previousRank = lbEntry.previousRank || user.previousRank || user.seasonRank;
+            user.racesParticipated = Math.max(user.racesParticipated || 0, lbEntry.racesParticipated || 0);
+            user.exactP1Count = Math.max(user.exactP1Count || 0, lbEntry.exactP1Count || 0);
+            user.perfectPodiumCount = Math.max(user.perfectPodiumCount || 0, lbEntry.perfectPodiumCount || 0);
+          }
+        } catch (_err) {}
+
+        // Cross-reference with canonical prediction history stats
+        try {
+          const history = await this.getUserPredictionsHistory(user.userId);
+          if (Array.isArray(history) && history.length > 0) {
+            const stats = calculateUserStatsFromHistory(history);
+            user.totalPoints = Math.max(user.totalPoints || 0, stats.totalPoints);
+            user.racesParticipated = Math.max(user.racesParticipated || 0, stats.racesParticipated);
+            user.bestWeekendScore = Math.max(user.bestWeekendScore || 0, stats.bestWeekendScore);
+            user.exactP1Count = Math.max(user.exactP1Count || 0, stats.exactP1Count);
+            user.perfectPodiumCount = Math.max(user.perfectPodiumCount || 0, stats.perfectPodiumCount);
+            user.wildcardsCorrect = Math.max(user.wildcardsCorrect || 0, stats.wildcardsCorrect);
+          }
+        } catch (_err) {}
+      }
+
+      return user;
     }, { ttlMs: TTL.SHORT });
   },
 
@@ -711,7 +782,8 @@ export const api = {
       const localHistory = await mockApi.getUserPredictionsHistory(userId);
       if (liveHistory.length > 0) {
         return liveHistory.map(item => {
-          const localItem = localHistory.find((l: any) => l.roundId === item.roundId);
+          const itemRoundId = item.round?.roundId || item.prediction?.roundId || item.roundId;
+          const localItem = localHistory.find((l: any) => (l.round?.roundId || l.prediction?.roundId || l.roundId) === itemRoundId);
           if (localItem && localItem.score) {
             return {
               ...item,

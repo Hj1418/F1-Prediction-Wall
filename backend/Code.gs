@@ -1527,16 +1527,38 @@ function getUserProfile(userIdOrUsername) {
   if (!userIdOrUsername) return null;
   const target = String(userIdOrUsername).trim().toLowerCase();
   const users = getAllUsersInternal();
+  let matched = null;
   for (let i = 0; i < users.length; i++) {
     if (
       String(users[i].userId).toLowerCase() === target ||
       String(users[i].username).toLowerCase() === target ||
       String(users[i].email).toLowerCase() === target
     ) {
-      return users[i];
+      matched = users[i];
+      break;
     }
   }
-  return null;
+  if (!matched) return null;
+
+  // Sync with dynamic season leaderboard
+  try {
+    const leaderboard = getLeaderboard('season');
+    if (Array.isArray(leaderboard)) {
+      const entry = leaderboard.find(function(e) {
+        return e.userId === matched.userId || (e.username && String(e.username).toLowerCase() === target);
+      });
+      if (entry) {
+        matched.totalPoints = Math.max(matched.totalPoints || 0, entry.totalPoints || 0);
+        matched.seasonRank = entry.rank || matched.seasonRank;
+        matched.previousRank = entry.previousRank || matched.seasonRank;
+        matched.racesParticipated = Math.max(matched.racesParticipated || 0, entry.racesParticipated || 0);
+      }
+    }
+  } catch (err) {
+    Logger.log('Error syncing profile with leaderboard: ' + err);
+  }
+
+  return matched;
 }
 
 /**

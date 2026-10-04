@@ -39,10 +39,13 @@ import {
   Square,
   FileText,
   Save,
+  Share2,
 } from 'lucide-react';
 import { raceWeekendApi } from '../api/raceWeekendApi';
 import { testGrandPrixService, TEST_DRIVERS, TEST_GP_ID, TEST_ROUND_ID } from '../services/testGrandPrix/testGrandPrixService';
 import { isQualificationPredictionRound } from '../services/schedule/predictionRoundGenerator';
+import { StoryShareModal } from '../components/sharing/StoryShareModal';
+import { generateLeaderboardStoryCanvas, assertAdminAuthorized } from '../services/sharing/storyShareService';
 import {
   buildPredictionConfirmationEmail,
   buildPredictionResultEmail,
@@ -380,6 +383,35 @@ export const AdminDashboardPage: React.FC = () => {
       console.error('Failed to load leaderboard:', err);
     } finally {
       setLoadingLeaderboard(false);
+    }
+  };
+
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [shareModalTitle, setShareModalTitle] = useState('');
+  const [shareModalCanvas, setShareModalCanvas] = useState<HTMLCanvasElement | null>(null);
+  const [shareModalFilename, setShareModalFilename] = useState('');
+  const [shareModalText, setShareModalText] = useState('');
+
+  const handleShareLeaderboardStory = () => {
+    try {
+      assertAdminAuthorized(currentUser);
+      const canvas = generateLeaderboardStoryCanvas({
+        season: 2026,
+        entries: (leaderboard || []).slice(0, 10).map(e => ({
+          rank: e.rank,
+          username: e.username,
+          points: e.totalPoints,
+        })),
+        latestEventName: selectedRoundWeekend?.name || 'Azerbaijan Grand Prix',
+      }, currentUser);
+
+      setShareModalCanvas(canvas);
+      setShareModalTitle('Championship Standings Story');
+      setShareModalFilename('the-grid-2026-leaderboard.png');
+      setShareModalText('Official 2026 World Championship Standings on The Grid!');
+      setIsShareModalOpen(true);
+    } catch (e: any) {
+      showToast(e.message || 'Unauthorized', 'error');
     }
   };
 
@@ -1577,9 +1609,27 @@ export const AdminDashboardPage: React.FC = () => {
                   Authoritative Leaderboard
                 </div>
               </div>
-              <button onClick={fetchLeaderboard} disabled={loadingLeaderboard} className="btn btn-outline btn-sm">
-                <RefreshCw size={12} className={loadingLeaderboard ? 'animate-spin' : ''} /> Refresh
-              </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                <button
+                  onClick={handleShareLeaderboardStory}
+                  className="btn btn-sm"
+                  style={{
+                    backgroundColor: '#E10600',
+                    color: '#fff',
+                    border: 'none',
+                    fontWeight: 800,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.4rem',
+                    fontSize: '0.75rem',
+                  }}
+                >
+                  <Share2 size={13} /> SHARE LEADERBOARD STORY
+                </button>
+                <button onClick={fetchLeaderboard} disabled={loadingLeaderboard} className="btn btn-outline btn-sm">
+                  <RefreshCw size={12} className={loadingLeaderboard ? 'animate-spin' : ''} /> Refresh
+                </button>
+              </div>
             </div>
 
             <div style={{ overflowX: 'auto' }}>
@@ -2491,6 +2541,15 @@ export const AdminDashboardPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      <StoryShareModal
+        isOpen={isShareModalOpen}
+        onClose={() => setIsShareModalOpen(false)}
+        title={shareModalTitle}
+        canvas={shareModalCanvas}
+        filename={shareModalFilename}
+        shareText={shareModalText}
+      />
     </div>
   );
 };

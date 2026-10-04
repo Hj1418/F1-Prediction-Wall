@@ -8,6 +8,8 @@ import {
   formatIstTimeShort,
   getEventTimeForCalendarDate,
   getCompactEventName,
+  getTodayIst,
+  isTodayIst,
 } from '../../utils/istTimeUtils';
 
 export interface CalendarMonthViewProps {
@@ -21,20 +23,18 @@ export const CalendarMonthView: React.FC<CalendarMonthViewProps> = ({
   currentDate,
   onDateChange,
 }) => {
-  const [selectedDate, setSelectedDate] = useState<Date | null>(() => {
-    return new Date(Date.UTC(currentDate.getUTCFullYear(), currentDate.getUTCMonth(), currentDate.getUTCDate()));
-  });
+  // User-selected date for inspecting events (null initially so Today stands out clearly)
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
 
   const [isDatePopupOpen, setIsDatePopupOpen] = useState(false);
   const [activeModalEvent, setActiveModalEvent] = useState<GlobalCalendarEvent | null>(null);
 
-  // Sync selectedDate with currentDate when month changes
+  // Clear user selection if month changes (prevents stale selection leaking across months)
   useEffect(() => {
     setSelectedDate(prev => {
-      if (!prev) return new Date(Date.UTC(currentDate.getUTCFullYear(), currentDate.getUTCMonth(), 1));
-      // If previous selection was in a different month, reset to 1st of the new month
+      if (!prev) return null;
       if (prev.getUTCFullYear() !== currentDate.getUTCFullYear() || prev.getUTCMonth() !== currentDate.getUTCMonth()) {
-        return new Date(Date.UTC(currentDate.getUTCFullYear(), currentDate.getUTCMonth(), 1));
+        return null;
       }
       return prev;
     });
@@ -69,8 +69,10 @@ export const CalendarMonthView: React.FC<CalendarMonthViewProps> = ({
   };
 
   const handleToday = () => {
-    const today = new Date(Date.UTC(2026, 9, 1)); // 2026 Season anchor: October 2026
-    onDateChange(today);
+    const today = getTodayIst();
+    const todayMonth = new Date(Date.UTC(today.year, today.month, 1));
+    onDateChange(todayMonth);
+    setSelectedDate(new Date(Date.UTC(today.year, today.month, today.day)));
   };
 
   const handleDayClick = (cellDate: Date) => {
@@ -264,7 +266,32 @@ export const CalendarMonthView: React.FC<CalendarMonthViewProps> = ({
             const dayNumber = i + 1;
             const cellDate = new Date(Date.UTC(year, month, dayNumber));
             const dayEvents = events.filter(e => isEventOnDate(e, cellDate));
-            const isSelected = selectedDate?.getUTCDate() === dayNumber && selectedDate?.getUTCMonth() === month;
+            const isToday = isTodayIst(year, month, dayNumber);
+            const isSelected = selectedDate !== null &&
+              selectedDate.getUTCFullYear() === year &&
+              selectedDate.getUTCMonth() === month &&
+              selectedDate.getUTCDate() === dayNumber;
+
+            let cellBg = 'var(--bg-base, #0d0f17)';
+            let cellBorder = '1px solid transparent';
+            let cellBoxShadow = 'none';
+
+            if (isToday && isSelected) {
+              cellBg = 'rgba(225, 6, 0, 0.2)';
+              cellBorder = '1.5px solid var(--f1-red, #e10600)';
+              cellBoxShadow = '0 0 12px rgba(225, 6, 0, 0.4)';
+            } else if (isToday) {
+              cellBg = 'rgba(225, 6, 0, 0.12)';
+              cellBorder = '1.5px solid var(--f1-red, #e10600)';
+              cellBoxShadow = '0 0 8px rgba(225, 6, 0, 0.25)';
+            } else if (isSelected) {
+              cellBg = 'rgba(255, 255, 255, 0.08)';
+              cellBorder = '1.5px solid rgba(255, 255, 255, 0.55)';
+              cellBoxShadow = '0 0 8px rgba(255, 255, 255, 0.12)';
+            } else if (dayEvents.length > 0) {
+              cellBg = 'var(--bg-surface, #131722)';
+              cellBorder = '1px solid rgba(255, 255, 255, 0.06)';
+            }
 
             return (
               <div
@@ -272,6 +299,9 @@ export const CalendarMonthView: React.FC<CalendarMonthViewProps> = ({
                 role="button"
                 tabIndex={0}
                 id={`cal-day-${dayNumber}`}
+                data-is-today={isToday ? "true" : "false"}
+                data-is-selected={isSelected ? "true" : "false"}
+                aria-current={isToday ? "date" : undefined}
                 onClick={() => handleDayClick(cellDate)}
                 onKeyDown={e => {
                   if (e.key === 'Enter' || e.key === ' ') {
@@ -279,23 +309,16 @@ export const CalendarMonthView: React.FC<CalendarMonthViewProps> = ({
                     handleDayClick(cellDate);
                   }
                 }}
-                aria-label={`${monthNames[month]} ${dayNumber}: ${dayEvents.length} events`}
+                aria-label={`${monthNames[month]} ${dayNumber}${isToday ? ' (Today)' : ''}${isSelected ? ' (Selected)' : ''}: ${dayEvents.length} events`}
                 style={{
                   minHeight: '110px',
                   minWidth: 0,
                   width: '100%',
                   boxSizing: 'border-box',
                   padding: '0.45rem',
-                  backgroundColor: isSelected
-                    ? 'rgba(225, 6, 0, 0.12)'
-                    : dayEvents.length > 0
-                    ? 'var(--bg-surface, #131722)'
-                    : 'var(--bg-base, #0d0f17)',
-                  border: isSelected
-                    ? '1px solid var(--f1-red, #e10600)'
-                    : dayEvents.length > 0
-                    ? '1px solid rgba(255, 255, 255, 0.06)'
-                    : '1px solid transparent',
+                  backgroundColor: cellBg,
+                  border: cellBorder,
+                  boxShadow: cellBoxShadow,
                   borderRadius: '6px',
                   display: 'flex',
                   flexDirection: 'column',
@@ -307,13 +330,13 @@ export const CalendarMonthView: React.FC<CalendarMonthViewProps> = ({
                   transition: 'all 0.15s ease',
                 }}
                 onMouseEnter={e => {
-                  if (dayEvents.length > 0 && !isSelected) {
+                  if (!isToday && !isSelected) {
                     (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(255, 255, 255, 0.05)';
                     (e.currentTarget as HTMLElement).style.borderColor = 'rgba(225, 6, 0, 0.35)';
                   }
                 }}
                 onMouseLeave={e => {
-                  if (!isSelected) {
+                  if (!isToday && !isSelected) {
                     (e.currentTarget as HTMLElement).style.backgroundColor = dayEvents.length > 0
                       ? 'var(--bg-surface, #131722)'
                       : 'var(--bg-base, #0d0f17)';
@@ -323,22 +346,73 @@ export const CalendarMonthView: React.FC<CalendarMonthViewProps> = ({
                   }
                 }}
               >
-                {/* Day Number */}
-                <span
+                {/* Day Number Header with TODAY / SELECTED pill */}
+                <div
                   style={{
-                    fontSize: '0.84rem',
-                    fontWeight: isSelected ? 900 : 700,
-                    fontFamily: 'var(--font-mono, monospace)',
-                    color: isSelected
-                      ? 'var(--f1-red, #e10600)'
-                      : dayEvents.length > 0
-                      ? '#ffffff'
-                      : 'var(--text-muted, #64748b)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    width: '100%',
                     marginBottom: '0.4rem',
                   }}
                 >
-                  {dayNumber}
-                </span>
+                  <span
+                    style={{
+                      fontSize: '0.84rem',
+                      fontWeight: isToday || isSelected ? 900 : 700,
+                      fontFamily: 'var(--font-mono, monospace)',
+                      color: isToday
+                        ? 'var(--f1-red, #e10600)'
+                        : isSelected
+                        ? '#ffffff'
+                        : dayEvents.length > 0
+                        ? '#ffffff'
+                        : 'var(--text-muted, #64748b)',
+                    }}
+                  >
+                    {dayNumber}
+                  </span>
+
+                  {isToday && (
+                    <span
+                      style={{
+                        fontSize: '0.56rem',
+                        fontWeight: 900,
+                        fontFamily: 'var(--font-mono, monospace)',
+                        color: '#ffffff',
+                        backgroundColor: 'var(--f1-red, #e10600)',
+                        padding: '1px 5px',
+                        borderRadius: '3px',
+                        letterSpacing: '0.06em',
+                        lineHeight: '1.2',
+                        textTransform: 'uppercase',
+                        flexShrink: 0,
+                      }}
+                    >
+                      TODAY
+                    </span>
+                  )}
+
+                  {!isToday && isSelected && (
+                    <span
+                      style={{
+                        fontSize: '0.56rem',
+                        fontWeight: 800,
+                        fontFamily: 'var(--font-mono, monospace)',
+                        color: '#ffffff',
+                        backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                        padding: '1px 5px',
+                        borderRadius: '3px',
+                        letterSpacing: '0.04em',
+                        lineHeight: '1.2',
+                        textTransform: 'uppercase',
+                        flexShrink: 0,
+                      }}
+                    >
+                      SELECTED
+                    </span>
+                  )}
+                </div>
 
                 {/* Compact Horizontal Event Bars with IST Time */}
                 <div

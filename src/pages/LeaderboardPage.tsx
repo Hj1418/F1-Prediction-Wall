@@ -16,12 +16,25 @@ import {
   ChevronRight,
   Award,
   Crown,
+  Share2,
 } from 'lucide-react';
+import { StoryShareModal } from '../components/sharing/StoryShareModal';
+import {
+  generateLeaderboardStoryCanvas,
+  generateUserResultStoryCanvas,
+  assertAdminAuthorized,
+} from '../services/sharing/storyShareService';
 
 export const LeaderboardPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const { dataVersion } = useApp();
-  const { currentUser } = useAuth();
+  const { dataVersion, showToast } = useApp();
+  const { currentUser, openLoginModal } = useAuth();
+
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [shareModalTitle, setShareModalTitle] = useState('');
+  const [shareModalCanvas, setShareModalCanvas] = useState<HTMLCanvasElement | null>(null);
+  const [shareModalFilename, setShareModalFilename] = useState('');
+  const [shareModalText, setShareModalText] = useState('');
 
   const tab = (searchParams.get('type') as 'season' | 'weekend' | 'round') || 'season';
   const targetId = searchParams.get('id') || '';
@@ -102,6 +115,57 @@ export const LeaderboardPage: React.FC = () => {
     setSearchParams(params);
   };
 
+  const handleShareLeaderboard = () => {
+    try {
+      assertAdminAuthorized(currentUser);
+      const canvas = generateLeaderboardStoryCanvas({
+        season: 2026,
+        entries: entries.slice(0, 10).map(e => ({
+          rank: e.rank,
+          username: e.username,
+          points: e.totalPoints,
+        })),
+        latestEventName: currentWeekend?.name || 'World Championship',
+      }, currentUser);
+
+      setShareModalCanvas(canvas);
+      setShareModalTitle('Share Leaderboard Story');
+      setShareModalFilename('the-grid-2026-leaderboard.png');
+      setShareModalText('Check out the official 2026 F1 Championship standings on The Grid!');
+      setIsShareModalOpen(true);
+    } catch (e: any) {
+      showToast(e.message || 'Unauthorized', 'error');
+    }
+  };
+
+  const handleShareMyResult = () => {
+    if (!currentUser) {
+      openLoginModal();
+      return;
+    }
+    try {
+      const pts = userEntry ? userEntry.totalPoints : (currentUser.totalPoints || 0);
+      const rank = userEntry ? userEntry.rank : (currentUser.seasonRank || 1);
+      const eventName = currentWeekend?.name || 'Azerbaijan Grand Prix';
+      const canvas = generateUserResultStoryCanvas({
+        username: currentUser.username,
+        eventName,
+        pointsEarned: pts,
+        rank,
+        season: 2026,
+        totalPoints: pts,
+      });
+
+      setShareModalCanvas(canvas);
+      setShareModalTitle('Share My Standing Story');
+      setShareModalFilename(`the-grid-${currentUser.username}-standing.png`);
+      setShareModalText(`I finished P${rank} with ${pts} PTS on The Grid!`);
+      setIsShareModalOpen(true);
+    } catch (e: any) {
+      showToast(e.message || 'Failed to generate story', 'error');
+    }
+  };
+
   const currentWeekend = weekends.find(w => w.raceWeekendId === selectedWeekendId);
   const currentRound = rounds.find(r => r.roundId === selectedRoundId);
   const weekendRounds = rounds.filter(r => r.raceWeekendId === selectedWeekendId);
@@ -132,57 +196,84 @@ export const LeaderboardPage: React.FC = () => {
           </p>
         </div>
 
-        {/* Tab switcher */}
-        <div
-          style={{
-            display: 'flex',
-            background: 'var(--bg-surface-elevated)',
-            padding: '0.3rem',
-            borderRadius: 'var(--radius-sm)',
-            border: '1px solid var(--border-subtle)',
-            maxWidth: '100%',
-            overflowX: 'auto',
-            whiteSpace: 'nowrap',
-            WebkitOverflowScrolling: 'touch',
-            scrollbarWidth: 'none',
-          }}
-        >
-          <button
-            onClick={() => handleTabChange('season')}
-            className="btn btn-sm"
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+          {/* Admin Leaderboard Share Action (Strictly Admin Authorized) */}
+          {currentUser?.role === 'admin' && (
+            <button
+              id="admin-share-leaderboard-btn"
+              onClick={handleShareLeaderboard}
+              className="btn btn-sm"
+              style={{
+                backgroundColor: 'var(--f1-red)',
+                color: '#fff',
+                fontWeight: 800,
+                fontSize: '0.78rem',
+                letterSpacing: '0.05em',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.4rem',
+                border: 'none',
+                boxShadow: '0 0 14px rgba(225, 6, 0, 0.4)',
+                cursor: 'pointer',
+                padding: '0.5rem 0.95rem',
+              }}
+            >
+              <Share2 size={14} /> SHARE LEADERBOARD
+            </button>
+          )}
+
+          {/* Tab switcher */}
+          <div
             style={{
-              background: tab === 'season' ? 'var(--f1-red)' : 'transparent',
-              color: tab === 'season' ? '#fff' : 'var(--text-secondary)',
-              border: 'none',
-              flexShrink: 0,
+              display: 'flex',
+              background: 'var(--bg-surface-elevated)',
+              padding: '0.3rem',
+              borderRadius: 'var(--radius-sm)',
+              border: '1px solid var(--border-subtle)',
+              maxWidth: '100%',
+              overflowX: 'auto',
+              whiteSpace: 'nowrap',
+              WebkitOverflowScrolling: 'touch',
+              scrollbarWidth: 'none',
             }}
           >
-            <Trophy size={14} /> Season Overall
-          </button>
-          <button
-            onClick={() => handleTabChange('weekend')}
-            className="btn btn-sm"
-            style={{
-              background: tab === 'weekend' ? 'var(--f1-red)' : 'transparent',
-              color: tab === 'weekend' ? '#fff' : 'var(--text-secondary)',
-              border: 'none',
-              flexShrink: 0,
-            }}
-          >
-            <Calendar size={14} /> This Weekend
-          </button>
-          <button
-            onClick={() => handleTabChange('round')}
-            className="btn btn-sm"
-            style={{
-              background: tab === 'round' ? 'var(--f1-red)' : 'transparent',
-              color: tab === 'round' ? '#fff' : 'var(--text-secondary)',
-              border: 'none',
-              flexShrink: 0,
-            }}
-          >
-            <Layers size={14} /> Session Round
-          </button>
+            <button
+              onClick={() => handleTabChange('season')}
+              className="btn btn-sm"
+              style={{
+                background: tab === 'season' ? 'var(--f1-red)' : 'transparent',
+                color: tab === 'season' ? '#fff' : 'var(--text-secondary)',
+                border: 'none',
+                flexShrink: 0,
+              }}
+            >
+              <Trophy size={14} /> Season Overall
+            </button>
+            <button
+              onClick={() => handleTabChange('weekend')}
+              className="btn btn-sm"
+              style={{
+                background: tab === 'weekend' ? 'var(--f1-red)' : 'transparent',
+                color: tab === 'weekend' ? '#fff' : 'var(--text-secondary)',
+                border: 'none',
+                flexShrink: 0,
+              }}
+            >
+              <Calendar size={14} /> This Weekend
+            </button>
+            <button
+              onClick={() => handleTabChange('round')}
+              className="btn btn-sm"
+              style={{
+                background: tab === 'round' ? 'var(--f1-red)' : 'transparent',
+                color: tab === 'round' ? '#fff' : 'var(--text-secondary)',
+                border: 'none',
+                flexShrink: 0,
+              }}
+            >
+              <Layers size={14} /> Session Round
+            </button>
+          </div>
         </div>
       </div>
 
@@ -218,7 +309,7 @@ export const LeaderboardPage: React.FC = () => {
             </div>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '2.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '2rem', flexWrap: 'wrap' }}>
             <div>
               <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>YOUR RANK</div>
               <div style={{ fontSize: '1.5rem', fontWeight: 900, color: '#eab308', fontFamily: 'var(--font-mono)' }}>
@@ -239,6 +330,28 @@ export const LeaderboardPage: React.FC = () => {
                 </div>
               </div>
             )}
+
+            {/* Share My Rank Button */}
+            <button
+              id="user-share-rank-btn"
+              onClick={handleShareMyResult}
+              className="btn btn-sm"
+              style={{
+                backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                color: '#fff',
+                fontWeight: 800,
+                fontSize: '0.78rem',
+                letterSpacing: '0.05em',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.4rem',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+                cursor: 'pointer',
+                padding: '0.5rem 0.95rem',
+              }}
+            >
+              <Share2 size={14} /> SHARE MY RANK
+            </button>
           </div>
         </div>
       )}
@@ -517,6 +630,15 @@ export const LeaderboardPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      <StoryShareModal
+        isOpen={isShareModalOpen}
+        onClose={() => setIsShareModalOpen(false)}
+        title={shareModalTitle}
+        canvas={shareModalCanvas}
+        filename={shareModalFilename}
+        shareText={shareModalText}
+      />
     </div>
   );
 };

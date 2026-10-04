@@ -253,8 +253,8 @@ export const f1Data: ChampionshipDetailData = {
       duration: '44 Laps',
       status: 'COMPLETED',
       sessions: [
-        { name: 'Practice 1 & Sprint Qualifying', day: 'Friday', durationMinutes: 105, description: 'Eau Rouge / Raidillon 2026 active aero validation.' },
-        { name: 'Sprint Race & Qualifying', day: 'Saturday', durationMinutes: 100, description: 'Sprint dash through the Ardennes microclimate.' },
+        { name: 'Practice 1 & 2', day: 'Friday', durationMinutes: 120, description: 'Eau Rouge / Raidillon 2026 active aero validation.' },
+        { name: 'Practice 3 & Qualifying', day: 'Saturday', durationMinutes: 120, description: 'Qualifying through the Ardennes microclimate.' },
         { name: 'Belgian Grand Prix', day: 'Sunday', durationMinutes: 90, description: '44-lap epic around the longest circuit on the calendar.' },
       ],
     },

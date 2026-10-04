@@ -62,6 +62,45 @@ export function getIstDateParts(dateOrIso: Date | string): IstDateParts {
 }
 
 /**
+ * Returns today's calendar date components in IST (UTC+05:30).
+ * Never hardcoded — accurately computed from current runtime Date in IST.
+ */
+export function getTodayIst(referenceDate: Date = new Date()): { year: number; month: number; day: number; isoDate: string } {
+  const parts = getIstDateParts(referenceDate);
+  return {
+    year: parts.year,
+    month: parts.month,
+    day: parts.day,
+    isoDate: formatIsoDateString(parts.year, parts.month, parts.day),
+  };
+}
+
+/**
+ * Evaluates whether a given calendar year, month (0-indexed), and day matches Today in IST.
+ * Performs a pure calendar-date comparison without timestamp or timezone shift artifacts.
+ */
+export function isTodayIst(year: number, monthZeroIndexed: number, day: number, referenceDate: Date = new Date()): boolean {
+  const todayParts = getIstDateParts(referenceDate);
+  return (
+    todayParts.year === year &&
+    todayParts.month === monthZeroIndexed &&
+    todayParts.day === day
+  );
+}
+
+/**
+ * Evaluates whether two calendar dates represent the same calendar day (date-only comparison).
+ */
+export function isSameCalendarDate(d1: Date | null | undefined, d2: Date | null | undefined): boolean {
+  if (!d1 || !d2) return false;
+  return (
+    d1.getUTCFullYear() === d2.getUTCFullYear() &&
+    d1.getUTCMonth() === d2.getUTCMonth() &&
+    d1.getUTCDate() === d2.getUTCDate()
+  );
+}
+
+/**
  * Formats a UTC timestamp into standard IST presentation: "HH:mm IST" (e.g. "12:30 IST").
  * If no valid timestamp is available, strictly returns "Time TBA".
  */

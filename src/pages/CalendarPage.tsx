@@ -16,6 +16,7 @@ import { CalendarMonthView } from '../components/calendar/CalendarMonthView';
 import { CalendarWeekView } from '../components/calendar/CalendarWeekView';
 import { CalendarListView } from '../components/calendar/CalendarListView';
 import { AddToGoogleCalendarModal } from '../components/calendar/AddToGoogleCalendarModal';
+import { getTodayIst } from '../utils/istTimeUtils';
 
 type CalendarViewMode = 'month' | 'week' | 'list';
 
@@ -34,7 +35,7 @@ export const CalendarPage: React.FC = () => {
   const viewMode = (searchParams.get('view') as CalendarViewMode) || 'month';
   const searchQuery = searchParams.get('q') || '';
 
-  // Canonical active calendar month date
+  // Canonical active calendar month date (defaults to current runtime month in IST)
   const currentMonthDate = useMemo(() => {
     if (monthParam && /^\d{4}-\d{2}$/.test(monthParam)) {
       const [y, m] = monthParam.split('-').map(Number);
@@ -42,7 +43,8 @@ export const CalendarPage: React.FC = () => {
         return new Date(Date.UTC(y, m - 1, 1));
       }
     }
-    return new Date(Date.UTC(2026, 9, 1)); // Default anchor: October 2026
+    const today = getTodayIst();
+    return new Date(Date.UTC(today.year, today.month, 1));
   }, [monthParam]);
 
   // All 2026/active calendar events

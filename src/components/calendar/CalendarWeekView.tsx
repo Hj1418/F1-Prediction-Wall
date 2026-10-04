@@ -5,6 +5,7 @@ import {
   getWeekEventsGrouped,
 } from '../../services/calendar/globalCalendarService';
 import { CalendarEventCard } from './CalendarEventCard';
+import { getTodayIst, isTodayIst } from '../../utils/istTimeUtils';
 
 export interface CalendarWeekViewProps {
   events: GlobalCalendarEvent[];
@@ -13,11 +14,17 @@ export interface CalendarWeekViewProps {
 
 export const CalendarWeekView: React.FC<CalendarWeekViewProps> = ({
   events,
-  referenceDate = new Date(Date.UTC(2026, 9, 1)), // Anchor: Oct 1, 2026
+  referenceDate,
 }) => {
-  // Start of week: find Monday of the week containing referenceDate
+  // Start of week: find Monday of the week containing referenceDate (or today)
   const [weekStart, setWeekStart] = useState<Date>(() => {
-    const d = new Date(referenceDate);
+    let d: Date;
+    if (referenceDate) {
+      d = new Date(referenceDate);
+    } else {
+      const today = getTodayIst();
+      d = new Date(Date.UTC(today.year, today.month, today.day));
+    }
     const day = d.getUTCDay();
     // diff to previous Monday: if Sunday (0) diff is -6, if Mon (1) diff is 0, etc.
     const diff = d.getUTCDate() - day + (day === 0 ? -6 : 1);
@@ -30,6 +37,14 @@ export const CalendarWeekView: React.FC<CalendarWeekViewProps> = ({
 
   const handleNextWeek = () => {
     setWeekStart(prev => new Date(prev.getTime() + 7 * 24 * 60 * 60 * 1000));
+  };
+
+  const handleCurrentWeek = () => {
+    const today = getTodayIst();
+    const d = new Date(Date.UTC(today.year, today.month, today.day));
+    const day = d.getUTCDay();
+    const diff = d.getUTCDate() - day + (day === 0 ? -6 : 1);
+    setWeekStart(new Date(Date.UTC(today.year, today.month, diff)));
   };
 
   const weekEnd = new Date(weekStart.getTime() + 6 * 24 * 60 * 60 * 1000);
@@ -94,12 +109,7 @@ export const CalendarWeekView: React.FC<CalendarWeekViewProps> = ({
 
           <button
             type="button"
-            onClick={() => {
-              const d = new Date(Date.UTC(2026, 9, 1));
-              const day = d.getUTCDay();
-              const diff = d.getUTCDate() - day + (day === 0 ? -6 : 1);
-              setWeekStart(new Date(Date.UTC(2026, 9, diff)));
-            }}
+            onClick={handleCurrentWeek}
             style={{
               padding: '0.4rem 0.8rem',
               minHeight: '40px',
@@ -113,7 +123,7 @@ export const CalendarWeekView: React.FC<CalendarWeekViewProps> = ({
               cursor: 'pointer',
             }}
           >
-            OCTOBER RACE WEEKEND
+            CURRENT WEEK
           </button>
 
           <button
@@ -142,13 +152,25 @@ export const CalendarWeekView: React.FC<CalendarWeekViewProps> = ({
       <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
         {weekDays.map(dayItem => {
           const hasEvents = dayItem.events.length > 0;
+          const isToday = isTodayIst(
+            dayItem.date.getUTCFullYear(),
+            dayItem.date.getUTCMonth(),
+            dayItem.date.getUTCDate()
+          );
 
           return (
             <div
               key={dayItem.formattedDate}
+              data-is-today={isToday ? "true" : "false"}
               style={{
-                backgroundColor: hasEvents ? 'var(--bg-surface, #131722)' : 'rgba(19, 23, 34, 0.4)',
-                border: hasEvents
+                backgroundColor: isToday
+                  ? 'rgba(225, 6, 0, 0.08)'
+                  : hasEvents
+                  ? 'var(--bg-surface, #131722)'
+                  : 'rgba(19, 23, 34, 0.4)',
+                border: isToday
+                  ? '1.5px solid var(--f1-red, #e10600)'
+                  : hasEvents
                   ? '1px solid var(--border-subtle, rgba(255, 255, 255, 0.1))'
                   : '1px solid rgba(255, 255, 255, 0.04)',
                 borderRadius: '10px',
@@ -166,7 +188,7 @@ export const CalendarWeekView: React.FC<CalendarWeekViewProps> = ({
                       fontSize: '1rem',
                       fontWeight: 900,
                       fontFamily: 'var(--font-mono, monospace)',
-                      color: hasEvents ? '#ffffff' : 'var(--text-muted, #64748b)',
+                      color: isToday ? 'var(--f1-red, #e10600)' : (hasEvents ? '#ffffff' : 'var(--text-muted, #64748b)'),
                     }}
                   >
                     {dayItem.dayName}
@@ -175,12 +197,29 @@ export const CalendarWeekView: React.FC<CalendarWeekViewProps> = ({
                     style={{
                       fontSize: '0.8rem',
                       fontFamily: 'var(--font-mono, monospace)',
-                      color: hasEvents ? 'var(--f1-red, #e10600)' : 'var(--text-muted, #64748b)',
+                      color: isToday ? 'var(--f1-red, #e10600)' : (hasEvents ? 'var(--f1-red, #e10600)' : 'var(--text-muted, #64748b)'),
                       fontWeight: 800,
                     }}
                   >
                     {dayItem.formattedDate}
                   </span>
+                  {isToday && (
+                    <span
+                      style={{
+                        fontSize: '0.58rem',
+                        fontWeight: 900,
+                        fontFamily: 'var(--font-mono, monospace)',
+                        color: '#ffffff',
+                        backgroundColor: 'var(--f1-red, #e10600)',
+                        padding: '1px 6px',
+                        borderRadius: '3px',
+                        letterSpacing: '0.06em',
+                        textTransform: 'uppercase',
+                      }}
+                    >
+                      TODAY
+                    </span>
+                  )}
                 </div>
 
                 <span

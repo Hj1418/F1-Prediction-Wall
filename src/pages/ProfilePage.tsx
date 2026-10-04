@@ -9,20 +9,18 @@ import { CHAMPIONSHIPS_REGISTRY } from '../services/motorsport/motorsportRegistr
 import { UserInitialsAvatar } from '../components/common/UserInitialsAvatar';
 import { PredictionSpeedometer } from '../components/predictions/PredictionSpeedometer';
 import { testGrandPrixService } from '../services/testGrandPrix/testGrandPrixService';
+import { calculateUserStatsFromHistory } from '../utils/predictionScoring';
 import {
   Trophy,
-  Award,
-  Medal,
-  Calendar,
-  CheckCircle2,
   TrendingUp,
   Target,
   Sparkles,
   Edit2,
   ChevronRight,
-  Flame,
-  Compass,
+  Share2,
 } from 'lucide-react';
+import { StoryShareModal } from '../components/sharing/StoryShareModal';
+import { generateUserResultStoryCanvas } from '../services/sharing/storyShareService';
 
 const GLOBAL_CONSTRUCTORS_LIST = [
   ...F1_CONSTRUCTORS_2026.map(c => ({ ...c, series: 'Formula 1' })),
@@ -60,6 +58,64 @@ export const ProfilePage: React.FC = () => {
   const [newUsername, setNewUsername] = useState('');
   const [usernameStatus, setUsernameStatus] = useState<'idle' | 'checking' | 'available' | 'unavailable' | 'invalid'>('idle');
   const [usernameMessage, setUsernameMessage] = useState('');
+
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [shareModalTitle, setShareModalTitle] = useState('');
+  const [shareModalCanvas, setShareModalCanvas] = useState<HTMLCanvasElement | null>(null);
+  const [shareModalFilename, setShareModalFilename] = useState('');
+  const [shareModalText, setShareModalText] = useState('');
+
+  const handleShareMyResult = () => {
+    if (!profileUser) return;
+    try {
+      // Find latest scored prediction from history
+      const scoredPredictions = history.filter(h => h.score && (typeof h.score.totalScore === 'number' || typeof h.pointsEarned === 'number'));
+      const latestScored = scoredPredictions[0];
+      const eventName = latestScored?.weekend?.raceName || latestScored?.round?.title || 'Azerbaijan Grand Prix';
+      const pointsEarned = latestScored?.score?.totalScore ?? latestScored?.pointsEarned ?? profileUser.totalPoints ?? 0;
+
+      const canvas = generateUserResultStoryCanvas({
+        username: profileUser.username,
+        eventName,
+        pointsEarned,
+        rank: profileUser.seasonRank,
+        season: 2026,
+        totalPoints: profileUser.totalPoints,
+      });
+
+      setShareModalCanvas(canvas);
+      setShareModalTitle('Share My Result Story');
+      setShareModalFilename(`the-grid-${profileUser.username}-result.png`);
+      setShareModalText(`I scored ${pointsEarned >= 0 ? `+${pointsEarned}` : pointsEarned} PTS on The Grid! Check out my racer telemetry!`);
+      setIsShareModalOpen(true);
+    } catch (e: any) {
+      showToast(e.message || 'Failed to generate story', 'error');
+    }
+  };
+
+  const handleShareSpecificResult = (item: any) => {
+    if (!profileUser) return;
+    try {
+      const eventName = item.weekend?.raceName || item.round?.title || 'Grand Prix Prediction';
+      const pts = item.score?.totalScore ?? item.pointsEarned ?? 0;
+      const canvas = generateUserResultStoryCanvas({
+        username: profileUser.username,
+        eventName,
+        pointsEarned: pts,
+        rank: profileUser.seasonRank,
+        season: 2026,
+        totalPoints: profileUser.totalPoints,
+      });
+
+      setShareModalCanvas(canvas);
+      setShareModalTitle(`Share ${eventName} Result`);
+      setShareModalFilename(`the-grid-${profileUser.username}-${eventName.toLowerCase().replace(/[^a-z0-9]/g, '_')}.png`);
+      setShareModalText(`I scored ${pts >= 0 ? `+${pts}` : pts} PTS in the ${eventName} on The Grid!`);
+      setIsShareModalOpen(true);
+    } catch (e: any) {
+      showToast(e.message || 'Failed to generate story', 'error');
+    }
+  };
 
   useEffect(() => {
     if (!isEditingUsername) return;
@@ -129,26 +185,82 @@ export const ProfilePage: React.FC = () => {
           setLoading(false);
           return;
         }
-        const [u, dList] = await Promise.all([
-          api.getUserProfile(targetUsername),
-          api.getDrivers(),
+        const [u, dList, seasonStandings] = await Promise.all([
+          api.getUserProfile(targetUsername).catch(() => null),
+          api.getDrivers().catch(() => []),
+          api.getLeaderboard('season').catch(() => []),
         ]);
 
-        setProfileUser(u);
+        let effectiveUser = u;
+        if (!effectiveUser) {
+          const lbMatch = (seasonStandings || []).find(
+            e => e.userId === targetUsername ||
+                 (e.username && e.username.toLowerCase() === targetUsername.toLowerCase()) ||
+                 (e.displayName && e.displayName.toLowerCase() === targetUsername.toLowerCase())
+          );
+          if (lbMatch) {
+            effectiveUser = {
+              userId: lbMatch.userId,
+              username: lbMatch.username || targetUsername,
+              displayName: lbMatch.displayName || lbMatch.username || targetUsername,
+              email: `${lbMatch.userId}@thegrid.mock`,
+              avatarUrl: lbMatch.avatarUrl || '',
+              favouriteDriver: 'norris',
+              role: 'user',
+              totalPoints: lbMatch.totalPoints || 0,
+              seasonRank: lbMatch.rank || 1,
+              previousRank: lbMatch.previousRank || lbMatch.rank || 1,
+              racesParticipated: lbMatch.racesParticipated || 0,
+              exactP1Count: lbMatch.exactP1Count || 0,
+              perfectPodiumCount: lbMatch.perfectPodiumCount || 0,
+              wildcardsCorrect: 0,
+              bestWeekendScore: lbMatch.totalPoints || 0,
+              createdAt: new Date().toISOString(),
+            };
+          }
+        }
+
+        setProfileUser(effectiveUser);
         setDrivers(dList);
 
-        if (u) {
-          document.title = `${u.displayName || u.username} (@${u.username}) | The Grid Profile`;
-          setSelectedFavDriver(u.favouriteDriver || '');
-          setSelectedFavConstructor(u.favouriteConstructor || 'ferrari');
-          setSelectedFavChampionship(u.favouriteChampionship || 'f1');
-          setSelectedBio(u.bio || '');
+        if (effectiveUser) {
+          document.title = `${effectiveUser.displayName || effectiveUser.username} (@${effectiveUser.username}) | The Grid Profile`;
+          setSelectedFavDriver(effectiveUser.favouriteDriver || '');
+          setSelectedFavConstructor(effectiveUser.favouriteConstructor || 'ferrari');
+          setSelectedFavChampionship(effectiveUser.favouriteChampionship || 'f1');
+          setSelectedBio(effectiveUser.bio || '');
           const [achs, userHistory] = await Promise.all([
-            api.getUserAchievements(u.userId),
-            api.getUserPredictionsHistory(u.userId),
+            api.getUserAchievements(effectiveUser.userId).catch(() => []),
+            api.getUserPredictionsHistory(effectiveUser.userId).catch(() => []),
           ]);
           setAchievements(achs);
           setHistory(userHistory);
+
+          const historyStats = calculateUserStatsFromHistory(userHistory);
+          const lbEntry = (seasonStandings || []).find(
+            e => e.userId === effectiveUser!.userId || (e.username && e.username.toLowerCase() === effectiveUser!.username.toLowerCase())
+          );
+
+          const effectiveTotalPoints = Math.max(effectiveUser.totalPoints || 0, historyStats.totalPoints, lbEntry?.totalPoints || 0);
+          const effectiveRacesParticipated = Math.max(effectiveUser.racesParticipated || 0, historyStats.racesParticipated, lbEntry?.racesParticipated || 0);
+          const effectiveSeasonRank = lbEntry?.rank || effectiveUser.seasonRank || 1;
+          const effectivePreviousRank = lbEntry?.previousRank || effectiveUser.previousRank || effectiveSeasonRank;
+          const effectiveBestWeekend = Math.max(effectiveUser.bestWeekendScore || 0, historyStats.bestWeekendScore);
+          const effectiveExactP1 = Math.max(effectiveUser.exactP1Count || 0, historyStats.exactP1Count, lbEntry?.exactP1Count || 0);
+          const effectivePerfectPodium = Math.max(effectiveUser.perfectPodiumCount || 0, historyStats.perfectPodiumCount, lbEntry?.perfectPodiumCount || 0);
+          const effectiveWildcards = Math.max(effectiveUser.wildcardsCorrect || 0, historyStats.wildcardsCorrect);
+
+          setProfileUser({
+            ...effectiveUser,
+            totalPoints: effectiveTotalPoints,
+            racesParticipated: effectiveRacesParticipated,
+            seasonRank: effectiveSeasonRank,
+            previousRank: effectivePreviousRank,
+            bestWeekendScore: effectiveBestWeekend,
+            exactP1Count: effectiveExactP1,
+            perfectPodiumCount: effectivePerfectPodium,
+            wildcardsCorrect: effectiveWildcards,
+          });
         }
       } catch (err) {
         console.error('Failed to load profile', err);
@@ -158,7 +270,7 @@ export const ProfilePage: React.FC = () => {
     }
 
     loadProfile();
-  }, [username, currentUser?.userId]);
+  }, [username, currentUser?.userId, currentUser?.username]);
 
   if (loading) {
     return (
@@ -661,49 +773,77 @@ export const ProfilePage: React.FC = () => {
               </div>
             </div>
 
-            {/* Right: Key Trophy Stats */}
-            <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-              <div
-                style={{
-                  background: 'var(--bg-surface-card)',
-                  border: '1px solid var(--border-medium)',
-                  borderRadius: 'var(--radius-md)',
-                  padding: '1rem 1.5rem',
-                  textAlign: 'center',
-                  minWidth: '130px',
-                }}
-              >
-                <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                  CHAMPIONSHIP RANK
+            {/* Right: Key Trophy Stats & Share Result */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', alignItems: 'flex-end' }}>
+              <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+                <div
+                  style={{
+                    background: 'var(--bg-surface-card)',
+                    border: '1px solid var(--border-medium)',
+                    borderRadius: 'var(--radius-md)',
+                    padding: '1rem 1.5rem',
+                    textAlign: 'center',
+                    minWidth: '130px',
+                  }}
+                >
+                  <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                    CHAMPIONSHIP RANK
+                  </div>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.75rem', fontWeight: 900, color: '#eab308' }}>
+                    #{profileUser.seasonRank}
+                  </div>
+                  <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
+                    Prev: #{profileUser.previousRank || profileUser.seasonRank}
+                  </div>
                 </div>
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.75rem', fontWeight: 900, color: '#eab308' }}>
-                  #{profileUser.seasonRank}
-                </div>
-                <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
-                  Prev: #{profileUser.previousRank || profileUser.seasonRank}
+
+                <div
+                  style={{
+                    background: 'var(--bg-surface-card)',
+                    border: '1px solid var(--border-medium)',
+                    borderRadius: 'var(--radius-md)',
+                    padding: '1rem 1.5rem',
+                    textAlign: 'center',
+                    minWidth: '130px',
+                  }}
+                >
+                  <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                    TOTAL POINTS
+                  </div>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.75rem', fontWeight: 900, color: 'var(--telemetry-green)' }}>
+                    {profileUser.totalPoints}
+                  </div>
+                  <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
+                    {profileUser.racesParticipated} Rounds
+                  </div>
                 </div>
               </div>
 
-              <div
+              {/* Primary Profile Share Action */}
+              <button
+                id="profile-share-result-btn"
+                onClick={handleShareMyResult}
+                className="btn btn-sm"
                 style={{
-                  background: 'var(--bg-surface-card)',
-                  border: '1px solid var(--border-medium)',
-                  borderRadius: 'var(--radius-md)',
-                  padding: '1rem 1.5rem',
-                  textAlign: 'center',
-                  minWidth: '130px',
+                  backgroundColor: '#E10600',
+                  color: '#fff',
+                  fontWeight: 800,
+                  fontSize: '0.78rem',
+                  letterSpacing: '0.05em',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.45rem',
+                  border: 'none',
+                  boxShadow: '0 0 14px rgba(225, 6, 0, 0.4)',
+                  cursor: 'pointer',
+                  padding: '0.5rem 1rem',
+                  borderRadius: 'var(--radius-sm)',
+                  width: '100%',
+                  justifyContent: 'center',
                 }}
               >
-                <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                  TOTAL POINTS
-                </div>
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.75rem', fontWeight: 900, color: 'var(--telemetry-green)' }}>
-                  {profileUser.totalPoints}
-                </div>
-                <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
-                  {profileUser.racesParticipated} Rounds
-                </div>
-              </div>
+                <Share2 size={14} /> SHARE MY RESULT
+              </button>
             </div>
           </div>
         </div>
@@ -712,6 +852,13 @@ export const ProfilePage: React.FC = () => {
       <div className="container" style={{ marginTop: '2.5rem' }}>
         {/* Quick Competition Shortcuts */}
         <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.75rem', flexWrap: 'wrap' }}>
+          <button
+            onClick={handleShareMyResult}
+            className="btn btn-secondary btn-sm"
+            style={{ gap: '0.4rem', fontFamily: 'var(--font-mono)', borderColor: 'rgba(225, 6, 0, 0.4)' }}
+          >
+            <Share2 size={14} color="var(--f1-red)" /> SHARE MY RESULT
+          </button>
           <Link
             to="/predictions"
             className="btn btn-secondary btn-sm"
@@ -804,10 +951,12 @@ export const ProfilePage: React.FC = () => {
               <TrendingUp size={14} /> AVG PTS / ROUND
             </div>
             <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.75rem', fontWeight: 900, marginTop: '0.4rem' }}>
-              {Math.round((profileUser.totalPoints / (profileUser.racesParticipated || 1)) * 10) / 10}
+              {profileUser.racesParticipated > 0
+                ? Math.round((profileUser.totalPoints / profileUser.racesParticipated) * 10) / 10
+                : 0}
             </div>
             <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-              Best single weekend: {profileUser.bestWeekendScore} pts
+              Best single weekend: {profileUser.bestWeekendScore || 0} pts
             </div>
           </div>
         </div>
@@ -935,6 +1084,24 @@ export const ProfilePage: React.FC = () => {
                   </div>
                 )}
 
+                {s && (
+                  <button
+                    onClick={() => handleShareSpecificResult({ prediction: p, round: r, score: s, weekend: w })}
+                    className="btn btn-outline btn-sm"
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.35rem',
+                      borderColor: 'rgba(255, 255, 255, 0.2)',
+                      fontSize: '0.75rem',
+                      padding: '0.35rem 0.65rem',
+                    }}
+                    title="Share this result as a 9:16 story"
+                  >
+                    <Share2 size={12} color="var(--f1-red)" /> Share
+                  </button>
+                )}
+
                 <Link
                   to={`/predict/${p.roundId}`}
                   className="btn btn-outline btn-sm"
@@ -953,6 +1120,15 @@ export const ProfilePage: React.FC = () => {
           )}
         </div>
       </div>
+
+      <StoryShareModal
+        isOpen={isShareModalOpen}
+        onClose={() => setIsShareModalOpen(false)}
+        title={shareModalTitle}
+        canvas={shareModalCanvas}
+        filename={shareModalFilename}
+        shareText={shareModalText}
+      />
     </div>
   );
 };

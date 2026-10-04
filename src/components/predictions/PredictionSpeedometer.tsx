@@ -1,9 +1,15 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { Trophy, Zap, ChevronRight, Flame, CheckCircle2 } from 'lucide-react';
+import {
+  getSeasonMaxPredictionPoints,
+  calculateSeasonProgress,
+} from '../../utils/predictionScoring';
 
 export interface PredictionSpeedometerProps {
   /** Current user prediction points */
   points: number;
+  /** Maximum possible season points (defaults to dynamic season calculation, e.g. 1500) */
+  maxPoints?: number;
   /** Production prediction points breakdown */
   productionPoints?: number;
   /** Test Grand Prix points breakdown */
@@ -72,6 +78,7 @@ export function calculateMilestones(pts: number): MilestoneInfo {
 
 export const PredictionSpeedometer: React.FC<PredictionSpeedometerProps> = ({
   points = 0,
+  maxPoints,
   productionPoints,
   testPoints,
   seasonRank,
@@ -84,6 +91,12 @@ export const PredictionSpeedometer: React.FC<PredictionSpeedometerProps> = ({
   actionLabel = 'Make Predictions',
   className = '',
 }) => {
+  const effectiveMaxPoints = maxPoints ?? getSeasonMaxPredictionPoints();
+  const seasonProgress = useMemo(
+    () => calculateSeasonProgress(points, effectiveMaxPoints),
+    [points, effectiveMaxPoints]
+  );
+  // Milestone calculation remains completely independent for the right-hand card
   const milestone = useMemo(() => calculateMilestones(points), [points]);
   const [displayPoints, setDisplayPoints] = useState(points);
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
@@ -135,7 +148,7 @@ export const PredictionSpeedometer: React.FC<PredictionSpeedometerProps> = ({
   const START_ANGLE = -100;
   const END_ANGLE = 100;
   const TOTAL_ARC = END_ANGLE - START_ANGLE;
-  const needleAngle = START_ANGLE + milestone.progressRatio * TOTAL_ARC;
+  const needleAngle = START_ANGLE + seasonProgress.progressRatio * TOTAL_ARC;
 
   // Geometry for SVG arc (center 110, 100, radius 76)
   const cx = 110;
@@ -178,7 +191,7 @@ export const PredictionSpeedometer: React.FC<PredictionSpeedometerProps> = ({
   };
 
   const trackPath = describeArc(cx, cy, r, START_ANGLE, END_ANGLE);
-  const activeArcEnd = START_ANGLE + Math.max(0.5, milestone.progressRatio * TOTAL_ARC);
+  const activeArcEnd = START_ANGLE + Math.max(seasonProgress.progressRatio > 0 ? 0.5 : 0, seasonProgress.progressRatio * TOTAL_ARC);
   const activePath = describeArc(cx, cy, r, START_ANGLE, activeArcEnd);
 
   // Rank Delta
@@ -336,7 +349,7 @@ export const PredictionSpeedometer: React.FC<PredictionSpeedometerProps> = ({
             />
 
             {/* Gauge Active Progress Track */}
-            {milestone.progressRatio > 0 && (
+            {seasonProgress.progressRatio > 0 && (
               <path
                 d={activePath}
                 fill="none"
@@ -363,7 +376,7 @@ export const PredictionSpeedometer: React.FC<PredictionSpeedometerProps> = ({
               />
             ))}
 
-            {/* Dial Labels: prevMilestone and nextMilestone */}
+            {/* Dial Labels: 0, 500, 1000, 1500 (Clean scale markers for full season progress) */}
             <text
               x="26"
               y="135"
@@ -373,18 +386,42 @@ export const PredictionSpeedometer: React.FC<PredictionSpeedometerProps> = ({
               fontWeight="700"
               textAnchor="middle"
             >
-              {milestone.prevMilestone}
+              0
+            </text>
+            <text
+              x="78"
+              y="52"
+              fill="var(--text-muted)"
+              fontSize="9"
+              fontFamily="var(--font-mono)"
+              fontWeight="600"
+              textAnchor="middle"
+              opacity="0.8"
+            >
+              {Math.round(effectiveMaxPoints / 3)}
+            </text>
+            <text
+              x="142"
+              y="52"
+              fill="var(--text-muted)"
+              fontSize="9"
+              fontFamily="var(--font-mono)"
+              fontWeight="600"
+              textAnchor="middle"
+              opacity="0.8"
+            >
+              {Math.round((effectiveMaxPoints * 2) / 3)}
             </text>
             <text
               x="194"
               y="135"
-              fill={milestone.isMilestoneHit ? 'var(--telemetry-green)' : 'var(--text-muted)'}
+              fill="var(--text-muted)"
               fontSize="10"
               fontFamily="var(--font-mono)"
               fontWeight="800"
               textAnchor="middle"
             >
-              {milestone.nextMilestone}
+              {effectiveMaxPoints}
             </text>
 
             {/* Animated Needle - Anchor pivot perfectly to (cx, cy) */}
@@ -440,6 +477,29 @@ export const PredictionSpeedometer: React.FC<PredictionSpeedometerProps> = ({
               }}
             >
               PTS
+            </div>
+
+            {/* Full-Season Progress Indicator Badge */}
+            <div
+              style={{
+                marginTop: '0.45rem',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.35rem',
+                padding: '0.2rem 0.55rem',
+                borderRadius: '6px',
+                background: 'rgba(255, 255, 255, 0.04)',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+                fontFamily: 'var(--font-mono)',
+                fontSize: '0.68rem',
+                fontWeight: 800,
+                color: 'var(--text-secondary)',
+                letterSpacing: '0.04em',
+              }}
+            >
+              <span style={{ color: 'var(--telemetry-cyan)' }}>{seasonProgress.progressPercent}%</span>
+              <span style={{ color: 'var(--text-muted)', fontSize: '0.62rem' }}>•</span>
+              <span style={{ color: 'var(--text-muted)' }}>{points} / {effectiveMaxPoints} PTS</span>
             </div>
 
             {/* Production vs Test Runs Breakdown */}

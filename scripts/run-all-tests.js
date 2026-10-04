@@ -36,6 +36,9 @@ try {
   execSync('npx tsx scripts/verify-calendar-ist-and-ux.ts', { stdio: 'inherit' });
   execSync('npx tsx scripts/verify-home-explore-ux-refinement.ts', { stdio: 'inherit' });
   execSync('npx tsx scripts/verify-username-and-privacy.ts', { stdio: 'inherit' });
+  execSync('npx tsx scripts/verify-prediction-points.ts', { stdio: 'inherit' });
+  execSync('npx tsx scripts/verify-calendar-today.ts', { stdio: 'inherit' });
+  execSync('npx tsx scripts/verify-speedometer-season-progress.ts', { stdio: 'inherit' });
   console.log('🏆 ALL UNIT, INTEGRATION, AUTH, ADMIN, BETA, RACING IDENTITY, AVATAR, FOUNDATION, PHASE 8A-8F, 9.1-9.3, PHASE 10, PHASE 11 & MASTER UI/UX TESTS PASSED PERFECTLY!\n');
 } catch (err) {
   console.error('Test execution failed');
