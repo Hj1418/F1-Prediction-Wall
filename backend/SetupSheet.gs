@@ -147,22 +147,21 @@ function setupEmailWorkerTrigger() {
  */
 function testSendWelcomeEmail(targetEmail) {
   const recipient = targetEmail || 'thepaddockprediction14@gmail.com';
-  const subject = 'Welcome to The Grid 🏁';
-  const body = 'Hi Racer,\n\n' +
-    'Welcome to The Grid — your home for learning, following, and experiencing Formula 1.\n\n' +
-    'You are officially registered. On The Grid you can:\n' +
-    '1. Learn F1 rules, 2026 regulations (Active Aero X-Mode/Z-Mode & 400 kW ICE + 350 kW MGU-K), and strategy\n' +
-    '2. Follow live circuit telemetry and session schedules across all 24 Grand Prix weekends\n' +
-    '3. Compete in Prediction Bench and battle on the global championship leaderboard\n\n' +
-    '— The Grid Team\n' +
-    'https://hj1418.github.io/F1-Prediction-Wall/';
+  const emailPayload = typeof generateWelcomeEmail === 'function'
+    ? generateWelcomeEmail({ recipientName: 'Racer', displayName: 'Racer' })
+    : null;
 
-  MailApp.sendEmail({
+  const mailOpts = {
     to: recipient,
     name: 'The Grid',
-    subject: subject,
-    body: body
-  });
+    subject: emailPayload ? emailPayload.subject : 'Welcome to The Grid 🏁',
+    body: emailPayload ? emailPayload.body : ('Hi Racer,\n\nWelcome to The Grid!\nhttps://hj1418.github.io/F1-Prediction-Wall/')
+  };
+  if (emailPayload && emailPayload.htmlBody) {
+    mailOpts.htmlBody = emailPayload.htmlBody;
+  }
+
+  MailApp.sendEmail(mailOpts);
 
   Logger.log('[EMAIL_SENT] Verification test email sent successfully to: ' + recipient);
   return { success: true, recipient: recipient, sender: 'thepaddockprediction14@gmail.com' };

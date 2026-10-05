@@ -397,12 +397,12 @@ export const DEFAULT_HOME_SNAPSHOT: HomeSnapshot = {
   },
 };
 
-export async function getHomeSnapshot(): Promise<HomeSnapshot> {
+export async function getHomeSnapshot(referenceDate?: Date): Promise<HomeSnapshot> {
   const snapshot: HomeSnapshot = { ...DEFAULT_HOME_SNAPSHOT };
 
   try {
     const { getSharedRaceContext } = await import('../schedule/raceContextService');
-    const raceContext = await getSharedRaceContext(2026);
+    const raceContext = await getSharedRaceContext(2026, referenceDate);
 
     if (raceContext && raceContext.currentWeekend) {
       const w = raceContext.currentWeekend;

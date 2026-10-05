@@ -917,12 +917,13 @@ function submitPrediction(payload) {
   try {
     const recipientEmail = userProfile ? userProfile.email : (payload.email || '');
     if (recipientEmail) {
+      const gpName = formatGrandPrixName(round.title);
       enqueueNotification(
         recipientEmail,
         userProfile ? userProfile.displayName : userId,
         'PREDICTION_CONFIRMATION',
-        'Prediction Locked In — ' + (round.title || 'Grand Prix Prediction'),
-        { roundId: roundId, roundTitle: round.title, predictionData: predictionData },
+        'Prediction Locked In — ' + gpName,
+        { roundId: roundId, roundTitle: gpName, predictionData: predictionData },
         'PRED_' + userId + '_' + roundId
       );
     }
@@ -1051,12 +1052,13 @@ function adminCalculateScores(roundId) {
       try {
         const userProfile = getUserProfile(userId);
         if (userProfile && userProfile.email) {
+          const gpName = formatGrandPrixName(round.title);
           enqueueNotification(
             userProfile.email,
             userProfile.displayName || userId,
             'PREDICTION_RESULT',
-            'Your ' + (round.title || 'Grand Prix') + ' Prediction Results',
-            { roundId: roundId, roundTitle: round.title, score: calc.totalScore, breakdown: calc.breakdown },
+            'Your ' + gpName + ' Prediction Results',
+            { roundId: roundId, roundTitle: gpName, score: calc.totalScore, breakdown: calc.breakdown },
             'RESULT_' + userId + '_' + roundId
           );
         }
@@ -2165,6 +2167,475 @@ function createJsonResponse(data) {
 
 /**
  * =========================================================================
+ * THE GRID — RICH HTML EMAIL ENGINE & MOTORSPORT DESIGN SYSTEM
+ * =========================================================================
+ */
+
+var THE_GRID_EMAIL_CONFIG = {
+  APP_URL: 'https://hj1418.github.io/F1-Prediction-Wall/',
+  PRIMARY_RED: '#e10600',
+  BG_DARK: '#0a0d14',
+  BG_CARD: '#121721',
+  BG_ROW_EVEN: '#161e2b',
+  BG_ROW_ODD: '#131a26',
+  BORDER_COLOR: '#222d3d',
+  TEXT_LIGHT: '#ffffff',
+  TEXT_MUTED: '#94a3b8',
+  ACCENT_GREEN: '#00e676',
+  ACCENT_YELLOW: '#ffd600',
+  ACCENT_BLUE: '#38bdf8'
+};
+
+function escapeHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function formatGrandPrixName(title) {
+  if (!title || typeof title !== 'string') return 'Grand Prix';
+  var clean = title
+    .replace(/\s+(Race\s+)?Prediction(\s+Round)?$/i, '')
+    .replace(/\s+Race\s+Session$/i, '')
+    .trim();
+  return clean || 'Grand Prix';
+}
+
+function formatDriverDisplayName(driverId) {
+  if (!driverId) return '—';
+  var str = String(driverId).trim();
+  str = str.replace(/[_-]+/g, ' ');
+  return str.split(' ').map(function(word) {
+    return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+  }).join(' ');
+}
+
+function buildTheGridEmailShell(params) {
+  var title = params.title || 'THE GRID';
+  var subtitle = params.subtitle || '';
+  var contentHtml = params.contentHtml || '';
+  var primaryCta = params.primaryCta;
+  var secondaryCta = params.secondaryCta;
+  var secondaryNote = params.secondaryNote || '';
+
+  return '<!DOCTYPE html>\n' +
+    '<html lang="en">\n' +
+    '<head>\n' +
+    '  <meta charset="UTF-8">\n' +
+    '  <meta name="viewport" content="width=device-width, initial-scale=1.0">\n' +
+    '  <title>' + escapeHtml(title) + '</title>\n' +
+    '</head>\n' +
+    '<body style="margin: 0; padding: 0; background-color: ' + THE_GRID_EMAIL_CONFIG.BG_DARK + '; font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased; color: #ffffff;">\n' +
+    '  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color: ' + THE_GRID_EMAIL_CONFIG.BG_DARK + '; padding: 32px 12px 48px 12px; margin: 0;">\n' +
+    '    <tr>\n' +
+    '      <td align="center">\n' +
+    '        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width: 580px; width: 100%; background-color: ' + THE_GRID_EMAIL_CONFIG.BG_CARD + '; border: 1px solid ' + THE_GRID_EMAIL_CONFIG.BORDER_COLOR + '; border-radius: 12px; overflow: hidden; border-spacing: 0;">\n' +
+    '          <!-- Header Banner -->\n' +
+    '          <tr>\n' +
+    '            <td style="background-color: #151b27; border-top: 3px solid ' + THE_GRID_EMAIL_CONFIG.PRIMARY_RED + '; border-bottom: 1px solid ' + THE_GRID_EMAIL_CONFIG.BORDER_COLOR + '; padding: 26px 28px;">\n' +
+    '              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">\n' +
+    '                <tr>\n' +
+    '                  <td>\n' +
+    '                    <div style="font-size: 11px; font-weight: 800; color: ' + THE_GRID_EMAIL_CONFIG.PRIMARY_RED + '; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 6px;">\n' +
+    '                      THE GRID • FORMULA 1 PREDICTION BENCH\n' +
+    '                    </div>\n' +
+    '                    <h1 style="margin: 0; font-size: 22px; font-weight: 900; line-height: 1.25; color: #ffffff; text-transform: uppercase; letter-spacing: 0.2px;">\n' +
+    '                      ' + escapeHtml(title) + '\n' +
+    '                    </h1>\n' +
+    (subtitle ? '                    <div style="margin-top: 6px; font-size: 13px; color: #94a3b8; font-weight: 500;">\n                      ' + escapeHtml(subtitle) + '\n                    </div>\n' : '') +
+    '                  </td>\n' +
+    '                  <td align="right" valign="top" style="width: 44px; padding-left: 12px;">\n' +
+    '                    <span style="font-size: 28px; line-height: 1;">🏁</span>\n' +
+    '                  </td>\n' +
+    '                </tr>\n' +
+    '              </table>\n' +
+    '            </td>\n' +
+    '          </tr>\n' +
+    '          <!-- Main Content -->\n' +
+    '          <tr>\n' +
+    '            <td style="padding: 28px 28px 24px 28px;">\n' +
+    '              ' + contentHtml + '\n' +
+    ((primaryCta || secondaryCta) ? (
+      '              <div style="margin-top: 28px; text-align: center;">\n' +
+      '                <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" style="margin: 0 auto;">\n' +
+      '                  <tr>\n' +
+      (primaryCta ? (
+        '                    <td align="center" bgcolor="' + THE_GRID_EMAIL_CONFIG.PRIMARY_RED + '" style="border-radius: 6px; padding: 0;">\n' +
+        '                      <a href="' + escapeHtml(primaryCta.url) + '" target="_blank" style="display: inline-block; padding: 13px 28px; font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, Helvetica, Arial, sans-serif; font-size: 13px; font-weight: 800; color: #ffffff; text-decoration: none; text-transform: uppercase; letter-spacing: 1px; border-radius: 6px; background-color: ' + THE_GRID_EMAIL_CONFIG.PRIMARY_RED + ';">\n' +
+        '                        ' + escapeHtml(primaryCta.text) + '\n' +
+        '                      </a>\n' +
+        '                    </td>\n'
+      ) : '') +
+      (secondaryCta ? (
+        '                    <td align="center" style="padding-left: 12px;">\n' +
+        '                      <a href="' + escapeHtml(secondaryCta.url) + '" target="_blank" style="display: inline-block; padding: 12px 24px; font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, Helvetica, Arial, sans-serif; font-size: 13px; font-weight: 700; color: #ffffff; text-decoration: none; text-transform: uppercase; letter-spacing: 1px; border-radius: 6px; background-color: #1f2937; border: 1px solid #374151;">\n' +
+        '                        ' + escapeHtml(secondaryCta.text) + '\n' +
+        '                      </a>\n' +
+        '                    </td>\n'
+      ) : '') +
+      '                  </tr>\n' +
+      '                </table>\n' +
+      '              </div>\n'
+    ) : '') +
+    (secondaryNote ? (
+      '              <div style="margin-top: 18px; text-align: center; font-size: 13px; color: #94a3b8; font-weight: 500;">\n' +
+      '                ' + secondaryNote + '\n' +
+      '              </div>\n'
+    ) : '') +
+    '            </td>\n' +
+    '          </tr>\n' +
+    '          <!-- Footer -->\n' +
+    '          <tr>\n' +
+    '            <td style="background-color: #0e121a; padding: 22px 28px; border-top: 1px solid ' + THE_GRID_EMAIL_CONFIG.BORDER_COLOR + '; text-align: center; font-size: 11px; color: #64748b; line-height: 1.6;">\n' +
+    '              <div style="font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px;">\n' +
+    '                THE GRID MOTORSPORT PLATFORM • FORMULA 1 PREDICTION BENCH\n' +
+    '              </div>\n' +
+    '              <div style="margin-bottom: 8px;">\n' +
+    '                Official FIA classification and telemetry verified. Predictions locked at formation lap.\n' +
+    '              </div>\n' +
+    '              <div>\n' +
+    '                <a href="' + THE_GRID_EMAIL_CONFIG.APP_URL + '" target="_blank" style="color: ' + THE_GRID_EMAIL_CONFIG.PRIMARY_RED + '; text-decoration: none; font-weight: 600;">\n' +
+    '                  Launch The Grid Web App &rarr;\n' +
+    '                </a>\n' +
+    '              </div>\n' +
+    '            </td>\n' +
+    '          </tr>\n' +
+    '        </table>\n' +
+    '      </td>\n' +
+    '    </tr>\n' +
+    '  </table>\n' +
+    '</body>\n' +
+    '</html>';
+}
+
+function generatePredictionConfirmationEmail(params) {
+  var gpName = formatGrandPrixName(params.roundTitle || params.raceName || 'Grand Prix');
+  var subject = 'Prediction Locked In — ' + gpName;
+  var recipientName = params.recipientName || 'Racer';
+  var roundNum = params.roundNumber ? ('Round ' + params.roundNumber + ' • ') : '';
+
+  var picks = [];
+  var pData = params.predictionData || {};
+  if (pData.p1) picks.push({ label: 'P1 Race Winner', value: formatDriverDisplayName(pData.p1) });
+  if (pData.p2) picks.push({ label: 'P2 Second Place', value: formatDriverDisplayName(pData.p2) });
+  if (pData.p3) picks.push({ label: 'P3 Third Place', value: formatDriverDisplayName(pData.p3) });
+  if (pData.fastestLap) picks.push({ label: 'Fastest Lap', value: formatDriverDisplayName(pData.fastestLap) });
+  if (pData.driverOfTheDay || pData.riderOfTheDay) picks.push({ label: 'Driver of the Day', value: formatDriverDisplayName(pData.driverOfTheDay || pData.riderOfTheDay) });
+  if (pData.safetyCar) picks.push({ label: 'Safety Car', value: String(pData.safetyCar).toUpperCase() });
+  if (pData.virtualSafetyCar) picks.push({ label: 'Virtual Safety Car', value: String(pData.virtualSafetyCar).toUpperCase() });
+  if (pData.redFlag) picks.push({ label: 'Red Flag', value: String(pData.redFlag).toUpperCase() });
+  if (pData.yellowFlag) picks.push({ label: 'Yellow Flag', value: String(pData.yellowFlag).toUpperCase() });
+
+  var rowsHtml = '';
+  var rowsText = '';
+  for (var i = 0; i < picks.length; i++) {
+    var p = picks[i];
+    var isEven = (i % 2 === 0);
+    var rowBg = isEven ? THE_GRID_EMAIL_CONFIG.BG_ROW_EVEN : THE_GRID_EMAIL_CONFIG.BG_ROW_ODD;
+    rowsHtml += '<tr style="background-color: ' + rowBg + '; border-bottom: 1px solid ' + THE_GRID_EMAIL_CONFIG.BORDER_COLOR + ';">' +
+      '<td style="padding: 10px 14px; font-size: 12px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; width: 45%;">' + escapeHtml(p.label) + '</td>' +
+      '<td style="padding: 10px 14px; font-size: 13px; font-weight: 800; color: #ffffff;">' + escapeHtml(p.value) + '</td>' +
+      '</tr>';
+    rowsText += '• ' + p.label + ': ' + p.value + '\n';
+  }
+
+  var contentHtml = 
+    '<!-- Event / Race Info Strip -->' +
+    '<div style="background-color: #161e2b; border: 1px solid #283548; border-radius: 8px; padding: 14px 16px; margin-bottom: 20px;">' +
+      '<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">' +
+        '<tr>' +
+          '<td>' +
+            '<div style="font-size: 11px; font-weight: 800; color: ' + THE_GRID_EMAIL_CONFIG.PRIMARY_RED + '; text-transform: uppercase; letter-spacing: 1px;">' +
+              'FORMULA 1 • ' + escapeHtml(roundNum) + 'CHAMPIONSHIP' +
+            '</div>' +
+            '<div style="font-size: 16px; font-weight: 800; color: #ffffff; margin-top: 3px;">' +
+              escapeHtml(gpName) +
+            '</div>' +
+          '</td>' +
+          '<td align="right" valign="middle">' +
+            '<span style="display: inline-block; background-color: #064e3b; border: 1px solid #059669; color: #34d399; font-size: 11px; font-weight: 800; letter-spacing: 1px; padding: 4px 10px; border-radius: 4px; text-transform: uppercase;">' +
+              '● LOCKED' +
+            '</span>' +
+          '</td>' +
+        '</tr>' +
+      '</table>' +
+    '</div>' +
+
+    '<!-- Confirmation Message -->' +
+    '<div style="margin-bottom: 20px;">' +
+      '<div style="font-size: 15px; font-weight: 600; color: #ffffff; margin-bottom: 6px;">' +
+        'Hi ' + escapeHtml(recipientName) + ',' +
+      '</div>' +
+      '<div style="font-size: 14px; line-height: 1.6; color: #94a3b8;">' +
+        'Your F1 prediction has been submitted successfully.' +
+      '</div>' +
+    '</div>' +
+
+    (picks.length > 0 ? (
+      '<!-- Confirmed Picks Table -->' +
+      '<div style="border: 1px solid ' + THE_GRID_EMAIL_CONFIG.BORDER_COLOR + '; border-radius: 8px; overflow: hidden; margin-bottom: 22px;">' +
+        '<div style="background-color: #1a2332; padding: 10px 14px; font-size: 11px; font-weight: 800; color: ' + THE_GRID_EMAIL_CONFIG.ACCENT_GREEN + '; letter-spacing: 1px; text-transform: uppercase; border-bottom: 1px solid ' + THE_GRID_EMAIL_CONFIG.BORDER_COLOR + ';">' +
+          '🔒 CONFIRMED SELECTIONS' +
+        '</div>' +
+        '<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="border-collapse: collapse;">' +
+          rowsHtml +
+        '</table>' +
+      '</div>'
+    ) : '') +
+
+    '<!-- Info Note -->' +
+    '<div style="background-color: rgba(225, 6, 0, 0.06); border-left: 3px solid ' + THE_GRID_EMAIL_CONFIG.PRIMARY_RED + '; padding: 12px 14px; border-radius: 0 6px 6px 0; margin-bottom: 4px;">' +
+      '<div style="font-size: 12px; color: #94a3b8; line-height: 1.5;">' +
+        'Predictions are now authoritatively locked in the system. Official scores and points will be calculated approx. 1 to 2 hours after checkered flag verification.' +
+      '</div>' +
+    '</div>';
+
+  var predictionBenchUrl = THE_GRID_EMAIL_CONFIG.APP_URL + '#/predictions';
+  var htmlBody = buildTheGridEmailShell({
+    title: 'Prediction Locked In',
+    subtitle: gpName + ' • ' + (roundNum || 'Formula 1'),
+    contentHtml: contentHtml,
+    primaryCta: { text: 'VIEW MY PREDICTION', url: predictionBenchUrl },
+    secondaryNote: 'Good luck! 🏁'
+  });
+
+  var plainBody = 
+    'THE GRID • FORMULA 1 PREDICTION BENCH\n' +
+    '==================================================\n\n' +
+    'PREDICTION LOCKED IN\n' +
+    'Event: ' + gpName + '\n' +
+    'Championship: Formula 1\n' +
+    'Status: LOCKED\n\n' +
+    'Hi ' + recipientName + ',\n\n' +
+    'Your F1 prediction has been submitted successfully.\n\n' +
+    (picks.length > 0 ? ('CONFIRMED SELECTIONS:\n' + rowsText + '\n') : '') +
+    'VIEW MY PREDICTION:\n' +
+    predictionBenchUrl + '\n\n' +
+    'Good luck! 🏁\n\n' +
+    '--------------------------------------------------\n' +
+    'THE GRID MOTORSPORT PLATFORM\n' +
+    'Official FIA classification and telemetry verified.\n' +
+    THE_GRID_EMAIL_CONFIG.APP_URL;
+
+  return { subject: subject, htmlBody: htmlBody, body: plainBody };
+}
+
+function generatePredictionResultEmail(params) {
+  var gpName = formatGrandPrixName(params.roundTitle || params.raceName || 'Grand Prix');
+  var subject = 'Your ' + gpName + ' Prediction Results';
+  var recipientName = params.recipientName || 'Racer';
+  var score = Number(params.score !== undefined ? params.score : (params.totalScore !== undefined ? params.totalScore : 0));
+  var roundNum = params.roundNumber ? ('Round ' + params.roundNumber + ' • ') : '';
+  var leaderboardRank = params.leaderboardRank || params.rank;
+
+  var breakdown = params.breakdown || {};
+  var breakdownRowsHtml = '';
+  var breakdownText = '';
+  var keys = Object.keys(breakdown);
+
+  var labelMap = {
+    p1: 'P1 Winner',
+    p2: 'P2 Second Place',
+    p3: 'P3 Third Place',
+    perfectPodiumBonus: 'Perfect Podium Bonus',
+    fastestLap: 'Fastest Lap',
+    driverOfTheDay: 'Driver of the Day',
+    riderOfTheDay: 'Rider of the Day',
+    safetyCar: 'Safety Car Prediction',
+    virtualSafetyCar: 'Virtual Safety Car',
+    redFlag: 'Red Flag Prediction',
+    yellowFlag: 'Yellow Flag Prediction'
+  };
+
+  for (var i = 0; i < keys.length; i++) {
+    var k = keys[i];
+    var pts = Number(breakdown[k] || 0);
+    var label = labelMap[k] || k.replace(/([A-Z])/g, ' $1').replace(/^./, function(str) { return str.toUpperCase(); });
+    var isPositive = pts > 0;
+    var rowBg = (i % 2 === 0) ? THE_GRID_EMAIL_CONFIG.BG_ROW_EVEN : THE_GRID_EMAIL_CONFIG.BG_ROW_ODD;
+    
+    breakdownRowsHtml += '<tr style="background-color: ' + rowBg + '; border-bottom: 1px solid ' + THE_GRID_EMAIL_CONFIG.BORDER_COLOR + ';">' +
+      '<td style="padding: 10px 14px; font-size: 13px; color: #f1f5f9;">' + escapeHtml(label) + '</td>' +
+      '<td align="right" style="padding: 10px 14px; font-size: 13px; font-weight: 800; font-family: monospace; color: ' + (isPositive ? THE_GRID_EMAIL_CONFIG.ACCENT_GREEN : THE_GRID_EMAIL_CONFIG.TEXT_MUTED) + ';">' +
+        (isPositive ? ('+' + pts + ' PTS') : '0 PTS') +
+      '</td>' +
+      '</tr>';
+    breakdownText += '• ' + label + ': ' + (isPositive ? ('+' + pts) : pts) + ' pts\n';
+  }
+
+  var contentHtml = 
+    '<!-- Event / Race Info Strip -->' +
+    '<div style="background-color: #161e2b; border: 1px solid #283548; border-radius: 8px; padding: 14px 16px; margin-bottom: 20px;">' +
+      '<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">' +
+        '<tr>' +
+          '<td>' +
+            '<div style="font-size: 11px; font-weight: 800; color: ' + THE_GRID_EMAIL_CONFIG.PRIMARY_RED + '; text-transform: uppercase; letter-spacing: 1px;">' +
+              'FORMULA 1 • ' + escapeHtml(roundNum) + 'OFFICIAL CLASSIFICATION' +
+            '</div>' +
+            '<div style="font-size: 16px; font-weight: 800; color: #ffffff; margin-top: 3px;">' +
+              escapeHtml(gpName) +
+            '</div>' +
+          '</td>' +
+          '<td align="right" valign="middle">' +
+            '<span style="display: inline-block; background-color: #1e3a8a; border: 1px solid #2563eb; color: #93c5fd; font-size: 11px; font-weight: 800; letter-spacing: 1px; padding: 4px 10px; border-radius: 4px; text-transform: uppercase;">' +
+              '● SCORED' +
+            '</span>' +
+          '</td>' +
+        '</tr>' +
+      '</table>' +
+    '</div>' +
+
+    '<!-- Greeting -->' +
+    '<div style="margin-bottom: 20px;">' +
+      '<div style="font-size: 15px; font-weight: 600; color: #ffffff; margin-bottom: 6px;">' +
+        'Hi ' + escapeHtml(recipientName) + ',' +
+      '</div>' +
+      '<div style="font-size: 14px; line-height: 1.6; color: #94a3b8;">' +
+        'Official steward results for the <strong>' + escapeHtml(gpName) + '</strong> are in, and your scorecard has been processed against the official FIA race classification.' +
+      '</div>' +
+    '</div>' +
+
+    '<!-- Score Hero Card -->' +
+    '<div style="background-color: #161e2b; border: 1px solid #283548; border-radius: 10px; padding: 22px 20px; text-align: center; margin-bottom: 22px;">' +
+      '<div style="font-size: 11px; font-weight: 800; color: #94a3b8; letter-spacing: 2px; text-transform: uppercase;">' +
+        'TOTAL SESSION SCORE' +
+      '</div>' +
+      '<div style="margin: 8px 0 6px 0;">' +
+        '<span style="font-size: 42px; font-weight: 900; color: #ffffff; font-family: monospace; letter-spacing: -1px;">' +
+          (score > 0 ? ('+' + score) : score) +
+        '</span> ' +
+        '<span style="font-size: 20px; font-weight: 800; color: ' + (score > 0 ? THE_GRID_EMAIL_CONFIG.ACCENT_GREEN : THE_GRID_EMAIL_CONFIG.TEXT_MUTED) + ';">PTS</span>' +
+      '</div>' +
+      (leaderboardRank ? (
+        '<div style="margin-top: 10px; display: inline-block; background-color: rgba(255, 214, 0, 0.1); border: 1px solid rgba(255, 214, 0, 0.3); color: #ffd600; font-size: 12px; font-weight: 800; padding: 4px 12px; border-radius: 999px;">' +
+          '🏆 Championship Standings: Rank #' + escapeHtml(String(leaderboardRank)) +
+        '</div>'
+      ) : '') +
+    '</div>' +
+
+    (keys.length > 0 ? (
+      '<!-- Point Breakdown Table -->' +
+      '<div style="border: 1px solid ' + THE_GRID_EMAIL_CONFIG.BORDER_COLOR + '; border-radius: 8px; overflow: hidden; margin-bottom: 22px;">' +
+        '<div style="background-color: #1a2332; padding: 10px 14px; font-size: 11px; font-weight: 800; color: #ffffff; letter-spacing: 1px; text-transform: uppercase; border-bottom: 1px solid ' + THE_GRID_EMAIL_CONFIG.BORDER_COLOR + ';">' +
+          '📊 POINT BREAKDOWN' +
+        '</div>' +
+        '<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="border-collapse: collapse;">' +
+          breakdownRowsHtml +
+        '</table>' +
+      '</div>'
+    ) : '');
+
+  var predictionBenchUrl = THE_GRID_EMAIL_CONFIG.APP_URL + '#/predictions';
+  var leaderboardUrl = THE_GRID_EMAIL_CONFIG.APP_URL + '#/leaderboard';
+
+  var htmlBody = buildTheGridEmailShell({
+    title: 'Your Prediction Results Are In',
+    subtitle: gpName + ' • ' + (roundNum || 'Formula 1'),
+    contentHtml: contentHtml,
+    primaryCta: { text: 'VIEW MY RESULTS', url: predictionBenchUrl },
+    secondaryCta: { text: 'VIEW LEADERBOARD', url: leaderboardUrl },
+    secondaryNote: 'Points have been credited to your championship tally. Check your position on the season standings.'
+  });
+
+  var plainBody = 
+    'THE GRID • FORMULA 1 PREDICTION BENCH\n' +
+    '==================================================\n\n' +
+    'YOUR PREDICTION RESULTS ARE IN\n' +
+    'Event: ' + gpName + '\n' +
+    'Championship: Formula 1\n' +
+    'Status: SCORED\n\n' +
+    'Hi ' + recipientName + ',\n\n' +
+    'Official steward results for the ' + gpName + ' are in, and your scorecard has been processed!\n\n' +
+    'TOTAL SESSION SCORE: ' + (score > 0 ? ('+' + score) : score) + ' PTS\n' +
+    (leaderboardRank ? ('Leaderboard Rank: #' + leaderboardRank + '\n') : '') + '\n' +
+    (keys.length > 0 ? ('POINT BREAKDOWN:\n' + breakdownText + '\n') : '') +
+    'VIEW MY RESULTS:\n' +
+    predictionBenchUrl + '\n\n' +
+    'VIEW LEADERBOARD:\n' +
+    leaderboardUrl + '\n\n' +
+    'Points have been credited to your championship tally. Check your position on the season standings.\n\n' +
+    '--------------------------------------------------\n' +
+    'THE GRID MOTORSPORT PLATFORM\n' +
+    'Official FIA classification and telemetry verified.\n' +
+    THE_GRID_EMAIL_CONFIG.APP_URL;
+
+  return { subject: subject, htmlBody: htmlBody, body: plainBody };
+}
+
+function generateWelcomeEmail(params) {
+  var subject = 'Welcome to The Grid 🏁';
+  var recipientName = params.displayName || params.recipientName || 'Racer';
+
+  var contentHtml = 
+    '<div style="margin-bottom: 20px;">' +
+      '<div style="font-size: 15px; font-weight: 600; color: #ffffff; margin-bottom: 6px;">' +
+        'Hi ' + escapeHtml(recipientName) + ',' +
+      '</div>' +
+      '<div style="font-size: 14px; line-height: 1.6; color: #94a3b8;">' +
+        'Welcome to The Grid — your home for learning, following, and experiencing Formula 1 and global motorsport.' +
+      '</div>' +
+    '</div>' +
+
+    '<div style="background-color: #161e2b; border: 1px solid #283548; border-radius: 8px; padding: 16px; margin-bottom: 16px;">' +
+      '<div style="font-size: 13px; font-weight: 800; color: ' + THE_GRID_EMAIL_CONFIG.PRIMARY_RED + '; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">' +
+        '📚 LEARN FORMULA 1' +
+      '</div>' +
+      '<div style="font-size: 13px; color: #cbd5e1; line-height: 1.5;">' +
+        'Explore comprehensive breakdowns of F1 rules, 2026 technical regulations (Active Aero X-Mode/Z-Mode, 400 kW ICE + 350 kW MGU-K hybrid power units, and Overtake Mode), tyre strategy, and racing terminology.' +
+      '</div>' +
+    '</div>' +
+
+    '<div style="background-color: #161e2b; border: 1px solid #283548; border-radius: 8px; padding: 16px; margin-bottom: 16px;">' +
+      '<div style="font-size: 13px; font-weight: 800; color: #38bdf8; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">' +
+        '🏎️ FOLLOW RACE WEEKENDS' +
+      '</div>' +
+      '<div style="font-size: 13px; color: #cbd5e1; line-height: 1.5;">' +
+        'Stay on top of all 24 Grand Prix circuits with real-time countdown timers, local session timetables (Practice, Qualifying, Sprint, and Race), and circuit telemetry.' +
+      '</div>' +
+    '</div>' +
+
+    '<div style="background-color: #161e2b; border: 1px solid #283548; border-radius: 8px; padding: 16px; margin-bottom: 22px;">' +
+      '<div style="font-size: 13px; font-weight: 800; color: #00e676; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">' +
+        '🏁 PREDICTION BENCH & COMMUNITY COMPETITION' +
+      '</div>' +
+      '<div style="font-size: 13px; color: #cbd5e1; line-height: 1.5;">' +
+        'Put your strategy knowledge to the test. Lock in your picks for Pole Position, Podium Finishers (P1, P2, P3), and Fastest Lap before sessions begin, score points, and climb the season leaderboard!' +
+      '</div>' +
+    '</div>';
+
+  var htmlBody = buildTheGridEmailShell({
+    title: 'Welcome to The Grid',
+    subtitle: 'Motorsport Platform & Prediction Bench',
+    contentHtml: contentHtml,
+    primaryCta: { text: 'EXPLORE THE GRID', url: THE_GRID_EMAIL_CONFIG.APP_URL },
+    secondaryNote: 'Good luck on the grid, and may your strategy lead you to the podium! 🏁'
+  });
+
+  var plainBody = 
+    'THE GRID • MOTORSPORT PLATFORM\n' +
+    '==================================================\n\n' +
+    'Welcome to The Grid — your home for learning, following, and experiencing Formula 1.\n\n' +
+    'Hi ' + recipientName + ',\n\n' +
+    'We are thrilled to have you join our motorsport community. Here is what you can do on The Grid:\n\n' +
+    '1. LEARN FORMULA 1\n' +
+    'Explore F1 rules, 2026 technical regulations (Active Aero X-Mode/Z-Mode & 400 kW ICE + 350 kW MGU-K hybrid power units), tyre strategy, and racing terminology.\n\n' +
+    '2. FOLLOW RACE WEEKENDS\n' +
+    'Stay on top of all 24 Grand Prix circuits with real-time countdown timers, local session timetables, and circuit telemetry.\n\n' +
+    '3. PREDICTION BENCH & COMMUNITY COMPETITION\n' +
+    'Lock in your picks for Podium Finishers (P1, P2, P3) and Fastest Lap, score points, and climb the season leaderboard!\n\n' +
+    'Launch The Grid: ' + THE_GRID_EMAIL_CONFIG.APP_URL + '\n\n' +
+    '--------------------------------------------------\n' +
+    'The Grid Team';
+
+  return { subject: subject, htmlBody: htmlBody, body: plainBody };
+}
+
+/**
+ * =========================================================================
  * ASYNCHRONOUS NOTIFICATION QUEUE & IDEMPOTENT DELIVERY
  * =========================================================================
  */
@@ -2296,13 +2767,14 @@ function processNotificationQueue(batchLimit) {
         const nowIso = new Date().toISOString();
 
         // Standardized subject formatting
-        let subject = rows[i][4] || 'The Grid Notification';
+        var gpName = formatGrandPrixName(data.roundTitle || data.raceName || rows[i][4]);
+        var subject = rows[i][4] || 'The Grid Notification';
         if (type === 'WELCOME') {
           subject = 'Welcome to The Grid 🏁';
         } else if (type === 'PREDICTION_CONFIRMATION' || type === 'PREDICTION_SUBMITTED') {
-          subject = 'Prediction Locked In — ' + (data.roundTitle || 'Race Session');
+          subject = 'Prediction Locked In — ' + gpName;
         } else if (type === 'RACE_RESULTS' || type === 'PREDICTION_RESULT') {
-          subject = 'Your ' + (data.roundTitle || 'Race Session') + ' Prediction Results';
+          subject = 'Your ' + gpName + ' Prediction Results';
         }
 
         // Mark as PROCESSING
@@ -2310,55 +2782,46 @@ function processNotificationQueue(batchLimit) {
 
         try {
           Logger.log('[EMAIL_SEND_ATTEMPT] Delivering ' + type + ' to ' + email + ' (Attempt ' + attempts + ')');
-          let body = 'Hi ' + (name || 'Racer') + ',\n\n';
 
+          // Generate rich branded email payload
+          var emailPayload = null;
           if (type === 'PREDICTION_CONFIRMATION' || type === 'PREDICTION_SUBMITTED') {
-            body += 'Your predictions for ' + (data.roundTitle || 'this round') + ' have been registered and locked in.\n\n';
-            if (data.predictionData) {
-              const p = data.predictionData;
-              body += 'Your Locked Predictions:\n';
-              if (p.p1) body += '• P1: ' + String(p.p1).toUpperCase() + '\n';
-              if (p.p2) body += '• P2: ' + String(p.p2).toUpperCase() + '\n';
-              if (p.p3) body += '• P3: ' + String(p.p3).toUpperCase() + '\n';
-              if (p.fastestLap) body += '• Fastest Lap: ' + String(p.fastestLap).toUpperCase() + '\n';
-              if (p.driverOfTheDay) body += '• Driver of the Day: ' + String(p.driverOfTheDay).toUpperCase() + '\n';
-              if (p.safetyCar) body += '• Safety Car: ' + p.safetyCar + '\n';
-              if (p.virtualSafetyCar) body += '• Virtual Safety Car: ' + p.virtualSafetyCar + '\n';
-              if (p.redFlag) body += '• Red Flag: ' + p.redFlag + '\n';
-              if (p.yellowFlag) body += '• Yellow Flag: ' + p.yellowFlag + '\n';
-            }
-            body += '\nScoring and leaderboard standings will be calculated once official FIA results are verified.\n';
+            emailPayload = generatePredictionConfirmationEmail({
+              recipientName: name,
+              roundTitle: gpName,
+              raceName: gpName,
+              roundNumber: data.roundNumber || '',
+              predictionData: data.predictionData || {}
+            });
           } else if (type === 'RACE_RESULTS' || type === 'PREDICTION_RESULT') {
-            body += 'Official results are in for ' + (data.roundTitle || 'the session') + '!\n\n';
-            body += 'You scored: ' + (data.score !== undefined ? data.score : 0) + ' points.\n';
-            if (data.breakdown) {
-              body += '\nScore Breakdown:\n';
-              for (const key in data.breakdown) {
-                body += '• ' + key + ': ' + data.breakdown[key] + ' pts\n';
-              }
-            }
-            body += '\nHead over to the Leaderboard to view your updated global championship rank!\n';
+            emailPayload = generatePredictionResultEmail({
+              recipientName: name,
+              roundTitle: gpName,
+              raceName: gpName,
+              roundNumber: data.roundNumber || '',
+              score: data.score !== undefined ? data.score : (data.totalScore !== undefined ? data.totalScore : 0),
+              breakdown: data.breakdown || {},
+              leaderboardRank: data.leaderboardRank || data.rank
+            });
           } else if (type === 'WELCOME') {
-            body += 'Welcome to The Grid — your home for learning, following, and experiencing Formula 1.\n\n';
-            body += 'We are thrilled to have you join our motorsport community. Here is what you can do on The Grid:\n\n';
-            body += '📚 LEARN FORMULA 1\n';
-            body += 'Explore comprehensive breakdowns of F1 rules, 2026 technical regulations (Active Aero X-Mode/Z-Mode, 400 kW ICE + 350 kW MGU-K hybrid power units, and Overtake Mode), tyre strategy, and racing terminology.\n\n';
-            body += '🏎️ FOLLOW RACE WEEKENDS\n';
-            body += 'Stay on top of all 24 Grand Prix circuits with real-time countdown timers, local session timetables (Practice, Qualifying, Sprint, and Race), and circuit telemetry.\n\n';
-            body += '🏁 PREDICTION BENCH & COMMUNITY COMPETITION\n';
-            body += 'Put your strategy knowledge to the test. Lock in your picks for Pole Position, Podium Finishers (P1, P2, P3), and Fastest Lap before sessions begin, score points, and climb the season leaderboard!\n\n';
-            body += 'Good luck on the grid, and may your strategy lead you to the podium!\n';
+            emailPayload = generateWelcomeEmail({
+              recipientName: name,
+              displayName: name
+            });
           }
-          body += '\nWarm regards,\nThe Grid Team\nhttps://hj1418.github.io/F1-Prediction-Wall/';
+
+          var finalSubject = emailPayload ? emailPayload.subject : subject;
+          var finalBody = (data && data.body) ? data.body : (emailPayload ? emailPayload.body : ('Hello ' + (name || 'Racer') + ',\n\n' + subject + '\n\n' + THE_GRID_EMAIL_CONFIG.APP_URL));
+          var finalHtmlBody = (data && data.htmlBody) ? data.htmlBody : (emailPayload ? emailPayload.htmlBody : undefined);
 
           const emailOpts = {
             to: email,
             name: 'The Grid',
-            subject: subject,
-            body: body
+            subject: finalSubject,
+            body: finalBody
           };
-          if (data && data.htmlBody) {
-            emailOpts.htmlBody = data.htmlBody;
+          if (finalHtmlBody) {
+            emailOpts.htmlBody = finalHtmlBody;
           }
 
           MailApp.sendEmail(emailOpts);
@@ -2592,21 +3055,17 @@ function setupEmailWorkerTrigger() {
  */
 function testSendWelcomeEmail(targetEmail) {
   const recipient = targetEmail || 'thepaddockprediction14@gmail.com';
-  const subject = 'Welcome to The Grid 🏁';
-  const body = 'Hi Racer,\n\n' +
-    'Welcome to The Grid — your home for learning, following, and experiencing Formula 1.\n\n' +
-    'You are officially registered. On The Grid you can:\n' +
-    '1. Learn F1 rules, 2026 regulations (Active Aero X-Mode/Z-Mode & 400 kW ICE + 350 kW MGU-K), and strategy\n' +
-    '2. Follow live circuit telemetry and session schedules across all 24 Grand Prix weekends\n' +
-    '3. Compete in Prediction Bench and battle on the global championship leaderboard\n\n' +
-    '— The Grid Team\n' +
-    'https://hj1418.github.io/F1-Prediction-Wall/';
+  const emailPayload = generateWelcomeEmail({
+    recipientName: 'Racer',
+    displayName: 'Racer'
+  });
 
   MailApp.sendEmail({
     to: recipient,
     name: 'The Grid',
-    subject: subject,
-    body: body
+    subject: emailPayload.subject,
+    body: emailPayload.body,
+    htmlBody: emailPayload.htmlBody
   });
 
   Logger.log('[EMAIL_SENT] Verification test email sent successfully to: ' + recipient);
