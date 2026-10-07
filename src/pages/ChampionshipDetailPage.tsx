@@ -33,6 +33,9 @@ import { CircuitCard } from '../components/circuits/CircuitCard';
 import { getMotorsportBasics } from '../services/motorsport/motorsportBasicsService';
 import { resolveChampionshipCurrentEvent, getEventStatusBadge, getCurrentEventStatus } from '../services/schedule/eventStatusResolver';
 import { MotorsportHubSectionNavigator } from '../components/motorsport/MotorsportHubSectionNavigator';
+import { trackMotorsportViewed, trackMotorsportSectionViewed } from '../analytics/events';
+import { WhereToWatchCard } from '../components/motorsport/WhereToWatchCard';
+
 
 export type HubSectionId =
   | 'learn'
@@ -82,6 +85,22 @@ export const ChampionshipDetailPage: React.FC = () => {
   const activeSection: HubSectionId = React.useMemo(() => {
     return normalizeHubSection(section || searchParams.get('section') || undefined);
   }, [section, searchParams]);
+
+  useEffect(() => {
+    if (championshipId) {
+      trackMotorsportViewed({
+        motorsport: championshipId,
+        championship: championshipId,
+        season: 2026,
+      });
+      trackMotorsportSectionViewed({
+        motorsport: championshipId,
+        championship: championshipId,
+        season: 2026,
+        section: activeSection,
+      });
+    }
+  }, [championshipId, activeSection]);
 
   const [data, setData] = useState<ChampionshipDetailData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -785,6 +804,9 @@ export const ChampionshipDetailPage: React.FC = () => {
         {activeSection === 'learn' && (
         <section id="hub-overview" data-section="learn" className="hub-section-anchor" style={{ marginBottom: '4rem' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
+            {/* WHERE TO WATCH — INDIA BROADCAST RIGHTS */}
+            <WhereToWatchCard championshipId={data.id} championshipName={data.name} season={selectedSeason} />
+
             {/* 1. WHAT IS THIS SPORT? */}
             <section style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
               <div>

@@ -1,6 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { X, Download, Share2, Copy, Check, Sparkles, Lock, Trophy, Zap, ShieldAlert, Award } from 'lucide-react';
 import { Prediction, PredictionRound, RaceWeekend, Driver, User } from '../../types';
+import { trackSharePrediction, trackShareResult } from '../../analytics/events';
 
 interface PredictionStoryShareModalProps {
   isOpen: boolean;
@@ -403,6 +404,12 @@ export const PredictionStoryShareModal: React.FC<PredictionStoryShareModalProps>
       link.download = `F1_Prediction_Story_${(weekend?.raceName || 'GrandPrix').replace(/\s+/g, '_')}.png`;
       link.href = canvas.toDataURL('image/png');
       link.click();
+
+      if (round.status === 'SCORED') {
+        trackShareResult({ share_method: 'download', event_id: round.raceWeekendId });
+      } else {
+        trackSharePrediction({ share_method: 'download', event_id: round.raceWeekendId });
+      }
     } catch (err) {
       console.error('Download error', err);
     } finally {
@@ -411,6 +418,12 @@ export const PredictionStoryShareModal: React.FC<PredictionStoryShareModalProps>
   };
 
   const handleNativeShare = async () => {
+    if (round.status === 'SCORED') {
+      trackShareResult({ share_method: 'native_share', event_id: round.raceWeekendId });
+    } else {
+      trackSharePrediction({ share_method: 'native_share', event_id: round.raceWeekendId });
+    }
+
     const canvas = drawStoryCanvas();
     if (navigator.share) {
       canvas.toBlob(async blob => {

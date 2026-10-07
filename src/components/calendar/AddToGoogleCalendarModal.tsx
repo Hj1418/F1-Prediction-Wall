@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Copy, Check, Calendar, ExternalLink, Download } from 'lucide-react';
 import { getCalendarFeedUrl } from '../../services/calendar/calendarFeedGenerator';
+import { trackGoogleCalendarClicked } from '../../analytics/events';
 
 export interface AddToGoogleCalendarModalProps {
   isOpen: boolean;
@@ -29,6 +30,7 @@ export const AddToGoogleCalendarModal: React.FC<AddToGoogleCalendarModalProps> =
     if (isOpen) {
       window.addEventListener('keydown', handleKeyDown);
       document.body.style.overflow = 'hidden';
+      trackGoogleCalendarClicked();
     }
     return () => {
       window.removeEventListener('keydown', handleKeyDown);

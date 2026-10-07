@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { X, Calendar, MapPin, Zap, ArrowRight, Clock } from 'lucide-react';
 import { GlobalCalendarEvent } from '../../services/calendar/globalCalendarService';
 import { formatIstTime, sortEventsChronologicalIst, getEventTimeForCalendarDate } from '../../utils/istTimeUtils';
+import { trackCalendarDateSelected } from '../../analytics/events';
 
 export interface CalendarDatePopupProps {
   isOpen: boolean;
@@ -26,7 +27,7 @@ export const CalendarDatePopup: React.FC<CalendarDatePopupProps> = ({
 
   // Handle Escape key to dismiss
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen || !date) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -37,11 +38,15 @@ export const CalendarDatePopup: React.FC<CalendarDatePopupProps> = ({
     window.addEventListener('keydown', handleKeyDown);
     document.body.style.overflow = 'hidden';
 
+    trackCalendarDateSelected({
+      date: date.toISOString().split('T')[0],
+    });
+
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
       document.body.style.overflow = 'unset';
     };
-  }, [isOpen, onClose]);
+  }, [isOpen, date, onClose]);
 
   if (!isOpen || !date) return null;
 

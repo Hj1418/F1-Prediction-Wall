@@ -5,6 +5,7 @@ import {
   triggerImageDownload,
   canvasToBlob,
 } from '../../services/sharing/storyShareService';
+import { trackShareLeaderboard, trackSharePrediction, trackShareResult } from '../../analytics/events';
 
 interface StoryShareModalProps {
   isOpen: boolean;
@@ -13,6 +14,7 @@ interface StoryShareModalProps {
   canvas: HTMLCanvasElement | null;
   filename: string;
   shareText: string;
+  shareCategory?: 'prediction' | 'prediction_result' | 'leaderboard';
 }
 
 export const StoryShareModal: React.FC<StoryShareModalProps> = ({
@@ -22,6 +24,7 @@ export const StoryShareModal: React.FC<StoryShareModalProps> = ({
   canvas,
   filename,
   shareText,
+  shareCategory,
 }) => {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [sharing, setSharing] = useState(false);
@@ -44,8 +47,20 @@ export const StoryShareModal: React.FC<StoryShareModalProps> = ({
 
   if (!isOpen) return null;
 
+  const fireShareEvent = (method: 'native_share' | 'download' | 'copy_link') => {
+    const category = shareCategory || (title.toLowerCase().includes('leaderboard') ? 'leaderboard' : 'prediction_result');
+    if (category === 'leaderboard') {
+      trackShareLeaderboard({ share_method: method });
+    } else if (category === 'prediction') {
+      trackSharePrediction({ share_method: method });
+    } else {
+      trackShareResult({ share_method: method });
+    }
+  };
+
   const handleShare = async () => {
     if (!canvas) return;
+    fireShareEvent('native_share');
     setSharing(true);
     try {
       const result = await shareOrDownloadStory({
@@ -67,6 +82,7 @@ export const StoryShareModal: React.FC<StoryShareModalProps> = ({
 
   const handleDirectDownload = async () => {
     if (!canvas) return;
+    fireShareEvent('download');
     try {
       const blob = await canvasToBlob(canvas);
       triggerImageDownload(blob, filename);
@@ -78,6 +94,7 @@ export const StoryShareModal: React.FC<StoryShareModalProps> = ({
   };
 
   const handleCopyLink = async () => {
+    fireShareEvent('copy_link');
     try {
       await navigator.clipboard.writeText(window.location.href);
       setCopiedLink(true);

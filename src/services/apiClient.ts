@@ -1,3 +1,5 @@
+import { generatePredictionRounds } from './schedule/predictionRoundGenerator';
+
 import {
   Constructor,
   RaceWeekend,
@@ -86,17 +88,6 @@ function hydratePredictionRound(round: PredictionRound): PredictionRound {
   if (!round.scoringRules) {
     round.scoringRules = DEFAULT_SCORING_RULES;
   }
-  // Enforce Baku Azerbaijan Grand Prix prediction locks strictly at tonight midnight (Sep 25 18:30 UTC / Sep 26 00:00 IST)
-  const isAzerbaijan =
-    (round.roundId && (round.roundId.includes('2026_15') || round.roundId.includes('2026_17'))) ||
-    round.raceWeekendId === '2026_15' ||
-    round.raceWeekendId === '2026_17' ||
-    (round.title && round.title.toLowerCase().includes('azerbaijan')) ||
-    (round.description && round.description.toLowerCase().includes('azerbaijan'));
-
-  if (isAzerbaijan && (round.roundType === 'RACE' || round.roundType === 'GRAND_PRIX' || round.type === 'RACE' || !round.roundType)) {
-    round.closesAt = '2026-09-25T18:30:00.000Z';
-  }
   return round;
 }
 
@@ -156,6 +147,59 @@ export const api = {
     }, {
       ttlMs: TTL.LONG,
     });
+  },
+
+  getWeekendByIdSync(id: string): RaceWeekend | null {
+    if (!id) return null;
+    try {
+      const testState = testGrandPrixService.getState();
+      if (testState.weekend && (testState.weekend.raceWeekendId === id || testState.weekend.id === id)) {
+        return testState.weekend;
+      }
+    } catch (_e) {}
+
+    const cachedSeason = clientCache.get<RaceWeekend[]>('f1_weekends_2026');
+    if (cachedSeason) {
+      const match = cachedSeason.find(w => w.raceWeekendId === id || w.id === id);
+      if (match) return match;
+    }
+
+    const cachedIndividual = clientCache.get<RaceWeekend>(`f1_weekend_${id}`);
+    if (cachedIndividual) return cachedIndividual;
+
+    return mockApi.getWeekendByIdSync ? mockApi.getWeekendByIdSync(id) : null;
+  },
+
+  getPredictionRoundByIdSync(roundId: string): PredictionRound | null {
+    if (!roundId) return null;
+    try {
+      const testState = testGrandPrixService.getState();
+      if (testState.round && (testState.round.roundId === roundId || testState.round.id === roundId)) {
+        return testState.round;
+      }
+    } catch (_e) {}
+
+    const cachedAll = clientCache.get<PredictionRound[]>('f1_prediction_rounds_all');
+    if (cachedAll) {
+      const found = cachedAll.find(r => r.roundId === roundId || r.id === roundId);
+      if (found) return hydratePredictionRound(found);
+    }
+
+    const cachedIndividual = clientCache.get<PredictionRound>(`f1_round_${roundId}`);
+    if (cachedIndividual) return hydratePredictionRound(cachedIndividual);
+
+    const weekendMatch = roundId.match(/^(\d{4}_\d+)/);
+    if (weekendMatch) {
+      const weekendId = weekendMatch[1];
+      const weekend = this.getWeekendByIdSync(weekendId);
+      if (weekend) {
+        const genRounds = generatePredictionRounds(weekend);
+        const found = genRounds.find((r: PredictionRound) => r.roundId === roundId || r.id === roundId) || genRounds[0];
+        if (found) return hydratePredictionRound(found);
+      }
+    }
+
+    return null;
   },
 
   async getRaceWeekends(season: number = 2026): Promise<RaceWeekend[]> {

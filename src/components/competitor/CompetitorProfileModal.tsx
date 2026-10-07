@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { X, Trophy, Award, Shield, Flag, ExternalLink, Users, Sparkles, Zap } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { trackDriverViewed } from '../../analytics/events';
 
 export interface CompetitorProfileData {
   id: string;
@@ -44,6 +45,17 @@ export const CompetitorProfileModal: React.FC<CompetitorProfileModalProps> = ({
   onClose,
   onSelectTeam,
 }) => {
+  useEffect(() => {
+    if (isOpen && competitor) {
+      trackDriverViewed({
+        driver_id: competitor.id,
+        driver_name: competitor.name,
+        team: competitor.teamName,
+        motorsport: competitor.championshipId,
+      });
+    }
+  }, [isOpen, competitor]);
+
   if (!isOpen || !competitor) return null;
 
   const label = competitor.competitorLabel || (competitor.championshipId === 'motogp' ? 'Rider' : 'Driver');

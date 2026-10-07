@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { X, Calendar, MapPin, Flag, Zap, ArrowRight, Compass, Clock } from 'lucide-react';
 import { GlobalCalendarEvent } from '../../services/calendar/globalCalendarService';
 import { formatIstTime } from '../../utils/istTimeUtils';
+import { trackCalendarEventViewed } from '../../analytics/events';
 
 export interface CalendarEventModalProps {
   event: GlobalCalendarEvent | null;
@@ -19,6 +20,13 @@ export const CalendarEventModal: React.FC<CalendarEventModalProps> = ({ event, o
     if (event) {
       window.addEventListener('keydown', handleKeyDown);
       document.body.style.overflow = 'hidden';
+      trackCalendarEventViewed({
+        motorsport: event.seriesId,
+        season: 2026,
+        event_id: event.id,
+        event_name: event.officialTitle,
+        round: event.roundNumber,
+      });
     }
     return () => {
       window.removeEventListener('keydown', handleKeyDown);

@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { X, Trophy, Users, Shield, ExternalLink, Zap, Wrench } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { trackTeamViewed } from '../../analytics/events';
 
 export interface TeamProfileData {
   id: string;
@@ -37,6 +38,16 @@ export const TeamProfileModal: React.FC<TeamProfileModalProps> = ({
   onClose,
   onSelectCompetitor,
 }) => {
+  useEffect(() => {
+    if (isOpen && team) {
+      trackTeamViewed({
+        team_id: team.id,
+        team_name: team.name,
+        motorsport: team.championshipId,
+      });
+    }
+  }, [isOpen, team]);
+
   if (!isOpen || !team) return null;
 
   const accentColor = team.primaryColor || team.championshipColor || 'var(--f1-red)';

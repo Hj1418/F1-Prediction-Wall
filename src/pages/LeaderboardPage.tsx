@@ -638,6 +638,7 @@ export const LeaderboardPage: React.FC = () => {
         canvas={shareModalCanvas}
         filename={shareModalFilename}
         shareText={shareModalText}
+        shareCategory="leaderboard"
       />
     </div>
   );

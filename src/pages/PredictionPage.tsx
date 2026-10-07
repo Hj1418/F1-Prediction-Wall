@@ -40,14 +40,34 @@ import {
   CalendarClock,
   Share2,
 } from 'lucide-react';
+import {
+  trackPredictionPageViewed,
+  trackPredictionStarted,
+  trackPredictionSubmitted,
+  trackPredictionLocked,
+  trackPredictionResultViewed,
+} from '../analytics/events';
 
 export const PredictionPage: React.FC = () => {
   const { roundId } = useParams<{ roundId: string }>();
   const { currentUser, isAuthenticated, isLoadingAuth, openLoginModal } = useAuth();
   const { showToast, triggerDataRefresh } = useApp();
 
-  const [round, setRound] = useState<PredictionRound | null>(null);
-  const [weekend, setWeekend] = useState<RaceWeekend | null>(null);
+  // Instant synchronous resolution from local schedule / memory cache (0ms)
+  const syncRound = useMemo(() => {
+    return roundId ? api.getPredictionRoundByIdSync(roundId) : null;
+  }, [roundId]);
+
+  const syncWeekend = useMemo(() => {
+    if (syncRound && syncRound.raceWeekendId) {
+      return api.getWeekendByIdSync(syncRound.raceWeekendId);
+    }
+    const match = roundId?.match(/^(\d{4}_\d+)/);
+    return match ? api.getWeekendByIdSync(match[1]) : null;
+  }, [roundId, syncRound]);
+
+  const [round, setRound] = useState<PredictionRound | null>(syncRound);
+  const [weekend, setWeekend] = useState<RaceWeekend | null>(syncWeekend);
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [prediction, setPrediction] = useState<Prediction | null>(null);
   const [formData, setFormData] = useState<Record<string, any>>({});
@@ -64,118 +84,126 @@ export const PredictionPage: React.FC = () => {
   // Driver modal selector state
   const [activeDriverField, setActiveDriverField] = useState<PredictionFieldConfig | null>(null);
 
+  // Synchronize state if roundId changes or syncRound updates
   useEffect(() => {
+    if (syncRound) setRound(syncRound);
+    if (syncWeekend) setWeekend(syncWeekend);
+  }, [syncRound, syncWeekend]);
+
+  useEffect(() => {
+    let isMounted = true;
+
     async function loadData() {
       if (!roundId) return;
-      if (isLoadingAuth) return; // Wait for authentication state to resolve first
 
       try {
         setLoading(true);
-        let r = await api.getPredictionRoundById(roundId);
-        if (
-          r &&
-          (r.roundId?.includes('2026_15') ||
-            r.roundId?.includes('2026_17') ||
-            r.raceWeekendId === '2026_15' ||
-            r.raceWeekendId === '2026_17' ||
-            (r.title && r.title.toLowerCase().includes('azerbaijan')))
-        ) {
-          r = {
-            ...r,
-            closesAt: '2026-09-25T18:30:00.000Z',
-          };
-        }
-        setRound(r);
 
-        let dList: Driver[] = [];
-        let dErr = false;
-        if (r && r.raceWeekendId) {
-          try {
-            dList = await api.getEligibleDrivers(r.raceWeekendId, 2026);
-            if (!dList || dList.length === 0) {
-              dErr = true;
-            }
-          } catch (_e) {
-            dErr = true;
+        // 1. Resolve round & weekend
+        let r = round || api.getPredictionRoundByIdSync(roundId);
+        if (!r) {
+          r = await api.getPredictionRoundById(roundId);
+        }
+        if (!isMounted) return;
+        if (r) setRound(r);
+
+        const wId = r?.raceWeekendId || roundId.match(/^(\d{4}_\d+)/)?.[1];
+        let w = weekend || (wId ? api.getWeekendByIdSync(wId) : null);
+
+        // 2. Parallelize all independent background requests (drivers, weekend details, user pred, results, score)
+        const isScoredRound = Boolean(r && (r.status === 'SCORED' || r.status === 'COMPLETED'));
+
+        const [wRes, dRes, predRes, resultRes, scoreRes] = await Promise.allSettled([
+          !w && wId ? api.getWeekendById(wId) : Promise.resolve(w),
+          wId ? api.getEligibleDrivers(wId, 2026) : api.getDrivers(2026),
+          currentUser && r ? api.getUserPrediction(r.roundId, currentUser.userId) : Promise.resolve(null),
+          isScoredRound && r ? api.getOfficialResult(r.roundId) : Promise.resolve(null),
+          isScoredRound && currentUser && r ? api.getRoundScore(r.roundId, currentUser.userId) : Promise.resolve(null),
+        ]);
+
+        if (!isMounted) return;
+
+        if (wRes.status === 'fulfilled' && wRes.value) {
+          w = wRes.value;
+          setWeekend(w);
+        }
+
+        if (dRes.status === 'fulfilled' && Array.isArray(dRes.value) && dRes.value.length > 0) {
+          setDrivers(dRes.value);
+          setDriverError(false);
+        } else if (drivers.length === 0) {
+          // Fallback drivers
+          const fallbackDrivers = await api.getDrivers(2026);
+          if (isMounted) {
+            setDrivers(fallbackDrivers);
+            setDriverError(fallbackDrivers.length === 0);
           }
+        }
+
+        if (resultRes.status === 'fulfilled' && resultRes.value) {
+          setOfficialResult(resultRes.value);
+        }
+
+        if (scoreRes.status === 'fulfilled' && scoreRes.value) {
+          setUserScore(scoreRes.value);
+        }
+
+        let existingPred: Prediction | null = predRes.status === 'fulfilled' ? predRes.value : null;
+
+        // Check local fallback if remote prediction is null
+        if (!existingPred && r && currentUser?.userId) {
+          try {
+            const raw = localStorage.getItem(`thegrid_user_pred_${r.roundId}_${currentUser.userId}`);
+            if (raw) existingPred = JSON.parse(raw);
+          } catch {}
+        }
+
+        if (existingPred && existingPred.predictionData) {
+          setPrediction(existingPred);
+          setFormData({ ...existingPred.predictionData });
+          setIsEditing(false);
         } else {
-          try {
-            dList = await api.getDrivers(2026);
-          } catch (_e) {
-            dErr = true;
-          }
+          setPrediction(null);
+          setIsEditing(true);
         }
-
-        setDrivers(dList);
-        setDriverError(dErr);
 
         if (r) {
-          const isScoredRound = r.status === 'SCORED' || r.status === 'COMPLETED';
-          const [w, existingPred, res, score] = await Promise.all([
-            api.getWeekendById(r.raceWeekendId),
-            currentUser ? api.getUserPrediction(r.roundId, currentUser.userId) : Promise.resolve(null),
-            isScoredRound ? api.getOfficialResult(r.roundId) : Promise.resolve(null),
-            (isScoredRound && currentUser) ? api.getRoundScore(r.roundId, currentUser.userId) : Promise.resolve(null),
-          ]);
-
-          setWeekend(w);
-          setOfficialResult(res);
-          setUserScore(score);
-
-          if (existingPred && existingPred.predictionData) {
-            setPrediction(existingPred);
-            setFormData({ ...existingPred.predictionData });
-            setIsEditing(false);
+          const eventParams = {
+            motorsport: (w as any)?.motorsport || (w as any)?.championshipId || 'f1',
+            championship: (w as any)?.championship || (w as any)?.championshipId || 'f1',
+            season: w?.season || 2026,
+            event_id: r.raceWeekendId,
+            event_name: w?.raceName || w?.name || r.title,
+            round: w?.roundNumber || w?.round || 1,
+          };
+          if (isScoredRound) {
+            trackPredictionResultViewed(eventParams);
+          } else if (r.status === 'LOCKED' || (r.status === 'COMPLETED' && !resultRes)) {
+            trackPredictionLocked(eventParams);
           } else {
-            // Check local fallback
-            let fallback: Prediction | null = null;
-            if (currentUser?.userId) {
-              try {
-                const raw = localStorage.getItem(`thegrid_user_pred_${r.roundId}_${currentUser.userId}`) ||
-                  (r.roundId.includes('2026_15') ? localStorage.getItem(`thegrid_user_pred_2026_17_RACE_PREDICTION_${currentUser.userId}`) : null) ||
-                  (r.roundId.includes('2026_17') ? localStorage.getItem(`thegrid_user_pred_2026_15_RACE_PREDICTION_${currentUser.userId}`) : null);
-                if (raw) fallback = JSON.parse(raw);
-              } catch {}
-            }
-
-            if (fallback && fallback.predictionData) {
-              setPrediction(fallback);
-              setFormData({ ...fallback.predictionData });
-              setIsEditing(false);
-            } else {
-              setPrediction(null);
-              setFormData({});
-              setIsEditing(true);
-            }
+            trackPredictionPageViewed(eventParams);
           }
         }
       } catch (err) {
-        console.error('Failed to load prediction round', err);
+        console.warn('Prediction loadData background sync caught error:', err);
       } finally {
-        setLoading(false);
+        if (isMounted) setLoading(false);
       }
     }
 
     loadData();
+
+    return () => {
+      isMounted = false;
+    };
   }, [roundId, currentUser?.userId, isLoadingAuth]);
 
-  if (loading || isLoadingAuth) {
-    return (
-      <div className="container" style={{ padding: '6rem 0', textAlign: 'center' }}>
-        <div className="live-pulse" style={{ width: '12px', height: '12px', backgroundColor: 'var(--f1-red)', marginBottom: '1rem' }} />
-        <div style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>
-          LOADING PREDICTION FORM...
-        </div>
-      </div>
-    );
-  }
-
-  if (!round) {
+  if (!round && !weekend && !loading) {
     return (
       <div className="container" style={{ padding: '4rem 1.25rem', textAlign: 'center' }}>
         <h2>Prediction Round Not Found</h2>
-        <Link to="/" className="btn btn-secondary" style={{ marginTop: '1rem' }}>
-          Return to Overview
+        <Link to="/predictions" className="btn btn-secondary" style={{ marginTop: '1rem' }}>
+          Return to Predictions Overview
         </Link>
       </div>
     );
@@ -184,23 +212,24 @@ export const PredictionPage: React.FC = () => {
   // Field category badge helper
   const isMotoGP = Boolean(
     (weekend as any)?.motorsport === 'motogp' ||
-    round.raceWeekendId?.toLowerCase().includes('motogp') ||
+    round?.raceWeekendId?.toLowerCase().includes('motogp') ||
     getCircuitName(weekend?.circuit)?.toLowerCase().includes('motogp') ||
-    String(round.title || '').toLowerCase().includes('motogp')
+    String(round?.title || '').toLowerCase().includes('motogp')
   );
   const competitorLabel = isMotoGP ? 'Rider' : 'Driver';
 
   // Strictly 9 active prediction fields for new / in-progress predictions
   const activePredictionFields = getDefaultPredictionFields(competitorLabel);
 
-  const isUpcoming = round.status === 'UPCOMING';
-  const isScored = round.status === 'SCORED' || (round.status === 'COMPLETED' && Boolean(officialResult));
-  const isLocked = round.status === 'LOCKED' || (round.status === 'COMPLETED' && !officialResult);
-  const isOpen = round.status === 'OPEN';
+  const roundStatus = round?.status || 'OPEN';
+  const isUpcoming = roundStatus === 'UPCOMING';
+  const isScored = roundStatus === 'SCORED' || (roundStatus === 'COMPLETED' && Boolean(officialResult));
+  const isLocked = roundStatus === 'LOCKED' || (roundStatus === 'COMPLETED' && !officialResult);
+  const isOpen = roundStatus === 'OPEN';
   const isReadOnly = isLocked || isScored || isUpcoming;
 
   // For historical / scored rounds, preserve existing prediction fields if present
-  const displayFields = (isScored && round.predictionFields && round.predictionFields.length > 0)
+  const displayFields = (isScored && round?.predictionFields && round.predictionFields.length > 0)
     ? round.predictionFields
     : activePredictionFields;
 
@@ -255,8 +284,25 @@ export const PredictionPage: React.FC = () => {
     return disabledMap;
   };
 
+  const hasTrackedStartRef = React.useRef(false);
+
+  const trackStartEditing = () => {
+    if (!hasTrackedStartRef.current && round) {
+      hasTrackedStartRef.current = true;
+      trackPredictionStarted({
+        motorsport: (weekend as any)?.motorsport || (weekend as any)?.championshipId || 'f1',
+        championship: (weekend as any)?.championship || (weekend as any)?.championshipId || 'f1',
+        season: weekend?.season || 2026,
+        event_id: round.raceWeekendId,
+        event_name: weekend?.raceName || weekend?.name || round.title,
+        round: weekend?.roundNumber || weekend?.round || 1,
+      });
+    }
+  };
+
   const handleSelectDriver = (driverId: string) => {
     if (!activeDriverField) return;
+    trackStartEditing();
     setFormData(prev => ({
       ...prev,
       [activeDriverField.id]: driverId,
@@ -264,6 +310,7 @@ export const PredictionPage: React.FC = () => {
   };
 
   const handleFieldChange = (fieldId: string, val: any) => {
+    trackStartEditing();
     setFormData(prev => ({
       ...prev,
       [fieldId]: val,
@@ -272,7 +319,7 @@ export const PredictionPage: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isReadOnly) return;
+    if (!round || isReadOnly) return;
 
     if (!isAuthenticated || !currentUser) {
       showToast('Please sign in with Google or your account to submit predictions.', 'info');
@@ -304,6 +351,15 @@ export const PredictionPage: React.FC = () => {
         predictionData: formData,
         email: currentUser.email,
         displayName: currentUser.displayName,
+      });
+
+      trackPredictionSubmitted({
+        motorsport: (weekend as any)?.motorsport || (weekend as any)?.championshipId || 'f1',
+        championship: (weekend as any)?.championship || (weekend as any)?.championshipId || 'f1',
+        season: weekend?.season || 2026,
+        event_id: round.raceWeekendId,
+        event_name: weekend?.raceName || weekend?.name || round.title,
+        round: weekend?.roundNumber || weekend?.round || 1,
       });
 
       setPrediction(saved);
@@ -339,6 +395,8 @@ export const PredictionPage: React.FC = () => {
     round?.raceWeekendId?.startsWith('TEST_') ||
     weekend?.raceWeekendId?.startsWith('TEST_')
   );
+
+  if (!round) return null;
 
   return (
     <div style={{ paddingBottom: '5rem', position: 'relative' }}>

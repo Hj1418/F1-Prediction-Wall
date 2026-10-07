@@ -29,6 +29,7 @@ import {
 import { CircuitEntity, CircuitLayout } from '../types/circuit';
 import { CircuitCard } from '../components/circuits/CircuitCard';
 import { CircuitVector } from '../components/circuits/CircuitVector';
+import { trackCircuitViewed } from '../analytics/events';
 
 type ChampionshipFilter = 'all' | 'f1' | 'motogp' | 'wec' | 'gt' | 'fe' | 'india' | 'wrc';
 
@@ -71,10 +72,16 @@ export const CircuitsPage: React.FC = () => {
       setSelectedLayoutId(primary?.layoutId || '');
       document.title = `${activeCircuit.name} | Circuit Guide • The Grid`;
       window.scrollTo({ top: 0, behavior: 'smooth' });
+
+      trackCircuitViewed({
+        circuit_id: activeCircuit.id,
+        circuit_name: activeCircuit.name,
+        motorsport: activeCircuit.primaryDiscipline || activeCircuit.disciplines?.[0] || championshipId || 'f1',
+      });
     } else {
       document.title = 'Global Motorsport Circuits Library • The Grid';
     }
-  }, [activeCircuit]);
+  }, [activeCircuit, championshipId]);
 
   // Active layout for detail view
   const currentLayout: CircuitLayout | undefined = useMemo(() => {

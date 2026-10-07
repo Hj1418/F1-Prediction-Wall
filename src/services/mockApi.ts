@@ -161,9 +161,13 @@ export class MockApiService {
     return [...this.weekends];
   }
 
-  public async getWeekendById(raceWeekendId: string): Promise<RaceWeekend | null> {
-    const rw = this.weekends.find(w => w.raceWeekendId === raceWeekendId);
+  public getWeekendByIdSync(raceWeekendId: string): RaceWeekend | null {
+    const rw = this.weekends.find(w => w.raceWeekendId === raceWeekendId || w.id === raceWeekendId);
     return rw ? { ...rw } : null;
+  }
+
+  public async getWeekendById(raceWeekendId: string): Promise<RaceWeekend | null> {
+    return this.getWeekendByIdSync(raceWeekendId);
   }
 
   public async getPredictionRounds(raceWeekendId?: string): Promise<PredictionRound[]> {

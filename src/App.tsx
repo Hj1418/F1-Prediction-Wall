@@ -8,6 +8,7 @@ import { ToastContainer } from './components/common/ToastContainer';
 import { AuthModal } from './components/common/AuthModal';
 import { OnboardingModal } from './components/auth/OnboardingModal';
 import { PageLoadingFallback } from './components/common/PageLoadingFallback';
+import { AnalyticsTracker } from './analytics/AnalyticsTracker';
 
 // Route-level code splitting: pages load on-demand rather than bloating initial bundle
 const HomePage = lazy(() => import('./pages/HomePage').then(m => ({ default: m.HomePage })));
@@ -45,6 +46,7 @@ const AppLayout: React.FC = () => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+      <AnalyticsTracker />
       <Navbar />
       <main style={{ flex: 1 }}>
         <Suspense fallback={<PageLoadingFallback />}>

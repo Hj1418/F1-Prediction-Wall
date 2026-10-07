@@ -5,6 +5,7 @@ import { INITIAL_USERS } from '../services/mockData';
 import { authService, RegisterParams } from '../services/authService';
 
 import { signInWithGoogle } from '../services/googleAuth';
+import { trackLogin, trackSignupCompleted, trackSignupStarted } from '../analytics/events';
 
 interface AuthContextType {
   currentUser: User | null;
@@ -141,6 +142,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
     setAuthModalMode('register');
     setAuthModalOpen(true);
+    trackSignupStarted({ method: 'password' });
   };
 
   const login = async (identifier: string, password?: string) => {
@@ -150,6 +152,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.setItem(AUTH_STATUS_KEY, 'authenticated');
     localStorage.setItem(CURRENT_USER_KEY, user.userId);
     setAuthModalOpen(false);
+    trackLogin({ method: 'password', user_type: 'returning' });
     if (!user.username || user.username.trim() === '') {
       setOnboardingUser(user);
     }
@@ -163,6 +166,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.setItem(AUTH_STATUS_KEY, 'authenticated');
     localStorage.setItem(CURRENT_USER_KEY, newUser.userId);
     setAuthModalOpen(false);
+    trackSignupCompleted({ method: 'password', user_type: 'new' });
     if (!newUser.username || newUser.username.trim() === '') {
       setOnboardingUser(newUser);
     }
@@ -201,6 +205,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.setItem(AUTH_STATUS_KEY, 'authenticated');
     localStorage.setItem(CURRENT_USER_KEY, user.userId);
     setAuthModalOpen(false);
+
+    if (user.isNewUser) {
+      trackSignupCompleted({ method: 'google', user_type: 'new' });
+    } else {
+      trackLogin({ method: 'google', user_type: 'returning' });
+    }
 
     // Prompt user to choose username if they do not already have one
     if (user.isNewUser || !user.username || user.username.trim() === '') {

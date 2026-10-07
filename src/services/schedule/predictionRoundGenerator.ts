@@ -14,8 +14,9 @@ export interface PredictionConfig {
 }
 
 export const DEFAULT_PREDICTION_CONFIG: PredictionConfig = {
-  defaultCloseBufferMinutes: 5,
+  defaultCloseBufferMinutes: 60, // Exactly 1 hour before the specific race/sprint
 };
+
 
 export const SIMPLIFIED_ACTIVE_SCORING_RULES: ScoringRules = {
   exactP1: 10,
@@ -173,7 +174,7 @@ export function getPredictionRoundStatus(
   if (nowMs < opensAtMs) {
     return 'UPCOMING';
   }
-  if (nowMs >= opensAtMs && nowMs < closesAtMs) {
+  if (nowMs >= opensAtMs && nowMs <= closesAtMs) {
     return 'OPEN';
   }
   return 'LOCKED';
@@ -238,18 +239,8 @@ export function generatePredictionRounds(
   const raceSessionStartTime = race ? race.startTime : (raceWeekend.endDate || raceWeekend.startDate);
   const raceSessionId = race ? (race.id || race.sessionId || `${weekendId}_RACE`) : `${weekendId}_RACE`;
   const opensAt = weekendOpenTime;
-  let closesAt = subtractMinutes(raceSessionStartTime, bufferMins);
+  const closesAt = subtractMinutes(raceSessionStartTime, bufferMins);
   const roundId = `${weekendId}_RACE_PREDICTION`;
-
-  // Enforce Baku Azerbaijan Grand Prix deadline: midnight tonight (Sep 25 18:30 UTC / Sep 26 00:00 IST)
-  if (
-    weekendId === '2026_15' ||
-    weekendId === '2026_17' ||
-    (raceWeekend.name && raceWeekend.name.includes('Azerbaijan')) ||
-    (raceWeekend.country && raceWeekend.country.includes('Azerbaijan'))
-  ) {
-    closesAt = '2026-09-25T18:30:00.000Z';
-  }
 
   generatedRounds.push({
     id: roundId,
