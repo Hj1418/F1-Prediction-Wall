@@ -122,7 +122,7 @@ class MockF1Provider implements F1DataProvider {
 }
 
 const mockProvider = new MockF1Provider();
-const syncService = new F1ScheduleSyncService(mockProvider);
+const syncService = new F1ScheduleSyncService(mockProvider, { defaultCloseBufferMinutes: 5 });
 
 async function runSyncTests() {
   // First Sync: Newly created

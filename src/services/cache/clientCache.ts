@@ -182,6 +182,13 @@ class ClientCache {
   }
 
   /**
+   * Alias for clear()
+   */
+  clearAll(): void {
+    this.clear();
+  }
+
+  /**
    * Atomic get-or-fetch with in-flight request de-duplication.
    * If a fetcher is already in flight for this key, all callers share the identical Promise.
    */

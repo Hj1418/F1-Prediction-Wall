@@ -17,13 +17,14 @@ import { User } from '../../types';
 
 export interface UserResultStoryData {
   username: string;
-  eventName: string;
-  pointsEarned: number | string;
+  eventName?: string;
+  pointsEarned?: number | string;
   rank?: number;
   season?: number;
   roundType?: string;
   racesParticipated?: number;
   totalPoints?: number;
+  isSeasonSummary?: boolean;
 }
 
 export interface LeaderboardStoryEntry {
@@ -239,16 +240,20 @@ export function generateUserResultStoryCanvas(data: UserResultStoryData): HTMLCa
 
   const width = canvas.width;
   const height = canvas.height;
+  const isSeasonSummary = Boolean(data.isSeasonSummary);
   const username = sanitizePublicUsername(data.username).toUpperCase();
   const season = data.season || 2026;
-  const pointsFormatted = formatStoryPoints(data.pointsEarned);
-  const eventName = (data.eventName || 'GRAND PRIX').toUpperCase();
+  const rawPoints = isSeasonSummary ? (data.totalPoints ?? data.pointsEarned ?? 0) : (data.pointsEarned ?? 0);
+  const pointsFormatted = isSeasonSummary ? `${rawPoints} PTS` : formatStoryPoints(rawPoints);
+  const eventName = isSeasonSummary
+    ? (data.eventName || `${season} WORLD CHAMPIONSHIP`).toUpperCase()
+    : (data.eventName || 'GRAND PRIX').toUpperCase();
 
   // 1. Background
   drawStoryBackground(ctx, width, height);
 
   // 2. Header
-  drawStoryHeader(ctx, width, season, 'World Championship');
+  drawStoryHeader(ctx, width, season, isSeasonSummary ? 'Standings Summary' : 'World Championship');
 
   // 3. Central Hero Result Card
   const cardX = 90;
@@ -279,8 +284,8 @@ export function generateUserResultStoryCanvas(data: UserResultStoryData): HTMLCa
 
   // Event Category / Tag
   ctx.font = '700 20px "Titillium Web", sans-serif';
-  ctx.fillStyle = '#FF3B30';
-  ctx.fillText('🏁 PREDICTION RESULT', width / 2, cardY + 90);
+  ctx.fillStyle = isSeasonSummary ? '#FFD700' : '#FF3B30';
+  ctx.fillText(isSeasonSummary ? '🏆 CHAMPIONSHIP STANDINGS' : '🏁 PREDICTION RESULT', width / 2, cardY + 90);
 
   // Event Name with graceful multi-line wrapping
   ctx.font = '900 48px "Formula1", "Titillium Web", sans-serif';
@@ -295,11 +300,11 @@ export function generateUserResultStoryCanvas(data: UserResultStoryData): HTMLCa
   const scoreBoxH = 340;
   drawRoundedRect(ctx, cardX + 50, scoreBoxY, cardW - 100, scoreBoxH, 24);
   const scoreBgGrad = ctx.createLinearGradient(0, scoreBoxY, 0, scoreBoxY + scoreBoxH);
-  scoreBgGrad.addColorStop(0, 'rgba(225, 6, 0, 0.15)');
-  scoreBgGrad.addColorStop(1, 'rgba(225, 6, 0, 0.03)');
+  scoreBgGrad.addColorStop(0, isSeasonSummary ? 'rgba(255, 215, 0, 0.12)' : 'rgba(225, 6, 0, 0.15)');
+  scoreBgGrad.addColorStop(1, 'rgba(0, 0, 0, 0.2)');
   ctx.fillStyle = scoreBgGrad;
   ctx.fill();
-  ctx.strokeStyle = 'rgba(225, 6, 0, 0.35)';
+  ctx.strokeStyle = isSeasonSummary ? 'rgba(255, 215, 0, 0.35)' : 'rgba(225, 6, 0, 0.35)';
   ctx.lineWidth = 1.5;
   ctx.stroke();
 
@@ -310,11 +315,11 @@ export function generateUserResultStoryCanvas(data: UserResultStoryData): HTMLCa
 
   ctx.font = '700 24px "Titillium Web", sans-serif';
   ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-  ctx.fillText('EARNED THIS ROUND', width / 2, scoreBoxY + 245);
+  ctx.fillText(isSeasonSummary ? 'TOTAL SEASON POINTS' : 'EARNED THIS ROUND', width / 2, scoreBoxY + 245);
 
   // Grid Rank Indicator (if available)
   if (data.rank && data.rank > 0) {
-    const rankPillW = 340;
+    const rankPillW = 380;
     const rankPillH = 50;
     const rankPillX = (width - rankPillW) / 2;
     const rankPillY = scoreBoxY + scoreBoxH + 50;
@@ -326,7 +331,7 @@ export function generateUserResultStoryCanvas(data: UserResultStoryData): HTMLCa
 
     ctx.font = '800 24px "Titillium Web", sans-serif';
     ctx.fillStyle = '#FFD700';
-    ctx.fillText(`P${data.rank} ON THE GRID`, width / 2, rankPillY + 34);
+    ctx.fillText(isSeasonSummary ? `P${data.rank} IN THE CHAMPIONSHIP` : `P${data.rank} ON THE GRID`, width / 2, rankPillY + 34);
   }
 
   // Racer Section
@@ -343,8 +348,12 @@ export function generateUserResultStoryCanvas(data: UserResultStoryData): HTMLCa
   ctx.fillStyle = '#FFFFFF';
   ctx.fillText(username, width / 2, racerSectionY + 65);
 
-  // Season Total context (if available)
-  if (data.totalPoints !== undefined && data.totalPoints !== null) {
+  // Season Total context or races completed context
+  if (isSeasonSummary && data.racesParticipated !== undefined) {
+    ctx.font = '600 24px "Titillium Web", sans-serif';
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+    ctx.fillText(`${data.racesParticipated} RACES COMPLETED`, width / 2, racerSectionY + 115);
+  } else if (!isSeasonSummary && data.totalPoints !== undefined && data.totalPoints !== null) {
     ctx.font = '600 24px "Titillium Web", sans-serif';
     ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
     ctx.fillText(`SEASON TOTAL: ${data.totalPoints} PTS`, width / 2, racerSectionY + 115);

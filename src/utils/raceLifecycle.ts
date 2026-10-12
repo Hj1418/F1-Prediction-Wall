@@ -360,3 +360,68 @@ export function computeWeekendStatus(
   }
   return 'UPCOMING';
 }
+
+/**
+ * Canonical resolution for Weekend Overall default:
+ * Identifies the latest completed race weekend with finalized, verified results.
+ *
+ * Rules:
+ * 1. Event lifecycle: Weekend is completed (status === 'COMPLETED', all sessions COMPLETED, or computeWeekendStatus === 'COMPLETED').
+ * 2. Result state: Weekend has at least one prediction round that is SCORED and finalized.
+ * 3. Chronological resolution: Picks the latest eligible weekend (highest roundNumber / newest date).
+ * 4. Fallback: If no completed weekend is scored yet, gracefully falls back to the latest completed weekend,
+ *    or most recent active/scored weekend, but never blindly hardcodes or defaults to Round 1.
+ */
+export function resolveLatestCompletedAndFinalizedWeekend(
+  weekends: RaceWeekend[],
+  rounds: PredictionRound[],
+  nowTime: Date | number = new Date()
+): RaceWeekend | null {
+  if (!weekends || weekends.length === 0) return null;
+
+  const sortChronologicalDesc = (a: RaceWeekend, b: RaceWeekend) => {
+    const roundA = a.roundNumber ?? a.round ?? 0;
+    const roundB = b.roundNumber ?? b.round ?? 0;
+    if (roundB !== roundA) return roundB - roundA;
+    const timeA = new Date(a.endDate || a.startDate).getTime();
+    const timeB = new Date(b.endDate || b.startDate).getTime();
+    return timeB - timeA;
+  };
+
+  // 1. Identify weekends that are completed and have finalized, scored results
+  const eligibleFinalized = weekends.filter(w => {
+    const isCompleted = computeWeekendStatus(w, nowTime) === 'COMPLETED' || w.status === 'COMPLETED';
+    if (!isCompleted) return false;
+
+    const wRounds = rounds.filter(r => r.raceWeekendId === w.raceWeekendId || r.raceWeekendId === w.id);
+    if (wRounds.length === 0) return false;
+
+    // Check if at least one round is scored/finalized
+    return wRounds.some(r => r.status === 'SCORED');
+  });
+
+  if (eligibleFinalized.length > 0) {
+    eligibleFinalized.sort(sortChronologicalDesc);
+    return eligibleFinalized[0];
+  }
+
+  // 2. Secondary fallback: Any weekend with scored rounds (even if lifecycle in-transition)
+  const anyScored = weekends.filter(w => {
+    const wRounds = rounds.filter(r => r.raceWeekendId === w.raceWeekendId || r.raceWeekendId === w.id);
+    return wRounds.some(r => r.status === 'SCORED');
+  });
+  if (anyScored.length > 0) {
+    anyScored.sort(sortChronologicalDesc);
+    return anyScored[0];
+  }
+
+  // 3. Fallback: Latest completed weekend
+  const completedOnly = weekends.filter(w => computeWeekendStatus(w, nowTime) === 'COMPLETED' || w.status === 'COMPLETED');
+  if (completedOnly.length > 0) {
+    completedOnly.sort(sortChronologicalDesc);
+    return completedOnly[0];
+  }
+
+  // 4. Ultimate fallback: First weekend in list
+  return weekends[0];
+}

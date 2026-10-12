@@ -40,10 +40,13 @@ import {
   FileText,
   Save,
   Share2,
+  ShieldCheck,
+  Database,
 } from 'lucide-react';
 import { raceWeekendApi } from '../api/raceWeekendApi';
 import { testGrandPrixService, TEST_DRIVERS, TEST_GP_ID, TEST_ROUND_ID } from '../services/testGrandPrix/testGrandPrixService';
 import { isQualificationPredictionRound } from '../services/schedule/predictionRoundGenerator';
+import { resolveChampionshipCurrentEvent } from '../services/schedule/eventStatusResolver';
 import { StoryShareModal } from '../components/sharing/StoryShareModal';
 import { generateLeaderboardStoryCanvas, assertAdminAuthorized } from '../services/sharing/storyShareService';
 import {
@@ -52,13 +55,14 @@ import {
   buildPredictionOpenEmail,
 } from '../services/notifications/emailTemplateBuilder';
 import { clientCache } from '../services/cache/clientCache';
+import { PlatformAuditReport } from '../services/mockApi';
 
 export const AdminDashboardPage: React.FC = () => {
   const { currentUser, isAdmin, isAuthenticated, openLoginModal } = useAuth();
   const { showToast, triggerDataRefresh } = useApp();
 
-  // Active section tab: strictly 5 sections
-  const [activeTab, setActiveTab] = useState<'sync' | 'users' | 'predictions' | 'leaderboard' | 'testgp'>('sync');
+  // Active section tab: 6 sections including Platform Integrity Audit
+  const [activeTab, setActiveTab] = useState<'sync' | 'users' | 'predictions' | 'leaderboard' | 'testgp' | 'audit'>('sync');
 
   // Common metadata
   const [weekends, setWeekends] = useState<RaceWeekend[]>([]);
@@ -110,6 +114,9 @@ export const AdminDashboardPage: React.FC = () => {
   const [adminUsers, setAdminUsers] = useState<User[]>([]);
   const [userSearchQuery, setUserSearchQuery] = useState('');
   const [loadingUsers, setLoadingUsers] = useState(false);
+  const [isAuditingUsers, setIsAuditingUsers] = useState(false);
+  const [auditResult, setAuditResult] = useState<any>(null);
+  const [showAuditModal, setShowAuditModal] = useState(false);
 
   const fetchAdminUsers = async () => {
     if (!currentUser?.userId) return;
@@ -125,10 +132,31 @@ export const AdminDashboardPage: React.FC = () => {
     }
   };
 
+  const handleAuditUsers = async (dryRun: boolean = true) => {
+    try {
+      setIsAuditingUsers(true);
+      const res = await api.auditAndDeduplicateUsers(dryRun);
+      setAuditResult(res);
+      setShowAuditModal(true);
+      if (dryRun) {
+        showToast(res.message || 'Audit dry-run completed.', 'info');
+      } else {
+        showToast('Duplicate users consolidated successfully with automatic sheet backup.', 'success');
+        await fetchAdminUsers();
+        await fetchLeaderboard();
+        triggerDataRefresh();
+      }
+    } catch (err: any) {
+      showToast(err.message || 'Failed to audit users', 'error');
+    } finally {
+      setIsAuditingUsers(false);
+    }
+  };
+
   // --------------------------------------------------------------------------
-  // SECTION 3: PREDICTIONS STATE & AZERBAIJAN GP RELEASE PIPELINE
+  // SECTION 3: PREDICTIONS & OFFICIAL RESULTS PIPELINE
   // --------------------------------------------------------------------------
-  const [selectedRoundId, setSelectedRoundId] = useState<string>('2026_15_RACE_PREDICTION');
+  const [selectedRoundId, setSelectedRoundId] = useState<string>('');
   const [adminPredictions, setAdminPredictions] = useState<Prediction[]>([]);
   const [predictionSearchQuery, setPredictionSearchQuery] = useState('');
   const [loadingPredictions, setLoadingPredictions] = useState(false);
@@ -160,18 +188,18 @@ export const AdminDashboardPage: React.FC = () => {
   const [isProcessingQueue, setIsProcessingQueue] = useState(false);
 
   // 9 Canonical Race Result Fields
-  const [resultP1, setResultP1] = useState('russell');
-  const [resultP2, setResultP2] = useState('verstappen');
-  const [resultP3, setResultP3] = useState('hadjar');
-  const [resultFastestLap, setResultFastestLap] = useState('russell');
-  const [resultDriverOfTheDay, setResultDriverOfTheDay] = useState('verstappen');
-  const [resultSafetyCar, setResultSafetyCar] = useState<'YES' | 'NO'>('YES');
+  const [resultP1, setResultP1] = useState('');
+  const [resultP2, setResultP2] = useState('');
+  const [resultP3, setResultP3] = useState('');
+  const [resultFastestLap, setResultFastestLap] = useState('');
+  const [resultDriverOfTheDay, setResultDriverOfTheDay] = useState('');
+  const [resultSafetyCar, setResultSafetyCar] = useState<'YES' | 'NO'>('NO');
   const [resultVirtualSafetyCar, setResultVirtualSafetyCar] = useState<'YES' | 'NO'>('NO');
   const [resultRedFlag, setResultRedFlag] = useState<'YES' | 'NO'>('NO');
-  const [resultYellowFlag, setResultYellowFlag] = useState<'YES' | 'NO'>('YES');
+  const [resultYellowFlag, setResultYellowFlag] = useState<'YES' | 'NO'>('NO');
 
   // Manual Result Workflow Flags
-  const [isValidated, setIsValidated] = useState(true);
+  const [isValidated, setIsValidated] = useState(false);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [isResultSaved, setIsResultSaved] = useState(false);
 
@@ -217,8 +245,18 @@ export const AdminDashboardPage: React.FC = () => {
         setIsResultSaved(true);
         setValidationErrors([]);
       } else {
+        setResultP1('');
+        setResultP2('');
+        setResultP3('');
+        setResultFastestLap('');
+        setResultDriverOfTheDay('');
+        setResultSafetyCar('NO');
+        setResultVirtualSafetyCar('NO');
+        setResultRedFlag('NO');
+        setResultYellowFlag('NO');
         setIsValidated(false);
         setIsResultSaved(false);
+        setValidationErrors([]);
       }
 
       const scoresMap: Record<string, number> = {};
@@ -322,11 +360,52 @@ export const AdminDashboardPage: React.FC = () => {
     }
   };
 
+  // Section 6: Platform Integrity Audit State
+  const [scoringTelemetry, setScoringTelemetry] = useState<any | null>(null);
+  const [isAuditing, setIsAuditing] = useState(false);
+  const [isRemediating, setIsRemediating] = useState(false);
+  const [auditReport, setAuditReport] = useState<PlatformAuditReport | null>(null);
+
+  const handleRunAudit = async (dryRun: boolean = true) => {
+    try {
+      if (dryRun) {
+        setIsAuditing(true);
+      } else {
+        setIsRemediating(true);
+      }
+      const res = await api.auditPlatformData(dryRun);
+      setAuditReport(res);
+      if (dryRun) {
+        showToast(
+          res.summary.totalDefects === 0
+            ? 'Audit complete: Zero defects found across all 24 events!'
+            : `Audit complete: Identified ${res.summary.totalDefects} defects requiring remediation.`,
+          res.summary.totalDefects === 0 ? 'success' : 'info'
+        );
+      } else {
+        showToast(
+          `Remediation complete! Created ${res.remediation.backupSheetsCreated.length} backups & pruned ${res.remediation.predictionsDeduplicated} duplicate records.`,
+          'success'
+        );
+        triggerDataRefresh();
+      }
+    } catch (err: any) {
+      showToast(err.message || 'Platform audit failed', 'error');
+    } finally {
+      setIsAuditing(false);
+      setIsRemediating(false);
+    }
+  };
+
   const handleScoreRace = async () => {
     try {
       setIsScoring(true);
       const res = await api.adminCalculateScores(selectedRoundId);
-      showToast(`Scoring complete: ${res.scoredCount} locked predictions scored using production engine.`, 'success');
+      setScoringTelemetry(res);
+      const telemetryMsg = res.durationMs
+        ? `Scored ${res.scoredCount} records (${res.newlyScored ?? 0} new, ${res.updatedScored ?? 0} updated, ${res.emailsQueued ?? 0} emails queued) in ${res.durationMs}ms`
+        : `Scoring complete: ${res.scoredCount} locked predictions scored using production engine.`;
+      showToast(telemetryMsg, 'success');
       await fetchPredictionsForRound(selectedRoundId);
       await fetchLeaderboard();
       triggerDataRefresh();
@@ -342,7 +421,8 @@ export const AdminDashboardPage: React.FC = () => {
       setIsPublishing(true);
       await api.publishRaceResult(selectedRoundId);
       setShowVerificationModal(false);
-      showToast('Azerbaijan GP official results published to community!', 'success');
+      const eventTitle = selectedRound?.title || selectedRoundWeekend?.name || 'Race';
+      showToast(`${eventTitle} official results published to community!`, 'success');
       await fetchPredictionsForRound(selectedRoundId);
       await fetchLeaderboard();
       triggerDataRefresh();
@@ -402,7 +482,7 @@ export const AdminDashboardPage: React.FC = () => {
           username: e.username,
           points: e.totalPoints,
         })),
-        latestEventName: selectedRoundWeekend?.name || 'Azerbaijan Grand Prix',
+        latestEventName: selectedRoundWeekend?.name || selectedRound?.title || 'World Championship',
       }, currentUser);
 
       setShareModalCanvas(canvas);
@@ -611,8 +691,22 @@ export const AdminDashboardPage: React.FC = () => {
         setDrivers(dList);
 
         if (raceRounds.length > 0) {
-          const az = raceRounds.find(r => r.roundId === '2026_15_RACE_PREDICTION' || (r.title && r.title.includes('Azerbaijan')));
-          const initialRound = az || raceRounds.find(r => r.status === 'OPEN') || raceRounds[0];
+          // Resolve current event canonically from weekends
+          const weekendResolution = resolveChampionshipCurrentEvent(wList);
+          const activeWeekend = weekendResolution.currentEvent;
+
+          let initialRound: PredictionRound | undefined;
+          if (activeWeekend) {
+            const weekendRounds = raceRounds.filter(
+              r => r.raceWeekendId === activeWeekend.raceWeekendId || r.raceWeekendId === activeWeekend.id
+            );
+            initialRound = weekendRounds.find(r => r.status === 'OPEN') || weekendRounds[0];
+          }
+
+          if (!initialRound) {
+            initialRound = raceRounds.find(r => r.status === 'OPEN') || raceRounds[0];
+          }
+
           setSelectedRoundId(initialRound.roundId);
           fetchPredictionsForRound(initialRound.roundId);
         }
@@ -825,6 +919,20 @@ export const AdminDashboardPage: React.FC = () => {
         >
           <Flag size={14} /> 5. TEST GRAND PRIX
         </button>
+
+        <button
+          onClick={() => setActiveTab('audit')}
+          className="btn btn-sm"
+          style={{
+            background: activeTab === 'audit' ? 'var(--telemetry-cyan)' : 'transparent',
+            color: activeTab === 'audit' ? '#000' : 'var(--text-secondary)',
+            border: 'none',
+            fontWeight: 800,
+            letterSpacing: '0.04em',
+          }}
+        >
+          <ShieldCheck size={14} /> 6. PLATFORM INTEGRITY AUDIT
+        </button>
       </div>
 
       {/* ===================================================================
@@ -924,13 +1032,24 @@ export const AdminDashboardPage: React.FC = () => {
           </div>
 
           <div className="race-card" style={{ overflow: 'hidden' }}>
-            <div style={{ padding: '1rem 1.25rem', borderBottom: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ padding: '1rem 1.25rem', borderBottom: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap' }}>
               <div style={{ fontWeight: 800, textTransform: 'uppercase', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
                 Registered Users Directory ({filteredUsers.length})
               </div>
-              <button onClick={fetchAdminUsers} disabled={loadingUsers} className="btn btn-outline btn-sm" style={{ padding: '0.2rem 0.5rem', fontSize: '0.75rem' }}>
-                <RefreshCw size={12} className={loadingUsers ? 'animate-spin' : ''} /> Refresh
-              </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <button
+                  type="button"
+                  onClick={() => handleAuditUsers(true)}
+                  disabled={isAuditingUsers}
+                  className="btn btn-outline btn-sm"
+                  style={{ padding: '0.25rem 0.65rem', fontSize: '0.75rem', color: 'var(--telemetry-cyan)', borderColor: 'rgba(0, 210, 255, 0.4)' }}
+                >
+                  <Shield size={12} className={isAuditingUsers ? 'animate-spin' : ''} /> {isAuditingUsers ? 'Auditing...' : 'Audit Duplicates (Dry Run)'}
+                </button>
+                <button onClick={fetchAdminUsers} disabled={loadingUsers} className="btn btn-outline btn-sm" style={{ padding: '0.2rem 0.5rem', fontSize: '0.75rem' }}>
+                  <RefreshCw size={12} className={loadingUsers ? 'animate-spin' : ''} /> Refresh
+                </button>
+              </div>
             </div>
 
             <div style={{ overflowX: 'auto' }}>
@@ -1017,8 +1136,16 @@ export const AdminDashboardPage: React.FC = () => {
                   className="input-field"
                   style={{ minWidth: '340px', fontWeight: 700 }}
                 >
-                  {rounds
+                  {[...rounds]
                     .filter(r => !isQualificationPredictionRound(r))
+                    .sort((a, b) => {
+                      const wA = weekends.find(w => w.raceWeekendId === a.raceWeekendId);
+                      const wB = weekends.find(w => w.raceWeekendId === b.raceWeekendId);
+                      const rNumA = wA?.roundNumber || parseInt(a.roundId.match(/\d+_(\d+)/)?.[1] || '0', 10);
+                      const rNumB = wB?.roundNumber || parseInt(b.roundId.match(/\d+_(\d+)/)?.[1] || '0', 10);
+                      if (rNumA !== rNumB) return rNumA - rNumB;
+                      return a.roundType === 'SPRINT' ? -1 : 1;
+                    })
                     .map(r => {
                       const matchedWeekend = weekends.find(w => w.raceWeekendId === r.raceWeekendId);
                       const isSprint = r.roundType === 'SPRINT' || r.roundId.includes('SPRINT');
@@ -1460,11 +1587,85 @@ export const AdminDashboardPage: React.FC = () => {
             </div>
           </div>
 
+          {/* Scoring Run Telemetry Banner */}
+          {scoringTelemetry && (
+            <div
+              style={{
+                padding: '0.85rem 1.25rem',
+                marginBottom: '1.25rem',
+                borderRadius: '8px',
+                background: 'rgba(16, 185, 129, 0.08)',
+                border: '1px solid rgba(16, 185, 129, 0.3)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '1rem',
+                flexWrap: 'wrap',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <CheckCircle2 size={18} style={{ color: 'var(--telemetry-green)' }} />
+                <div>
+                  <div style={{ fontWeight: 800, fontSize: '0.88rem', color: '#fff' }}>
+                    SCORING RUN TELEMETRY — {scoringTelemetry.scoredCount} PREDICTIONS EVALUATED
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                    Newly Scored: <strong style={{ color: '#fff' }}>{scoringTelemetry.newlyScored ?? 0}</strong> •
+                    Updated / Idempotent: <strong style={{ color: '#fff' }}>{scoringTelemetry.updatedScored ?? 0}</strong> •
+                    Notifications Queued: <strong style={{ color: '#fff' }}>{scoringTelemetry.emailsQueued ?? 0}</strong> •
+                    Execution Time: <strong style={{ color: '#fff' }}>{scoringTelemetry.durationMs ?? 0}ms</strong>
+                  </div>
+                </div>
+              </div>
+              {scoringTelemetry.failedCount > 0 && (
+                <span className="badge badge-warning">
+                  {scoringTelemetry.failedCount} Failed
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* Upcoming Notice Banner */}
+          {selectedRound?.status === 'UPCOMING' && (
+            <div
+              style={{
+                padding: '0.85rem 1.25rem',
+                marginBottom: '1.25rem',
+                borderRadius: '8px',
+                background: 'rgba(0, 210, 255, 0.08)',
+                border: '1px solid rgba(0, 210, 255, 0.3)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '1rem',
+                fontSize: '0.84rem',
+                color: 'var(--telemetry-cyan)',
+                flexWrap: 'wrap',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                <Clock size={16} />
+                <span>
+                  <strong>Predictions are not open yet for this round.</strong> Status is <strong>UPCOMING</strong>. Public entry unlocks on {selectedRound?.opensAt ? new Date(selectedRound.opensAt).toLocaleString() : 'race weekend opening'}.
+                </span>
+              </div>
+              {filteredPredictions.length > 0 && (
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                  ({filteredPredictions.length} pre-registered / early test entry recorded)
+                </span>
+              )}
+            </div>
+          )}
+
           {/* Predictions Table */}
           <div className="race-card" style={{ overflow: 'hidden' }}>
             <div style={{ padding: '1rem 1.25rem', borderBottom: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div style={{ fontWeight: 800, textTransform: 'uppercase', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                Locked Predictions for {selectedRoundWeekend ? `${selectedRoundWeekend.raceName} (${selectedRoundIsSprint ? 'Sprint Race' : 'Main Grand Prix'})` : selectedRound?.title || 'Selected Race'} ({filteredPredictions.length})
+                {selectedRound?.status === 'UPCOMING'
+                  ? `Pre-Window / Registered Predictions for ${selectedRoundWeekend ? `${selectedRoundWeekend.raceName} (${selectedRoundIsSprint ? 'Sprint Race' : 'Main Grand Prix'})` : selectedRound?.title || 'Selected Race'} (${filteredPredictions.length})`
+                  : selectedRound?.status === 'OPEN'
+                  ? `Live Active Predictions for ${selectedRoundWeekend ? `${selectedRoundWeekend.raceName} (${selectedRoundIsSprint ? 'Sprint Race' : 'Main Grand Prix'})` : selectedRound?.title || 'Selected Race'} (${filteredPredictions.length})`
+                  : `Locked Predictions for ${selectedRoundWeekend ? `${selectedRoundWeekend.raceName} (${selectedRoundIsSprint ? 'Sprint Race' : 'Main Grand Prix'})` : selectedRound?.title || 'Selected Race'} (${filteredPredictions.length})`}
               </div>
               <button onClick={() => fetchPredictionsForRound(selectedRoundId)} disabled={loadingPredictions} className="btn btn-outline btn-sm" style={{ padding: '0.2rem 0.5rem', fontSize: '0.75rem' }}>
                 <RefreshCw size={12} className={loadingPredictions ? 'animate-spin' : ''} /> Refresh
@@ -1515,9 +1716,23 @@ export const AdminDashboardPage: React.FC = () => {
                           </div>
                         </td>
                         <td style={{ textAlign: 'center' }}>
-                          <span style={{ fontSize: '0.72rem', fontWeight: 800, fontFamily: 'var(--font-mono)', color: 'var(--telemetry-green)' }}>
-                            LOCKED 🔒
-                          </span>
+                          {selectedRound?.status === 'UPCOMING' ? (
+                            <span style={{ fontSize: '0.72rem', fontWeight: 800, fontFamily: 'var(--font-mono)', color: 'var(--telemetry-cyan)' }}>
+                              SUBMITTED (UPCOMING)
+                            </span>
+                          ) : selectedRound?.status === 'OPEN' ? (
+                            <span style={{ fontSize: '0.72rem', fontWeight: 800, fontFamily: 'var(--font-mono)', color: 'var(--telemetry-green)' }}>
+                              ACTIVE (OPEN)
+                            </span>
+                          ) : selectedRound?.status === 'SCORED' ? (
+                            <span style={{ fontSize: '0.72rem', fontWeight: 800, fontFamily: 'var(--font-mono)', color: 'var(--telemetry-purple)' }}>
+                              SCORED ✓
+                            </span>
+                          ) : (
+                            <span style={{ fontSize: '0.72rem', fontWeight: 800, fontFamily: 'var(--font-mono)', color: '#f87171' }}>
+                              LOCKED 🔒
+                            </span>
+                          )}
                         </td>
                         <td style={{ textAlign: 'center', fontSize: '0.78rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
                           {p.submittedAt ? new Date(p.submittedAt).toLocaleString() : '—'}
@@ -2169,6 +2384,188 @@ export const AdminDashboardPage: React.FC = () => {
           )}
         </div>
       )}
+
+      {/* ===================================================================
+          TAB 6: PLATFORM-WIDE INTEGRITY & AUDIT
+          =================================================================== */}
+      {activeTab === 'audit' && (
+        <div className="admin-audit-section">
+          <div
+            className="race-card"
+            style={{
+              padding: '2rem',
+              marginBottom: '2rem',
+              border: '1px solid rgba(0, 210, 255, 0.3)',
+              background: 'linear-gradient(180deg, rgba(15, 23, 42, 0.8) 0%, rgba(10, 15, 29, 0.95) 100%)',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1.5rem', marginBottom: '1.5rem' }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.4rem' }}>
+                  <ShieldCheck size={20} style={{ color: 'var(--telemetry-cyan)' }} />
+                  <span style={{ fontSize: '0.75rem', fontWeight: 900, letterSpacing: '0.08em', color: 'var(--telemetry-cyan)', textTransform: 'uppercase' }}>
+                    PLATFORM INTEGRITY & RELIABILITY AUDIT
+                  </span>
+                </div>
+                <h2 style={{ fontSize: '1.75rem', fontWeight: 900, textTransform: 'uppercase', margin: 0 }}>
+                  UNIVERSAL PREDICTION INTEGRITY ENGINE
+                </h2>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', margin: '0.4rem 0 0 0', maxWidth: '720px' }}>
+                  Audits all 24 events across every championship and round. Enforces canonical 5-tuple event isolation, eliminates duplicate predictions and user identities, verifies idempotent scoring, and produces automated dry runs with production backups.
+                </p>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  onClick={() => handleRunAudit(true)}
+                  disabled={isAuditing || isRemediating}
+                  className="btn btn-outline"
+                  style={{ fontWeight: 800, fontSize: '0.85rem' }}
+                >
+                  <RefreshCw size={14} className={isAuditing ? 'animate-spin' : ''} />
+                  {isAuditing ? 'Scanning Dataset...' : '1. Run Diagnostic Audit (Dry Run)'}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleRunAudit(false)}
+                  disabled={isAuditing || isRemediating || !isAdmin}
+                  className="btn btn-primary"
+                  style={{
+                    fontWeight: 900,
+                    fontSize: '0.85rem',
+                    background: 'linear-gradient(135deg, #10b981, #047857)',
+                    border: 'none',
+                  }}
+                >
+                  <Database size={14} className={isRemediating ? 'animate-spin' : ''} />
+                  {isRemediating ? 'Remediating Platform...' : '2. Remediate & Auto-Backup'}
+                </button>
+              </div>
+            </div>
+
+            {/* Audit Status / Summary KPIs */}
+            {auditReport && (
+              <div style={{ marginTop: '1.5rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+                  <div className="race-card" style={{ padding: '1.25rem', border: `1px solid ${auditReport.summary.totalDefects === 0 ? 'rgba(16, 185, 129, 0.4)' : 'rgba(239, 68, 68, 0.4)'}`, background: 'rgba(0,0,0,0.3)' }}>
+                    <div style={{ fontSize: '0.72rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                      TOTAL DEFECTS
+                    </div>
+                    <div style={{ fontSize: '1.85rem', fontWeight: 900, color: auditReport.summary.totalDefects === 0 ? 'var(--telemetry-green)' : 'var(--f1-red)', marginTop: '0.2rem' }}>
+                      {auditReport.summary.totalDefects}
+                    </div>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
+                      {auditReport.summary.totalDefects === 0 ? '✓ Zero defects detected' : 'Requires remediation'}
+                    </div>
+                  </div>
+
+                  <div className="race-card" style={{ padding: '1.25rem', background: 'rgba(0,0,0,0.3)' }}>
+                    <div style={{ fontSize: '0.72rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                      USER DUPLICATES
+                    </div>
+                    <div style={{ fontSize: '1.85rem', fontWeight: 900, color: auditReport.summary.userDefects === 0 ? '#fff' : 'var(--f1-red)', marginTop: '0.2rem' }}>
+                      {auditReport.summary.userDefects}
+                    </div>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
+                      {auditReport.userAudit.affectedUserIds.length} connected accounts
+                    </div>
+                  </div>
+
+                  <div className="race-card" style={{ padding: '1.25rem', background: 'rgba(0,0,0,0.3)' }}>
+                    <div style={{ fontSize: '0.72rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                      EVENT ISOLATION
+                    </div>
+                    <div style={{ fontSize: '1.85rem', fontWeight: 900, color: auditReport.summary.eventIsolationDefects === 0 ? '#fff' : 'var(--f1-red)', marginTop: '0.2rem' }}>
+                      {auditReport.summary.eventIsolationDefects}
+                    </div>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
+                      Cross-event / unknown rounds
+                    </div>
+                  </div>
+
+                  <div className="race-card" style={{ padding: '1.25rem', background: 'rgba(0,0,0,0.3)' }}>
+                    <div style={{ fontSize: '0.72rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                      DUPLICATE PREDICTIONS
+                    </div>
+                    <div style={{ fontSize: '1.85rem', fontWeight: 900, color: auditReport.summary.duplicatePredictionDefects === 0 ? '#fff' : 'var(--f1-red)', marginTop: '0.2rem' }}>
+                      {auditReport.summary.duplicatePredictionDefects}
+                    </div>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
+                      {auditReport.duplicatePredictionsAudit.duplicateGroups.length} multi-submission groups
+                    </div>
+                  </div>
+
+                  <div className="race-card" style={{ padding: '1.25rem', background: 'rgba(0,0,0,0.3)' }}>
+                    <div style={{ fontSize: '0.72rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                      SCORING DISCREPANCIES
+                    </div>
+                    <div style={{ fontSize: '1.85rem', fontWeight: 900, color: auditReport.summary.scoringDefects === 0 ? '#fff' : 'var(--f1-red)', marginTop: '0.2rem' }}>
+                      {auditReport.summary.scoringDefects}
+                    </div>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
+                      Orphaned or missing scores
+                    </div>
+                  </div>
+                </div>
+
+                {/* Backup & Remediation logs */}
+                {auditReport.remediation.backupSheetsCreated.length > 0 && (
+                  <div
+                    style={{
+                      padding: '1rem 1.25rem',
+                      borderRadius: '8px',
+                      background: 'rgba(16, 185, 129, 0.08)',
+                      border: '1px solid rgba(16, 185, 129, 0.3)',
+                      marginBottom: '1.5rem',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 800, color: 'var(--telemetry-green)', fontSize: '0.85rem', marginBottom: '0.4rem' }}>
+                      <CheckCircle2 size={16} /> AUTOMATIC BACKUP SHEETS CREATED
+                    </div>
+                    <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                      {auditReport.remediation.backupSheetsCreated.map((bName: string) => (
+                        <span key={bName} style={{ background: 'rgba(0,0,0,0.4)', padding: '0.2rem 0.6rem', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.1)' }}>
+                          📁 {bName}
+                        </span>
+                      ))}
+                    </div>
+                    {auditReport.remediation.notes.length > 0 && (
+                      <div style={{ marginTop: '0.6rem', fontSize: '0.75rem', color: '#fff' }}>
+                        {auditReport.remediation.notes.map((note: string, idx: number) => (
+                          <div key={idx}>• {note}</div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Clean State Notice */}
+                {auditReport.summary.totalDefects === 0 && (
+                  <div
+                    style={{
+                      padding: '1.25rem',
+                      borderRadius: '8px',
+                      background: 'rgba(16, 185, 129, 0.08)',
+                      border: '1px solid rgba(16, 185, 129, 0.3)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.75rem',
+                      color: 'var(--telemetry-green)',
+                      fontSize: '0.9rem',
+                      fontWeight: 800,
+                    }}
+                  >
+                    <CheckCircle2 size={20} />
+                    UNIVERSAL PLATFORM INTEGRITY VERIFIED: All predictions, scoring records, users, and rounds strictly conform to canonical 5-tuple event isolation with 0 defects.
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
       {/* Phase 11 Result Entry / Verification Modal */}
       {showResultEntryModal && (
         <div
@@ -2458,7 +2855,7 @@ export const AdminDashboardPage: React.FC = () => {
                   PRE-PUBLICATION VERIFICATION (SECTION 12)
                 </div>
                 <h3 style={{ fontSize: '1.35rem', fontWeight: 900, textTransform: 'uppercase', margin: '0.2rem 0 0 0', color: '#ffffff' }}>
-                  Azerbaijan Grand Prix Publication Checklist
+                  {selectedRound?.title || selectedRoundWeekend?.name || 'Race'} Publication Checklist
                 </h3>
               </div>
               <button
@@ -2471,26 +2868,27 @@ export const AdminDashboardPage: React.FC = () => {
             </div>
 
             <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1.25rem' }}>
-              All 14 verification checks must pass before publishing official race results to the community.
+              All verification checks must pass before publishing official race results to the community.
             </p>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '1.5rem' }}>
               {[
-                { label: 'Azerbaijan GP exists in 2026 Season Calendar', verified: true },
-                { label: 'Race is Round 15 at Baku City Circuit', verified: true },
-                { label: 'Result belongs strictly to Azerbaijan GP', verified: Boolean(officialResult) },
-                { label: 'P1 Winner = George Russell (russell)', verified: resultP1 === 'russell' },
-                { label: 'P2 Runner-Up = Max Verstappen (verstappen)', verified: resultP2 === 'verstappen' },
-                { label: 'P3 Third Place = Isack Hadjar (hadjar)', verified: resultP3 === 'hadjar' },
-                { label: 'Safety Car Deployed = YES', verified: resultSafetyCar === 'YES' },
-                { label: 'Virtual Safety Car (VSC) = NO', verified: resultVirtualSafetyCar === 'NO' },
-                { label: 'Red Flag Stoppage = NO', verified: resultRedFlag === 'NO' },
-                { label: 'Yellow Flag Caution = YES', verified: resultYellowFlag === 'YES' },
-                { label: 'All required scoring fields present (P1, P2, P3 verified; unprovided marked NOT PROVIDED)', verified: Boolean(resultP1 && resultP2 && resultP3) },
+                { label: `${selectedRoundWeekend?.name || selectedRound?.title || 'Selected event'} exists in 2026 Season Calendar`, verified: Boolean(selectedRoundWeekend || selectedRound) },
+                { label: `Event format: ${selectedRoundIsSprint ? 'Sprint Race' : 'Grand Prix'} (${selectedRound?.roundId})`, verified: true },
+                { label: `Official result saved for ${selectedRound?.title || selectedRoundId}`, verified: Boolean(officialResult) },
+                { label: `P1 Winner = ${getDriverName(resultP1)}`, verified: Boolean(resultP1) },
+                { label: `P2 Runner-Up = ${getDriverName(resultP2)}`, verified: Boolean(resultP2) },
+                { label: `P3 Third Place = ${getDriverName(resultP3)}`, verified: Boolean(resultP3) },
+                { label: `Fastest Lap = ${getDriverName(resultFastestLap)}`, verified: Boolean(resultFastestLap) },
+                { label: `${competitorLabel} of the Day = ${getDriverName(resultDriverOfTheDay)}`, verified: Boolean(resultDriverOfTheDay) },
+                { label: `Safety Car Deployed = ${resultSafetyCar}`, verified: ['YES', 'NO'].includes(resultSafetyCar) },
+                { label: `Virtual Safety Car (VSC) = ${resultVirtualSafetyCar}`, verified: ['YES', 'NO'].includes(resultVirtualSafetyCar) },
+                { label: `Red Flag Stoppage = ${resultRedFlag}`, verified: ['YES', 'NO'].includes(resultRedFlag) },
+                { label: `Yellow Flag Caution = ${resultYellowFlag}`, verified: ['YES', 'NO'].includes(resultYellowFlag) },
+                { label: 'All podium positions unique and distinct', verified: Boolean(resultP1 && resultP2 && resultP3 && new Set([resultP1, resultP2, resultP3]).size === 3) },
                 { label: `Locked predictions exist (${telemetry.lockedCount} unique community predictions)`, verified: telemetry.lockedCount > 0 },
                 { label: 'No duplicate prediction records detected (deduplicated by racer)', verified: true },
                 { label: 'Scoring engine verified & operational (ScoringEngine.calculate)', verified: true },
-                { label: 'Result has not already been published incorrectly', verified: true },
               ].map((item, idx) => (
                 <div
                   key={idx}
@@ -2537,6 +2935,140 @@ export const AdminDashboardPage: React.FC = () => {
               >
                 {isPublishing ? 'Publishing Results...' : '✓ Confirm & Publish Race Results'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* User Audit Inspection Modal */}
+      {showAuditModal && auditResult && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.85)',
+            backdropFilter: 'blur(8px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: '1.5rem',
+          }}
+          onClick={() => setShowAuditModal(false)}
+        >
+          <div
+            className="race-card animate-scale-in"
+            style={{
+              maxWidth: '680px',
+              width: '100%',
+              padding: '2rem',
+              border: '1px solid rgba(0, 210, 255, 0.4)',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
+              <div>
+                <div style={{ fontSize: '0.72rem', fontWeight: 800, color: 'var(--telemetry-cyan)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+                  IDENTITY INTEGRITY AUDIT • {auditResult.dryRun ? 'DRY RUN INSPECTION' : 'LIVE CONSOLIDATION APPLIED'}
+                </div>
+                <h3 style={{ fontSize: '1.35rem', fontWeight: 900, textTransform: 'uppercase', margin: '0.2rem 0 0 0', color: '#ffffff' }}>
+                  User Account Consolidation Report
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAuditModal(false)}
+                style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1.25rem' }}>
+              {auditResult.message || `Detected ${auditResult.duplicateGroupsFound || 0} duplicate user group(s).`}
+            </p>
+
+            {auditResult.auditReport && auditResult.auditReport.length > 0 ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem', marginBottom: '1.5rem' }}>
+                {auditResult.auditReport.map((grp: any, idx: number) => (
+                  <div
+                    key={idx}
+                    style={{
+                      padding: '1rem',
+                      background: 'rgba(0, 210, 255, 0.05)',
+                      border: '1px solid rgba(0, 210, 255, 0.25)',
+                      borderRadius: '8px',
+                      fontSize: '0.82rem',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                      <span style={{ fontWeight: 800, color: 'var(--telemetry-cyan)' }}>
+                        Group #{idx + 1}: @{grp.canonicalUsername || grp.canonicalEmail || grp.canonicalUserId}
+                      </span>
+                      <span style={{ fontSize: '0.75rem', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
+                        Canonical: {grp.canonicalUserId}
+                      </span>
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                      {grp.recordsInGroup.map((r: any, rIdx: number) => {
+                        const isCanonical = r.userId === grp.canonicalUserId;
+                        return (
+                          <div
+                            key={rIdx}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              padding: '0.35rem 0.6rem',
+                              background: isCanonical ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.08)',
+                              borderRadius: '4px',
+                            }}
+                          >
+                            <span>
+                              {isCanonical ? '👑 CANONICAL: ' : '✂ MERGED: '}
+                              <strong>{r.userId}</strong> — {r.username ? `@${r.username}` : 'No username'} ({r.email || 'No email'})
+                            </span>
+                            <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700 }}>
+                              {r.points || 0} PTS
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{ padding: '1.5rem', background: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.3)', borderRadius: '8px', textAlign: 'center', color: 'var(--telemetry-green)', fontWeight: 700, marginBottom: '1.5rem' }}>
+                ✓ No duplicate user accounts detected. Every user has a unique canonical identity!
+              </div>
+            )}
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
+              <button
+                type="button"
+                onClick={() => setShowAuditModal(false)}
+                className="btn btn-secondary"
+              >
+                Close
+              </button>
+              {auditResult.dryRun && auditResult.duplicateGroupsFound > 0 && (
+                <button
+                  type="button"
+                  onClick={() => handleAuditUsers(false)}
+                  disabled={isAuditingUsers}
+                  className="btn btn-primary"
+                  style={{
+                    background: 'linear-gradient(135deg, var(--f1-red), #990000)',
+                    fontWeight: 900,
+                  }}
+                >
+                  {isAuditingUsers ? 'Consolidating...' : '⚡ Apply Live Consolidation (With Backup)'}
+                </button>
+              )}
             </div>
           </div>
         </div>

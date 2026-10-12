@@ -198,34 +198,36 @@ export const PredictionPage: React.FC = () => {
     };
   }, [roundId, currentUser?.userId, isLoadingAuth]);
 
-  if (!round && !weekend && !loading) {
-    return (
-      <div className="container" style={{ padding: '4rem 1.25rem', textAlign: 'center' }}>
-        <h2>Prediction Round Not Found</h2>
-        <Link to="/predictions" className="btn btn-secondary" style={{ marginTop: '1rem' }}>
-          Return to Predictions Overview
-        </Link>
-      </div>
-    );
+  if (!round) {
+    if (!loading) {
+      return (
+        <div className="container" style={{ padding: '4rem 1.25rem', textAlign: 'center' }}>
+          <h2>Prediction Round Not Found</h2>
+          <Link to="/predictions" className="btn btn-secondary" style={{ marginTop: '1rem' }}>
+            Return to Predictions Overview
+          </Link>
+        </div>
+      );
+    }
+    return null;
   }
 
   // Field category badge helper
   const isMotoGP = Boolean(
     (weekend as any)?.motorsport === 'motogp' ||
-    round?.raceWeekendId?.toLowerCase().includes('motogp') ||
+    round.raceWeekendId?.toLowerCase().includes('motogp') ||
     getCircuitName(weekend?.circuit)?.toLowerCase().includes('motogp') ||
-    String(round?.title || '').toLowerCase().includes('motogp')
+    String(round.title || '').toLowerCase().includes('motogp')
   );
   const competitorLabel = isMotoGP ? 'Rider' : 'Driver';
 
   // Strictly 9 active prediction fields for new / in-progress predictions
   const activePredictionFields = getDefaultPredictionFields(competitorLabel);
 
-  const roundStatus = round?.status || 'OPEN';
-  const isUpcoming = roundStatus === 'UPCOMING';
-  const isScored = roundStatus === 'SCORED' || (roundStatus === 'COMPLETED' && Boolean(officialResult));
-  const isLocked = roundStatus === 'LOCKED' || (roundStatus === 'COMPLETED' && !officialResult);
-  const isOpen = roundStatus === 'OPEN';
+  const isUpcoming = round.status === 'UPCOMING';
+  const isScored = round.status === 'SCORED' || (round.status === 'COMPLETED' && Boolean(officialResult));
+  const isLocked = round.status === 'LOCKED' || (round.status === 'COMPLETED' && !officialResult);
+  const isOpen = round.status === 'OPEN';
   const isReadOnly = isLocked || isScored || isUpcoming;
 
   // For historical / scored rounds, preserve existing prediction fields if present
@@ -941,11 +943,11 @@ export const PredictionPage: React.FC = () => {
                   </button>
                 )}
                 <Link
-                  to={`/leaderboard?type=round&id=${round.roundId}`}
+                  to={`/leaderboard?type=weekend&id=${round.raceWeekendId}`}
                   className="btn btn-secondary btn-sm"
                   style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem' }}
                 >
-                  <Trophy size={14} color="var(--telemetry-yellow)" /> Live Leaderboard
+                  <Trophy size={14} color="var(--telemetry-yellow)" /> Weekend Standings
                 </Link>
               </div>
             </div>
@@ -1605,10 +1607,10 @@ export const PredictionPage: React.FC = () => {
                         <Share2 size={16} /> Share as Story
                       </button>
                       <Link
-                        to={`/leaderboard?type=round&id=${round.roundId}`}
+                        to={`/leaderboard?type=weekend&id=${round.raceWeekendId}`}
                         className="btn btn-secondary"
                       >
-                        <Trophy size={16} color="var(--telemetry-yellow)" /> View Session Leaderboard
+                        <Trophy size={16} color="var(--telemetry-yellow)" /> View Weekend Standings
                       </Link>
                     </div>
                   )}

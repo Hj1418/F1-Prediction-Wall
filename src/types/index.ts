@@ -277,6 +277,8 @@ export interface LeaderboardEntry {
   exactP1Count: number;
   perfectPodiumCount: number;
   roundScores?: Record<string, number>;
+  sprintPoints?: number;
+  grandPrixPoints?: number;
 }
 
 export interface Achievement {

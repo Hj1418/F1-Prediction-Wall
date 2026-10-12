@@ -31,7 +31,7 @@ import {
   ConcessionRules,
   MotoGpPointsScale,
 } from '../types';
-import { mockApi } from './mockApi';
+import { mockApi, PlatformAuditReport } from './mockApi';
 import { F1Normalizer } from './dataArchitecture/normalizers/f1Normalizer';
 import { FeederNormalizer, SUPER_LICENCE_POINTS_TABLE } from './dataArchitecture/normalizers/feederNormalizer';
 import { WecNormalizer, WEC_POINTS_SCALES } from './dataArchitecture/normalizers/wecNormalizer';
@@ -448,24 +448,6 @@ export const api = {
             } catch {}
             return json.data;
           }
-
-          // Alias check for Azerbaijan Grand Prix round
-          if (roundId === '2026_15_RACE_PREDICTION' || roundId === '2026_17_RACE_PREDICTION') {
-            const aliasId = roundId === '2026_15_RACE_PREDICTION' ? '2026_17_RACE_PREDICTION' : '2026_15_RACE_PREDICTION';
-            const aliasRes = await fetchWithTimeout(
-              `${API_BASE_URL}?action=getUserPrediction&roundId=${encodeURIComponent(aliasId)}&userId=${encodeURIComponent(userId)}`,
-              {},
-              8000
-            );
-            const aliasJson: ApiResponse<Prediction> = await aliasRes.json();
-            if (aliasJson.success && aliasJson.data) {
-              try {
-                localStorage.setItem(localKey, JSON.stringify(aliasJson.data));
-                localStorage.setItem(`thegrid_user_pred_${aliasId}_${userId}`, JSON.stringify(aliasJson.data));
-              } catch {}
-              return aliasJson.data;
-            }
-          }
         } catch (e) {
           console.warn('Live API getUserPrediction failed or timed out:', e);
         }
@@ -660,33 +642,48 @@ export const api = {
 
       // Always merge with local scoring records to guarantee instant reflection of scored rounds
       const localEntries = await mockApi.getLeaderboard(type, id);
-      const localScoreMap = new Map<string, LeaderboardEntry>();
-      localEntries.forEach(m => localScoreMap.set(m.userId, m));
 
       if (liveEntries.length > 0) {
-        let merged = liveEntries.map(entry => {
-          const local = localScoreMap.get(entry.userId);
+        const merged = liveEntries.map(entry => {
+          const normUser = (entry.username || '').toLowerCase().trim();
+          const local = localEntries.find(l => 
+            l.userId === entry.userId || 
+            (Boolean(normUser && l.username) && l.username.toLowerCase().trim() === normUser)
+          );
           if (local) {
             const authoritativePts = Math.max(entry.totalPoints || 0, local.totalPoints || 0);
             return {
               ...entry,
               totalPoints: authoritativePts,
+              sprintPoints: local.sprintPoints !== undefined ? local.sprintPoints : entry.sprintPoints,
+              grandPrixPoints: local.grandPrixPoints !== undefined ? local.grandPrixPoints : entry.grandPrixPoints,
               roundScores: { ...(entry.roundScores || {}), ...(local.roundScores || {}) },
               racesParticipated: Math.max(entry.racesParticipated || 0, local.racesParticipated || 0),
               exactP1Count: Math.max(entry.exactP1Count || 0, local.exactP1Count || 0),
               perfectPodiumCount: Math.max(entry.perfectPodiumCount || 0, local.perfectPodiumCount || 0),
+              avatarUrl: entry.avatarUrl || local.avatarUrl,
             };
           }
           return entry;
         });
 
         localEntries.forEach(local => {
-          if (!merged.some(e => e.userId === local.userId)) {
+          const normLocal = (local.username || '').toLowerCase().trim();
+          const alreadyInMerged = merged.some(e => 
+            e.userId === local.userId || 
+            (Boolean(normLocal && e.username) && e.username.toLowerCase().trim() === normLocal)
+          );
+          if (!alreadyInMerged) {
             merged.push(local);
           }
         });
 
-        merged.sort((a, b) => b.totalPoints - a.totalPoints);
+        merged.sort((a, b) => {
+          if (b.totalPoints !== a.totalPoints) return b.totalPoints - a.totalPoints;
+          if ((b.exactP1Count || 0) !== (a.exactP1Count || 0)) return (b.exactP1Count || 0) - (a.exactP1Count || 0);
+          if ((b.perfectPodiumCount || 0) !== (a.perfectPodiumCount || 0)) return (b.perfectPodiumCount || 0) - (a.perfectPodiumCount || 0);
+          return (a.username || '').localeCompare(b.username || '');
+        });
         return merged.map((item, idx) => ({
           ...item,
           rank: idx + 1,
@@ -884,25 +881,7 @@ export const api = {
         const res = await fetch(url);
         const json: ApiResponse<Prediction[]> = await res.json();
         if (json.success && Array.isArray(json.data)) {
-          let list = [...json.data];
-          // If round is Azerbaijan GP (2026_15 or 2026_17), also query the alternate roundId to guarantee all submissions appear
-          if (roundId === '2026_15_RACE_PREDICTION' || roundId === '2026_17_RACE_PREDICTION') {
-            const aliasId = roundId === '2026_15_RACE_PREDICTION' ? '2026_17_RACE_PREDICTION' : '2026_15_RACE_PREDICTION';
-            try {
-              const aliasRes = await fetch(`${API_BASE_URL}?action=getAdminPredictions&roundId=${encodeURIComponent(aliasId)}`);
-              const aliasJson: ApiResponse<Prediction[]> = await aliasRes.json();
-              if (aliasJson.success && Array.isArray(aliasJson.data)) {
-                const existingPredIds = new Set(list.map(p => p.predictionId || p.userId));
-                for (const p of aliasJson.data) {
-                  if (!existingPredIds.has(p.predictionId || p.userId)) {
-                    list.push(p);
-                    existingPredIds.add(p.predictionId || p.userId);
-                  }
-                }
-              }
-            } catch (_aliasErr) {}
-          }
-          return list;
+          return json.data;
         }
       } catch (e: any) {
         console.error('Live API getAdminPredictions error:', e);
@@ -1014,6 +993,49 @@ export const api = {
       return { available: false, reason: 'Live database connection required.' };
     }
     return mockApi.checkUsername(username, excludeUserId);
+  },
+
+  async auditAndDeduplicateUsers(dryRun: boolean = true): Promise<any> {
+    if (isLiveBackend) {
+      try {
+        const res = await fetchWithTimeout(`${API_BASE_URL}?action=auditAndDeduplicateUsers&dryRun=${dryRun}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'auditAndDeduplicateUsers', dryRun }),
+        });
+        const json: ApiResponse<any> = await res.json();
+        if (json.success) return json.data;
+      } catch (e: any) {
+        console.error('auditAndDeduplicateUsers error:', e);
+      }
+    }
+    return mockApi.auditAndDeduplicateUsers(dryRun);
+  },
+
+  async auditPlatformData(dryRun: boolean = true): Promise<PlatformAuditReport> {
+    if (isLiveBackend) {
+      try {
+        const res = await fetchWithTimeout(`${API_BASE_URL}?action=auditPlatformData&dryRun=${dryRun}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'auditPlatformData', dryRun }),
+        });
+        const json: ApiResponse<PlatformAuditReport> = await res.json();
+        if (json.success && json.data) {
+          if (!dryRun) {
+            clientCache.clearAll();
+          }
+          return json.data;
+        }
+      } catch (e: any) {
+        console.error('auditPlatformData live API error:', e);
+      }
+    }
+    const res = await mockApi.auditPlatformData(dryRun);
+    if (!dryRun) {
+      clientCache.clearAll();
+    }
+    return res;
   },
 
   // Admin Methods

@@ -6,6 +6,7 @@ import { useApp } from '../context/AppContext';
 import { RaceWeekend, PredictionRound, Prediction, Driver } from '../types';
 import { getSharedRaceContext, getActiveTestPredictionContext, PredictionContext } from '../services/schedule/raceContextService';
 import { isQualificationPredictionRound, generatePredictionRounds } from '../services/schedule/predictionRoundGenerator';
+import { resolveChampionshipCurrentEvent } from '../services/schedule/eventStatusResolver';
 import { StatusBadge } from '../components/common/StatusBadge';
 import { CountdownTimer } from '../components/common/CountdownTimer';
 import { LoadingState } from '../components/common/LoadingState';
@@ -34,6 +35,8 @@ export const PredictionsHubPage: React.FC = () => {
   const { dataVersion } = useApp();
 
   const [currentWeekend, setCurrentWeekend] = useState<RaceWeekend | null>(null);
+  const [allWeekends, setAllWeekends] = useState<RaceWeekend[]>([]);
+  const [allPredictionRounds, setAllPredictionRounds] = useState<PredictionRound[]>([]);
   const [upcomingWeekends, setUpcomingWeekends] = useState<RaceWeekend[]>([]);
   const [currentRounds, setCurrentRounds] = useState<PredictionRound[]>([]);
   const [userPredictions, setUserPredictions] = useState<Record<string, Prediction | null>>({});
@@ -52,6 +55,20 @@ export const PredictionsHubPage: React.FC = () => {
     api.getDrivers(2026).then(setDrivers).catch(() => {});
   }, []);
 
+  const handleSelectWeekend = (weekendId: string) => {
+    const selected = allWeekends.find(w => w.raceWeekendId === weekendId || w.id === weekendId);
+    if (!selected) return;
+    setCurrentWeekend(selected);
+
+    let weekendRounds = allPredictionRounds.filter(
+      r => (r.raceWeekendId === selected.raceWeekendId || r.raceWeekendId === selected.id) && !isQualificationPredictionRound(r)
+    );
+    if (weekendRounds.length === 0) {
+      weekendRounds = generatePredictionRounds(selected).filter(r => !isQualificationPredictionRound(r));
+    }
+    setCurrentRounds(weekendRounds);
+  };
+
   // 1. Stable weekend & round metadata loading (does not re-query on auth changes)
   useEffect(() => {
     let mounted = true;
@@ -66,7 +83,12 @@ export const PredictionsHubPage: React.FC = () => {
 
         if (!mounted) return;
 
-        const activeW = sharedCtx ? sharedCtx.currentWeekend : (weekends.find(w => w.status === 'ACTIVE') || weekends.find(w => w.status === 'UPCOMING') || weekends[0]);
+        setAllWeekends(weekends);
+        setAllPredictionRounds(allRounds);
+
+        // Dynamically resolve the championship's active or upcoming event using canonical resolver
+        const resolution = resolveChampionshipCurrentEvent(weekends);
+        const activeW = resolution.currentEvent || sharedCtx?.currentWeekend || (weekends.find(w => w.status === 'ACTIVE') || weekends.find(w => w.status === 'UPCOMING') || weekends[0]);
         setCurrentWeekend(activeW || null);
 
         const futureW = weekends.filter(w => w.raceWeekendId !== activeW?.raceWeekendId && w.status !== 'COMPLETED');
@@ -466,6 +488,78 @@ export const PredictionsHubPage: React.FC = () => {
 
       {/* 1. WEEKEND PREDICTIONS SECTION */}
       <section style={{ marginBottom: '3.5rem' }}>
+        {/* Event Switcher Header Banner */}
+        <div className="race-card" style={{ padding: '1.25rem 1.5rem', marginBottom: '1.5rem' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: '1.8rem' }}>{currentWeekend?.flag || '🏁'}</span>
+              <div>
+                <div style={{ fontSize: '0.72rem', fontWeight: 800, color: 'var(--text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                  ACTIVE EVENT • {currentWeekend?.weekendType === 'SPRINT' ? '⚡ SPRINT WEEKEND' : 'STANDARD WEEKEND'}
+                </div>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 900, textTransform: 'uppercase', margin: '0.15rem 0 0 0' }}>
+                  {currentWeekend?.raceName || '2026 Grand Prix'}
+                </h3>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+              <label htmlFor="event-switcher-select" style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)' }}>
+                SWITCH GRAND PRIX:
+              </label>
+              <select
+                id="event-switcher-select"
+                value={currentWeekend?.raceWeekendId || currentWeekend?.id || ''}
+                onChange={e => handleSelectWeekend(e.target.value)}
+                className="input-field"
+                style={{ minWidth: '280px', fontWeight: 700, fontSize: '0.85rem' }}
+              >
+                {allWeekends.map(w => (
+                  <option key={w.raceWeekendId || w.id} value={w.raceWeekendId || w.id}>
+                    {w.flag} {w.raceName} (Round {w.roundNumber || w.round}) {w.weekendType === 'SPRINT' ? '⚡ SPRINT' : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Session Schedule in IST */}
+          {currentWeekend && currentWeekend.sessions && currentWeekend.sessions.length > 0 && (
+            <div style={{ marginTop: '1.25rem', borderTop: '1px solid var(--border-subtle)', paddingTop: '1rem' }}>
+              <div style={{ fontSize: '0.72rem', fontWeight: 800, color: 'var(--text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '0.6rem' }}>
+                SESSION SCHEDULE (IST • UTC+05:30)
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.6rem' }}>
+                {currentWeekend.sessions.map((sess, sIdx) => {
+                  const sDate = new Date(sess.startTime);
+                  const sTimeStr = sDate.toLocaleTimeString([], { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' });
+                  const sDayStr = sDate.toLocaleDateString([], { timeZone: 'Asia/Kolkata', weekday: 'short', month: 'short', day: 'numeric' });
+                  const isSessSprint = sess.sessionType === 'SPRINT' || sess.sessionType === 'SPRINT_QUALIFYING';
+                  return (
+                    <div
+                      key={sIdx}
+                      style={{
+                        padding: '0.45rem 0.75rem',
+                        background: 'var(--bg-surface-elevated)',
+                        borderRadius: '6px',
+                        border: isSessSprint ? '1px solid rgba(0, 210, 255, 0.4)' : '1px solid var(--border-subtle)',
+                        fontSize: '0.78rem',
+                      }}
+                    >
+                      <div style={{ fontWeight: 800, color: isSessSprint ? 'var(--telemetry-cyan)' : '#fff' }}>
+                        {sess.name}
+                      </div>
+                      <div style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: '0.72rem' }}>
+                        {sDayStr} • {sTimeStr} IST
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '1.25rem' }}>
           {hasOpenRounds ? (
             <span className="live-pulse" style={{ backgroundColor: 'var(--telemetry-green)' }} />
@@ -509,6 +603,7 @@ export const PredictionsHubPage: React.FC = () => {
               const userPred = userPredictions[round.roundId];
               const userScore = userScores[round.roundId];
               const state = evaluateRoundState(round, Boolean(userPred));
+              const isSprint = round.roundType === 'SPRINT' || round.roundId.includes('SPRINT');
 
               return (
                 <div
@@ -518,6 +613,8 @@ export const PredictionsHubPage: React.FC = () => {
                     padding: '1.5rem',
                     border: state.canPredict
                       ? '1px solid rgba(0, 230, 118, 0.4)'
+                      : isSprint
+                      ? '1px solid rgba(0, 210, 255, 0.3)'
                       : '1px solid var(--border-subtle)',
                     display: 'flex',
                     flexDirection: 'column',
@@ -526,8 +623,19 @@ export const PredictionsHubPage: React.FC = () => {
                 >
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-                      <span style={{ fontSize: '0.72rem', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
-                        {round.roundType.replace('_', ' ')}
+                      <span
+                        style={{
+                          fontSize: '0.72rem',
+                          fontFamily: 'var(--font-mono)',
+                          fontWeight: 800,
+                          color: isSprint ? 'var(--telemetry-cyan)' : 'var(--f1-red)',
+                          background: isSprint ? 'rgba(0, 210, 255, 0.12)' : 'rgba(225, 6, 0, 0.12)',
+                          padding: '0.15rem 0.5rem',
+                          borderRadius: '4px',
+                          letterSpacing: '0.06em',
+                        }}
+                      >
+                        {isSprint ? '⚡ SPRINT RACE PREDICTION' : '🏁 GRAND PRIX PREDICTION'}
                       </span>
                       <StatusBadge status={round.status} size="sm" />
                     </div>
@@ -535,9 +643,13 @@ export const PredictionsHubPage: React.FC = () => {
                     <h3 style={{ fontSize: '1.25rem', fontWeight: 900, textTransform: 'uppercase', marginBottom: '0.4rem' }}>
                       {round.title}
                     </h3>
-                    <p style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', marginBottom: '1.25rem', lineHeight: 1.4 }}>
+                    <p style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', marginBottom: '0.75rem', lineHeight: 1.4 }}>
                       {round.description}
                     </p>
+
+                    <div style={{ fontSize: '0.74rem', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', marginBottom: '1.25rem' }}>
+                      LOCKS: {new Date(round.closesAt).toLocaleString([], { timeZone: 'Asia/Kolkata', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })} IST
+                    </div>
                   </div>
 
                   <div>

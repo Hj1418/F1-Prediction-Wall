@@ -15,9 +15,11 @@ export interface SyncResult {
 
 export class F1ScheduleSyncService {
   private provider: F1DataProvider;
+  private predictionConfig?: any;
 
-  constructor(provider?: F1DataProvider) {
+  constructor(provider?: F1DataProvider, predictionConfig?: any) {
     this.provider = provider || getF1DataProvider('JOLPICA');
+    this.predictionConfig = predictionConfig;
   }
 
   public setProvider(provider: F1DataProvider) {
@@ -46,7 +48,7 @@ export class F1ScheduleSyncService {
 
       if (!existing) {
         // 1. Newly discovered weekend
-        const newRounds = generatePredictionRounds(fetchedWeekend);
+        const newRounds = generatePredictionRounds(fetchedWeekend, this.predictionConfig);
         updatedWeekends.push(fetchedWeekend);
         updatedRounds.push(...newRounds);
 
@@ -75,7 +77,7 @@ export class F1ScheduleSyncService {
           updatedWeekends.push(mergedWeekend);
 
           // Recalculate prediction round deadlines while preserving existing round status/configs
-          const freshRounds = generatePredictionRounds(mergedWeekend);
+          const freshRounds = generatePredictionRounds(mergedWeekend, this.predictionConfig);
           freshRounds.forEach(fr => {
             const rIdx = updatedRounds.findIndex(r => r.roundId === fr.roundId || r.id === fr.roundId);
             if (rIdx >= 0) {
@@ -146,7 +148,7 @@ export class F1ScheduleSyncService {
     let updatedRounds = [...existingRounds];
 
     if (!existingWeekend) {
-      const newRounds = generatePredictionRounds(fetchedWeekend);
+      const newRounds = generatePredictionRounds(fetchedWeekend, this.predictionConfig);
       logs.push({
         logId: `log_${Date.now()}_${fetchedId}`,
         timestamp: new Date().toISOString(),
@@ -172,7 +174,7 @@ export class F1ScheduleSyncService {
     };
 
     if (changeResult.hasChanges) {
-      const freshRounds = generatePredictionRounds(mergedWeekend);
+      const freshRounds = generatePredictionRounds(mergedWeekend, this.predictionConfig);
       freshRounds.forEach(fr => {
         const rIdx = updatedRounds.findIndex(r => r.roundId === fr.roundId);
         if (rIdx >= 0) {

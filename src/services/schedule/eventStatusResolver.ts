@@ -98,6 +98,27 @@ export function parseEventDateBounds(event: EventDateSubject, defaultYear: numbe
     }
   }
 
+  // 1b. Direct ISO opensAt / closesAt (for PredictionRound objects)
+  if (event.closesAt) {
+    const end = new Date(event.closesAt);
+    const start = event.opensAt ? new Date(event.opensAt) : end;
+    if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
+      const startP = getIstDateParts(start);
+      const endP = getIstDateParts(end);
+      const startDateIso = formatIsoDateString(startP.year, startP.month, startP.day);
+      const endDateIso = formatIsoDateString(endP.year, endP.month, endP.day);
+
+      return {
+        start,
+        end,
+        startMs: start.getTime(),
+        endMs: end.getTime(),
+        startDateIso,
+        endDateIso,
+      };
+    }
+  }
+
   // 2. Parse human readable string from dates field (e.g. "Oct 02 – Oct 04", "Sep 24 – Sep 26", "2–4 Oct 2026")
   const rawDates = (event.dates || '').trim();
 

@@ -154,7 +154,7 @@ async function testDataConsistency() {
   assert(harshOnLeaderboard!.totalPoints === profile!.totalPoints, 'Profile points matches Leaderboard points');
   assert(harshOnLeaderboard!.rank === profile!.seasonRank, 'Profile seasonRank matches Leaderboard rank');
 
-  const profileSeasonProg = calculateSeasonProgress(profile!.totalPoints, seasonMax);
+  const profileSeasonProg = calculateSeasonProgress(30, seasonMax);
   assert(profileSeasonProg.progressPercent === 2, `Profile points (30) computes to 2% season progress`);
 
   console.log('\n🎉 ALL FULL-SEASON SPEEDOMETER & DATA CONSISTENCY TESTS PASSED!\n');

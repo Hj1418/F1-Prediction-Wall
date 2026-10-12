@@ -132,6 +132,12 @@ function doGet(e) {
       case 'normalizeAzerbaijanPredictions':
         responseData = normalizeAzerbaijanPredictionRoundIds();
         break;
+      case 'auditAndDeduplicateUsers':
+        responseData = auditAndDeduplicateUsers(e.parameter.dryRun !== 'false');
+        break;
+      case 'auditPlatformData':
+        responseData = auditPlatformData(e.parameter.dryRun !== 'false');
+        break;
       default:
         return createJsonResponse({
           success: false,
@@ -202,6 +208,12 @@ function doPost(e) {
         break;
       case 'updateUser':
         responseData = updateUser(payload);
+        break;
+      case 'auditAndDeduplicateUsers':
+        responseData = auditAndDeduplicateUsers(payload.dryRun !== false);
+        break;
+      case 'auditPlatformData':
+        responseData = auditPlatformData(payload.dryRun !== false);
         break;
       case 'processNotificationQueue':
         responseData = processNotificationQueue(payload.limit);
@@ -478,8 +490,10 @@ function upsertSessionRow(sheet, data) {
 }
 
 function generatePredictionRoundsForWeekend(sheet, weekendId, raceName, weekendType, sessions, nowIso) {
-  // Generate prediction rounds based on session starts
-  var bufferMs = 5 * 60 * 1000; // 5 min close buffer
+  // Authoritative prediction deadline rules:
+  // Sprint & Grand Prix predictions close exactly 1 hour (60 min) before session start
+  var bufferMs = 60 * 60 * 1000; // 60 min close buffer
+  var nowMs = new Date().getTime();
 
   sessions.forEach(function(sess) {
     if (sess.type === 'RACE' || sess.type === 'SPRINT') {
@@ -487,9 +501,15 @@ function generatePredictionRoundsForWeekend(sheet, weekendId, raceName, weekendT
       var sessStartMs = new Date(sess.startTime).getTime();
       var closesAt = new Date(sessStartMs - bufferMs).toISOString();
       var opensAt = new Date(sessStartMs - 7 * 24 * 3600 * 1000).toISOString();
+      var opensAtMs = new Date(opensAt).getTime();
 
       var title = (sess.type === 'RACE' ? 'Grand Prix' : sess.name) + ' Prediction';
-      var status = new Date().getTime() > (sessStartMs - bufferMs) ? 'LOCKED' : 'OPEN';
+      var status = 'OPEN';
+      if (nowMs < opensAtMs) {
+        status = 'UPCOMING';
+      } else if (nowMs > (sessStartMs - bufferMs)) {
+        status = 'LOCKED';
+      }
 
       upsertPredictionRoundRow(sheet, {
         roundId: roundId,
@@ -851,8 +871,16 @@ function submitPrediction(payload) {
   if (!round) throw new Error('Prediction round not found.');
 
   const serverTime = new Date();
+  const openTime = new Date(round.opensAt);
   const closeTime = new Date(round.closesAt);
-  if (serverTime.getTime() > closeTime.getTime()) {
+
+  // Validate predictions are actually open
+  if (round.status === 'UPCOMING' || (round.opensAt && serverTime.getTime() < openTime.getTime())) {
+    throw new Error('Predictions are not open yet for ' + (round.title || 'this round') + '. Entry opens on ' + round.opensAt + '.');
+  }
+
+  // Validate deadline has not passed
+  if (serverTime.getTime() > closeTime.getTime() || round.status === 'LOCKED' || round.status === 'SCORED' || round.status === 'COMPLETED') {
     throw new Error('Predictions are LOCKED. Deadline has passed.');
   }
 
@@ -939,13 +967,6 @@ function adminSubmitResult(payload) {
   const resultData = payload.resultData;
   if (!roundId || !resultData) throw new Error('roundId and resultData are required');
 
-  const isAzerbaijan = roundId && (
-    roundId === '2026_15_RACE_PREDICTION' ||
-    roundId === '2026_17_RACE_PREDICTION' ||
-    roundId === '2026_15_RACE' ||
-    roundId === '2026_17_RACE'
-  );
-
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   let sheet = ss.getSheetByName(SHEET_NAMES.RESULTS);
   if (!sheet) {
@@ -958,25 +979,19 @@ function adminSubmitResult(payload) {
   const nowIso = new Date().toISOString();
   const dataJson = typeof resultData === 'string' ? resultData : JSON.stringify(resultData);
 
-  const targetRounds = isAzerbaijan
-    ? ['2026_15_RACE_PREDICTION', '2026_17_RACE_PREDICTION']
-    : [roundId];
-
-  targetRounds.forEach(function(targetId) {
-    let existingRow = -1;
-    for (let i = 1; i < rows.length; i++) {
-      if (String(rows[i][1]) === targetId) {
-        existingRow = i + 1;
-        break;
-      }
+  let existingRow = -1;
+  for (let i = 1; i < rows.length; i++) {
+    if (String(rows[i][1]) === String(roundId)) {
+      existingRow = i + 1;
+      break;
     }
-    if (existingRow > 0) {
-      sheet.getRange(existingRow, 3).setValue(dataJson);
-      sheet.getRange(existingRow, 4).setValue(nowIso);
-    } else {
-      sheet.appendRow(['res_' + Utilities.getUuid(), targetId, dataJson, nowIso]);
-    }
-  });
+  }
+  if (existingRow > 0) {
+    sheet.getRange(existingRow, 3).setValue(dataJson);
+    sheet.getRange(existingRow, 4).setValue(nowIso);
+  } else {
+    sheet.appendRow(['res_' + Utilities.getUuid(), roundId, dataJson, nowIso]);
+  }
 
   return {
     roundId: roundId,
@@ -986,84 +1001,203 @@ function adminSubmitResult(payload) {
 }
 
 function adminCalculateScores(roundId) {
-  // Calculates scores idempotently
+  const startTime = Date.now();
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const round = getPredictionRound(roundId);
-  if (!round) throw new Error('Round not found');
-
-  const isAzerbaijan = roundId && (
-    roundId === '2026_15_RACE_PREDICTION' ||
-    roundId === '2026_17_RACE_PREDICTION' ||
-    roundId === '2026_15_RACE' ||
-    roundId === '2026_17_RACE'
-  );
+  if (!round) throw new Error('Round not found: ' + roundId);
 
   const resSheet = ss.getSheetByName(SHEET_NAMES.RESULTS);
-  const resRows = resSheet.getDataRange().getValues();
+  const resRows = resSheet ? resSheet.getDataRange().getValues() : [];
   let official = null;
   for (let i = 1; i < resRows.length; i++) {
-    const rowResRound = String(resRows[i][1] || '');
-    const isResMatch = isAzerbaijan
-      ? (rowResRound === '2026_15_RACE_PREDICTION' || rowResRound === '2026_17_RACE_PREDICTION' || rowResRound === '2026_15_RACE' || rowResRound === '2026_17_RACE')
-      : (rowResRound === roundId);
-    if (isResMatch) {
-      official = JSON.parse(resRows[i][2] || '{}');
+    const rowResRound = String(resRows[i][1] || '').trim();
+    if (rowResRound === String(roundId).trim()) {
+      official = typeof resRows[i][2] === 'string' ? JSON.parse(resRows[i][2] || '{}') : resRows[i][2];
       break;
     }
   }
-  if (!official) throw new Error('Official results not published yet.');
+  if (!official) throw new Error('Cannot calculate scores: Official session result has not been submitted or published yet for ' + roundId);
 
   const predSheet = ss.getSheetByName(SHEET_NAMES.PREDICTIONS);
-  const predRows = predSheet.getDataRange().getValues();
-  const scoresSheet = ss.getSheetByName(SHEET_NAMES.SCORES);
-  const scoreRows = scoresSheet.getDataRange().getValues();
-  const nowIso = new Date().toISOString();
-  let scoredCount = 0;
+  const predRows = predSheet ? predSheet.getDataRange().getValues() : [];
 
+  // Group predictions strictly for this roundId, deduplicating by userId (latest submittedAt/updatedAt wins)
+  const userPredMap = {};
   for (let i = 1; i < predRows.length; i++) {
-    const rowRound = String(predRows[i][2] || '');
-    const isPredMatch = isAzerbaijan
-      ? (rowRound === '2026_15_RACE_PREDICTION' || rowRound === '2026_17_RACE_PREDICTION' || rowRound === '2026_15_RACE' || rowRound === '2026_17_RACE')
-      : (rowRound === roundId);
+    const rowRound = String(predRows[i][2] || '').trim();
+    if (rowRound === String(roundId).trim()) {
+      const pUserId = String(predRows[i][1] || '').trim();
+      if (!pUserId) continue;
 
-    if (isPredMatch) {
-      const predData = JSON.parse(predRows[i][3] || '{}');
-      const userId = predRows[i][1];
-      const calc = computeScore(predData, official);
+      const pId = String(predRows[i][0] || '');
+      let rawData = predRows[i][3];
+      let pData = null;
+      try {
+        pData = typeof rawData === 'string' ? JSON.parse(rawData || '{}') : (rawData || {});
+      } catch (e) {
+        pData = null;
+      }
+      const submittedAt = String(predRows[i][4] || '');
+      const updatedAt = String(predRows[i][5] || submittedAt || '');
 
-      let existingScoreRow = -1;
-      for (let j = 1; j < scoreRows.length; j++) {
-        if (scoreRows[j][1] === userId && (scoreRows[j][2] === rowRound || (isAzerbaijan && (scoreRows[j][2] === '2026_15_RACE_PREDICTION' || scoreRows[j][2] === '2026_17_RACE_PREDICTION')))) {
-          existingScoreRow = j + 1;
-          break;
+      const record = {
+        rowIndex: i + 1,
+        predictionId: pId,
+        userId: pUserId,
+        roundId: rowRound,
+        predictionData: pData,
+        submittedAt: submittedAt,
+        updatedAt: updatedAt,
+      };
+
+      if (!userPredMap[pUserId]) {
+        userPredMap[pUserId] = record;
+      } else {
+        const existingTime = new Date(userPredMap[pUserId].updatedAt || 0).getTime();
+        const currTime = new Date(updatedAt || 0).getTime();
+        if (currTime >= existingTime) {
+          userPredMap[pUserId] = record;
         }
       }
+    }
+  }
 
-      if (existingScoreRow > 0) {
-        scoresSheet.getRange(existingScoreRow, 4).setValue(JSON.stringify(calc.breakdown));
-        scoresSheet.getRange(existingScoreRow, 5).setValue(calc.totalScore);
-        scoresSheet.getRange(existingScoreRow, 6).setValue(nowIso);
+  const eligiblePreds = Object.values(userPredMap);
+
+  // Read existing scores into in-memory lookup
+  const scoresSheet = ss.getSheetByName(SHEET_NAMES.SCORES);
+  if (!scoresSheet) throw new Error('Scores sheet not found');
+  const scoreRows = scoresSheet.getDataRange().getValues();
+  const existingScoreMap = {}; // key: userId + '__' + roundId -> { rowIndex, scoreId }
+  for (let j = 1; j < scoreRows.length; j++) {
+    const sUserId = String(scoreRows[j][1] || '').trim();
+    const sRoundId = String(scoreRows[j][2] || '').trim();
+    if (sUserId && sRoundId) {
+      existingScoreMap[sUserId + '__' + sRoundId] = {
+        rowIndex: j + 1,
+        scoreId: scoreRows[j][0],
+        totalScore: scoreRows[j][4]
+      };
+    }
+  }
+
+  // Preload users for notification names & emails
+  const userSheet = ss.getSheetByName(SHEET_NAMES.USERS);
+  const userRows = userSheet ? userSheet.getDataRange().getValues() : [];
+  const userProfileMap = {};
+  if (userRows.length > 1) {
+    const uHeaders = userRows[0];
+    const uUidCol = uHeaders.indexOf('userId') !== -1 ? uHeaders.indexOf('userId') : 0;
+    const uEmailCol = uHeaders.indexOf('email') !== -1 ? uHeaders.indexOf('email') : 1;
+    const uNameCol = uHeaders.indexOf('displayName') !== -1 ? uHeaders.indexOf('displayName') : 2;
+    const uUsernameCol = uHeaders.indexOf('username') !== -1 ? uHeaders.indexOf('username') : 3;
+
+    for (let u = 1; u < userRows.length; u++) {
+      const uid = String(userRows[u][uUidCol] || '').trim();
+      if (uid) {
+        userProfileMap[uid] = {
+          email: String(userRows[u][uEmailCol] || '').trim(),
+          displayName: String(userRows[u][uNameCol] || userRows[u][uUsernameCol] || uid).trim()
+        };
+      }
+    }
+  }
+
+  const nowIso = new Date().toISOString();
+  const gpName = formatGrandPrixName(round.title || 'Grand Prix');
+  const insertScoreRows = [];
+  const updateScoreRows = [];
+  const notificationsToQueue = [];
+  const failedRecords = [];
+  let scoredCount = 0;
+  let newlyScoredCount = 0;
+  let updatedScoredCount = 0;
+
+  for (let k = 0; k < eligiblePreds.length; k++) {
+    const pred = eligiblePreds[k];
+    if (!pred.predictionData) {
+      failedRecords.push({ userId: pred.userId, reason: 'Malformed JSON prediction data' });
+      continue;
+    }
+
+    try {
+      const calc = computeScore(pred.predictionData, official);
+      const scoreKey = pred.userId + '__' + roundId;
+      const existingScore = existingScoreMap[scoreKey];
+
+      if (existingScore) {
+        updateScoreRows.push({
+          rowIndex: existingScore.rowIndex,
+          breakdown: JSON.stringify(calc.breakdown),
+          totalScore: calc.totalScore,
+          calculatedAt: nowIso
+        });
+        updatedScoredCount++;
       } else {
-        scoresSheet.appendRow(['score_' + Utilities.getUuid(), userId, roundId, JSON.stringify(calc.breakdown), calc.totalScore, nowIso]);
+        insertScoreRows.push([
+          'score_' + Utilities.getUuid(),
+          pred.userId,
+          roundId,
+          JSON.stringify(calc.breakdown),
+          calc.totalScore,
+          nowIso
+        ]);
+        newlyScoredCount++;
       }
       scoredCount++;
 
-      // Enqueue results published email idempotently
-      try {
-        const userProfile = getUserProfile(userId);
-        if (userProfile && userProfile.email) {
-          const gpName = formatGrandPrixName(round.title);
-          enqueueNotification(
-            userProfile.email,
-            userProfile.displayName || userId,
-            'PREDICTION_RESULT',
-            'Your ' + gpName + ' Prediction Results',
-            { roundId: roundId, roundTitle: gpName, score: calc.totalScore, breakdown: calc.breakdown },
-            'RESULT_' + userId + '_' + roundId
-          );
-        }
-      } catch (err) {
-        Logger.log('Failed to enqueue result notification: ' + err.toString());
+      // Prepare notification for batch queuing
+      const uProfile = userProfileMap[pred.userId];
+      if (uProfile && uProfile.email) {
+        notificationsToQueue.push({
+          recipientEmail: uProfile.email,
+          recipientName: uProfile.displayName || pred.userId,
+          notificationType: 'PREDICTION_RESULT',
+          subject: 'Official Race Results: ' + calc.totalScore + ' PTS Scored — ' + gpName + ' 🏆',
+          templateData: {
+            roundId: roundId,
+            roundTitle: round.title,
+            raceName: gpName,
+            score: calc.totalScore,
+            breakdown: calc.breakdown
+          },
+          idempotencyKey: 'RESULT_' + roundId + '_' + pred.userId
+        });
+      }
+    } catch (calcErr) {
+      failedRecords.push({ userId: pred.userId, reason: calcErr.toString() });
+    }
+  }
+
+  // Batch persist updates to Scores sheet
+  if (updateScoreRows.length > 0) {
+    for (let u = 0; u < updateScoreRows.length; u++) {
+      const item = updateScoreRows[u];
+      const rIdx = item.rowIndex - 1;
+      scoreRows[rIdx][3] = item.breakdown;
+      scoreRows[rIdx][4] = item.totalScore;
+      scoreRows[rIdx][5] = item.calculatedAt;
+    }
+    scoresSheet.getRange(1, 1, scoreRows.length, scoreRows[0].length).setValues(scoreRows);
+  }
+
+  // Batch persist inserts to Scores sheet
+  if (insertScoreRows.length > 0) {
+    const startRow = scoresSheet.getLastRow() + 1;
+    scoresSheet.getRange(startRow, 1, insertScoreRows.length, 6).setValues(insertScoreRows);
+  }
+
+  // Batch enqueue notification emails
+  const batchNotifyRes = enqueueNotificationsBatch(notificationsToQueue);
+
+  // Update PredictionRound status in PredictionRounds sheet to 'SCORED'
+  const prSheet = ss.getSheetByName(SHEET_NAMES.PREDICTION_ROUNDS);
+  if (prSheet) {
+    const prRows = prSheet.getDataRange().getValues();
+    for (let p = 1; p < prRows.length; p++) {
+      if (String(prRows[p][0] || '').trim() === String(roundId).trim()) {
+        prSheet.getRange(p + 1, 9).setValue('SCORED');
+        break;
       }
     }
   }
@@ -1077,7 +1211,20 @@ function adminCalculateScores(roundId) {
     cache.remove('current_weekend');
   } catch (cErr) {}
 
-  return { roundId: roundId, scoredCount: scoredCount };
+  const durationMs = Date.now() - startTime;
+  Logger.log('[SCORES_CALCULATED] round: ' + roundId + ', scored: ' + scoredCount + ' (new: ' + newlyScoredCount + ', updated: ' + updatedScoredCount + '), failed: ' + failedRecords.length + ', duration: ' + durationMs + 'ms');
+
+  return {
+    roundId: roundId,
+    scoredCount: scoredCount,
+    newlyScored: newlyScoredCount,
+    updatedScored: updatedScoredCount,
+    failedCount: failedRecords.length,
+    failedRecords: failedRecords,
+    emailsQueued: batchNotifyRes.queuedCount,
+    emailsSkipped: batchNotifyRes.skippedCount,
+    durationMs: durationMs
+  };
 }
 
 function computeScore(pred, official) {
@@ -1220,75 +1367,145 @@ function getLeaderboard(type, id) {
 
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const users = getAllUsers();
-  const usersMap = {};
+  
+  // Deduplicate users by canonical identity (normalized username, or userId if no username)
+  const canonicalUsersMap = {};
+  const userIdToCanonicalKey = {};
+
   for (let i = 0; i < users.length; i++) {
-    usersMap[users[i].userId] = users[i];
+    const u = users[i];
+    const uKey = (u.username && u.username.trim()) ? u.username.trim().toLowerCase() : u.userId;
+    userIdToCanonicalKey[u.userId] = uKey;
+
+    if (!canonicalUsersMap[uKey]) {
+      canonicalUsersMap[uKey] = u;
+    } else {
+      // Pick best profile representation (avatar, points)
+      const existing = canonicalUsersMap[uKey];
+      const hasBetterAvatar = (!existing.avatarUrl || !existing.avatarUrl.startsWith('http')) && (u.avatarUrl && u.avatarUrl.startsWith('http'));
+      const hasMorePoints = Number(u.totalPoints || 0) > Number(existing.totalPoints || 0);
+      if (hasBetterAvatar || hasMorePoints) {
+        canonicalUsersMap[uKey] = Object.assign({}, existing, u, {
+          avatarUrl: u.avatarUrl || existing.avatarUrl,
+          favouriteDriver: u.favouriteDriver || existing.favouriteDriver,
+          favouriteConstructor: u.favouriteConstructor || existing.favouriteConstructor,
+          bio: u.bio || existing.bio
+        });
+      }
+    }
+  }
+
+  // Prediction rounds metadata for weekend isolation and Sprint vs Grand Prix classification
+  const predSheet = ss.getSheetByName(SHEET_NAMES.PREDICTION_ROUNDS);
+  const predRows = predSheet ? predSheet.getDataRange().getValues() : [];
+  const roundMetaMap = {};
+  for (let p = 1; p < predRows.length; p++) {
+    const rId = String(predRows[p][0] || '');
+    const rwId = String(predRows[p][1] || '');
+    const rType = String(predRows[p][3] || '').toUpperCase();
+    roundMetaMap[rId] = { raceWeekendId: rwId, roundType: rType };
   }
 
   const scoreSheet = ss.getSheetByName(SHEET_NAMES.SCORES);
-  const scoreRows = scoreSheet.getDataRange().getValues();
+  const scoreRows = scoreSheet ? scoreSheet.getDataRange().getValues() : [];
 
   // Aggregate based on type
-  const userTotals = {};
   const userBreakdowns = {};
+  const userSprintPoints = {};
+  const userGpPoints = {};
+  const userExactP1 = {};
+  const userPerfectPodium = {};
 
   for (let i = 1; i < scoreRows.length; i++) {
-    const userId = scoreRows[i][1];
-    const roundId = scoreRows[i][2];
+    const rawUserId = scoreRows[i][1];
+    const roundId = String(scoreRows[i][2] || '');
     const pts = Number(scoreRows[i][4] || 0);
+
+    const rMeta = roundMetaMap[roundId] || {};
+    const roundWeekendId = rMeta.raceWeekendId || '';
+    const roundType = rMeta.roundType || '';
 
     let include = false;
     if (type === 'round' || type === 'session') {
-      include = (roundId === id);
+      include = (roundId === String(id));
     } else if (type === 'weekend') {
-      include = (roundId && roundId.indexOf(id) !== -1);
+      include = (roundWeekendId === String(id) || (roundId && roundId.indexOf(String(id)) !== -1));
     } else {
       include = true; // season
     }
 
     if (include) {
-      const normalizedRoundId = (roundId === '2026_17_RACE_PREDICTION' || roundId === '2026_17_RACE')
-        ? '2026_15_RACE_PREDICTION'
-        : roundId;
+      const canonicalKey = userIdToCanonicalKey[rawUserId] || rawUserId;
+      if (!userBreakdowns[canonicalKey]) {
+        userBreakdowns[canonicalKey] = {};
+        userSprintPoints[canonicalKey] = 0;
+        userGpPoints[canonicalKey] = 0;
+        userExactP1[canonicalKey] = 0;
+        userPerfectPodium[canonicalKey] = 0;
+      }
 
-      if (!userBreakdowns[userId]) userBreakdowns[userId] = {};
-      userBreakdowns[userId][normalizedRoundId] = pts;
+      const prevPts = Number(userBreakdowns[canonicalKey][roundId] || 0);
+      if (pts > prevPts) {
+        userBreakdowns[canonicalKey][roundId] = pts;
+        const delta = pts - prevPts;
+        if (roundType === 'SPRINT' || roundId.indexOf('SPRINT') !== -1) {
+          userSprintPoints[canonicalKey] += delta;
+        } else {
+          userGpPoints[canonicalKey] += delta;
+        }
+      }
     }
   }
 
-  // Build entry list
+  // Build entry list from canonical users
   const entries = [];
-  const allUserIds = Object.keys(usersMap);
-  for (let i = 0; i < allUserIds.length; i++) {
-    const uid = allUserIds[i];
-    const u = usersMap[uid];
-    const breakdown = userBreakdowns[uid] || {};
+  const canonicalKeys = Object.keys(canonicalUsersMap);
+  for (let i = 0; i < canonicalKeys.length; i++) {
+    const key = canonicalKeys[i];
+    const u = canonicalUsersMap[key];
+    const breakdown = userBreakdowns[key] || {};
     let pts = 0;
     const roundsScored = Object.keys(breakdown);
     for (let r = 0; r < roundsScored.length; r++) {
       pts += Number(breakdown[roundsScored[r]] || 0);
     }
+
+    // In weekend view: users who didn't score must not receive season totals
+    if (type === 'weekend' && roundsScored.length === 0) {
+      continue;
+    }
+
     if (roundsScored.length === 0 && type === 'season') {
       pts = Number(u.totalPoints || 0);
     }
+
     entries.push({
-      userId: uid,
+      userId: u.userId,
       username: u.username || 'Grid User',
       displayName: u.username || 'Grid User', // PRIVACY: Never expose real name or Google displayName in public leaderboard data
       avatarUrl: u.avatarUrl,
       favouriteDriver: u.favouriteDriver,
       totalPoints: pts,
+      sprintPoints: userSprintPoints[key] || 0,
+      grandPrixPoints: userGpPoints[key] || 0,
       roundScores: breakdown,
       racesParticipated: roundsScored.length,
       avgPointsPerRace: roundsScored.length > 0
         ? Math.round((pts / roundsScored.length) * 10) / 10
         : 0,
-      exactP1Count: 0,
-      perfectPodiumCount: 0
+      exactP1Count: userExactP1[key] || 0,
+      perfectPodiumCount: userPerfectPodium[key] || 0
     });
   }
 
-  entries.sort(function(a, b) { return b.totalPoints - a.totalPoints; });
+  // Deterministic tie-breaking sort
+  entries.sort(function(a, b) {
+    if (b.totalPoints !== a.totalPoints) return b.totalPoints - a.totalPoints;
+    if (b.exactP1Count !== a.exactP1Count) return b.exactP1Count - a.exactP1Count;
+    if (b.perfectPodiumCount !== a.perfectPodiumCount) return b.perfectPodiumCount - a.perfectPodiumCount;
+    return String(a.username || '').localeCompare(String(b.username || ''));
+  });
+
   const result = entries.map(function(e, idx) {
     return Object.assign({}, e, {
       rank: idx + 1,
@@ -1344,30 +1561,12 @@ function getAdminPredictions(roundId) {
   const rows = predSheet.getDataRange().getValues();
   const list = [];
 
-  // Determine if roundId is Azerbaijan Grand Prix (matches 2026_15 or 2026_17)
-  const isAzerbaijan = roundId && (
-    roundId === '2026_15_RACE_PREDICTION' ||
-    roundId === '2026_17_RACE_PREDICTION' ||
-    roundId === '2026_15_RACE' ||
-    roundId === '2026_17_RACE'
-  );
-
   for (let i = 1; i < rows.length; i++) {
     const r = rows[i];
     if (!r[0]) continue;
     const rowRound = String(r[2] || '');
-    if (roundId) {
-      if (isAzerbaijan) {
-        const isRowAzerbaijan = (
-          rowRound === '2026_15_RACE_PREDICTION' ||
-          rowRound === '2026_17_RACE_PREDICTION' ||
-          rowRound === '2026_15_RACE' ||
-          rowRound === '2026_17_RACE'
-        );
-        if (!isRowAzerbaijan) continue;
-      } else {
-        if (rowRound !== String(roundId)) continue;
-      }
+    if (roundId && rowRound !== String(roundId)) {
+      continue;
     }
     list.push({
       predictionId: r[0],
@@ -2640,8 +2839,8 @@ function generateWelcomeEmail(params) {
  * =========================================================================
  */
 
-function enqueueNotification(recipientEmail, recipientName, notificationType, subject, templateData, idempotencyKey) {
-  if (!recipientEmail || !idempotencyKey) return false;
+function enqueueNotificationsBatch(items) {
+  if (!items || !items.length) return { queuedCount: 0, skippedCount: 0 };
 
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   let queueSheet = ss.getSheetByName(SHEET_NAMES.NOTIFICATION_QUEUE);
@@ -2651,53 +2850,87 @@ function enqueueNotification(recipientEmail, recipientName, notificationType, su
     queueSheet.getRange(1, 1, 1, 12).setBackground('#10b981').setFontColor('#ffffff').setFontWeight('bold');
   }
 
-  // Normalize key for both delimiter styles (WELCOME:usr_ vs WELCOME_usr_)
-  const altKey = idempotencyKey.includes(':') 
-    ? idempotencyKey.replace(':', '_') 
-    : idempotencyKey.replace('_', ':');
-
-  // Idempotency check in queue
+  // Single batch read of existing idempotency keys from queue and log
+  const existingKeys = {};
   const queueRows = queueSheet.getDataRange().getValues();
   for (let i = 1; i < queueRows.length; i++) {
-    const key = String(queueRows[i][7]);
-    if (key === idempotencyKey || key === altKey) {
-      Logger.log('[NOTIFICATION_IDEMPOTENT_SKIP] Already enqueued: ' + idempotencyKey);
-      return false;
+    const key = String(queueRows[i][7] || '').trim();
+    if (key) {
+      existingKeys[key] = true;
+      existingKeys[key.replace(':', '_')] = true;
+      existingKeys[key.replace('_', ':')] = true;
     }
   }
 
-  // Idempotency check in log
   const logSheet = ss.getSheetByName(SHEET_NAMES.NOTIFICATION_LOG);
   if (logSheet) {
     const logRows = logSheet.getDataRange().getValues();
     for (let j = 1; j < logRows.length; j++) {
-      const key = String(logRows[j][4]);
-      if (key === idempotencyKey || key === altKey) {
-        Logger.log('[NOTIFICATION_IDEMPOTENT_SKIP] Already delivered in log: ' + idempotencyKey);
-        return false;
+      const key = String(logRows[j][4] || '').trim();
+      if (key) {
+        existingKeys[key] = true;
+        existingKeys[key.replace(':', '_')] = true;
+        existingKeys[key.replace('_', ':')] = true;
       }
     }
   }
 
-  const queueId = 'ntf_' + Utilities.getUuid();
   const nowIso = new Date().toISOString();
-  queueSheet.appendRow([
-    queueId,
-    recipientEmail,
-    recipientName || '',
-    notificationType,
-    subject,
-    JSON.stringify(templateData || {}),
-    'PENDING',
-    idempotencyKey,
-    0,
-    nowIso,
-    '',
-    ''
-  ]);
+  const rowsToInsert = [];
+  let skippedCount = 0;
 
-  Logger.log('[NOTIFICATION_CREATED] Queued ' + notificationType + ' for ' + recipientEmail + ' (key: ' + idempotencyKey + ')');
-  return true;
+  for (let idx = 0; idx < items.length; idx++) {
+    const item = items[idx];
+    if (!item.recipientEmail || !item.idempotencyKey) {
+      skippedCount++;
+      continue;
+    }
+    const key = String(item.idempotencyKey).trim();
+    if (existingKeys[key]) {
+      skippedCount++;
+      continue;
+    }
+    // Prevent duplicates within this batch
+    existingKeys[key] = true;
+    existingKeys[key.replace(':', '_')] = true;
+    existingKeys[key.replace('_', ':')] = true;
+
+    const queueId = 'ntf_' + Utilities.getUuid();
+    rowsToInsert.push([
+      queueId,
+      item.recipientEmail,
+      item.recipientName || '',
+      item.notificationType || 'GENERAL',
+      item.subject || '',
+      JSON.stringify(item.templateData || {}),
+      'PENDING',
+      key,
+      0,
+      nowIso,
+      '',
+      ''
+    ]);
+  }
+
+  if (rowsToInsert.length > 0) {
+    const startRow = queueSheet.getLastRow() + 1;
+    queueSheet.getRange(startRow, 1, rowsToInsert.length, 12).setValues(rowsToInsert);
+    Logger.log('[NOTIFICATIONS_BATCH_QUEUED] Enqueued ' + rowsToInsert.length + ' notifications (skipped ' + skippedCount + ')');
+  }
+
+  return { queuedCount: rowsToInsert.length, skippedCount: skippedCount };
+}
+
+function enqueueNotification(recipientEmail, recipientName, notificationType, subject, templateData, idempotencyKey) {
+  const res = enqueueNotificationsBatch([{
+    recipientEmail: recipientEmail,
+    recipientName: recipientName,
+    notificationType: notificationType,
+    subject: subject,
+    templateData: templateData,
+    idempotencyKey: idempotencyKey
+  }]);
+  return res.queuedCount > 0;
 }
 
 function processNotificationQueue(batchLimit) {
@@ -2957,13 +3190,226 @@ function normalizeAzerbaijanPredictionRoundIds() {
   let migratedCount = 0;
   for (let i = 1; i < rows.length; i++) {
     const rowRound = String(rows[i][2] || '').trim();
-    if (rowRound === '2026_17_RACE_PREDICTION' || rowRound === '2026_17_RACE') {
+    // Only migrate predictions submitted during Azerbaijan weekend (before 2026-09-28)
+    const submittedAt = String(rows[i][4] || '');
+    const isOldAzerbaijanSubmission = submittedAt && submittedAt < '2026-09-28T00:00:00.000Z';
+    if ((rowRound === '2026_17_RACE_PREDICTION' || rowRound === '2026_17_RACE') && isOldAzerbaijanSubmission) {
       sheet.getRange(i + 1, 3).setValue('2026_15_RACE_PREDICTION');
       migratedCount++;
     }
   }
-  Logger.log('[MIGRATION] Migrated ' + migratedCount + ' predictions from 2026_17 to 2026_15_RACE_PREDICTION');
+  Logger.log('[MIGRATION] Migrated ' + migratedCount + ' legacy predictions from 2026_17 to 2026_15_RACE_PREDICTION');
   return { success: true, migratedCount: migratedCount };
+}
+
+/**
+ * P0 Data Integrity: Audit and consolidate duplicate user identities.
+ * Supports dry-run inspection to safely detect duplicates without modifying sheets,
+ * and creates an automated timestamped backup of the Users sheet before applying permanent changes.
+ *
+ * @param {boolean} dryRun - If true (default), returns audit report without modifying any data.
+ */
+function auditAndDeduplicateUsers(dryRun) {
+  if (dryRun === undefined) dryRun = true;
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const userSheet = ss.getSheetByName(SHEET_NAMES.USERS);
+  if (!userSheet) return { success: false, error: 'Users sheet not found' };
+  ensureUserHeaders(userSheet);
+
+  const predSheet = ss.getSheetByName(SHEET_NAMES.PREDICTIONS);
+  const scoreSheet = ss.getSheetByName(SHEET_NAMES.SCORES);
+
+  const userRows = userSheet.getDataRange().getValues();
+  if (userRows.length <= 1) {
+    return { success: true, message: 'No users to audit', dryRun: dryRun, duplicateGroups: [] };
+  }
+
+  const headers = userRows[0];
+  const colMap = {};
+  for (let c = 0; c < headers.length; c++) {
+    colMap[String(headers[c]).trim()] = c;
+  }
+
+  const emailCol = colMap['email'] !== undefined ? colMap['email'] : 1;
+  const userIdCol = colMap['userId'] !== undefined ? colMap['userId'] : 0;
+  const usernameCol = colMap['username'] !== undefined ? colMap['username'] : 3;
+  const avatarCol = colMap['avatarUrl'] !== undefined ? colMap['avatarUrl'] : 4;
+  const subCol = colMap['googleSubjectId'];
+  const pointsCol = colMap['totalPoints'] !== undefined ? colMap['totalPoints'] : 8;
+
+  // Build structured user records
+  const records = [];
+  for (let i = 1; i < userRows.length; i++) {
+    const row = userRows[i];
+    const uid = String(row[userIdCol] || '').trim();
+    if (!uid) continue;
+    records.push({
+      rowIndex: i + 1,
+      userId: uid,
+      email: String(row[emailCol] || '').trim().toLowerCase(),
+      username: String(row[usernameCol] || '').trim().toLowerCase(),
+      displayName: String(colMap['displayName'] !== undefined ? row[colMap['displayName']] : ''),
+      avatarUrl: String(avatarCol !== undefined ? row[avatarCol] : '').trim(),
+      googleSubjectId: String(subCol !== undefined ? row[subCol] : '').trim(),
+      favouriteDriver: String(colMap['favouriteDriver'] !== undefined ? row[colMap['favouriteDriver']] : '').trim(),
+      favouriteConstructor: String(colMap['favouriteConstructor'] !== undefined ? row[colMap['favouriteConstructor']] : '').trim(),
+      bio: String(colMap['bio'] !== undefined ? row[colMap['bio']] : '').trim(),
+      role: String(colMap['role'] !== undefined ? row[colMap['role']] : 'user').trim(),
+      createdAt: String(colMap['createdAt'] !== undefined ? row[colMap['createdAt']] : '').trim(),
+      totalPoints: Number(pointsCol !== undefined ? row[pointsCol] : 0) || 0
+    });
+  }
+
+  // Identify connected duplicate groups
+  const groups = [];
+  const visited = {};
+
+  for (let i = 0; i < records.length; i++) {
+    if (visited[records[i].userId]) continue;
+    const group = [records[i]];
+    visited[records[i].userId] = true;
+
+    for (let j = 0; j < records.length; j++) {
+      if (i === j || visited[records[j].userId]) continue;
+      const a = records[i];
+      const b = records[j];
+
+      const matchSub = a.googleSubjectId && b.googleSubjectId && a.googleSubjectId === b.googleSubjectId;
+      const matchEmail = a.email && b.email && a.email === b.email;
+      const matchUsername = a.username && b.username && a.username === b.username;
+
+      if (matchSub || matchEmail || matchUsername) {
+        group.push(records[j]);
+        visited[records[j].userId] = true;
+      }
+    }
+
+    if (group.length > 1) {
+      groups.push(group);
+    }
+  }
+
+  // Plan consolidation for duplicate groups
+  const auditReport = [];
+  const userReplacements = {};
+
+  for (let g = 0; g < groups.length; g++) {
+    const group = groups[g];
+    // Score records to determine canonical authority:
+    // +100 for verified googleSubjectId
+    // +50 for valid http avatar
+    // +20 for non-empty username
+    // +10 for admin role
+    // +points up to 50
+    let bestRecord = group[0];
+    let bestScore = -1;
+
+    for (let r = 0; r < group.length; r++) {
+      const rec = group[r];
+      let score = 0;
+      if (rec.googleSubjectId) score += 100;
+      if (rec.avatarUrl && rec.avatarUrl.indexOf('http') === 0) score += 50;
+      if (rec.username) score += 20;
+      if (rec.role === 'admin') score += 10;
+      score += Math.min(rec.totalPoints, 50);
+
+      if (score > bestScore) {
+        bestScore = score;
+        bestRecord = rec;
+      }
+    }
+
+    const secondaries = group.filter(function(r) { return r.userId !== bestRecord.userId; });
+    secondaries.forEach(function(sec) {
+      userReplacements[sec.userId] = bestRecord.userId;
+    });
+
+    auditReport.push({
+      canonicalUserId: bestRecord.userId,
+      canonicalUsername: bestRecord.username,
+      canonicalEmail: bestRecord.email,
+      canonicalAvatarUrl: bestRecord.avatarUrl,
+      mergedUserIds: secondaries.map(function(s) { return s.userId; }),
+      recordsInGroup: group.map(function(r) {
+        return {
+          userId: r.userId,
+          username: r.username,
+          email: r.email,
+          avatarUrl: r.avatarUrl,
+          points: r.totalPoints,
+          rowIndex: r.rowIndex
+        };
+      })
+    });
+  }
+
+  if (dryRun) {
+    return {
+      success: true,
+      dryRun: true,
+      duplicateGroupsFound: groups.length,
+      auditReport: auditReport,
+      message: 'Dry run completed. Found ' + groups.length + ' duplicate user group(s). No sheets were modified.'
+    };
+  }
+
+  // LIVE CONSOLIDATION
+  const backupSheetName = 'Users_Backup_' + Utilities.formatDate(new Date(), 'GMT', 'yyyyMMdd_HHmmss');
+  userSheet.copyTo(ss).setName(backupSheetName);
+
+  let updatedPreds = 0;
+  if (predSheet) {
+    const pRows = predSheet.getDataRange().getValues();
+    for (let i = 1; i < pRows.length; i++) {
+      const oldUid = String(pRows[i][1] || '').trim();
+      if (userReplacements[oldUid]) {
+        predSheet.getRange(i + 1, 2).setValue(userReplacements[oldUid]);
+        updatedPreds++;
+      }
+    }
+  }
+
+  let updatedScores = 0;
+  if (scoreSheet) {
+    const sRows = scoreSheet.getDataRange().getValues();
+    for (let i = 1; i < sRows.length; i++) {
+      const oldUid = String(sRows[i][1] || '').trim();
+      if (userReplacements[oldUid]) {
+        scoreSheet.getRange(i + 1, 2).setValue(userReplacements[oldUid]);
+        updatedScores++;
+      }
+    }
+  }
+
+  // Delete secondary duplicate rows in reverse order to preserve indexes
+  const rowsToDelete = [];
+  auditReport.forEach(function(item) {
+    item.recordsInGroup.forEach(function(r) {
+      if (r.userId !== item.canonicalUserId) {
+        rowsToDelete.push(r.rowIndex);
+      }
+    });
+  });
+  rowsToDelete.sort(function(a, b) { return b - a; });
+  rowsToDelete.forEach(function(rowIdx) {
+    userSheet.deleteRow(rowIdx);
+  });
+
+  try {
+    const cache = CacheService.getScriptCache();
+    cache.remove('leaderboard_season_global');
+  } catch (_cErr) {}
+
+  return {
+    success: true,
+    dryRun: false,
+    backupCreated: backupSheetName,
+    duplicateGroupsConsolidated: groups.length,
+    rowsDeleted: rowsToDelete.length,
+    predictionsRepointed: updatedPreds,
+    scoresRepointed: updatedScores,
+    auditReport: auditReport
+  };
 }
 
 /**
@@ -3109,5 +3555,336 @@ function setupAutomaticSyncTrigger() {
 
   Logger.log('[AUTO_SYNC_SETUP] Installed 6-hour time-driven calendar sync trigger: ' + newTrigger.getUniqueId());
   return { success: true, triggerId: newTrigger.getUniqueId(), removedPrevious: removed };
+}
+
+/**
+ * =========================================================================
+ * UNIVERSAL PLATFORM-WIDE PREDICTION INTEGRITY & RELIABILITY AUDITOR
+ * =========================================================================
+ * Scans every supported event, prediction, user, score, result, and notification.
+ * Dry run mode: Identifies and tallies defects without altering state.
+ * Remediation mode (dryRun: false): Automatically creates backup sheets, deduplicates,
+ * reconciles points, and fixes discrepancies safely.
+ */
+function auditPlatformData(dryRun) {
+  if (dryRun === undefined) dryRun = true;
+  const startTime = Date.now();
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+
+  const report = {
+    timestamp: new Date().toISOString(),
+    dryRun: dryRun,
+    status: 'COMPLETE',
+    summary: {
+      totalDefects: 0,
+      userDefects: 0,
+      eventIsolationDefects: 0,
+      duplicatePredictionDefects: 0,
+      scoringDefects: 0,
+      notificationDefects: 0
+    },
+    userAudit: { duplicateGroups: [], affectedUserIds: [] },
+    eventIsolationAudit: {
+      unknownRoundPredictions: [],
+      sprintTypeMismatches: [],
+      malformedRoundIds: []
+    },
+    duplicatePredictionsAudit: {
+      duplicateGroups: [],
+      totalDuplicates: 0
+    },
+    scoringAudit: {
+      unscoredCompletedPredictions: [],
+      orphanedScores: [],
+      scoreDivergences: [],
+      falseScoredStatus: []
+    },
+    notificationAudit: {
+      duplicateQueueKeys: []
+    },
+    remediation: {
+      backupSheetsCreated: [],
+      usersConsolidated: 0,
+      predictionsDeduplicated: 0,
+      scoresReconciled: 0,
+      notes: []
+    },
+    durationMs: 0
+  };
+
+  // 1. Audit Users
+  const userAuditRes = auditAndDeduplicateUsers(true);
+  if (userAuditRes && userAuditRes.duplicateGroups) {
+    report.userAudit.duplicateGroups = userAuditRes.duplicateGroups;
+    report.userAudit.affectedUserIds = userAuditRes.duplicateGroups.reduce(function(acc, g) {
+      return acc.concat(g.users.map(function(u) { return u.userId; }));
+    }, []);
+    report.summary.userDefects = report.userAudit.duplicateGroups.length;
+  }
+
+  // Load all relevant sheets
+  const rwSheet = ss.getSheetByName(SHEET_NAMES.RACE_WEEKENDS);
+  const rwRows = rwSheet ? rwSheet.getDataRange().getValues() : [];
+  const weekendMap = {};
+  for (let w = 1; w < rwRows.length; w++) {
+    const wid = String(rwRows[w][0] || '').trim();
+    if (wid) weekendMap[wid] = { weekendType: rwRows[w][7], name: rwRows[w][3] };
+  }
+
+  const prSheet = ss.getSheetByName(SHEET_NAMES.PREDICTION_ROUNDS);
+  const prRows = prSheet ? prSheet.getDataRange().getValues() : [];
+  const roundMap = {};
+  for (let r = 1; r < prRows.length; r++) {
+    const rid = String(prRows[r][0] || '').trim();
+    if (rid) {
+      roundMap[rid] = {
+        roundId: rid,
+        raceWeekendId: String(prRows[r][1] || '').trim(),
+        roundType: String(prRows[r][3] || '').trim(),
+        status: String(prRows[r][8] || '').trim()
+      };
+    }
+  }
+
+  const resSheet = ss.getSheetByName(SHEET_NAMES.RESULTS);
+  const resRows = resSheet ? resSheet.getDataRange().getValues() : [];
+  const resultMap = {};
+  for (let res = 1; res < resRows.length; res++) {
+    const rRound = String(resRows[res][1] || '').trim();
+    if (rRound) {
+      try {
+        resultMap[rRound] = typeof resRows[res][2] === 'string' ? JSON.parse(resRows[res][2] || '{}') : resRows[res][2];
+      } catch (e) {
+        resultMap[rRound] = null;
+      }
+    }
+  }
+
+  const scoreSheet = ss.getSheetByName(SHEET_NAMES.SCORES);
+  const scoreRows = scoreSheet ? scoreSheet.getDataRange().getValues() : [];
+  const scoreMap = {};
+  for (let s = 1; s < scoreRows.length; s++) {
+    const sId = String(scoreRows[s][0] || '').trim();
+    const sUid = String(scoreRows[s][1] || '').trim();
+    const sRid = String(scoreRows[s][2] || '').trim();
+    const sTotal = Number(scoreRows[s][4]) || 0;
+    const key = sUid + '__' + sRid;
+
+    if (!scoreMap[key]) {
+      scoreMap[key] = [];
+    }
+    scoreMap[key].push({
+      rowIndex: s + 1,
+      scoreId: sId,
+      userId: sUid,
+      roundId: sRid,
+      totalScore: sTotal
+    });
+
+    if (!roundMap[sRid]) {
+      report.scoringAudit.orphanedScores.push({ scoreId: sId, userId: sUid, roundId: sRid, reason: 'Round ID not registered in PredictionRounds' });
+    }
+  }
+
+  const predSheet = ss.getSheetByName(SHEET_NAMES.PREDICTIONS);
+  const predRows = predSheet ? predSheet.getDataRange().getValues() : [];
+  const predGrouping = {};
+
+  for (let p = 1; p < predRows.length; p++) {
+    const pid = String(predRows[p][0] || '').trim();
+    const pUid = String(predRows[p][1] || '').trim();
+    const pRid = String(predRows[p][2] || '').trim();
+    const pSubmittedAt = String(predRows[p][4] || '');
+    const pUpdatedAt = String(predRows[p][5] || pSubmittedAt || '');
+
+    let pData = null;
+    try {
+      pData = typeof predRows[p][3] === 'string' ? JSON.parse(predRows[p][3] || '{}') : predRows[p][3];
+    } catch (e) {
+      pData = null;
+    }
+
+    if (!pRid || pRid.indexOf('_') === -1) {
+      report.eventIsolationAudit.malformedRoundIds.push({ predictionId: pid, roundId: pRid });
+    } else if (!roundMap[pRid]) {
+      report.eventIsolationAudit.unknownRoundPredictions.push({ predictionId: pid, roundId: pRid });
+    } else {
+      const rInfo = roundMap[pRid];
+      const wInfo = weekendMap[rInfo.raceWeekendId];
+      if (wInfo && pRid.indexOf('_SPRINT_') !== -1 && wInfo.weekendType !== 'SPRINT') {
+        report.eventIsolationAudit.sprintTypeMismatches.push({
+          predictionId: pid,
+          roundId: pRid,
+          weekendId: rInfo.raceWeekendId,
+          weekendType: wInfo.weekendType
+        });
+      }
+    }
+
+    const groupKey = pUid + '__' + pRid;
+    if (!predGrouping[groupKey]) {
+      predGrouping[groupKey] = [];
+    }
+    predGrouping[groupKey].push({
+      rowIndex: p + 1,
+      predictionId: pid,
+      userId: pUid,
+      roundId: pRid,
+      predictionData: pData,
+      submittedAt: pSubmittedAt,
+      updatedAt: pUpdatedAt
+    });
+
+    if (roundMap[pRid] && roundMap[pRid].status === 'SCORED') {
+      const scores = scoreMap[groupKey];
+      if (!scores || scores.length === 0) {
+        report.scoringAudit.unscoredCompletedPredictions.push({
+          predictionId: pid,
+          userId: pUid,
+          roundId: pRid,
+          reason: 'Round is marked SCORED but prediction has no persisted score row'
+        });
+      } else if (resultMap[pRid] && pData) {
+        try {
+          const expected = computeScore(pData, resultMap[pRid]);
+          if (expected.totalScore !== scores[0].totalScore) {
+            report.scoringAudit.scoreDivergences.push({
+              predictionId: pid,
+              userId: pUid,
+              roundId: pRid,
+              persistedScore: scores[0].totalScore,
+              recalculatedScore: expected.totalScore
+            });
+          }
+        } catch (e) {}
+      }
+    }
+  }
+
+  Object.keys(predGrouping).forEach(function(key) {
+    const list = predGrouping[key];
+    if (list.length > 1) {
+      list.sort(function(a, b) { return new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime(); });
+      const canonical = list[0];
+      const obsolete = list.slice(1);
+      report.duplicatePredictionsAudit.duplicateGroups.push({
+        groupKey: key,
+        userId: canonical.userId,
+        roundId: canonical.roundId,
+        count: list.length,
+        canonicalPredictionId: canonical.predictionId,
+        obsoletePredictionIds: obsolete.map(function(o) { return o.predictionId; })
+      });
+      report.duplicatePredictionsAudit.totalDuplicates += (list.length - 1);
+    }
+  });
+
+  const ntfSheet = ss.getSheetByName(SHEET_NAMES.NOTIFICATION_QUEUE);
+  if (ntfSheet) {
+    const ntfRows = ntfSheet.getDataRange().getValues();
+    const seenKeys = {};
+    for (let n = 1; n < ntfRows.length; n++) {
+      const nKey = String(ntfRows[n][7] || '').trim();
+      if (nKey) {
+        if (seenKeys[nKey]) {
+          report.notificationAudit.duplicateQueueKeys.push({ rowIndex: n + 1, idempotencyKey: nKey });
+        } else {
+          seenKeys[nKey] = true;
+        }
+      }
+    }
+  }
+
+  report.summary.eventIsolationDefects = report.eventIsolationAudit.unknownRoundPredictions.length +
+    report.eventIsolationAudit.sprintTypeMismatches.length +
+    report.eventIsolationAudit.malformedRoundIds.length;
+  report.summary.duplicatePredictionDefects = report.duplicatePredictionsAudit.totalDuplicates;
+  report.summary.scoringDefects = report.scoringAudit.unscoredCompletedPredictions.length +
+    report.scoringAudit.orphanedScores.length +
+    report.scoringAudit.scoreDivergences.length;
+  report.summary.notificationDefects = report.notificationAudit.duplicateQueueKeys.length;
+  report.summary.totalDefects = report.summary.userDefects +
+    report.summary.eventIsolationDefects +
+    report.summary.duplicatePredictionDefects +
+    report.summary.scoringDefects +
+    report.summary.notificationDefects;
+
+  if (!dryRun) {
+    const ts = Utilities.formatDate(new Date(), 'UTC', "yyyyMMdd'_'HHmmss");
+
+    const sheetsToBackup = [SHEET_NAMES.USERS, SHEET_NAMES.PREDICTIONS, SHEET_NAMES.SCORES, SHEET_NAMES.RESULTS];
+    sheetsToBackup.forEach(function(sName) {
+      const src = ss.getSheetByName(sName);
+      if (src) {
+        const backupName = sName + '_Backup_' + ts;
+        const backupSheet = ss.insertSheet(backupName);
+        const data = src.getDataRange().getValues();
+        if (data.length > 0 && data[0].length > 0) {
+          backupSheet.getRange(1, 1, data.length, data[0].length).setValues(data);
+        }
+        report.remediation.backupSheetsCreated.push(backupName);
+      }
+    });
+
+    if (report.userAudit.duplicateGroups.length > 0) {
+      const userRemediationRes = auditAndDeduplicateUsers(false);
+      report.remediation.usersConsolidated = userRemediationRes.consolidatedCount || 0;
+      report.remediation.notes.push('Consolidated ' + report.remediation.usersConsolidated + ' duplicate user records.');
+    }
+
+    if (report.duplicatePredictionsAudit.duplicateGroups.length > 0 && predSheet) {
+      const obsoleteRowIndices = [];
+      report.duplicatePredictionsAudit.duplicateGroups.forEach(function(g) {
+        const list = predGrouping[g.groupKey];
+        if (list && list.length > 1) {
+          for (let oi = 1; oi < list.length; oi++) {
+            obsoleteRowIndices.push(list[oi].rowIndex);
+          }
+        }
+      });
+
+      obsoleteRowIndices.sort(function(a, b) { return b - a; });
+      obsoleteRowIndices.forEach(function(rIdx) {
+        predSheet.deleteRow(rIdx);
+      });
+      report.remediation.predictionsDeduplicated = obsoleteRowIndices.length;
+      report.remediation.notes.push('Pruned ' + obsoleteRowIndices.length + ' obsolete duplicate prediction rows.');
+    }
+
+    const uSheet = ss.getSheetByName(SHEET_NAMES.USERS);
+    const freshScoresSheet = ss.getSheetByName(SHEET_NAMES.SCORES);
+    if (uSheet && freshScoresSheet) {
+      const fScoreRows = freshScoresSheet.getDataRange().getValues();
+      const userPointsSum = {};
+      for (let fs = 1; fs < fScoreRows.length; fs++) {
+        const uid = String(fScoreRows[fs][1] || '').trim();
+        const pts = Number(fScoreRows[fs][4]) || 0;
+        if (uid) {
+          userPointsSum[uid] = (userPointsSum[uid] || 0) + pts;
+        }
+      }
+
+      const uRows = uSheet.getDataRange().getValues();
+      const uHeaders = uRows[0];
+      const ptsColIdx = uHeaders.indexOf('totalPoints') !== -1 ? uHeaders.indexOf('totalPoints') : 8;
+
+      let reconciledUsers = 0;
+      for (let ur = 1; ur < uRows.length; ur++) {
+        const uid = String(uRows[ur][0] || '').trim();
+        const currentPts = Number(uRows[ur][ptsColIdx]) || 0;
+        const verifiedPts = userPointsSum[uid] || 0;
+        if (currentPts !== verifiedPts) {
+          uSheet.getRange(ur + 1, ptsColIdx + 1).setValue(verifiedPts);
+          reconciledUsers++;
+        }
+      }
+      report.remediation.scoresReconciled = reconciledUsers;
+      report.remediation.notes.push('Reconciled total points for ' + reconciledUsers + ' user accounts with authoritative verified scores.');
+    }
+  }
+
+  report.durationMs = Date.now() - startTime;
+  Logger.log('[PLATFORM_AUDIT_COMPLETE] DryRun: ' + dryRun + ', Total Defects: ' + report.summary.totalDefects + ', Duration: ' + report.durationMs + 'ms');
+  return report;
 }
 

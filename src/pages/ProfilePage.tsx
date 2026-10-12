@@ -71,22 +71,42 @@ export const ProfilePage: React.FC = () => {
       // Find latest scored prediction from history
       const scoredPredictions = history.filter(h => h.score && (typeof h.score.totalScore === 'number' || typeof h.pointsEarned === 'number'));
       const latestScored = scoredPredictions[0];
-      const eventName = latestScored?.weekend?.raceName || latestScored?.round?.title || 'Azerbaijan Grand Prix';
-      const pointsEarned = latestScored?.score?.totalScore ?? latestScored?.pointsEarned ?? profileUser.totalPoints ?? 0;
 
-      const canvas = generateUserResultStoryCanvas({
-        username: profileUser.username,
-        eventName,
-        pointsEarned,
-        rank: profileUser.seasonRank,
-        season: 2026,
-        totalPoints: profileUser.totalPoints,
-      });
+      if (latestScored) {
+        const eventName = latestScored.weekend?.raceName || latestScored.round?.title || 'Grand Prix Prediction';
+        const pointsEarned = latestScored.score?.totalScore ?? latestScored.pointsEarned ?? 0;
+        const canvas = generateUserResultStoryCanvas({
+          username: profileUser.username,
+          eventName,
+          pointsEarned,
+          rank: profileUser.seasonRank,
+          season: 2026,
+          totalPoints: profileUser.totalPoints,
+          isSeasonSummary: false,
+        });
 
-      setShareModalCanvas(canvas);
-      setShareModalTitle('Share My Result Story');
-      setShareModalFilename(`the-grid-${profileUser.username}-result.png`);
-      setShareModalText(`I scored ${pointsEarned >= 0 ? `+${pointsEarned}` : pointsEarned} PTS on The Grid! Check out my racer telemetry!`);
+        setShareModalCanvas(canvas);
+        setShareModalTitle(`Share ${eventName} Result`);
+        setShareModalFilename(`the-grid-${profileUser.username}-result.png`);
+        setShareModalText(`I scored +${pointsEarned} PTS in the ${eventName} on The Grid!`);
+      } else {
+        // No scored predictions yet: share authentic Championship Standing summary
+        const canvas = generateUserResultStoryCanvas({
+          username: profileUser.username,
+          eventName: '2026 World Championship',
+          pointsEarned: profileUser.totalPoints || 0,
+          rank: profileUser.seasonRank || 1,
+          season: 2026,
+          totalPoints: profileUser.totalPoints || 0,
+          racesParticipated: profileUser.racesParticipated || 0,
+          isSeasonSummary: true,
+        });
+
+        setShareModalCanvas(canvas);
+        setShareModalTitle('Share My Championship Standing');
+        setShareModalFilename(`the-grid-${profileUser.username}-standing.png`);
+        setShareModalText(`I am ranked P${profileUser.seasonRank || 1} with ${profileUser.totalPoints || 0} PTS in the 2026 Championship on The Grid!`);
+      }
       setIsShareModalOpen(true);
     } catch (e: any) {
       showToast(e.message || 'Failed to generate story', 'error');
@@ -105,6 +125,7 @@ export const ProfilePage: React.FC = () => {
         rank: profileUser.seasonRank,
         season: 2026,
         totalPoints: profileUser.totalPoints,
+        isSeasonSummary: false,
       });
 
       setShareModalCanvas(canvas);

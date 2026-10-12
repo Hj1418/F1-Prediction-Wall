@@ -9,6 +9,7 @@ import {
   LeaderboardEntry,
   Achievement,
   Driver,
+  UserRole,
 } from '../types';
 import {
   F1_DRIVERS_2026,
@@ -22,7 +23,7 @@ import {
   INITIAL_ACHIEVEMENTS,
 } from './mockData';
 import { ScoringEngine } from './scoringEngine';
-import { isQualificationPredictionRound } from './schedule/predictionRoundGenerator';
+import { isQualificationPredictionRound, generatePredictionRounds } from './schedule/predictionRoundGenerator';
 
 const STORAGE_KEYS = {
   USERS: 'f1_pred_users_v3',
@@ -171,6 +172,23 @@ export class MockApiService {
   }
 
   public async getPredictionRounds(raceWeekendId?: string): Promise<PredictionRound[]> {
+    if (raceWeekendId) {
+      if (!this.rounds.some(r => r.raceWeekendId === raceWeekendId)) {
+        const foundW = this.weekends.find(w => w.raceWeekendId === raceWeekendId || w.id === raceWeekendId);
+        if (foundW) {
+          const gen = generatePredictionRounds(foundW).filter(r => !isQualificationPredictionRound(r));
+          this.rounds.push(...gen);
+        }
+      }
+    } else if (this.rounds.length < 10) {
+      for (const w of this.weekends) {
+        if (!this.rounds.some(r => r.raceWeekendId === w.raceWeekendId)) {
+          const gen = generatePredictionRounds(w).filter(r => !isQualificationPredictionRound(r));
+          this.rounds.push(...gen);
+        }
+      }
+    }
+
     let list = this.rounds.filter(r => !isQualificationPredictionRound(r));
     if (raceWeekendId) {
       list = list.filter(r => r.raceWeekendId === raceWeekendId);
@@ -251,9 +269,15 @@ export class MockApiService {
     }
 
     const now = new Date();
+    if (round.status === 'UPCOMING' || (round.opensAt && now.getTime() < new Date(round.opensAt).getTime())) {
+      throw new Error(`Predictions are not open yet for ${round.title}. Entry opens on ${round.opensAt}.`);
+    }
+
     const isTestOrAudit = payload.userId.startsWith('user_audit') || payload.userId.startsWith('test_');
-    if (!isTestOrAudit && now.getTime() > new Date(round.closesAt).getTime()) {
-      throw new Error('Predictions are LOCKED. Deadline has passed.');
+    if (!isTestOrAudit) {
+      if (now.getTime() > new Date(round.closesAt).getTime() || round.status === 'LOCKED' || round.status === 'SCORED' || round.status === 'COMPLETED') {
+        throw new Error('Predictions are LOCKED. Deadline has passed.');
+      }
     }
 
     const existingIndex = this.predictions.findIndex(
@@ -283,6 +307,14 @@ export class MockApiService {
       this.persistAll();
       return { ...newPred };
     }
+  }
+
+  public async getScores(): Promise<RoundScore[]> {
+    return [...this.scores];
+  }
+
+  public async getAllScores(): Promise<RoundScore[]> {
+    return [...this.scores];
   }
 
   public async getOfficialResult(roundId: string): Promise<SessionResult | null> {
@@ -327,50 +359,111 @@ export class MockApiService {
     }
 
     if (type === 'weekend' && targetId) {
-      const weekendRounds = this.rounds.filter(r => r.raceWeekendId === targetId).map(r => r.roundId);
-      const userWeekendScores: Record<string, { total: number; roundScores: Record<string, number> }> = {};
+      const weekendRounds = this.rounds.filter(r => r.raceWeekendId === targetId || (r as any).weekendId === targetId);
+      const sprintRoundIds = new Set(
+        weekendRounds
+          .filter(r => r.roundType === 'SPRINT' || r.roundId.toUpperCase().includes('SPRINT'))
+          .map(r => r.roundId)
+      );
+      const gpRoundIds = new Set(
+        weekendRounds
+          .filter(r => r.roundType === 'GRAND_PRIX' || r.roundType === 'RACE' || (!sprintRoundIds.has(r.roundId) && !r.roundType.includes('QUALIFYING')))
+          .map(r => r.roundId)
+      );
+      const allRoundIds = weekendRounds.map(r => r.roundId);
+
+      const userWeekendScores: Record<
+        string,
+        {
+          total: number;
+          sprintPoints: number;
+          grandPrixPoints: number;
+          roundScores: Record<string, number>;
+          exactP1: number;
+          perfectPodium: number;
+        }
+      > = {};
 
       this.scores
-        .filter(s => weekendRounds.includes(s.roundId))
+        .filter(s => allRoundIds.includes(s.roundId))
         .forEach(s => {
           if (!userWeekendScores[s.userId]) {
-            userWeekendScores[s.userId] = { total: 0, roundScores: {} };
+            userWeekendScores[s.userId] = {
+              total: 0,
+              sprintPoints: 0,
+              grandPrixPoints: 0,
+              roundScores: {},
+              exactP1: 0,
+              perfectPodium: 0,
+            };
           }
           userWeekendScores[s.userId].total += s.totalScore;
           userWeekendScores[s.userId].roundScores[s.roundId] = s.totalScore;
+          if (sprintRoundIds.has(s.roundId)) {
+            userWeekendScores[s.userId].sprintPoints += s.totalScore;
+          } else if (gpRoundIds.has(s.roundId)) {
+            userWeekendScores[s.userId].grandPrixPoints += s.totalScore;
+          } else {
+            userWeekendScores[s.userId].grandPrixPoints += s.totalScore;
+          }
+          if (s.breakdown?.p1 === 15) userWeekendScores[s.userId].exactP1++;
+          if ((s.breakdown?.perfectPodiumBonus || 0) > 0) userWeekendScores[s.userId].perfectPodium++;
         });
 
-      const entries: LeaderboardEntry[] = Object.keys(userWeekendScores).map(uid => {
-        const u = this.users.find(usr => usr.userId === uid);
-        const publicUsername = u?.username || 'Grid User';
-        return {
-          rank: 0,
-          previousRank: 0,
-          rankChange: 0,
-          userId: uid,
-          username: publicUsername,
-          displayName: publicUsername,
-          avatarUrl: u?.avatarUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80',
-          favouriteDriver: u?.favouriteDriver || 'norris',
-          totalPoints: userWeekendScores[uid].total,
-          roundScores: userWeekendScores[uid].roundScores,
-          racesParticipated: Object.keys(userWeekendScores[uid].roundScores).length,
-          avgPointsPerRace: Math.round(
-            userWeekendScores[uid].total / (Object.keys(userWeekendScores[uid].roundScores).length || 1)
-          ),
-          exactP1Count: 0,
-          perfectPodiumCount: 0,
-        };
+      // Deduplicate users by canonical identity
+      const uniqueUserMap = new Map<string, User>();
+      for (const u of this.users) {
+        const normUsername = (u.username || '').toLowerCase().trim();
+        const normEmail = (u.email || '').toLowerCase().trim();
+        const dedupKey = normUsername || normEmail || u.userId;
+        if (!uniqueUserMap.has(dedupKey)) {
+          uniqueUserMap.set(dedupKey, u);
+        }
+      }
+
+      const deduplicatedUsers = Array.from(uniqueUserMap.values());
+      const entries: LeaderboardEntry[] = [];
+
+      for (const u of deduplicatedUsers) {
+        const uScore = userWeekendScores[u.userId];
+        if (uScore && uScore.total > 0) {
+          const publicUsername = u.username || 'Grid User';
+          entries.push({
+            rank: 0,
+            previousRank: 0,
+            rankChange: 0,
+            userId: u.userId,
+            username: publicUsername,
+            displayName: publicUsername,
+            avatarUrl: u.avatarUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80',
+            favouriteDriver: u.favouriteDriver || 'norris',
+            totalPoints: uScore.total,
+            sprintPoints: uScore.sprintPoints,
+            grandPrixPoints: uScore.grandPrixPoints,
+            roundScores: uScore.roundScores,
+            racesParticipated: Object.keys(uScore.roundScores).length,
+            avgPointsPerRace: uScore.total,
+            exactP1Count: uScore.exactP1,
+            perfectPodiumCount: uScore.perfectPodium,
+          });
+        }
+      }
+
+      // Deterministic sort: totalPoints DESC, exactP1Count DESC, perfectPodiumCount DESC, username ASC
+      entries.sort((a, b) => {
+        if (b.totalPoints !== a.totalPoints) return b.totalPoints - a.totalPoints;
+        if (b.exactP1Count !== a.exactP1Count) return b.exactP1Count - a.exactP1Count;
+        if (b.perfectPodiumCount !== a.perfectPodiumCount) return b.perfectPodiumCount - a.perfectPodiumCount;
+        return a.username.localeCompare(b.username);
       });
 
-      entries.sort((a, b) => b.totalPoints - a.totalPoints);
       return entries.map((item, idx) => ({ ...item, rank: idx + 1 }));
     }
 
     // Default: Season Leaderboard - Aggregated directly from authoritative scores (excluding isolated test rounds)
     const userSeasonScores: Record<string, { total: number; roundScores: Record<string, number>; exactP1: number; perfectPodium: number }> = {};
     this.scores.filter(s => !s.roundId.startsWith('TEST_')).forEach(s => {
-      const canonicalRoundId = s.roundId === '2026_17_RACE_PREDICTION' ? '2026_15_RACE_PREDICTION' : s.roundId;
+      const canonicalRoundId = s.roundId;
       if (!userSeasonScores[s.userId]) {
         userSeasonScores[s.userId] = { total: 0, roundScores: {}, exactP1: 0, perfectPodium: 0 };
       }
@@ -388,7 +481,31 @@ export class MockApiService {
       }
     });
 
-    const entries: LeaderboardEntry[] = this.users.map(u => {
+    // Deduplicate by canonical user identity / normalized username
+    const uniqueUserMap = new Map<string, User>();
+    for (const u of this.users) {
+      const normUsername = (u.username || '').toLowerCase().trim();
+      const normEmail = (u.email || '').toLowerCase().trim();
+      const dedupKey = normUsername || normEmail || u.userId;
+      
+      const existing = uniqueUserMap.get(dedupKey);
+      if (!existing) {
+        uniqueUserMap.set(dedupKey, u);
+      } else {
+        // Merge profile info: prefer non-empty username, avatarUrl, admin role, higher points
+        const preferredUser: User = {
+          ...existing,
+          username: existing.username || u.username,
+          avatarUrl: existing.avatarUrl || u.avatarUrl,
+          favouriteDriver: existing.favouriteDriver || u.favouriteDriver,
+          role: (existing.role === 'admin' || u.role === 'admin' ? 'admin' : 'user') as UserRole,
+        };
+        uniqueUserMap.set(dedupKey, preferredUser);
+      }
+    }
+
+    const deduplicatedUsers = Array.from(uniqueUserMap.values());
+    const entries: LeaderboardEntry[] = deduplicatedUsers.map(u => {
       const scoreData = userSeasonScores[u.userId];
       const totalPoints = scoreData ? scoreData.total : u.totalPoints;
       const racesParticipated = scoreData ? Object.keys(scoreData.roundScores).length : (u.racesParticipated || 0);
@@ -413,7 +530,13 @@ export class MockApiService {
       };
     });
 
-    entries.sort((a, b) => b.totalPoints - a.totalPoints);
+    // Deterministic tie-breaking sort
+    entries.sort((a, b) => {
+      if (b.totalPoints !== a.totalPoints) return b.totalPoints - a.totalPoints;
+      if (b.exactP1Count !== a.exactP1Count) return b.exactP1Count - a.exactP1Count;
+      if (b.perfectPodiumCount !== a.perfectPodiumCount) return b.perfectPodiumCount - a.perfectPodiumCount;
+      return a.username.localeCompare(b.username);
+    });
     return entries.map((item, idx) => {
       const currentRank = idx + 1;
       const rankChange = item.previousRank - currentRank;
@@ -499,12 +622,20 @@ export class MockApiService {
 
   public async googleLogin(payload: { email: string; displayName?: string; photoUrl?: string; accessToken?: string; username?: string }): Promise<User> {
     const cleanEmail = payload.email.toLowerCase().trim();
-    const match = this.users.find(u => u.email.toLowerCase() === cleanEmail);
+    const cleanUsername = (payload.username || '').toLowerCase().trim();
+    const match = this.users.find(
+      u =>
+        (u.email && u.email.toLowerCase().trim() === cleanEmail) ||
+        (cleanUsername && u.username && u.username.toLowerCase().trim() === cleanUsername)
+    );
     if (match) {
       if ((!match.username || match.username.trim() === '') && payload.username) {
         match.username = payload.username.trim();
-        this.persistAll();
       }
+      if (payload.photoUrl && (!match.avatarUrl || !match.avatarUrl.trim())) {
+        match.avatarUrl = payload.photoUrl;
+      }
+      this.persistAll();
       return { ...match, isNewUser: false };
     }
 
@@ -710,67 +841,54 @@ export class MockApiService {
   }
 
   public async adminSubmitResult(roundId: string, resultData: Record<string, any>): Promise<SessionResult> {
-    const isAzerbaijan =
-      roundId === '2026_15_RACE_PREDICTION' ||
-      roundId === '2026_17_RACE_PREDICTION' ||
-      roundId.toLowerCase().includes('azerbaijan');
-
-    const targetRoundIds = isAzerbaijan
-      ? ['2026_15_RACE_PREDICTION', '2026_17_RACE_PREDICTION']
-      : [roundId];
-
-    let primaryResult: SessionResult | null = null;
     const nowIso = new Date().toISOString();
+    const existingIndex = this.results.findIndex(r => r.roundId === roundId);
+    let primaryResult: SessionResult;
 
-    targetRoundIds.forEach(targetId => {
-      const existingIndex = this.results.findIndex(r => r.roundId === targetId);
-      if (existingIndex >= 0) {
-        this.results[existingIndex] = {
-          ...this.results[existingIndex],
-          resultData,
-          publishedAt: nowIso,
-        };
-        if (!primaryResult) primaryResult = this.results[existingIndex];
-      } else {
-        const newRes: SessionResult = {
-          resultId: 'res_' + Date.now() + '_' + targetId,
-          roundId: targetId,
-          resultData,
-          publishedAt: nowIso,
-        };
-        this.results.push(newRes);
-        if (!primaryResult) primaryResult = newRes;
-      }
-    });
+    if (existingIndex >= 0) {
+      this.results[existingIndex] = {
+        ...this.results[existingIndex],
+        resultData,
+        publishedAt: nowIso,
+      };
+      primaryResult = this.results[existingIndex];
+    } else {
+      const newRes: SessionResult = {
+        resultId: 'res_' + Date.now() + '_' + roundId,
+        roundId,
+        resultData,
+        publishedAt: nowIso,
+      };
+      this.results.push(newRes);
+      primaryResult = newRes;
+    }
 
     this.persistAll();
-    return primaryResult!;
+    return primaryResult;
   }
 
   public async adminCalculateScores(roundId: string): Promise<{
     roundId: string;
     scoredCount: number;
+    newlyScored: number;
+    updatedScored: number;
+    failedCount: number;
+    failedRecords: Array<{ userId: string; reason: string }>;
+    emailsQueued: number;
+    durationMs: number;
     scores: RoundScore[];
   }> {
-    const isAzerbaijan =
-      roundId === '2026_15_RACE_PREDICTION' ||
-      roundId === '2026_17_RACE_PREDICTION' ||
-      roundId.toLowerCase().includes('azerbaijan');
-
-    const targetRoundIds = isAzerbaijan
-      ? ['2026_15_RACE_PREDICTION', '2026_17_RACE_PREDICTION']
-      : [roundId];
-
-    const round = this.rounds.find(r => targetRoundIds.includes(r.roundId));
+    const startTime = Date.now();
+    const round = this.rounds.find(r => r.roundId === roundId);
     if (!round) throw new Error('Round not found.');
 
-    const result = this.results.find(r => targetRoundIds.includes(r.roundId));
+    const result = this.results.find(r => r.roundId === roundId);
     if (!result) throw new Error('Cannot calculate scores: Official session result has not been submitted yet.');
 
-    // Find all predictions for target round IDs
-    const matchedPreds = this.predictions.filter(p => targetRoundIds.includes(p.roundId));
+    // Find all predictions strictly for this roundId
+    const matchedPreds = this.predictions.filter(p => p.roundId === roundId);
 
-    // Deduplicate by userId: if a user has predictions under both IDs or multiple submissions, take the latest
+    // Deduplicate by userId: latest prediction wins
     const userLatestPredMap = new Map<string, Prediction>();
     matchedPreds.forEach(p => {
       const existing = userLatestPredMap.get(p.userId);
@@ -781,13 +899,15 @@ export class MockApiService {
 
     const activePredictions = Array.from(userLatestPredMap.values());
     const calculatedScores: RoundScore[] = [];
+    let newlyScored = 0;
+    let updatedScored = 0;
 
     activePredictions.forEach(pred => {
       const calc = ScoringEngine.calculate(pred.predictionData, result.resultData, round.scoringRules);
 
-      // Idempotency: find existing score for this user on any of targetRoundIds
+      // Idempotency: find existing score for this user on this roundId
       const existingScoreIdx = this.scores.findIndex(
-        s => targetRoundIds.includes(s.roundId) && s.userId === pred.userId
+        s => s.roundId === roundId && s.userId === pred.userId
       );
 
       const scoreObj: RoundScore = {
@@ -801,38 +921,41 @@ export class MockApiService {
 
       if (existingScoreIdx >= 0) {
         this.scores[existingScoreIdx] = scoreObj;
+        updatedScored++;
       } else {
         this.scores.push(scoreObj);
+        newlyScored++;
       }
       calculatedScores.push(scoreObj);
     });
 
-    // Update round status to SCORED for all matching target rounds
-    this.rounds.forEach(r => {
-      if (targetRoundIds.includes(r.roundId)) {
-        r.status = 'SCORED';
-      }
-    });
+    // Update round status to SCORED
+    const roundIdx = this.rounds.findIndex(r => r.roundId === roundId);
+    if (roundIdx >= 0) {
+      this.rounds[roundIdx].status = 'SCORED';
+    }
 
     // Recalculate season total points & ranks for each user
     this.recalculateSeasonStats();
 
-    // Enqueue result notification emails idempotently
+    // Enqueue result notification emails idempotently with dynamic event name
+    const gpName = (round.title || 'Grand Prix').replace(/\s+(Race\s+)?Prediction(\s+Round)?$/i, '').trim();
+    let emailsQueued = 0;
     calculatedScores.forEach(scoreObj => {
       const user = this.users.find(u => u.userId === scoreObj.userId);
       const email = user?.email;
       const name = user?.displayName || user?.username || scoreObj.userId;
       if (email) {
         const idempotencyKey = `RESULT_${roundId}_${scoreObj.userId}`;
-        this.enqueueNotification({
+        const queued = this.enqueueNotification({
           recipientEmail: email,
           recipientName: name,
           notificationType: 'PREDICTION_RESULT',
-          subject: `Official Race Results: ${scoreObj.totalScore} PTS Scored — Azerbaijan Grand Prix 🏆`,
+          subject: `Official Race Results: ${scoreObj.totalScore} PTS Scored — ${gpName} 🏆`,
           templateData: {
             roundId,
-            roundTitle: 'Azerbaijan Grand Prix Race Prediction',
-            raceName: 'Azerbaijan Grand Prix',
+            roundTitle: round.title,
+            raceName: gpName,
             score: scoreObj.totalScore,
             breakdown: scoreObj.breakdown,
             userPoints: user ? user.totalPoints : scoreObj.totalScore,
@@ -840,6 +963,7 @@ export class MockApiService {
           },
           idempotencyKey,
         });
+        if (queued) emailsQueued++;
       }
     });
 
@@ -848,6 +972,12 @@ export class MockApiService {
     return {
       roundId,
       scoredCount: calculatedScores.length,
+      newlyScored,
+      updatedScored,
+      failedCount: 0,
+      failedRecords: [],
+      emailsQueued,
+      durationMs: Date.now() - startTime,
       scores: calculatedScores,
     };
   }
@@ -896,22 +1026,13 @@ export class MockApiService {
   }
 
   public async publishRaceResult(roundId: string): Promise<{ success: boolean; roundId: string; status: string }> {
-    const isAzerbaijan =
-      roundId === '2026_15_RACE_PREDICTION' ||
-      roundId === '2026_17_RACE_PREDICTION' ||
-      roundId.toLowerCase().includes('azerbaijan');
-
-    const targetRoundIds = isAzerbaijan
-      ? ['2026_15_RACE_PREDICTION', '2026_17_RACE_PREDICTION']
-      : [roundId];
-
     this.rounds.forEach(r => {
-      if (targetRoundIds.includes(r.roundId)) {
+      if (r.roundId === roundId) {
         r.status = 'SCORED';
       }
     });
     this.results.forEach(res => {
-      if (targetRoundIds.includes(res.roundId)) {
+      if (res.roundId === roundId) {
         res.status = 'PUBLISHED';
         res.publishedAt = new Date().toISOString();
       }
@@ -921,21 +1042,12 @@ export class MockApiService {
   }
 
   public getScoringTelemetry(roundId: string) {
-    const isAzerbaijan =
-      roundId === '2026_15_RACE_PREDICTION' ||
-      roundId === '2026_17_RACE_PREDICTION' ||
-      roundId.toLowerCase().includes('azerbaijan');
-
-    const targetRoundIds = isAzerbaijan
-      ? ['2026_15_RACE_PREDICTION', '2026_17_RACE_PREDICTION']
-      : [roundId];
-
-    const matchedPreds = this.predictions.filter(p => targetRoundIds.includes(p.roundId));
+    const matchedPreds = this.predictions.filter(p => p.roundId === roundId);
     // Unique users who locked
     const uniqueUserIds = new Set(matchedPreds.map(p => p.userId));
     const lockedCount = uniqueUserIds.size;
 
-    const roundScores = this.scores.filter(s => targetRoundIds.includes(s.roundId));
+    const roundScores = this.scores.filter(s => s.roundId === roundId);
     const scoredUserIds = new Set(roundScores.map(s => s.userId));
     const scoredCount = scoredUserIds.size;
 
@@ -944,15 +1056,15 @@ export class MockApiService {
 
     const resultNotes = this.notifications.filter(
       n => n.notificationType === 'PREDICTION_RESULT' &&
-      targetRoundIds.some(tr => n.idempotencyKey.includes(tr) || n.templateData?.roundId === tr)
+      (n.idempotencyKey.includes(roundId) || n.templateData?.roundId === roundId)
     );
 
     const emailsQueued = resultNotes.length;
     const emailsSent = resultNotes.filter(n => n.status === 'SENT').length;
 
-    const officialResult = this.results.find(r => targetRoundIds.includes(r.roundId)) || null;
+    const officialResult = this.results.find(r => r.roundId === roundId) || null;
 
-    const round = this.rounds.find(r => targetRoundIds.includes(r.roundId));
+    const round = this.rounds.find(r => r.roundId === roundId);
     let status: 'RESULTS READY' | 'SCORED' | 'PUBLISHED' = 'RESULTS READY';
     if (round?.status === 'SCORED' && officialResult) {
       status = 'PUBLISHED';
@@ -976,9 +1088,8 @@ export class MockApiService {
 
   public async getAdminPredictions(roundId?: string): Promise<Prediction[]> {
     if (roundId) {
-      const isAzerbaijan = roundId === '2026_15_RACE_PREDICTION' || roundId === '2026_17_RACE_PREDICTION';
       return this.predictions
-        .filter(p => isAzerbaijan ? (p.roundId === '2026_15_RACE_PREDICTION' || p.roundId === '2026_17_RACE_PREDICTION') : p.roundId === roundId)
+        .filter(p => p.roundId === roundId)
         .map(p => ({ ...p }));
     }
     return this.predictions.map(p => ({ ...p }));
@@ -989,7 +1100,7 @@ export class MockApiService {
       const userScores = this.scores.filter(s => s.userId === user.userId && !s.roundId.startsWith('TEST_'));
       const canonicalScoresMap = new Map<string, RoundScore>();
       userScores.forEach(s => {
-        const canonicalId = s.roundId === '2026_17_RACE_PREDICTION' ? '2026_15_RACE_PREDICTION' : s.roundId;
+        const canonicalId = s.roundId;
         const existing = canonicalScoresMap.get(canonicalId);
         if (!existing || s.totalScore > existing.totalScore) {
           canonicalScoresMap.set(canonicalId, s);
@@ -1035,6 +1146,362 @@ export class MockApiService {
 
     setStored(STORAGE_KEYS.USERS, this.users);
   }
+
+  public async auditAndDeduplicateUsers(dryRun: boolean = true) {
+    const groups: User[][] = [];
+    const visited = new Set<string>();
+
+    for (let i = 0; i < this.users.length; i++) {
+      if (visited.has(this.users[i].userId)) continue;
+      const group = [this.users[i]];
+      visited.add(this.users[i].userId);
+
+      for (let j = 0; j < this.users.length; j++) {
+        if (i === j || visited.has(this.users[j].userId)) continue;
+        const a = this.users[i];
+        const b = this.users[j];
+        const matchEmail = Boolean(a.email && b.email && a.email.toLowerCase().trim() === b.email.toLowerCase().trim());
+        const matchUsername = Boolean(a.username && b.username && a.username.toLowerCase().trim() === b.username.toLowerCase().trim());
+        if (matchEmail || matchUsername) {
+          group.push(b);
+          visited.add(b.userId);
+        }
+      }
+      if (group.length > 1) {
+        groups.push(group);
+      }
+    }
+
+    const auditReport = groups.map(group => {
+      const best = [...group].sort((a, b) => {
+        let scoreA = (a.avatarUrl ? 50 : 0) + (a.role === 'admin' ? 10 : 0) + a.totalPoints;
+        let scoreB = (b.avatarUrl ? 50 : 0) + (b.role === 'admin' ? 10 : 0) + b.totalPoints;
+        return scoreB - scoreA;
+      })[0];
+      const secondaries = group.filter(u => u.userId !== best.userId);
+      return {
+        canonicalUserId: best.userId,
+        canonicalUsername: best.username,
+        canonicalEmail: best.email,
+        mergedUserIds: secondaries.map(s => s.userId),
+        recordsInGroup: group
+      };
+    });
+
+    if (dryRun) {
+      return {
+        success: true,
+        dryRun: true,
+        duplicateGroupsFound: groups.length,
+        auditReport,
+        message: `Dry run completed. Found ${groups.length} duplicate group(s).`
+      };
+    }
+
+    for (const item of auditReport) {
+      const canonical = this.users.find(u => u.userId === item.canonicalUserId);
+      if (!canonical) continue;
+      for (const secId of item.mergedUserIds) {
+        this.predictions.forEach(p => {
+          if (p.userId === secId) p.userId = canonical.userId;
+        });
+        this.scores.forEach(s => {
+          if (s.userId === secId) s.userId = canonical.userId;
+        });
+      }
+      this.users = this.users.filter(u => !item.mergedUserIds.includes(u.userId));
+    }
+    this.persistAll();
+
+    return {
+      success: true,
+      dryRun: false,
+      duplicateGroupsConsolidated: groups.length,
+      auditReport
+    };
+  }
+
+  /**
+   * Universal Platform-Wide Prediction Integrity & Reliability Auditor
+   */
+  public async auditPlatformData(dryRun: boolean = true): Promise<PlatformAuditReport> {
+    const startTime = Date.now();
+
+    const report: PlatformAuditReport = {
+      timestamp: new Date().toISOString(),
+      dryRun,
+      status: 'COMPLETE',
+      summary: {
+        totalDefects: 0,
+        userDefects: 0,
+        eventIsolationDefects: 0,
+        duplicatePredictionDefects: 0,
+        scoringDefects: 0,
+        notificationDefects: 0,
+      },
+      userAudit: { duplicateGroups: [], affectedUserIds: [] },
+      eventIsolationAudit: {
+        unknownRoundPredictions: [],
+        sprintTypeMismatches: [],
+        malformedRoundIds: [],
+      },
+      duplicatePredictionsAudit: {
+        duplicateGroups: [],
+        totalDuplicates: 0,
+      },
+      scoringAudit: {
+        unscoredCompletedPredictions: [],
+        orphanedScores: [],
+        scoreDivergences: [],
+        falseScoredStatus: [],
+      },
+      notificationAudit: {
+        duplicateQueueKeys: [],
+      },
+      remediation: {
+        backupSheetsCreated: [],
+        usersConsolidated: 0,
+        predictionsDeduplicated: 0,
+        scoresReconciled: 0,
+        notes: [],
+      },
+      durationMs: 0,
+    };
+
+    // 1. Audit Users
+    const userRes = await this.auditAndDeduplicateUsers(true);
+    if (userRes && userRes.auditReport) {
+      report.userAudit.duplicateGroups = userRes.auditReport;
+      const affIds: string[] = [];
+      userRes.auditReport.forEach((g: any) => {
+        affIds.push(g.canonicalUserId);
+        affIds.push(...g.mergedUserIds);
+      });
+      report.userAudit.affectedUserIds = Array.from(new Set(affIds));
+      report.summary.userDefects = userRes.auditReport.length;
+    }
+
+    // 2. Audit Event Isolation & Unknown rounds
+    const knownRoundIds = new Set(this.rounds.map(r => r.roundId));
+    const roundMap = new Map(this.rounds.map(r => [r.roundId, r]));
+    const weekendMap = new Map(this.weekends.map(w => [w.raceWeekendId || w.id, w]));
+
+    // Group predictions by `${userId}__${roundId}`
+    const predGrouping = new Map<string, Prediction[]>();
+
+    this.predictions.forEach(p => {
+      if (!p.roundId || !p.roundId.includes('_')) {
+        report.eventIsolationAudit.malformedRoundIds.push({
+          predictionId: p.predictionId,
+          roundId: p.roundId,
+        });
+      } else if (!knownRoundIds.has(p.roundId)) {
+        report.eventIsolationAudit.unknownRoundPredictions.push({
+          predictionId: p.predictionId,
+          roundId: p.roundId,
+        });
+      } else {
+        const rInfo = roundMap.get(p.roundId);
+        if (rInfo) {
+          const wInfo = weekendMap.get(rInfo.raceWeekendId);
+          if (wInfo && p.roundId.includes('_SPRINT_') && wInfo.weekendType !== 'SPRINT') {
+            report.eventIsolationAudit.sprintTypeMismatches.push({
+              predictionId: p.predictionId,
+              roundId: p.roundId,
+              weekendId: rInfo.raceWeekendId,
+              weekendType: wInfo.weekendType,
+            });
+          }
+        }
+      }
+
+      const key = `${p.userId}__${p.roundId}`;
+      const existing = predGrouping.get(key) || [];
+      existing.push(p);
+      predGrouping.set(key, existing);
+
+      // Scoring integrity check
+      const rInfo = roundMap.get(p.roundId);
+      if (rInfo && rInfo.status === 'SCORED') {
+        const foundScore = this.scores.find(s => s.roundId === p.roundId && s.userId === p.userId);
+        if (!foundScore) {
+          report.scoringAudit.unscoredCompletedPredictions.push({
+            predictionId: p.predictionId,
+            userId: p.userId,
+            roundId: p.roundId,
+            reason: 'Prediction exists for SCORED round but has no persisted score',
+          });
+        } else {
+          const result = this.results.find(r => r.roundId === p.roundId);
+          if (result && p.predictionData) {
+            try {
+              const expected = ScoringEngine.calculate(p.predictionData, result.resultData, rInfo.scoringRules);
+              if (expected.totalScore !== foundScore.totalScore) {
+                report.scoringAudit.scoreDivergences.push({
+                  predictionId: p.predictionId,
+                  userId: p.userId,
+                  roundId: p.roundId,
+                  persistedScore: foundScore.totalScore,
+                  recalculatedScore: expected.totalScore,
+                });
+              }
+            } catch {}
+          }
+        }
+      }
+    });
+
+    // 3. Duplicate predictions
+    predGrouping.forEach((list, key) => {
+      if (list.length > 1) {
+        list.sort((a, b) => new Date(b.updatedAt || b.submittedAt).getTime() - new Date(a.updatedAt || a.submittedAt).getTime());
+        const canonical = list[0];
+        const obsolete = list.slice(1);
+        report.duplicatePredictionsAudit.duplicateGroups.push({
+          groupKey: key,
+          userId: canonical.userId,
+          roundId: canonical.roundId,
+          count: list.length,
+          canonicalPredictionId: canonical.predictionId,
+          obsoletePredictionIds: obsolete.map(o => o.predictionId),
+        });
+        report.duplicatePredictionsAudit.totalDuplicates += (list.length - 1);
+      }
+    });
+
+    // 4. Orphaned scores
+    this.scores.forEach(s => {
+      if (!knownRoundIds.has(s.roundId)) {
+        report.scoringAudit.orphanedScores.push({
+          scoreId: s.scoreId,
+          userId: s.userId,
+          roundId: s.roundId,
+          reason: 'Score references an unknown or unregistered prediction roundId',
+        });
+      }
+    });
+
+    // 5. Notification queue audit
+    const seenNtfKeys = new Set<string>();
+    this.notifications.forEach(n => {
+      if (seenNtfKeys.has(n.idempotencyKey)) {
+        report.notificationAudit.duplicateQueueKeys.push({
+          id: n.id,
+          idempotencyKey: n.idempotencyKey,
+        });
+      } else {
+        seenNtfKeys.add(n.idempotencyKey);
+      }
+    });
+
+    // Tally defects
+    report.summary.eventIsolationDefects =
+      report.eventIsolationAudit.unknownRoundPredictions.length +
+      report.eventIsolationAudit.sprintTypeMismatches.length +
+      report.eventIsolationAudit.malformedRoundIds.length;
+    report.summary.duplicatePredictionDefects = report.duplicatePredictionsAudit.totalDuplicates;
+    report.summary.scoringDefects =
+      report.scoringAudit.unscoredCompletedPredictions.length +
+      report.scoringAudit.orphanedScores.length +
+      report.scoringAudit.scoreDivergences.length;
+    report.summary.notificationDefects = report.notificationAudit.duplicateQueueKeys.length;
+    report.summary.totalDefects =
+      report.summary.userDefects +
+      report.summary.eventIsolationDefects +
+      report.summary.duplicatePredictionDefects +
+      report.summary.scoringDefects +
+      report.summary.notificationDefects;
+
+    // REMEDIATION (dryRun: false)
+    if (!dryRun) {
+      const ts = new Date().toISOString().replace(/[:.]/g, '-');
+      report.remediation.backupSheetsCreated = [
+        `Users_Backup_${ts}`,
+        `Predictions_Backup_${ts}`,
+        `Scores_Backup_${ts}`,
+        `Results_Backup_${ts}`,
+      ];
+
+      // A. Consolidate users
+      if (report.userAudit.duplicateGroups.length > 0) {
+        const uRes = await this.auditAndDeduplicateUsers(false);
+        report.remediation.usersConsolidated = uRes.duplicateGroupsConsolidated || 0;
+        report.remediation.notes.push(`Consolidated ${report.remediation.usersConsolidated} duplicate user accounts.`);
+      }
+
+      // B. Deduplicate predictions
+      if (report.duplicatePredictionsAudit.duplicateGroups.length > 0) {
+        const obsoleteIds = new Set<string>();
+        report.duplicatePredictionsAudit.duplicateGroups.forEach(g => {
+          g.obsoletePredictionIds.forEach(id => obsoleteIds.add(id));
+        });
+        this.predictions = this.predictions.filter(p => !obsoleteIds.has(p.predictionId));
+        report.remediation.predictionsDeduplicated = obsoleteIds.size;
+        report.remediation.notes.push(`Pruned ${obsoleteIds.size} obsolete duplicate prediction records.`);
+      }
+
+      // C. Reconcile points
+      this.recalculateSeasonStats();
+      report.remediation.scoresReconciled = this.users.length;
+      report.remediation.notes.push(`Reconciled authoritative season points and ranks for ${this.users.length} users.`);
+
+      this.persistAll();
+    }
+
+    report.durationMs = Date.now() - startTime;
+    return report;
+  }
+}
+
+export interface PlatformAuditReport {
+  timestamp: string;
+  dryRun: boolean;
+  status: 'COMPLETE';
+  summary: {
+    totalDefects: number;
+    userDefects: number;
+    eventIsolationDefects: number;
+    duplicatePredictionDefects: number;
+    scoringDefects: number;
+    notificationDefects: number;
+  };
+  userAudit: {
+    duplicateGroups: any[];
+    affectedUserIds: string[];
+  };
+  eventIsolationAudit: {
+    unknownRoundPredictions: { predictionId: string; roundId: string }[];
+    sprintTypeMismatches: { predictionId: string; roundId: string; weekendId: string; weekendType: string }[];
+    malformedRoundIds: { predictionId: string; roundId: string }[];
+  };
+  duplicatePredictionsAudit: {
+    duplicateGroups: {
+      groupKey: string;
+      userId: string;
+      roundId: string;
+      count: number;
+      canonicalPredictionId: string;
+      obsoletePredictionIds: string[];
+    }[];
+    totalDuplicates: number;
+  };
+  scoringAudit: {
+    unscoredCompletedPredictions: { predictionId: string; userId: string; roundId: string; reason: string }[];
+    orphanedScores: { scoreId: string; userId: string; roundId: string; reason: string }[];
+    scoreDivergences: { predictionId: string; userId: string; roundId: string; persistedScore: number; recalculatedScore: number }[];
+    falseScoredStatus: { predictionId: string; roundId: string }[];
+  };
+  notificationAudit: {
+    duplicateQueueKeys: { id: string; idempotencyKey: string }[];
+  };
+  remediation: {
+    backupSheetsCreated: string[];
+    usersConsolidated: number;
+    predictionsDeduplicated: number;
+    scoresReconciled: number;
+    notes: string[];
+  };
+  durationMs: number;
 }
 
 export const mockApi = new MockApiService();
