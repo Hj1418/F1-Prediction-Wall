@@ -122,7 +122,7 @@ export const AdminDashboardPage: React.FC = () => {
     if (!currentUser?.userId) return;
     try {
       setLoadingUsers(true);
-      const data = await api.getAdminUsers(currentUser.userId);
+      const data = await api.getAdminUsers(currentUser.userId, currentUser.authToken);
       setAdminUsers(data);
     } catch (err: any) {
       console.error('Failed to load admin users:', err);

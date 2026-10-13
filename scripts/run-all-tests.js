@@ -7,6 +7,7 @@ try {
   execSync('npx tsx scripts/verify-sync.ts', { stdio: 'inherit' });
   execSync('node scripts/verify-all-circuits.js', { stdio: 'inherit' });
   execSync('npx tsx scripts/verify-auth.ts', { stdio: 'inherit' });
+  execSync('npx tsx scripts/verify-auth-session.ts', { stdio: 'inherit' });
   execSync('npx tsx scripts/verify-admin-users.ts', { stdio: 'inherit' });
   execSync('npx tsx scripts/verify-beta-core.ts', { stdio: 'inherit' });
   execSync('npx tsx scripts/verify-racing-identity.ts', { stdio: 'inherit' });

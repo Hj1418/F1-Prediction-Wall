@@ -32,6 +32,7 @@ interface AuthContextType {
 
 const CURRENT_USER_KEY = 'f1_pred_current_user_id';
 const AUTH_STATUS_KEY = 'f1_pred_auth_status';
+const AUTH_TOKEN_KEY = 'f1_pred_auth_token';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -64,9 +65,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       // Only fetch complete user directory if authenticated session is an admin
       if (profile?.role === 'admin' || currentUser?.role === 'admin') {
-        const users = await api.getAllUsers();
-        if (users && users.length > 0) {
-          setAllUsers(users);
+        const token = profile?.authToken || currentUser?.authToken || localStorage.getItem(AUTH_TOKEN_KEY) || undefined;
+        const adminId = profile?.userId || currentUser?.userId || savedUserId || '';
+        if (adminId) {
+          const users = await api.getAdminUsers(adminId, token);
+          if (users && users.length > 0) {
+            setAllUsers(users);
+          }
         }
       }
     } catch (e) {
@@ -85,13 +90,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           try {
             const profile = await api.getUserProfile(savedUserId);
             if (profile) {
+              const savedToken = localStorage.getItem(AUTH_TOKEN_KEY);
+              if (savedToken && profile.role === 'admin') {
+                profile.authToken = savedToken;
+              }
               setCurrentUser(profile);
               setIsAuthenticated(true);
               if (!profile.username || profile.username.trim() === '') {
                 setOnboardingUser(profile);
               }
               if (profile.role === 'admin') {
-                const users = await api.getAllUsers();
+                const users = await api.getAdminUsers(profile.userId, profile.authToken);
                 if (users && users.length > 0) setAllUsers(users);
               }
               return;
@@ -116,6 +125,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setIsAuthenticated(false);
         localStorage.removeItem(AUTH_STATUS_KEY);
         localStorage.removeItem(CURRENT_USER_KEY);
+        localStorage.removeItem(AUTH_TOKEN_KEY);
       } catch (e) {
         console.warn('Failed to restore auth session:', e);
         setCurrentUser(null);
@@ -151,6 +161,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsAuthenticated(true);
     localStorage.setItem(AUTH_STATUS_KEY, 'authenticated');
     localStorage.setItem(CURRENT_USER_KEY, user.userId);
+    if (user.authToken) {
+      localStorage.setItem(AUTH_TOKEN_KEY, user.authToken);
+    } else {
+      localStorage.removeItem(AUTH_TOKEN_KEY);
+    }
     setAuthModalOpen(false);
     trackLogin({ method: 'password', user_type: 'returning' });
     if (!user.username || user.username.trim() === '') {
@@ -204,6 +219,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsAuthenticated(true);
     localStorage.setItem(AUTH_STATUS_KEY, 'authenticated');
     localStorage.setItem(CURRENT_USER_KEY, user.userId);
+    if (user.authToken) {
+      localStorage.setItem(AUTH_TOKEN_KEY, user.authToken);
+    } else {
+      localStorage.removeItem(AUTH_TOKEN_KEY);
+    }
     setAuthModalOpen(false);
 
     if (user.isNewUser) {
@@ -227,6 +247,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setOnboardingUser(null);
     localStorage.removeItem(AUTH_STATUS_KEY);
     localStorage.removeItem(CURRENT_USER_KEY);
+    localStorage.removeItem(AUTH_TOKEN_KEY);
   };
 
   const updateProfile = async (updated: Partial<User>) => {

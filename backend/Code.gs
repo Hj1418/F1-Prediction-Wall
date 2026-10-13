@@ -101,7 +101,7 @@ function doGet(e) {
         break;
       case 'getAdminUsers':
       case 'getUsers':
-        responseData = getAdminUsers(e.parameter.requesterId || e.parameter.userId, e.parameter.accessToken);
+        responseData = getAdminUsers(e.parameter.requesterId || e.parameter.userId, e.parameter.accessToken, e.parameter.authToken || e.parameter.token);
         break;
       case 'getAdminPredictions':
       case 'getPredictions':
@@ -255,7 +255,7 @@ function doPost(e) {
         break;
       case 'getAdminUsers':
       case 'getUsers':
-        responseData = getAdminUsers(payload.requesterId || payload.userId, payload.accessToken);
+        responseData = getAdminUsers(payload.requesterId || payload.userId, payload.accessToken, payload.authToken || payload.token);
         break;
       case 'getAdminPredictions':
       case 'getPredictions':
@@ -1677,9 +1677,17 @@ function getAllUsers() {
  * and possesses role === 'admin'. Only verified administrators receive
  * complete user data with email and login timestamps.
  */
-function getAdminUsers(requesterId, accessToken) {
-  if (!requesterId && !accessToken) {
+function getAdminUsers(requesterId, accessToken, authToken) {
+  if (!requesterId && !accessToken && !authToken) {
     throw new Error('Unauthorized: Authentication identity required.');
+  }
+
+  // Cryptographically verified backend admin session token
+  if (authToken) {
+    const verifiedAdmin = verifyAdminCaller({ authToken: authToken });
+    if (verifiedAdmin && verifiedAdmin.role === 'admin') {
+      return getAllUsersInternal();
+    }
   }
 
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -1930,7 +1938,7 @@ function googleLogin(payload) {
       }
 
       // Returning user retains their identity. Do NOT send welcome email!
-      return {
+      const returningUserObj = {
         userId: String(existingRow[userIdCol]),
         googleSubjectId: googleSubjectId || String(subCol !== undefined ? existingRow[subCol] || '' : ''),
         email: String(existingRow[emailCol]),
@@ -2073,6 +2081,93 @@ function verifyPasswordCredential(storedHash, clientPasswordHash) {
 
   // Legacy unsalted SHA-256 direct comparison
   return trimmedStored.toLowerCase() === trimmedClient.toLowerCase();
+}
+
+/**
+ * Internal HMAC secret resolver for cryptographically signing backend admin session tokens.
+ */
+function getSessionSigningSecret() {
+  try {
+    const props = PropertiesService.getScriptProperties();
+    let secret = props.getProperty('ADMIN_SESSION_SECRET');
+    if (!secret) {
+      secret = Utilities.getUuid() + '-' + Utilities.getUuid();
+      props.setProperty('ADMIN_SESSION_SECRET', secret);
+    }
+    return secret;
+  } catch (_) {
+    return 'the_grid_f1_admin_secure_session_key_2026';
+  }
+}
+
+/**
+ * Generates a verified cryptographic session token for authenticated administrators.
+ * Format: base64Header.base64Payload.base64Signature (HMAC-SHA256 signed).
+ */
+function createAdminSessionToken(userObj) {
+  if (!userObj || userObj.role !== 'admin') {
+    throw new Error('Forbidden: Admin session tokens can only be issued to verified administrators.');
+  }
+
+  const secret = getSessionSigningSecret();
+  const header = { alg: 'HS256', typ: 'JWT' };
+  const now = Math.floor(Date.now() / 1000);
+  const payload = {
+    sub: String(userObj.userId || ''),
+    email: String(userObj.email || '').toLowerCase(),
+    username: String(userObj.username || ''),
+    role: 'admin',
+    iat: now,
+    exp: now + (7 * 24 * 60 * 60) // 7 days expiration
+  };
+
+  const headerB64 = Utilities.base64EncodeWebSafe(JSON.stringify(header)).replace(/=+$/, '');
+  const payloadB64 = Utilities.base64EncodeWebSafe(JSON.stringify(payload)).replace(/=+$/, '');
+  const dataToSign = headerB64 + '.' + payloadB64;
+  const signatureBytes = Utilities.computeHmacSha256Signature(dataToSign, secret);
+  const signatureB64 = Utilities.base64EncodeWebSafe(signatureBytes).replace(/=+$/, '');
+
+  return dataToSign + '.' + signatureB64;
+}
+
+/**
+ * Verifies that the caller's session token is authentic, unexpired, and belongs to an administrator.
+ */
+function verifyAdminCaller(payload) {
+  if (!payload) return null;
+  const token = payload.authToken || payload.token;
+  if (!token || typeof token !== 'string') return null;
+
+  const parts = token.split('.');
+  if (parts.length !== 3) return null;
+
+  try {
+    const secret = getSessionSigningSecret();
+    const dataToSign = parts[0] + '.' + parts[1];
+    const signatureBytes = Utilities.computeHmacSha256Signature(dataToSign, secret);
+    const expectedSig = Utilities.base64EncodeWebSafe(signatureBytes).replace(/=+$/, '');
+
+    if (parts[2] !== expectedSig) {
+      return null;
+    }
+
+    const payloadJson = Utilities.newBlob(Utilities.base64DecodeWebSafe(parts[1])).getDataAsString();
+    const claims = JSON.parse(payloadJson);
+
+    const now = Math.floor(Date.now() / 1000);
+    if (claims.exp && claims.exp < now) {
+      return null; // Expired token
+    }
+
+    if (claims.role !== 'admin') {
+      return null;
+    }
+
+    return claims;
+  } catch (err) {
+    Logger.log('Token verification error: ' + err);
+    return null;
+  }
 }
 
 function loginUser(identifier, passwordHash) {

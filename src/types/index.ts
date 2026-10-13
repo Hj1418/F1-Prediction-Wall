@@ -113,6 +113,7 @@ export interface User {
   bio?: string;
   passwordHash?: string;
   hasPassword?: boolean;
+  authToken?: string;
   role: UserRole;
   createdAt: string;
   lastLoginAt?: string;

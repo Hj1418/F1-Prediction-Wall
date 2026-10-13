@@ -617,7 +617,11 @@ export class MockApiService {
       }
     }
 
-    return { ...match };
+    const userObj = { ...match };
+    if (userObj.role === 'admin') {
+      userObj.authToken = `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIke3VzZXJPYmoudXNlcklkfSIsInJvbGUiOiJhZG1pbiJ9.mock_signature_${userObj.userId}`;
+    }
+    return userObj;
   }
 
   public async googleLogin(payload: { email: string; displayName?: string; photoUrl?: string; accessToken?: string; username?: string }): Promise<User> {
@@ -636,7 +640,11 @@ export class MockApiService {
         match.avatarUrl = payload.photoUrl;
       }
       this.persistAll();
-      return { ...match, isNewUser: false };
+      const userObj = { ...match, isNewUser: false };
+      if (userObj.role === 'admin') {
+        userObj.authToken = `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIke3VzZXJPYmoudXNlcklkfSIsInJvbGUiOiJhZG1pbiJ9.mock_signature_${userObj.userId}`;
+      }
+      return userObj;
     }
 
     // New user creation: do NOT automatically generate a username from their Google name or email!
