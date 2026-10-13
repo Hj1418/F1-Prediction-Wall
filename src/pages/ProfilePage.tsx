@@ -20,6 +20,8 @@ import {
   Share2,
 } from 'lucide-react';
 import { StoryShareModal } from '../components/sharing/StoryShareModal';
+import { PasswordSetupModal } from '../components/auth/PasswordSetupModal';
+import { Lock } from 'lucide-react';
 import { generateUserResultStoryCanvas } from '../services/sharing/storyShareService';
 
 const GLOBAL_CONSTRUCTORS_LIST = [
@@ -60,6 +62,7 @@ export const ProfilePage: React.FC = () => {
   const [usernameMessage, setUsernameMessage] = useState('');
 
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [isPasswordSetupOpen, setIsPasswordSetupOpen] = useState(false);
   const [shareModalTitle, setShareModalTitle] = useState('');
   const [shareModalCanvas, setShareModalCanvas] = useState<HTMLCanvasElement | null>(null);
   const [shareModalFilename, setShareModalFilename] = useState('');
@@ -865,6 +868,34 @@ export const ProfilePage: React.FC = () => {
               >
                 <Share2 size={14} /> SHARE MY RESULT
               </button>
+
+              {isOwner && (
+                <button
+                  id="profile-password-setup-btn"
+                  onClick={() => setIsPasswordSetupOpen(true)}
+                  className="btn btn-sm"
+                  style={{
+                    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                    color: '#e2e8f0',
+                    fontWeight: 700,
+                    fontSize: '0.78rem',
+                    letterSpacing: '0.04em',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.45rem',
+                    border: '1px solid rgba(255, 255, 255, 0.15)',
+                    cursor: 'pointer',
+                    padding: '0.5rem 1rem',
+                    borderRadius: 'var(--radius-sm)',
+                    width: '100%',
+                    justifyContent: 'center',
+                    marginTop: '0.5rem',
+                  }}
+                >
+                  <Lock size={14} style={{ color: currentUser?.hasPassword ? '#10b981' : '#e10600' }} />
+                  {currentUser?.hasPassword ? 'MANAGE PASSWORD' : 'SET ACCOUNT PASSWORD'}
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -1149,6 +1180,10 @@ export const ProfilePage: React.FC = () => {
         canvas={shareModalCanvas}
         filename={shareModalFilename}
         shareText={shareModalText}
+      />
+      <PasswordSetupModal
+        isOpen={isPasswordSetupOpen}
+        onClose={() => setIsPasswordSetupOpen(false)}
       />
     </div>
   );

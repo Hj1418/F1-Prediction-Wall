@@ -934,6 +934,74 @@ export const api = {
     return mockApi.login(identifier, passwordHash);
   },
 
+  async setupPassword(payload: {
+    userId?: string;
+    email?: string;
+    newPasswordHash: string;
+    currentPasswordHash?: string;
+    accessToken?: string;
+    authToken?: string;
+  }): Promise<{ success: boolean; message: string; hasPassword?: boolean }> {
+    if (isLiveBackend) {
+      try {
+        const res = await fetch(`${API_BASE_URL}?action=setupPassword`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'setupPassword', ...payload }),
+        });
+        const json = await res.json();
+        if (json.success) return json.data || json;
+        throw new Error(json.message || 'Failed to configure password credential');
+      } catch (e: any) {
+        console.error('Live API setupPassword failed:', e);
+        throw e;
+      }
+    }
+    return { success: true, message: 'Password configured successfully' };
+  },
+
+  async requestPasswordReset(identifier: string): Promise<{ success: boolean; message: string }> {
+    if (isLiveBackend) {
+      try {
+        const res = await fetch(`${API_BASE_URL}?action=requestPasswordReset`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'requestPasswordReset', identifier }),
+        });
+        const json = await res.json();
+        if (json.success) return json.data || json;
+        throw new Error(json.message || 'Failed to request password reset');
+      } catch (e: any) {
+        console.error('Live API requestPasswordReset failed:', e);
+        throw e;
+      }
+    }
+    return { success: true, message: 'If an account exists with this email or username, password reset instructions have been sent.' };
+  },
+
+  async resetPassword(payload: {
+    token: string;
+    newPasswordHash: string;
+    identifier?: string;
+  }): Promise<{ success: boolean; message: string }> {
+    if (isLiveBackend) {
+      try {
+        const res = await fetch(`${API_BASE_URL}?action=resetPassword`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'resetPassword', ...payload }),
+        });
+        const json = await res.json();
+        if (json.success) return json.data || json;
+        throw new Error(json.message || 'Failed to reset password');
+      } catch (e: any) {
+        console.error('Live API resetPassword failed:', e);
+        throw e;
+      }
+    }
+    return { success: true, message: 'Password has been reset successfully.' };
+  },
+
   async registerUser(userData: any): Promise<User> {
     if (!isLiveBackend && isProd) {
       throw new Error('Live database connection is required for registration.');

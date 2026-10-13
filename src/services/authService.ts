@@ -125,4 +125,39 @@ export const authService = {
     const passwordHash = password ? await hashPassword(password) : undefined;
     return await api.loginUser(cleanId, passwordHash);
   },
+  async setupPassword(newPassword: string, options?: { userId?: string; email?: string; currentPassword?: string; accessToken?: string; authToken?: string }) {
+    if (!newPassword || newPassword.length < 8) {
+      throw new Error('Password must be at least 8 characters long.');
+    }
+    const newPasswordHash = await hashPassword(newPassword);
+    const currentPasswordHash = options?.currentPassword ? await hashPassword(options.currentPassword) : undefined;
+    return await api.setupPassword({
+      userId: options?.userId,
+      email: options?.email,
+      newPasswordHash,
+      currentPasswordHash,
+      accessToken: options?.accessToken,
+      authToken: options?.authToken,
+    });
+  },
+
+  async requestPasswordReset(identifier: string) {
+    const cleanId = identifier.trim().toLowerCase();
+    if (!cleanId) throw new Error('Please enter your email address or username.');
+    return await api.requestPasswordReset(cleanId);
+  },
+
+  async resetPassword(resetCode: string, newPassword: string, identifier?: string) {
+    const cleanCode = resetCode.trim();
+    if (!cleanCode) throw new Error('Please enter the 6-digit verification code.');
+    if (!newPassword || newPassword.length < 8) {
+      throw new Error('New password must be at least 8 characters long.');
+    }
+    const newPasswordHash = await hashPassword(newPassword);
+    return await api.resetPassword({
+      token: cleanCode,
+      newPasswordHash,
+      identifier: identifier?.trim().toLowerCase(),
+    });
+  },
 };

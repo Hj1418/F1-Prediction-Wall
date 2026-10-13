@@ -112,6 +112,7 @@ export interface User {
   favouriteChampionship?: string;
   bio?: string;
   passwordHash?: string;
+  hasPassword?: boolean;
   role: UserRole;
   createdAt: string;
   lastLoginAt?: string;

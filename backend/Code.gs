@@ -182,6 +182,15 @@ function doPost(e) {
       case 'loginUser':
         responseData = loginUser(payload.identifier, payload.passwordHash);
         break;
+      case 'setupPassword':
+        responseData = setupPassword(payload);
+        break;
+      case 'requestPasswordReset':
+        responseData = requestPasswordReset(payload);
+        break;
+      case 'resetPassword':
+        responseData = resetPassword(payload);
+        break;
       case 'submitPrediction':
         responseData = submitPrediction(payload);
         break;
@@ -1935,7 +1944,8 @@ function googleLogin(payload) {
         createdAt: String(existingRow[createdAtCol] || nowIso),
         totalPoints: Number((pointsCol !== undefined ? existingRow[pointsCol] : 0) || 0),
         seasonRank: Number((rankCol !== undefined ? existingRow[rankCol] : existingRowIdx - 1) || (existingRowIdx - 1)),
-        isNewUser: false
+        isNewUser: false,
+        hasPassword: Boolean(colMap['passwordHash'] !== undefined && existingRow && existingRow[colMap['passwordHash']] && String(existingRow[colMap['passwordHash']]).trim() !== '')
       };
     }
 
@@ -2019,6 +2029,52 @@ function googleLogin(payload) {
   }
 }
 
+
+/**
+ * Computes salted SHA-256 hash using Google Apps Script Utilities.
+ * Stored format: $s256$<salt>$<hexDigest>
+ */
+function hashPasswordSalted(passwordHashOrPlain, existingSalt) {
+  if (!passwordHashOrPlain) return '';
+  const salt = existingSalt || Utilities.getUuid().replace(/-/g, '').substring(0, 16);
+  const rawDigest = Utilities.computeDigest(
+    Utilities.DigestAlgorithm.SHA_256,
+    salt + ':' + passwordHashOrPlain,
+    Utilities.Charset.UTF_8
+  );
+  let hex = '';
+  for (let i = 0; i < rawDigest.length; i++) {
+    let byteVal = rawDigest[i];
+    if (byteVal < 0) byteVal += 256;
+    let byteHex = byteVal.toString(16);
+    if (byteHex.length === 1) byteHex = '0' + byteHex;
+    hex += byteHex;
+  }
+  return '$s256$' + salt + '$' + hex;
+}
+
+/**
+ * Verifies a client-provided password hash against the stored hash.
+ * Supports both new salted hashes ($s256$<salt>$<digest>) and legacy 64-char hex hashes.
+ */
+function verifyPasswordCredential(storedHash, clientPasswordHash) {
+  if (!storedHash || !clientPasswordHash) return false;
+  const trimmedStored = String(storedHash).trim();
+  const trimmedClient = String(clientPasswordHash).trim();
+
+  if (trimmedStored.indexOf('$s256$') === 0) {
+    const parts = trimmedStored.split('$');
+    if (parts.length >= 4) {
+      const salt = parts[2];
+      const expected = hashPasswordSalted(trimmedClient, salt);
+      return trimmedStored === expected;
+    }
+  }
+
+  // Legacy unsalted SHA-256 direct comparison
+  return trimmedStored.toLowerCase() === trimmedClient.toLowerCase();
+}
+
 function loginUser(identifier, passwordHash) {
   if (!identifier) throw new Error('Username or email is required.');
   const cleanId = String(identifier).trim().toLowerCase();
@@ -2041,12 +2097,28 @@ function loginUser(identifier, passwordHash) {
     const uId = String(colMap['userId'] !== undefined ? row[colMap['userId']] : row[0] || '').toLowerCase();
     const uRole = String(colMap['role'] !== undefined ? row[colMap['role']] : row[6] || '').toLowerCase();
 
-    if (uName === cleanId || uEmail === cleanId || uId === cleanId || (cleanId === 'admin' && uRole === 'admin')) {
-      const storedHash = colMap['passwordHash'] !== undefined ? String(row[colMap['passwordHash']]) : '';
-      if (storedHash && passwordHash && storedHash !== passwordHash) {
+    // Strict identity matching: NO keyword 'admin' bypass allowed
+    if (uName === cleanId || uEmail === cleanId || uId === cleanId) {
+      const storedHash = colMap['passwordHash'] !== undefined ? String(row[colMap['passwordHash']]).trim() : '';
+      if (!storedHash) {
+        throw new Error('This account was registered via Google Sign-In and does not have a password configured. Please sign in with Google or use Set Password.');
+      }
+      if (!passwordHash) {
+        throw new Error('Password is required for this account.');
+      }
+      if (!verifyPasswordCredential(storedHash, passwordHash)) {
         throw new Error('Invalid password for this account.');
       }
-      return {
+      // Progressive upgrade: migrate legacy unsalted hash to salted format
+      if (storedHash.indexOf('$s256$') !== 0 && colMap['passwordHash'] !== undefined) {
+        try {
+          const upgraded = hashPasswordSalted(passwordHash);
+          sheet.getRange(i + 1, colMap['passwordHash'] + 1).setValue(upgraded);
+        } catch (upgradeErr) {
+          Logger.log('Password hash upgrade notice: ' + upgradeErr);
+        }
+      }
+      const userObj = {
         userId: String(row[colMap['userId'] !== undefined ? colMap['userId'] : 0]),
         email: String(row[colMap['email'] !== undefined ? row[colMap['email']] : 1] || ''),
         displayName: String(row[colMap['displayName'] !== undefined ? row[colMap['displayName']] : 2] || ''),
@@ -2058,11 +2130,374 @@ function loginUser(identifier, passwordHash) {
         role: String(colMap['role'] !== undefined ? row[colMap['role']] : 'user'),
         createdAt: String(colMap['createdAt'] !== undefined ? row[colMap['createdAt']] : ''),
         totalPoints: Number(colMap['totalPoints'] !== undefined ? row[colMap['totalPoints']] : 0),
-        seasonRank: Number(colMap['seasonRank'] !== undefined ? row[colMap['seasonRank']] : i)
+        seasonRank: Number(colMap['seasonRank'] !== undefined ? row[colMap['seasonRank']] : i),
+        hasPassword: true
       };
+      if (userObj.role === 'admin') {
+        userObj.authToken = createAdminSessionToken(userObj);
+      }
+      return userObj;
     }
   }
   throw new Error('No racer found with username or email: ' + identifier);
+}
+
+
+/**
+ * Secure Password Setup for existing Google-only or authenticated accounts.
+ * Associates a new salted password credential with the canonical account.
+ */
+function setupPassword(payload) {
+  if (!payload) throw new Error('Invalid request payload.');
+  const newPasswordHash = payload.newPasswordHash || payload.passwordHash;
+  if (!newPasswordHash || typeof newPasswordHash !== 'string' || newPasswordHash.trim().length < 8) {
+    throw new Error('A valid password credential is required.');
+  }
+
+  const cleanNewHash = newPasswordHash.trim();
+  const userId = (payload.userId || '').trim();
+  const email = (payload.email || '').toLowerCase().trim();
+  const googleToken = payload.accessToken || payload.credential || payload.idToken;
+  const currentPasswordHash = payload.currentPasswordHash || '';
+  const authToken = payload.authToken;
+
+  // Identity verification
+  let verifiedGoogleIdentity = null;
+  if (googleToken) {
+    verifiedGoogleIdentity = verifyGoogleAccessToken(googleToken);
+    if (!verifiedGoogleIdentity) {
+      throw new Error('Unauthorized: Google identity verification failed.');
+    }
+  }
+
+  let verifiedSessionPayload = null;
+  if (authToken) {
+    try {
+      const adminCheck = verifyAdminCaller(payload);
+      if (adminCheck && adminCheck.sub) {
+        verifiedSessionPayload = adminCheck;
+      }
+    } catch (_) {}
+  }
+
+  const lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(10000);
+  } catch (e) {
+    throw new Error('Database is busy, please retry in a moment.');
+  }
+
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = ss.getSheetByName(SHEET_NAMES.USERS);
+    if (!sheet) throw new Error('Users sheet not found');
+    ensureUserHeaders(sheet);
+
+    const rows = sheet.getDataRange().getValues();
+    const headers = rows[0] || [];
+    const colMap = {};
+    for (let c = 0; c < headers.length; c++) {
+      colMap[String(headers[c]).trim()] = c;
+    }
+
+    const uIdCol = colMap['userId'] !== undefined ? colMap['userId'] : 0;
+    const emailCol = colMap['email'] !== undefined ? colMap['email'] : 1;
+    const subCol = colMap['googleSubjectId'];
+    const passCol = colMap['passwordHash'];
+
+    let targetRowIdx = -1;
+    let targetRow = null;
+
+    for (let i = 1; i < rows.length; i++) {
+      const r = rows[i];
+      const rUid = String(r[uIdCol] || '');
+      const rEmail = String(r[emailCol] || '').toLowerCase();
+      const rSub = subCol !== undefined ? String(r[subCol] || '') : '';
+
+      if (verifiedGoogleIdentity) {
+        if ((rSub && rSub === verifiedGoogleIdentity.sub) || (rEmail && rEmail === verifiedGoogleIdentity.email)) {
+          targetRowIdx = i + 1;
+          targetRow = r;
+          break;
+        }
+      } else if (verifiedSessionPayload) {
+        if (rUid === verifiedSessionPayload.sub || rEmail === verifiedSessionPayload.email) {
+          targetRowIdx = i + 1;
+          targetRow = r;
+          break;
+        }
+      } else if ((userId && rUid === userId) || (email && rEmail === email)) {
+        targetRowIdx = i + 1;
+        targetRow = r;
+        break;
+      }
+    }
+
+    if (targetRowIdx === -1 || !targetRow) {
+      throw new Error('Account not found on The Grid.');
+    }
+
+    const existingStoredHash = passCol !== undefined ? String(targetRow[passCol] || '').trim() : '';
+
+    // If account already has a password and caller is NOT verified via Google or session, require current password
+    if (existingStoredHash && !verifiedGoogleIdentity && !verifiedSessionPayload) {
+      if (!currentPasswordHash) {
+        throw new Error('Current password or Google identity verification is required to update an existing password.');
+      }
+      if (!verifyPasswordCredential(existingStoredHash, currentPasswordHash)) {
+        throw new Error('Current password is incorrect.');
+      }
+    }
+
+    const salted = hashPasswordSalted(cleanNewHash);
+    if (passCol !== undefined) {
+      sheet.getRange(targetRowIdx, passCol + 1).setValue(salted);
+    }
+
+    // Clear reset tokens
+    if (colMap['passwordResetToken'] !== undefined) {
+      sheet.getRange(targetRowIdx, colMap['passwordResetToken'] + 1).setValue('');
+    }
+    if (colMap['passwordResetExpiry'] !== undefined) {
+      sheet.getRange(targetRowIdx, colMap['passwordResetExpiry'] + 1).setValue('');
+    }
+
+    return {
+      success: true,
+      message: 'Password credential configured successfully. You can now sign in using your username or email and password.',
+      hasPassword: true
+    };
+  } finally {
+    try { lock.releaseLock(); } catch (_) {}
+  }
+}
+
+/**
+ * Initiates single-use expiring password reset flow.
+ * Rate-limited and returns generic response to prevent user enumeration.
+ */
+function requestPasswordReset(payload) {
+  if (!payload || !payload.identifier) {
+    throw new Error('Username or email is required.');
+  }
+
+  const cleanId = String(payload.identifier).trim().toLowerCase();
+  if (!cleanId) {
+    throw new Error('Username or email is required.');
+  }
+
+  const genericResponse = {
+    success: true,
+    message: 'If an account exists with this email or username, password reset instructions have been sent.'
+  };
+
+  const lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(10000);
+  } catch (e) {
+    return genericResponse;
+  }
+
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = ss.getSheetByName(SHEET_NAMES.USERS);
+    if (!sheet) return genericResponse;
+    ensureUserHeaders(sheet);
+
+    const rows = sheet.getDataRange().getValues();
+    const headers = rows[0] || [];
+    const colMap = {};
+    for (let c = 0; c < headers.length; c++) {
+      colMap[String(headers[c]).trim()] = c;
+    }
+
+    const uNameCol = colMap['username'] !== undefined ? colMap['username'] : 3;
+    const emailCol = colMap['email'] !== undefined ? colMap['email'] : 1;
+    const uIdCol = colMap['userId'] !== undefined ? colMap['userId'] : 0;
+    const displayNameCol = colMap['displayName'] !== undefined ? colMap['displayName'] : 2;
+    const tokenCol = colMap['passwordResetToken'];
+    const expiryCol = colMap['passwordResetExpiry'];
+
+    if (tokenCol === undefined || expiryCol === undefined) {
+      return genericResponse;
+    }
+
+    let targetRowIdx = -1;
+    let targetRow = null;
+
+    for (let i = 1; i < rows.length; i++) {
+      const r = rows[i];
+      const rName = String(r[uNameCol] || '').toLowerCase();
+      const rEmail = String(r[emailCol] || '').toLowerCase();
+      const rId = String(r[uIdCol] || '').toLowerCase();
+
+      if (rName === cleanId || rEmail === cleanId || rId === cleanId) {
+        targetRowIdx = i + 1;
+        targetRow = r;
+        break;
+      }
+    }
+
+    if (targetRowIdx === -1 || !targetRow) {
+      return genericResponse;
+    }
+
+    const recipientEmail = String(targetRow[emailCol] || '').trim();
+    if (!recipientEmail || recipientEmail.indexOf('@') === -1) {
+      return genericResponse;
+    }
+
+    // Rate limiting: 1 request per 2 minutes
+    const existingExpiry = String(targetRow[expiryCol] || '');
+    if (existingExpiry) {
+      const expiryTime = new Date(existingExpiry).getTime();
+      if (expiryTime - Date.now() > 13 * 60 * 1000) {
+        Logger.log('Password reset requested too recently for: ' + recipientEmail);
+        return genericResponse;
+      }
+    }
+
+    const randomNum = Math.floor(100000 + Math.random() * 900000);
+    const resetCode = String(randomNum);
+    const expiryIso = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+
+    sheet.getRange(targetRowIdx, tokenCol + 1).setValue(resetCode);
+    sheet.getRange(targetRowIdx, expiryCol + 1).setValue(expiryIso);
+
+    const recipientName = String(targetRow[displayNameCol] || 'Racer');
+    const emailSubject = 'The Grid — Password Reset Code: ' + resetCode;
+    const emailContentHtml = 
+      '<div style="background-color:#0B0D11;color:#F0F2F5;font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',Roboto,sans-serif;padding:32px;max-width:560px;margin:0 auto;border-radius:12px;border:1px solid #1E222D;">' +
+        '<div style="text-align:center;margin-bottom:24px;">' +
+          '<div style="display:inline-block;background-color:#E10600;color:#ffffff;font-size:12px;font-weight:900;letter-spacing:2px;padding:4px 12px;border-radius:4px;margin-bottom:8px;">THE GRID</div>' +
+          '<h1 style="color:#ffffff;font-size:22px;margin:8px 0 4px 0;letter-spacing:0.5px;">Password Reset Code</h1>' +
+          '<p style="color:#8E9BAE;font-size:13px;margin:0;">Hello ' + escapeHtml(recipientName) + ',</p>' +
+        '</div>' +
+        '<div style="background-color:#161920;border:1px solid #282E3E;border-radius:8px;padding:24px;text-align:center;margin-bottom:24px;">' +
+          '<p style="color:#C1C9D6;font-size:14px;margin:0 0 16px 0;">Use the following single-use verification code to set a new password on your Grid account:</p>' +
+          '<div style="display:inline-block;background-color:#0B0D11;color:#E10600;font-size:32px;font-weight:900;letter-spacing:8px;padding:12px 28px;border-radius:8px;border:2px dashed #E10600;font-family:Courier,monospace;">' +
+            resetCode +
+          '</div>' +
+          '<p style="color:#8E9BAE;font-size:12px;margin:16px 0 0 0;">⏱️ This code expires in <strong>15 minutes</strong>.</p>' +
+        '</div>' +
+        '<p style="color:#6A778B;font-size:12px;line-height:1.5;margin:0;">If you did not request a password reset, you can safely ignore this email.</p>' +
+      '</div>';
+
+    try {
+      MailApp.sendEmail({
+        to: recipientEmail,
+        name: 'The Grid — Security',
+        subject: emailSubject,
+        htmlBody: emailContentHtml,
+        body: 'Your password reset verification code for The Grid is: ' + resetCode + ' (Expires in 15 minutes).'
+      });
+    } catch (mailErr) {
+      Logger.log('Error dispatching password reset email: ' + mailErr);
+    }
+
+    return genericResponse;
+  } finally {
+    try { lock.releaseLock(); } catch (_) {}
+  }
+}
+
+/**
+ * Resets user password using single-use verification code.
+ */
+function resetPassword(payload) {
+  if (!payload) throw new Error('Invalid request payload.');
+  const resetCode = String(payload.token || payload.resetCode || '').trim();
+  const newPasswordHash = String(payload.newPasswordHash || payload.passwordHash || '').trim();
+  const identifier = String(payload.identifier || '').trim().toLowerCase();
+
+  if (!resetCode) {
+    throw new Error('Password reset code is required.');
+  }
+  if (!newPasswordHash) {
+    throw new Error('A new password is required.');
+  }
+
+  const lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(10000);
+  } catch (e) {
+    throw new Error('Database is busy, please retry in a moment.');
+  }
+
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = ss.getSheetByName(SHEET_NAMES.USERS);
+    if (!sheet) throw new Error('Users sheet not found');
+    ensureUserHeaders(sheet);
+
+    const rows = sheet.getDataRange().getValues();
+    const headers = rows[0] || [];
+    const colMap = {};
+    for (let c = 0; c < headers.length; c++) {
+      colMap[String(headers[c]).trim()] = c;
+    }
+
+    const uNameCol = colMap['username'] !== undefined ? colMap['username'] : 3;
+    const emailCol = colMap['email'] !== undefined ? colMap['email'] : 1;
+    const uIdCol = colMap['userId'] !== undefined ? colMap['userId'] : 0;
+    const passCol = colMap['passwordHash'];
+    const tokenCol = colMap['passwordResetToken'];
+    const expiryCol = colMap['passwordResetExpiry'];
+
+    if (tokenCol === undefined || expiryCol === undefined || passCol === undefined) {
+      throw new Error('Password recovery columns not found in database.');
+    }
+
+    let targetRowIdx = -1;
+    let targetRow = null;
+
+    for (let i = 1; i < rows.length; i++) {
+      const r = rows[i];
+      const rToken = String(r[tokenCol] || '').trim();
+      const rName = String(r[uNameCol] || '').toLowerCase();
+      const rEmail = String(r[emailCol] || '').toLowerCase();
+      const rId = String(r[uIdCol] || '').toLowerCase();
+
+      if (identifier) {
+        if ((rName === identifier || rEmail === identifier || rId === identifier) && rToken === resetCode) {
+          targetRowIdx = i + 1;
+          targetRow = r;
+          break;
+        }
+      } else {
+        if (rToken && rToken === resetCode) {
+          targetRowIdx = i + 1;
+          targetRow = r;
+          break;
+        }
+      }
+    }
+
+    if (targetRowIdx === -1 || !targetRow) {
+      throw new Error('Invalid or expired password reset code. Please request a new code.');
+    }
+
+    const expiryStr = String(targetRow[expiryCol] || '');
+    if (!expiryStr || Date.now() > new Date(expiryStr).getTime()) {
+      sheet.getRange(targetRowIdx, tokenCol + 1).setValue('');
+      sheet.getRange(targetRowIdx, expiryCol + 1).setValue('');
+      throw new Error('Password reset code has expired. Please request a new code.');
+    }
+
+    const salted = hashPasswordSalted(newPasswordHash);
+    sheet.getRange(targetRowIdx, passCol + 1).setValue(salted);
+
+    // Single-use: Clear reset code and expiry immediately
+    sheet.getRange(targetRowIdx, tokenCol + 1).setValue('');
+    sheet.getRange(targetRowIdx, expiryCol + 1).setValue('');
+
+    return {
+      success: true,
+      message: 'Password has been reset successfully. You can now sign in with your new password.'
+    };
+  } finally {
+    try { lock.releaseLock(); } catch (_) {}
+  }
 }
 
 function registerUser(payload) {
