@@ -1955,6 +1955,15 @@ function googleLogin(payload) {
         isNewUser: false,
         hasPassword: Boolean(colMap['passwordHash'] !== undefined && existingRow && existingRow[colMap['passwordHash']] && String(existingRow[colMap['passwordHash']]).trim() !== '')
       };
+      if (returningUserObj.role === 'admin') {
+        returningUserObj.authToken = createAdminSessionToken(returningUserObj);
+      }
+      return returningUserObj;
+    }
+
+    // Reject unknown accounts attempting admin login without creating a ghost row
+    if (payload.client === 'admin_app') {
+      throw new Error('Access Denied: Account not found on The Grid. Authorized administrator account required.');
     }
 
     // CASE A — NEW USER: Create user record in USERS
