@@ -1211,6 +1211,35 @@ function adminCalculateScores(roundId) {
     }
   }
 
+  // Synchronize cumulative total points back to Users sheet
+  try {
+    const uSheet = ss.getSheetByName(SHEET_NAMES.USERS);
+    if (uSheet && scoresSheet) {
+      const freshScoreRows = scoresSheet.getDataRange().getValues();
+      const userSumMap = {};
+      for (let s = 1; s < freshScoreRows.length; s++) {
+        const sUid = String(freshScoreRows[s][1] || '').trim();
+        const sPts = Number(freshScoreRows[s][4]) || 0;
+        if (sUid) userSumMap[sUid] = (userSumMap[sUid] || 0) + sPts;
+      }
+      const uRows = uSheet.getDataRange().getValues();
+      const uHeaders = uRows[0];
+      const ptsColIdx = uHeaders.indexOf('totalPoints') !== -1 ? uHeaders.indexOf('totalPoints') : 8;
+      for (let u = 1; u < uRows.length; u++) {
+        const uid = String(uRows[u][0] || '').trim();
+        if (uid && userSumMap[uid] !== undefined) {
+          const expectedPts = userSumMap[uid];
+          const currPts = Number(uRows[u][ptsColIdx]) || 0;
+          if (currPts !== expectedPts) {
+            uSheet.getRange(u + 1, ptsColIdx + 1).setValue(expectedPts);
+          }
+        }
+      }
+    }
+  } catch (uSyncErr) {
+    Logger.log('[TOTAL_POINTS_SYNC_ERROR] ' + uSyncErr.toString());
+  }
+
   // Invalidate leaderboard and prediction round cache
   try {
     const cache = CacheService.getScriptCache();
@@ -4274,7 +4303,7 @@ function auditPlatformData(dryRun) {
       updatedAt: pUpdatedAt
     });
 
-    if (roundMap[pRid] && roundMap[pRid].status === 'SCORED') {
+    if (roundMap[pRid] && (roundMap[pRid].status === 'SCORED' || resultMap[pRid])) {
       const scores = scoreMap[groupKey];
       if (!scores || scores.length === 0) {
         report.scoringAudit.unscoredCompletedPredictions.push({

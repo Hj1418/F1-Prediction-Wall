@@ -111,8 +111,9 @@ async function run() {
   // =========================================================================
   // 4. DUPLICATE PREDICTION RECORD DEDUPLICATION
   // =========================================================================
-  console.log('\n--- 4. Duplicate Record & Round Alias Handling ---');
-  assert(normalizeCanonicalRoundId('2026_17_RACE_PREDICTION') === '2026_15_RACE_PREDICTION', 'Alias 2026_17 normalizes to 2026_15');
+  console.log('\n--- 4. Duplicate Record & Canonical Format Handling ---');
+  assert(normalizeCanonicalRoundId('2026_15_RACE') === '2026_15_RACE_PREDICTION', 'Format _RACE standardizes to _RACE_PREDICTION');
+  assert(normalizeCanonicalRoundId('2026_17_RACE_PREDICTION') === '2026_17_RACE_PREDICTION', 'Singapore GP 2026_17 maintains strict round isolation');
   const duplicateHistory = [
     {
       prediction: { roundId: '2026_15_RACE_PREDICTION' },
@@ -120,14 +121,14 @@ async function run() {
       score: { totalScore: 30, breakdown: { p1: 15 } },
     },
     {
-      prediction: { roundId: '2026_17_RACE_PREDICTION' }, // Duplicate alias record
-      round: { roundId: '2026_17_RACE_PREDICTION', status: 'SCORED' },
+      prediction: { roundId: '2026_15_RACE_PREDICTION' }, // Duplicate record for same round
+      round: { roundId: '2026_15_RACE_PREDICTION', status: 'SCORED' },
       score: { totalScore: 30, breakdown: { p1: 15 } },
     },
   ];
   const dedupStats = calculateUserStatsFromHistory(duplicateHistory);
-  assert(dedupStats.totalPoints === 30, 'Duplicate alias records do not double-count (got 30 pts, not 60 pts)', `got: ${dedupStats.totalPoints}`);
-  assert(dedupStats.racesParticipated === 1, 'Duplicate alias records count as 1 participated race', `got: ${dedupStats.racesParticipated}`);
+  assert(dedupStats.totalPoints === 30, 'Duplicate records do not double-count (got 30 pts, not 60 pts)', `got: ${dedupStats.totalPoints}`);
+  assert(dedupStats.racesParticipated === 1, 'Duplicate records count as 1 participated race', `got: ${dedupStats.racesParticipated}`);
 
   // =========================================================================
   // 5. EXISTING AZERBAIJAN +30 RESULT VERIFICATION FOR USER HARSH

@@ -30,13 +30,17 @@ export interface CanonicalPredictionStats {
 }
 
 /**
- * Normalizes round IDs to resolve alias identifiers (e.g. Baku 2026_17 -> 2026_15).
+ * Normalizes round IDs to canonical form (e.g. standardizing _RACE to _RACE_PREDICTION)
+ * while preserving strict event and round isolation across all championships.
  */
 export function normalizeCanonicalRoundId(roundId?: string): string {
   if (!roundId) return '';
   const clean = String(roundId).trim();
-  if (clean === '2026_17_RACE_PREDICTION' || clean === '2026_17_RACE') {
-    return '2026_15_RACE_PREDICTION';
+  if (clean.endsWith('_RACE') && !clean.endsWith('_RACE_PREDICTION')) {
+    return `${clean}_PREDICTION`;
+  }
+  if (clean.endsWith('_SPRINT') && !clean.endsWith('_SPRINT_PREDICTION')) {
+    return `${clean}_PREDICTION`;
   }
   return clean;
 }

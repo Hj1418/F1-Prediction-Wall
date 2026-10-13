@@ -265,14 +265,26 @@ export const ProfilePage: React.FC = () => {
             e => e.userId === effectiveUser!.userId || (e.username && e.username.toLowerCase() === effectiveUser!.username.toLowerCase())
           );
 
-          const effectiveTotalPoints = Math.max(effectiveUser.totalPoints || 0, historyStats.totalPoints, lbEntry?.totalPoints || 0);
-          const effectiveRacesParticipated = Math.max(effectiveUser.racesParticipated || 0, historyStats.racesParticipated, lbEntry?.racesParticipated || 0);
+          // Enforce one consistent aggregation model:
+          // The canonical source of truth is authoritative scored prediction records.
+          const effectiveTotalPoints = lbEntry?.totalPoints !== undefined && lbEntry.totalPoints > 0
+            ? lbEntry.totalPoints
+            : historyStats.totalPoints > 0
+            ? historyStats.totalPoints
+            : (effectiveUser.totalPoints || 0);
+
+          const effectiveRacesParticipated = historyStats.racesParticipated > 0
+            ? historyStats.racesParticipated
+            : lbEntry?.racesParticipated !== undefined && lbEntry.racesParticipated > 0
+            ? lbEntry.racesParticipated
+            : (effectiveUser.racesParticipated || 0);
+
           const effectiveSeasonRank = lbEntry?.rank || effectiveUser.seasonRank || 1;
           const effectivePreviousRank = lbEntry?.previousRank || effectiveUser.previousRank || effectiveSeasonRank;
-          const effectiveBestWeekend = Math.max(effectiveUser.bestWeekendScore || 0, historyStats.bestWeekendScore);
-          const effectiveExactP1 = Math.max(effectiveUser.exactP1Count || 0, historyStats.exactP1Count, lbEntry?.exactP1Count || 0);
-          const effectivePerfectPodium = Math.max(effectiveUser.perfectPodiumCount || 0, historyStats.perfectPodiumCount, lbEntry?.perfectPodiumCount || 0);
-          const effectiveWildcards = Math.max(effectiveUser.wildcardsCorrect || 0, historyStats.wildcardsCorrect);
+          const effectiveBestWeekend = historyStats.bestWeekendScore > 0 ? historyStats.bestWeekendScore : (effectiveUser.bestWeekendScore || 0);
+          const effectiveExactP1 = historyStats.exactP1Count > 0 ? historyStats.exactP1Count : (lbEntry?.exactP1Count || effectiveUser.exactP1Count || 0);
+          const effectivePerfectPodium = historyStats.perfectPodiumCount > 0 ? historyStats.perfectPodiumCount : (lbEntry?.perfectPodiumCount || effectiveUser.perfectPodiumCount || 0);
+          const effectiveWildcards = historyStats.wildcardsCorrect > 0 ? historyStats.wildcardsCorrect : (effectiveUser.wildcardsCorrect || 0);
 
           setProfileUser({
             ...effectiveUser,
@@ -930,15 +942,13 @@ export const ProfilePage: React.FC = () => {
         {/* Prediction Points Speedometer */}
         <div style={{ marginBottom: '2.5rem' }}>
           {(() => {
-            const testPts = profileUser?.userId ? testGrandPrixService.getUserTestScore(profileUser.userId) : 0;
             const prodPts = profileUser.totalPoints || 0;
-            const combinedPts = prodPts + testPts;
 
             return (
               <PredictionSpeedometer
-                points={combinedPts}
+                points={prodPts}
                 productionPoints={prodPts}
-                testPoints={testPts}
+                testPoints={0}
                 seasonRank={profileUser.seasonRank}
                 previousRank={profileUser.previousRank}
                 championshipName={favChampionship?.shortName || 'Motorsport'}
