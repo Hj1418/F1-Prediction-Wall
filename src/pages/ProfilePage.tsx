@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { api } from '../services/apiClient';
-import { User, Achievement, Driver, Constructor } from '../types';
+import { User, Achievement, Driver, Constructor, WeekendTrophy } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
 import { F1_CONSTRUCTORS_2026 } from '../services/mockData';
@@ -18,10 +18,16 @@ import {
   Edit2,
   ChevronRight,
   Share2,
+  Medal,
+  Award,
+  CheckCircle2,
+  Lock,
 } from 'lucide-react';
 import { StoryShareModal } from '../components/sharing/StoryShareModal';
 import { PasswordSetupModal } from '../components/auth/PasswordSetupModal';
-import { Lock } from 'lucide-react';
+import { PointsBreakdownModal } from '../components/predictions/PointsBreakdownModal';
+import { notificationService } from '../services/notificationService';
+import { CANONICAL_ACHIEVEMENT_REGISTRY } from '../services/achievementRegistry';
 import { generateUserResultStoryCanvas } from '../services/sharing/storyShareService';
 
 const GLOBAL_CONSTRUCTORS_LIST = [
@@ -63,6 +69,9 @@ export const ProfilePage: React.FC = () => {
 
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [isPasswordSetupOpen, setIsPasswordSetupOpen] = useState(false);
+  const [trophies, setTrophies] = useState<WeekendTrophy[]>([]);
+  const [isBreakdownModalOpen, setIsBreakdownModalOpen] = useState(false);
+  const [selectedBreakdownItem, setSelectedBreakdownItem] = useState<any | null>(null);
   const [shareModalTitle, setShareModalTitle] = useState('');
   const [shareModalCanvas, setShareModalCanvas] = useState<HTMLCanvasElement | null>(null);
   const [shareModalFilename, setShareModalFilename] = useState('');
@@ -253,12 +262,24 @@ export const ProfilePage: React.FC = () => {
           setSelectedFavConstructor(effectiveUser.favouriteConstructor || 'ferrari');
           setSelectedFavChampionship(effectiveUser.favouriteChampionship || 'f1');
           setSelectedBio(effectiveUser.bio || '');
-          const [achs, userHistory] = await Promise.all([
+          const [achs, userHistory, userTrophies] = await Promise.all([
             api.getUserAchievements(effectiveUser.userId).catch(() => []),
             api.getUserPredictionsHistory(effectiveUser.userId).catch(() => []),
+            api.getUserTrophies(effectiveUser.userId).catch(() => []),
           ]);
           setAchievements(achs);
           setHistory(userHistory);
+          setTrophies(userTrophies);
+
+          // If current logged-in user is viewing their own profile, evaluate and trigger verified unlock notifications
+          if (currentUser && currentUser.userId === effectiveUser.userId) {
+            achs.filter(a => a.isUnlocked).forEach(a => {
+              notificationService.notifyAchievementUnlocked(effectiveUser!.userId, a);
+            });
+            userTrophies.forEach(t => {
+              notificationService.notifyTrophyAwarded(effectiveUser!.userId, t);
+            });
+          }
 
           const historyStats = calculateUserStatsFromHistory(userHistory);
           const lbEntry = (seasonStandings || []).find(
@@ -904,8 +925,15 @@ export const ProfilePage: React.FC = () => {
                     marginTop: '0.5rem',
                   }}
                 >
-                  <Lock size={14} style={{ color: currentUser?.hasPassword ? '#10b981' : '#e10600' }} />
-                  {currentUser?.hasPassword ? 'MANAGE PASSWORD' : 'SET ACCOUNT PASSWORD'}
+                  {(() => {
+                    const hasPass = currentUser?.hasPasswordConfigured ?? currentUser?.hasPassword;
+                    return (
+                      <>
+                        <Lock size={14} style={{ color: hasPass ? '#10b981' : '#e10600' }} />
+                        {hasPass ? 'CHANGE PASSWORD' : 'SET ACCOUNT PASSWORD'}
+                      </>
+                    );
+                  })()}
                 </button>
               )}
             </div>
@@ -1023,10 +1051,15 @@ export const ProfilePage: React.FC = () => {
           </div>
         </div>
 
-        {/* Achievement Badges */}
-        <h2 style={{ fontSize: '1.25rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '1rem' }}>
-          Trophies & Achievements ({achievements.length})
-        </h2>
+        {/* Weekend Trophies Section */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+          <h2 style={{ fontSize: '1.25rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <Trophy size={18} color="#eab308" /> Weekend Trophies ({trophies.length})
+          </h2>
+          <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+            PERMANENT WEEKEND OVERALL SILVERWARE
+          </span>
+        </div>
 
         <div
           style={{
@@ -1036,58 +1069,240 @@ export const ProfilePage: React.FC = () => {
             marginBottom: '3rem',
           }}
         >
-          {achievements.map(ach => (
-            <div
-              key={ach.achievementId}
-              className="race-card"
-              style={{
-                padding: '1.25rem',
-                border: '1px solid rgba(234, 179, 8, 0.3)',
-                background: 'linear-gradient(135deg, rgba(234, 179, 8, 0.05) 0%, var(--bg-surface-card) 100%)',
-                display: 'flex',
-                alignItems: 'flex-start',
-                gap: '1rem',
-              }}
-            >
+          {trophies.map(trophy => {
+            const isGold = trophy.trophyType === 'GOLD';
+            const isSilver = trophy.trophyType === 'SILVER';
+            const trophyColor = isGold ? '#eab308' : isSilver ? '#94a3b8' : '#cd7f32';
+            const trophyGlow = isGold ? 'rgba(234, 179, 8, 0.25)' : isSilver ? 'rgba(148, 163, 184, 0.25)' : 'rgba(205, 127, 50, 0.25)';
+            const iconBadge = isGold ? '🥇' : isSilver ? '🥈' : '🥉';
+
+            return (
               <div
+                key={trophy.trophyId}
+                className="race-card"
                 style={{
-                  fontSize: '2rem',
-                  background: 'var(--bg-surface-elevated)',
-                  width: '52px',
-                  height: '52px',
-                  borderRadius: 'var(--radius-md)',
+                  padding: '1.25rem',
+                  border: `1px solid ${trophyColor}`,
+                  boxShadow: `0 0 16px ${trophyGlow}`,
+                  background: `linear-gradient(135deg, ${trophyGlow} 0%, var(--bg-surface-card) 100%)`,
                   display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  border: '1px solid var(--border-medium)',
-                  flexShrink: 0,
+                  alignItems: 'flex-start',
+                  gap: '1rem',
+                  position: 'relative',
+                  overflow: 'hidden',
                 }}
               >
-                {ach.badgeIcon}
-              </div>
-
-              <div>
-                <div style={{ fontWeight: 800, fontSize: '1rem', textTransform: 'uppercase' }}>
-                  {ach.title}
+                <div
+                  style={{
+                    fontSize: '2.2rem',
+                    background: 'var(--bg-surface-elevated)',
+                    width: '56px',
+                    height: '56px',
+                    borderRadius: 'var(--radius-md)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    border: `1px solid ${trophyColor}`,
+                    flexShrink: 0,
+                  }}
+                >
+                  {iconBadge}
                 </div>
-                <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '0.2rem', lineHeight: 1.3 }}>
-                  {ach.description}
-                </p>
-                <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginTop: '0.5rem', fontFamily: 'var(--font-mono)' }}>
-                  Earned {new Date(ach.earnedAt).toLocaleDateString()}
+
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
+                    <span
+                      style={{
+                        fontFamily: 'var(--font-mono)',
+                        fontSize: '0.68rem',
+                        fontWeight: 900,
+                        color: trophyColor,
+                        letterSpacing: '0.08em',
+                        textTransform: 'uppercase',
+                      }}
+                    >
+                      {trophy.trophyType} TROPHY • P{trophy.rank}
+                    </span>
+                    <span
+                      style={{
+                        fontFamily: 'var(--font-mono)',
+                        fontSize: '0.85rem',
+                        fontWeight: 900,
+                        color: 'var(--telemetry-green)',
+                      }}
+                    >
+                      {trophy.points} PTS
+                    </span>
+                  </div>
+
+                  <div style={{ fontWeight: 800, fontSize: '0.98rem', textTransform: 'uppercase', marginTop: '0.2rem', color: '#ffffff' }}>
+                    {trophy.eventName}
+                  </div>
+
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
+                    {trophy.circuitName || 'Grand Prix Weekend'} • {trophy.season}
+                  </div>
+
+                  <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginTop: '0.5rem', fontFamily: 'var(--font-mono)' }}>
+                    Awarded {new Date(trophy.awardedAt).toLocaleDateString()}
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
 
-          {achievements.length === 0 && (
-            <div style={{ gridColumn: '1 / -1', padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-              No achievements unlocked yet. Keep predicting race weekends to earn badges!
+          {trophies.length === 0 && (
+            <div
+              className="race-card"
+              style={{
+                gridColumn: '1 / -1',
+                padding: '2rem 1.5rem',
+                textAlign: 'center',
+                border: '1px dashed var(--border-medium)',
+              }}
+            >
+              <Trophy size={32} style={{ color: 'var(--text-muted)', marginBottom: '0.5rem', opacity: 0.6 }} />
+              <div style={{ fontWeight: 700, fontSize: '0.92rem', color: 'var(--text-secondary)' }}>
+                No Weekend Silverware Yet
+              </div>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', maxWidth: '520px', margin: '0.35rem auto 0', lineHeight: 1.4 }}>
+                Permanent Gold, Silver, and Bronze trophies are awarded to P1, P2, and P3 in finalized Weekend Overall competitions. Compete in upcoming race weekends to earn silverware!
+              </p>
             </div>
           )}
         </div>
 
-        {/* Prediction History */}
+        {/* Achievement Registry & Badges */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+          <h2 style={{ fontSize: '1.25rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <Sparkles size={18} color="var(--telemetry-purple)" /> Achievements Registry ({achievements.filter(a => a.isUnlocked).length}/{CANONICAL_ACHIEVEMENT_REGISTRY.length})
+          </h2>
+          <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+            DATA-DRIVEN BADGES
+          </span>
+        </div>
+
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+            gap: '1rem',
+            marginBottom: '3rem',
+          }}
+        >
+          {CANONICAL_ACHIEVEMENT_REGISTRY.map(def => {
+            const ach = achievements.find(a => a.achievementType === def.type || a.achievementId.includes(def.id));
+            const isUnlocked = Boolean(ach?.isUnlocked);
+            const progressCurrent = ach?.progress?.current ?? (isUnlocked ? def.targetValue : 0);
+            const progressPct = Math.min(100, Math.round((progressCurrent / def.targetValue) * 100));
+
+            return (
+              <div
+                key={def.id}
+                className="race-card"
+                style={{
+                  padding: '1.25rem',
+                  border: isUnlocked
+                    ? '1px solid rgba(234, 179, 8, 0.35)'
+                    : '1px solid var(--border-medium)',
+                  background: isUnlocked
+                    ? 'linear-gradient(135deg, rgba(234, 179, 8, 0.08) 0%, var(--bg-surface-card) 100%)'
+                    : 'var(--bg-surface-card)',
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '1rem',
+                  opacity: isUnlocked ? 1 : 0.72,
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: '2rem',
+                    background: 'var(--bg-surface-elevated)',
+                    width: '52px',
+                    height: '52px',
+                    borderRadius: 'var(--radius-md)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    border: isUnlocked ? '1px solid rgba(234, 179, 8, 0.4)' : '1px solid var(--border-subtle)',
+                    flexShrink: 0,
+                    filter: isUnlocked ? 'none' : 'grayscale(100%)',
+                  }}
+                >
+                  {def.badgeIcon}
+                </div>
+
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.4rem' }}>
+                    <div style={{ fontWeight: 800, fontSize: '0.95rem', textTransform: 'uppercase', color: isUnlocked ? '#ffffff' : 'var(--text-secondary)' }}>
+                      {def.title}
+                    </div>
+                    {isUnlocked ? (
+                      <span
+                        style={{
+                          fontSize: '0.62rem',
+                          fontFamily: 'var(--font-mono)',
+                          fontWeight: 800,
+                          backgroundColor: 'rgba(16, 185, 129, 0.15)',
+                          color: '#10b981',
+                          padding: '0.15rem 0.4rem',
+                          borderRadius: '3px',
+                          border: '1px solid rgba(16, 185, 129, 0.3)',
+                        }}
+                      >
+                        UNLOCKED
+                      </span>
+                    ) : (
+                      <span
+                        style={{
+                          fontSize: '0.62rem',
+                          fontFamily: 'var(--font-mono)',
+                          fontWeight: 700,
+                          backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                          color: 'var(--text-muted)',
+                          padding: '0.15rem 0.4rem',
+                          borderRadius: '3px',
+                        }}
+                      >
+                        LOCKED
+                      </span>
+                    )}
+                  </div>
+
+                  <p style={{ fontSize: '0.76rem', color: 'var(--text-secondary)', marginTop: '0.25rem', lineHeight: 1.35 }}>
+                    {def.description}
+                  </p>
+
+                  {/* Progress bar or earned timestamp */}
+                  {isUnlocked ? (
+                    <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginTop: '0.5rem', fontFamily: 'var(--font-mono)' }}>
+                      ✓ Earned {ach?.earnedAt ? new Date(ach.earnedAt).toLocaleDateString() : 'Active'}
+                    </div>
+                  ) : (
+                    <div style={{ marginTop: '0.6rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.65rem', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', marginBottom: '0.2rem' }}>
+                        <span>Progress</span>
+                        <span>{progressCurrent} / {def.targetValue}</span>
+                      </div>
+                      <div style={{ height: '4px', backgroundColor: 'var(--bg-input)', borderRadius: '2px', overflow: 'hidden' }}>
+                        <div
+                          style={{
+                            height: '100%',
+                            width: `${progressPct}%`,
+                            backgroundColor: 'var(--f1-red)',
+                            borderRadius: '2px',
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Prediction Ledger & History */}
         <h2 style={{ fontSize: '1.25rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '1rem' }}>
           Prediction Ledger & History ({history.length})
         </h2>
@@ -1110,7 +1325,7 @@ export const ProfilePage: React.FC = () => {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   <span>{w?.flag || '🏁'}</span>
                   <span style={{ fontWeight: 800, fontSize: '0.95rem', textTransform: 'uppercase' }}>
-                    {w?.raceName} — {r?.title}
+                    {w?.raceName || 'Grand Prix'} — {r?.title}
                   </span>
                   <span
                     style={{
@@ -1122,19 +1337,19 @@ export const ProfilePage: React.FC = () => {
                       borderRadius: '3px',
                     }}
                   >
-                    {r?.roundType}
+                    {r?.roundType || 'GRAND_PRIX'}
                   </span>
                 </div>
                 <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-                  Submitted: {new Date(p.submittedAt).toLocaleDateString()}
+                  Submitted: {new Date(p.submittedAt).toLocaleDateString()} • Round #{r?.roundNumber || ''}
                 </div>
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
                 {s ? (
-                  <div style={{ textAlign: 'right' }}>
+                  <div style={{ textAlign: 'right', minWidth: '70px' }}>
                     <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 900, color: 'var(--telemetry-green)', fontSize: '1.1rem' }}>
-                      +{s.totalScore} PTS
+                      +{s.totalScore ?? s.pointsEarned ?? 0} PTS
                     </div>
                     <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
                       Scored
@@ -1144,6 +1359,29 @@ export const ProfilePage: React.FC = () => {
                   <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
                     Pending Score
                   </div>
+                )}
+
+                {/* View Points Breakdown Action */}
+                {s && (
+                  <button
+                    onClick={() => {
+                      setSelectedBreakdownItem({ prediction: p, round: r, score: s, weekend: w });
+                      setIsBreakdownModalOpen(true);
+                    }}
+                    className="btn btn-outline btn-sm"
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.35rem',
+                      borderColor: 'rgba(234, 179, 8, 0.4)',
+                      color: '#eab308',
+                      fontSize: '0.75rem',
+                      padding: '0.35rem 0.65rem',
+                    }}
+                    title="View verified points breakdown across scoring categories"
+                  >
+                    <Award size={13} /> Breakdown
+                  </button>
                 )}
 
                 {s && (
@@ -1194,6 +1432,11 @@ export const ProfilePage: React.FC = () => {
       <PasswordSetupModal
         isOpen={isPasswordSetupOpen}
         onClose={() => setIsPasswordSetupOpen(false)}
+      />
+      <PointsBreakdownModal
+        isOpen={isBreakdownModalOpen}
+        onClose={() => setIsBreakdownModalOpen(false)}
+        predictionItem={selectedBreakdownItem}
       />
     </div>
   );

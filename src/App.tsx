@@ -7,6 +7,7 @@ import { Footer } from './components/common/Footer';
 import { ToastContainer } from './components/common/ToastContainer';
 import { AuthModal } from './components/common/AuthModal';
 import { OnboardingModal } from './components/auth/OnboardingModal';
+import { NotificationCoordinator } from './components/notifications/NotificationCoordinator';
 import { PageLoadingFallback } from './components/common/PageLoadingFallback';
 import { AnalyticsTracker } from './analytics/AnalyticsTracker';
 
@@ -89,6 +90,7 @@ const AppLayout: React.FC = () => {
       <ToastContainer />
       <AuthModal />
       <OnboardingModal />
+      <NotificationCoordinator />
       {searchOpen && (
         <Suspense fallback={null}>
           <UniversalSearchModal isOpen={searchOpen} onClose={closeSearch} />

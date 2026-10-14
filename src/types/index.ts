@@ -113,6 +113,7 @@ export interface User {
   bio?: string;
   passwordHash?: string;
   hasPassword?: boolean;
+  hasPasswordConfigured?: boolean;
   authToken?: string;
   role: UserRole;
   createdAt: string;
@@ -283,14 +284,56 @@ export interface LeaderboardEntry {
   grandPrixPoints?: number;
 }
 
+export type LeaderboardResultStatus = 'UPCOMING' | 'AWAITING_RESULTS' | 'UNDER_REVIEW' | 'FINALIZED';
+
+export type TrophyType = 'GOLD' | 'SILVER' | 'BRONZE';
+
+export interface WeekendTrophy {
+  trophyId: string;
+  userId: string;
+  season: number;
+  raceWeekendId: string;
+  eventName: string;
+  circuitName?: string;
+  trophyType: TrophyType;
+  rank: number; // 1, 2, or 3
+  points: number;
+  awardedAt: string; // ISO UTC
+  resultReference?: string;
+}
+
 export interface Achievement {
   achievementId: string;
   userId: string;
-  achievementType: 'BULLSEYE' | 'STRATEGY_MASTER' | 'ON_FIRE' | 'CONSISTENCY_KING' | 'FERRARI_STRATEGIST' | 'PODIUM_PRO';
+  achievementType: string;
   title: string;
   description: string;
   badgeIcon: string;
+  category?: 'PARTICIPATION' | 'MILESTONE' | 'PERFORMANCE';
   earnedAt: string;
+  raceWeekendId?: string;
+  roundId?: string;
+  isUnlocked?: boolean;
+  progress?: { current: number; target: number };
+}
+
+export type NotificationType =
+  | 'ACHIEVEMENT_UNLOCKED'
+  | 'TROPHY_AWARDED'
+  | 'PREDICTION_SUBMITTED'
+  | 'RESULTS_FINALIZED'
+  | 'PASSWORD_SETUP_PROMPT';
+
+export interface InAppNotification {
+  id: string;
+  userId: string;
+  type: NotificationType;
+  title: string;
+  message: string;
+  createdAt: string;
+  isRead: boolean;
+  entityReference?: string;
+  metadata?: Record<string, any>;
 }
 
 export interface SyncLog {

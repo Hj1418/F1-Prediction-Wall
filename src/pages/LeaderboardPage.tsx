@@ -21,7 +21,7 @@ import {
   generateUserResultStoryCanvas,
   assertAdminAuthorized,
 } from '../services/sharing/storyShareService';
-import { resolveLatestCompletedAndFinalizedWeekend } from '../utils/raceLifecycle';
+import { resolveLatestCompletedAndFinalizedWeekend, getLeaderboardResultStatus } from '../utils/raceLifecycle';
 
 export const LeaderboardPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -510,18 +510,9 @@ export const LeaderboardPage: React.FC = () => {
               onChange={e => handleWeekendChange(e.target.value)}
             >
               {sortedWeekends.map(w => {
-                const wRounds = rounds.filter(
-                  r => r.raceWeekendId === w.raceWeekendId || (r as any).weekendId === w.raceWeekendId
-                );
-                const isFinalized = wRounds.some(r => r.status === 'SCORED');
+                const statusInfo = getLeaderboardResultStatus(w, rounds);
                 const typeLabel = w.weekendType === 'SPRINT' ? 'Sprint + Grand Prix' : 'Grand Prix';
-                const statusTag = isFinalized
-                  ? '• Finalized'
-                  : w.status === 'COMPLETED'
-                  ? '• Results Pending'
-                  : w.status === 'ACTIVE'
-                  ? '• Live'
-                  : '• Upcoming';
+                const statusTag = `• ${statusInfo.label}`;
 
                 return (
                   <option key={w.raceWeekendId} value={w.raceWeekendId}>
@@ -532,24 +523,28 @@ export const LeaderboardPage: React.FC = () => {
             </select>
           </div>
 
-          {currentWeekend && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', fontSize: '0.78rem' }}>
-              <span
-                style={{
-                  fontWeight: 800,
-                  letterSpacing: '0.06em',
-                  textTransform: 'uppercase',
-                  color: isWeekendFinalized ? 'var(--telemetry-green)' : '#eab308',
-                }}
-              >
-                {isWeekendFinalized
-                  ? '● VERIFIED & FINALIZED'
-                  : currentWeekend.status === 'COMPLETED'
-                  ? '● RESULTS UNDER REVIEW'
-                  : '○ EVENT SCHEDULED'}
-              </span>
-            </div>
-          )}
+          {currentWeekend && (() => {
+            const currentStatusInfo = getLeaderboardResultStatus(currentWeekend, rounds);
+            return (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', fontSize: '0.78rem' }}>
+                <span
+                  id="weekend-leaderboard-status-badge"
+                  style={{
+                    fontWeight: 800,
+                    letterSpacing: '0.06em',
+                    textTransform: 'uppercase',
+                    color: currentStatusInfo.color,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.35rem',
+                  }}
+                >
+                  <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: currentStatusInfo.dotColor, display: 'inline-block' }} />
+                  {currentStatusInfo.label}
+                </span>
+              </div>
+            );
+          })()}
         </div>
       )}
 

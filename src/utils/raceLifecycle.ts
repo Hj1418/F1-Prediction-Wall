@@ -425,3 +425,94 @@ export function resolveLatestCompletedAndFinalizedWeekend(
   // 4. Ultimate fallback: First weekend in list
   return weekends[0];
 }
+
+export type LeaderboardResultStatus = 'UPCOMING' | 'AWAITING_RESULTS' | 'UNDER_REVIEW' | 'FINALIZED';
+
+export interface LeaderboardStatusInfo {
+  status: LeaderboardResultStatus;
+  label: string;
+  badgeLabel: string;
+  color: string;
+  dotColor: string;
+}
+
+/**
+ * Phase 5 Authoritative Leaderboard Result Status Resolver.
+ *
+ * Distinguishes the 4 canonical user-facing lifecycle statuses based on actual backend state:
+ * 1. UPCOMING — the event has not started.
+ * 2. AWAITING RESULTS — the event has occurred or is in progress, but official results are not yet available.
+ * 3. UNDER REVIEW — results exist but verification, scoring or publication remains incomplete.
+ * 4. FINALIZED — results are verified, scoring is complete and the leaderboard has been published.
+ */
+export function getLeaderboardResultStatus(
+  weekend: RaceWeekend,
+  rounds: PredictionRound[] = [],
+  results?: Array<{ roundId: string; resultData?: any }>,
+  nowTime: Date | number = new Date()
+): LeaderboardStatusInfo {
+  if (!weekend) {
+    return {
+      status: 'UPCOMING',
+      label: 'UPCOMING',
+      badgeLabel: 'UPCOMING',
+      color: '#94a3b8',
+      dotColor: '#64748B',
+    };
+  }
+
+  const weekendId = weekend.raceWeekendId || weekend.id;
+  const wRounds = rounds.filter(r => !weekendId || r.raceWeekendId === weekendId || (r as any).weekendId === weekendId);
+
+  // 1. FINALIZED: Results verified, scoring complete and leaderboard published
+  const hasScoredRound = wRounds.some(r => r.status === 'SCORED' || Boolean((r as any).result?.isFinalized));
+  if (hasScoredRound) {
+    return {
+      status: 'FINALIZED',
+      label: 'FINALIZED',
+      badgeLabel: 'FINALIZED',
+      color: 'var(--telemetry-green)',
+      dotColor: '#10b981',
+    };
+  }
+
+  // 2. UNDER REVIEW: Results exist, but verification or scoring remains incomplete
+  const hasResult = wRounds.some(r => r.status === 'COMPLETED' || Boolean((r as any).result && !(r as any).result?.isFinalized)) ||
+    Boolean(results && results.some(res => wRounds.some(r => r.roundId === res.roundId)));
+  if (hasResult) {
+    return {
+      status: 'UNDER_REVIEW',
+      label: 'UNDER REVIEW',
+      badgeLabel: 'UNDER REVIEW',
+      color: '#38bdf8',
+      dotColor: '#38bdf8',
+    };
+  }
+
+  // 3. AWAITING RESULTS: Event has started or completed, but no official results exist yet
+  const weekendLifecycle = computeWeekendStatus(weekend, nowTime);
+  const nowMs = typeof nowTime === 'number' ? nowTime : nowTime.getTime();
+  const rawStartDate = weekend.startDate || (weekend as any).raceDate || (weekend as any).date;
+  const startMs = rawStartDate ? new Date(rawStartDate).getTime() : 0;
+  const anyRoundClosed = wRounds.some(r => r.status === 'LOCKED' || (r.status as string) === 'CLOSED');
+
+  if (weekendLifecycle === 'COMPLETED' || weekendLifecycle === 'ACTIVE' || (startMs > 0 && nowMs >= startMs) || anyRoundClosed) {
+    return {
+      status: 'AWAITING_RESULTS',
+      label: 'AWAITING RESULTS',
+      badgeLabel: 'AWAITING RESULTS',
+      color: '#eab308',
+      dotColor: '#eab308',
+    };
+  }
+
+  // 4. UPCOMING: Event has not started
+  return {
+    status: 'UPCOMING',
+    label: 'UPCOMING',
+    badgeLabel: 'UPCOMING',
+    color: '#94a3b8',
+    dotColor: '#64748B',
+  };
+}
+

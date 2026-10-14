@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { UserInitialsAvatar } from '../common/UserInitialsAvatar';
+import { NotificationCenter } from '../notifications/NotificationCenter';
 
 interface UserProfileMenuProps {
   mobileMenuOpen?: boolean;
@@ -73,8 +74,10 @@ export const UserProfileMenu: React.FC<UserProfileMenuProps> = ({
           </Link>
         </>
       ) : (
-        /* User Profile Avatar & Dropdown */
-        <div className="user-profile-wrapper" ref={menuRef} style={{ position: 'relative' }}>
+        <>
+          <NotificationCenter />
+          {/* User Profile Avatar & Dropdown */}
+          <div className="user-profile-wrapper" ref={menuRef} style={{ position: 'relative' }}>
           <button
             onClick={() => setIsOpen(prev => !prev)}
             className={`user-profile-trigger ${isOpen ? 'user-profile-trigger--open' : ''}`}
@@ -182,6 +185,7 @@ export const UserProfileMenu: React.FC<UserProfileMenuProps> = ({
           </div>
         )}
       </div>
+        </>
     )}
 
       {/* Mobile Hamburger Menu Toggle */}

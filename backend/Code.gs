@@ -1683,7 +1683,9 @@ function getAllUsersInternal() {
       createdAt: String((colMap['createdAt'] !== undefined ? row[colMap['createdAt']] : '') || ''),
       lastLoginAt: String((colMap['lastLoginAt'] !== undefined ? row[colMap['lastLoginAt']] : '') || ''),
       totalPoints: Number((colMap['totalPoints'] !== undefined ? row[colMap['totalPoints']] : 0) || 0),
-      seasonRank: Number((colMap['seasonRank'] !== undefined ? row[colMap['seasonRank']] : i) || i)
+      seasonRank: Number((colMap['seasonRank'] !== undefined ? row[colMap['seasonRank']] : i) || i),
+      hasPassword: Boolean(colMap['passwordHash'] !== undefined && row[colMap['passwordHash']] && String(row[colMap['passwordHash']]).trim() !== ''),
+      hasPasswordConfigured: Boolean(colMap['passwordHash'] !== undefined && row[colMap['passwordHash']] && String(row[colMap['passwordHash']]).trim() !== '')
     });
   }
   return users;
@@ -1795,10 +1797,10 @@ function getUserProfile(userIdOrUsername) {
         return e.userId === matched.userId || (e.username && String(e.username).toLowerCase() === target);
       });
       if (entry) {
-        matched.totalPoints = Math.max(matched.totalPoints || 0, entry.totalPoints || 0);
+        matched.totalPoints = entry.totalPoints !== undefined ? entry.totalPoints : (matched.totalPoints || 0);
         matched.seasonRank = entry.rank || matched.seasonRank;
         matched.previousRank = entry.previousRank || matched.seasonRank;
-        matched.racesParticipated = Math.max(matched.racesParticipated || 0, entry.racesParticipated || 0);
+        matched.racesParticipated = entry.racesParticipated !== undefined ? entry.racesParticipated : (matched.racesParticipated || 0);
       }
     }
   } catch (err) {
@@ -1982,7 +1984,8 @@ function googleLogin(payload) {
         totalPoints: Number((pointsCol !== undefined ? existingRow[pointsCol] : 0) || 0),
         seasonRank: Number((rankCol !== undefined ? existingRow[rankCol] : existingRowIdx - 1) || (existingRowIdx - 1)),
         isNewUser: false,
-        hasPassword: Boolean(colMap['passwordHash'] !== undefined && existingRow && existingRow[colMap['passwordHash']] && String(existingRow[colMap['passwordHash']]).trim() !== '')
+        hasPassword: Boolean(colMap['passwordHash'] !== undefined && existingRow && existingRow[colMap['passwordHash']] && String(existingRow[colMap['passwordHash']]).trim() !== ''),
+        hasPasswordConfigured: Boolean(colMap['passwordHash'] !== undefined && existingRow && existingRow[colMap['passwordHash']] && String(existingRow[colMap['passwordHash']]).trim() !== '')
       };
       if (returningUserObj.role === 'admin') {
         returningUserObj.authToken = createAdminSessionToken(returningUserObj);
@@ -2068,7 +2071,9 @@ function googleLogin(payload) {
       createdAt: nowIso,
       totalPoints: 0,
       seasonRank: seasonRank,
-      isNewUser: true
+      isNewUser: true,
+      hasPassword: false,
+      hasPasswordConfigured: false
     };
   } finally {
     lock.releaseLock();

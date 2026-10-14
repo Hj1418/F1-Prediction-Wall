@@ -24,6 +24,7 @@ import {
 } from './mockData';
 import { ScoringEngine } from './scoringEngine';
 import { isQualificationPredictionRound, generatePredictionRounds } from './schedule/predictionRoundGenerator';
+import { evaluateUserAchievements } from './achievementRegistry';
 
 const STORAGE_KEYS = {
   USERS: 'f1_pred_users_v3',
@@ -557,7 +558,11 @@ export class MockApiService {
   }
 
   public async getUserAchievements(userId: string): Promise<Achievement[]> {
-    return this.achievements.filter(a => a.userId === userId);
+    const history = await this.getUserPredictionsHistory(userId);
+    const profile = await this.getUserProfile(userId);
+    const seasonPoints = profile?.totalPoints || 0;
+    const evaluated = evaluateUserAchievements({ userId, history, seasonPoints });
+    return evaluated.filter(a => a.isUnlocked);
   }
 
   public async getUserPredictionsHistory(userId: string) {
@@ -639,8 +644,11 @@ export class MockApiService {
       if (payload.photoUrl && (!match.avatarUrl || !match.avatarUrl.trim())) {
         match.avatarUrl = payload.photoUrl;
       }
+      const hasPass = Boolean(match.hasPassword || match.hasPasswordConfigured || (match.passwordHash && match.passwordHash.trim() !== ''));
+      match.hasPassword = hasPass;
+      match.hasPasswordConfigured = hasPass;
       this.persistAll();
-      const userObj = { ...match, isNewUser: false };
+      const userObj = { ...match, isNewUser: false, hasPassword: hasPass, hasPasswordConfigured: hasPass };
       if (userObj.role === 'admin') {
         userObj.authToken = `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIke3VzZXJPYmoudXNlcklkfSIsInJvbGUiOiJhZG1pbiJ9.mock_signature_${userObj.userId}`;
       }
@@ -676,11 +684,29 @@ export class MockApiService {
       perfectPodiumCount: 0,
       wildcardsCorrect: 0,
       isNewUser: true,
+      hasPassword: false,
+      hasPasswordConfigured: false,
     };
 
     this.users.push(newUser);
     this.persistAll();
     return { ...newUser, isNewUser: true };
+  }
+
+  public async setupPassword(payload: { userId?: string; email?: string; newPasswordHash: string }): Promise<{ success: boolean; message: string; hasPassword?: boolean }> {
+    const cleanId = (payload.userId || '').trim().toLowerCase();
+    const cleanEmail = (payload.email || '').trim().toLowerCase();
+    const user = this.users.find(
+      u => (cleanId && u.userId.toLowerCase() === cleanId) || (cleanEmail && u.email.toLowerCase() === cleanEmail)
+    );
+    if (!user) {
+      throw new Error('User account not found.');
+    }
+    user.passwordHash = payload.newPasswordHash;
+    user.hasPassword = true;
+    user.hasPasswordConfigured = true;
+    this.persistAll();
+    return { success: true, message: 'Password configured successfully', hasPassword: true };
   }
 
   public async registerUser(

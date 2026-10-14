@@ -11,6 +11,7 @@ import {
   RoundScore,
   LeaderboardEntry,
   Achievement,
+  WeekendTrophy,
   Driver,
   ApiResponse,
   NormalizedEvent,
@@ -46,6 +47,8 @@ import { wecData } from './motorsport/data/wecData';
 import { motogpData } from './motorsport/data/motogpData';
 import { testGrandPrixService } from './testGrandPrix/testGrandPrixService';
 import { calculateUserStatsFromHistory } from '../utils/predictionScoring';
+import { evaluateUserAchievements } from './achievementRegistry';
+import { weekendTrophyService } from './weekendTrophyService';
 
 const isTestEnv = typeof window === 'undefined';
 
@@ -735,16 +738,51 @@ export const api = {
 
   async getUserAchievements(userId: string): Promise<Achievement[]> {
     return clientCache.getOrFetch(`user_achievements_${userId}`, async () => {
+      let liveAchs: Achievement[] = [];
       if (isLiveBackend) {
         try {
           const res = await fetchWithTimeout(`${API_BASE_URL}?action=getUserAchievements&userId=${encodeURIComponent(userId)}`);
           const json: ApiResponse<Achievement[]> = await res.json();
-          if (json.success && json.data) return json.data;
+          if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+            liveAchs = json.data;
+          }
         } catch (e) {
           console.warn('Live API getUserAchievements failed or timed out, checking fallback:', e);
         }
       }
-      return isProd ? [] : mockApi.getUserAchievements(userId);
+
+      if (liveAchs.length > 0) {
+        return liveAchs;
+      }
+
+      // Authoritative evaluation from canonical prediction records & verified season points
+      try {
+        const history = await this.getUserPredictionsHistory(userId);
+        const profile = await this.getUserProfile(userId);
+        const seasonPoints = profile?.totalPoints || 0;
+        const evaluated = evaluateUserAchievements({ userId, history, seasonPoints });
+        return evaluated.filter(a => a.isUnlocked);
+      } catch (_e) {
+        return isProd ? [] : mockApi.getUserAchievements(userId);
+      }
+    }, { ttlMs: TTL.SHORT });
+  },
+
+  async getUserTrophies(userId: string): Promise<WeekendTrophy[]> {
+    return clientCache.getOrFetch(`user_trophies_${userId}`, async () => {
+      try {
+        const weekends = await this.getRaceWeekends();
+        const rounds = await this.getPredictionRounds();
+        return weekendTrophyService.getUserTrophies(
+          userId,
+          weekends,
+          rounds,
+          (wId) => this.getLeaderboard('weekend', wId)
+        );
+      } catch (err) {
+        console.warn('Error resolving user trophies:', err);
+        return [];
+      }
     }, { ttlMs: TTL.SHORT });
   },
 
@@ -902,7 +940,7 @@ export const api = {
         throw e;
       }
     }
-    return { success: true, message: 'Password configured successfully' };
+    return mockApi.setupPassword(payload);
   },
 
   async requestPasswordReset(identifier: string): Promise<{ success: boolean; message: string }> {
