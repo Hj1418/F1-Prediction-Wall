@@ -32,6 +32,7 @@ import { getAllChampionships } from '../services/motorsport/motorsportRegistry';
 import { PredictionSpeedometer } from '../components/predictions/PredictionSpeedometer';
 import { testGrandPrixService } from '../services/testGrandPrix/testGrandPrixService';
 import { getCircuitAssetUrl, CIRCUIT_SOURCE_MAPPING } from '../services/circuits/circuitRegistry';
+import heroRacetrackBg from '../assets/grdx-hero-racetrack.jpg';
 
 function getCircuitSvgForRace(circuitId?: string, circuitName?: string, grandPrixName?: string): string {
   const normId = (circuitId || '').toLowerCase().trim().replace(/[-\s]+/g, '_');
@@ -171,13 +172,28 @@ export const HomePage: React.FC = () => {
   return (
     <div className="homepage-root" style={{ paddingBottom: '5rem' }}>
       {/* ===================================================================
-          1. HERO: The Front Door to All Motorsport
+          1. HERO: The Front Door to All Motorsport (GRDX Cinematic Racetrack)
           =================================================================== */}
-      <section className="home-hero-section">
+      <section
+        className="home-hero-section"
+        style={{ '--hero-bg-image': `url(${heroRacetrackBg})` } as React.CSSProperties}
+      >
+        {/* Trackside lighting beam & atmospheric accents */}
+        <div className="home-hero-trackside-beam" aria-hidden="true" />
+        <div className="home-hero-light-streak-left" aria-hidden="true" />
+        <div className="home-hero-light-streak-right" aria-hidden="true" />
+        <div className="home-hero-checkered-accent home-hero-checkered-accent--left" aria-hidden="true" />
+        <div className="home-hero-checkered-accent home-hero-checkered-accent--right" aria-hidden="true" />
+
         <div className="home-hero-container">
           {/* THE GRID Headline | THE <span className="home-hero-grid-accent">GRID</span> | Discovery Hubs: Indian Motorsport */}
+          {/* Canonical Hero Anchor: THE <span className="home-hero-grid-accent">GRDX</span> */}
           <h1 className="home-hero-brand-title" aria-label="THE GRDX">
-            THE <span className="home-hero-grid-accent">GRDX</span>
+            <span className="home-hero-the">THE</span>{' '}
+            <span className="home-hero-grid-accent grdx-hero-wordmark">
+              <span className="grdx-wordmark-grd">GRD</span>
+              <span className="grdx-wordmark-x">X</span>
+            </span>
           </h1>
 
           <div className="home-hero-tagline" aria-label="Your motorsport starting point">
@@ -220,7 +236,7 @@ export const HomePage: React.FC = () => {
             </div>
           </div>
 
-          {/* Hero Action Buttons: Explore Motorsport ↓ Global Calendar */}
+          {/* Hero Action Buttons: Focused Primary Actions (Explore Motorsport & Global Calendar) */}
           <div className="home-hero-cta-row">
             <Link to="/explore" className="home-hero-primary-cta">
               <Compass size={16} />
@@ -745,7 +761,7 @@ export const HomePage: React.FC = () => {
         </section>
 
         {/* ===================================================================
-            4. EXPLORE MOTORSPORT: (Discovery belongs exclusively in EXPLORE)
+            4. EXPLORE MOTORSPORT: THE GRDX KNOWLEDGE CHALLENGE (GET YOUR RACING TAG)
             =================================================================== */}
         <section style={{ marginTop: '2.5rem' }}>
           <div
@@ -754,80 +770,179 @@ export const HomePage: React.FC = () => {
               overflow: 'hidden',
               backgroundColor: 'var(--bg-surface)',
               border: '1px solid var(--border-subtle)',
+              borderLeft: '4px solid var(--f1-red)',
               borderRadius: 'var(--radius-lg)',
-              padding: '1.75rem 2rem',
+              padding: '2rem 2.25rem',
               display: 'flex',
               flexWrap: 'wrap',
               alignItems: 'center',
               justifyContent: 'space-between',
-              gap: '1.5rem',
+              gap: '1.75rem',
               boxShadow: 'var(--shadow-card)',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', maxWidth: '640px' }}>
+            {/* Background watermark */}
+            <div
+              style={{
+                position: 'absolute',
+                right: '-20px',
+                top: '-20px',
+                opacity: 0.03,
+                fontSize: '8rem',
+                fontWeight: 900,
+                fontFamily: 'var(--font-display)',
+                pointerEvents: 'none',
+                userSelect: 'none',
+                color: '#ffffff',
+              }}
+            >
+              GRDX
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1.5rem', maxWidth: '680px', position: 'relative', zIndex: 1 }}>
               <div
                 style={{
-                  width: '52px',
-                  height: '52px',
-                  borderRadius: '12px',
-                  backgroundColor: 'rgba(225, 6, 0, 0.15)',
+                  width: '56px',
+                  height: '56px',
+                  borderRadius: '14px',
+                  backgroundColor: 'rgba(225, 6, 0, 0.12)',
                   border: '1px solid rgba(225, 6, 0, 0.35)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   color: 'var(--f1-red)',
                   flexShrink: 0,
+                  marginTop: '0.2rem',
                 }}
               >
-                <Brain size={26} />
+                <Award size={28} />
               </div>
+
               <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.4rem' }}>
                   <span
                     style={{
                       fontFamily: 'var(--font-mono)',
                       fontSize: '0.72rem',
                       fontWeight: 800,
-                      color: 'var(--telemetry-cyan)',
-                      letterSpacing: '0.08em',
+                      color: 'var(--f1-red)',
+                      letterSpacing: '0.1em',
                       textTransform: 'uppercase',
                     }}
                   >
-                    RACE-FREE WEEK KNOWLEDGE TEST
+                    THE GRDX KNOWLEDGE CHALLENGE
+                  </span>
+                  <span style={{ color: 'var(--text-muted)', fontSize: '0.65rem' }}>•</span>
+                  <span style={{ fontSize: '0.68rem', color: '#10b981', fontFamily: 'var(--font-mono)', fontWeight: 700 }}>
+                    8 Verified Disciplines
                   </span>
                 </div>
-                <h3 style={{ fontSize: '1.35rem', fontWeight: 900, textTransform: 'uppercase', color: '#fff', margin: '0 0 0.35rem 0' }}>
-                  DISCOVER YOUR MOTORSPORT IDENTITY
+
+                <h3
+                  style={{
+                    fontSize: 'clamp(1.4rem, 2.5vw, 1.85rem)',
+                    fontWeight: 900,
+                    textTransform: 'uppercase',
+                    color: '#ffffff',
+                    margin: '0 0 0.5rem 0',
+                    letterSpacing: '0.02em',
+                  }}
+                >
+                  GET YOUR RACING TAG
                 </h3>
-                <p style={{ color: 'var(--text-secondary)', fontSize: '0.86rem', margin: 0, lineHeight: 1.5 }}>
-                  Select from 8 premier categories across Formula Racing, MotoGP, Endurance, and GT. Answer 15 verified questions and discover your authentic fan identity tier.
+
+                <p
+                  style={{
+                    color: 'var(--text-secondary)',
+                    fontSize: '0.9rem',
+                    margin: '0 0 0.85rem 0',
+                    lineHeight: 1.55,
+                  }}
+                >
+                  Discover how much you know about motorsport, take on verified racing questions, and earn a tag that represents your knowledge.
                 </p>
+
+                {/* Supporting line */}
+                <div
+                  style={{
+                    fontSize: '0.82rem',
+                    fontFamily: 'var(--font-mono)',
+                    color: 'var(--telemetry-cyan)',
+                    fontWeight: 700,
+                    letterSpacing: '0.04em',
+                    marginBottom: '1.15rem',
+                  }}
+                >
+                  Your knowledge. Your tag. Your GRDX profile.
+                </div>
+
+                {/* Categories Badge Strip */}
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', alignItems: 'center' }}>
+                  {['F1', 'F2', 'F3', 'F4', 'Formula E', 'MotoGP', 'Endurance', 'GT Racing'].map(cat => (
+                    <span
+                      key={cat}
+                      style={{
+                        padding: '0.2rem 0.55rem',
+                        borderRadius: '4px',
+                        backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                        border: '1px solid var(--border-subtle)',
+                        fontSize: '0.68rem',
+                        fontFamily: 'var(--font-mono)',
+                        color: 'var(--text-secondary)',
+                        fontWeight: 600,
+                      }}
+                    >
+                      {cat}
+                    </span>
+                  ))}
+                  <span
+                    style={{
+                      padding: '0.2rem 0.55rem',
+                      borderRadius: '4px',
+                      backgroundColor: 'transparent',
+                      border: '1px dashed rgba(255, 255, 255, 0.2)',
+                      fontSize: '0.68rem',
+                      fontFamily: 'var(--font-mono)',
+                      color: 'var(--text-muted)',
+                      fontStyle: 'italic',
+                    }}
+                  >
+                    + IndyCar & Supercars coming soon
+                  </span>
+                </div>
               </div>
             </div>
 
-            <Link
-              to="/quiz"
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                padding: '0.75rem 1.6rem',
-                borderRadius: '6px',
-                backgroundColor: 'var(--f1-red)',
-                color: '#ffffff',
-                fontWeight: 800,
-                fontSize: '0.84rem',
-                fontFamily: 'var(--font-mono)',
-                textTransform: 'uppercase',
-                letterSpacing: '0.06em',
-                textDecoration: 'none',
-                boxShadow: '0 0 20px rgba(225, 6, 0, 0.4)',
-                flexShrink: 0,
-              }}
-            >
-              <span>TAKE THE QUIZ</span>
-              <ArrowRight size={15} />
-            </Link>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '0.75rem', position: 'relative', zIndex: 1 }}>
+              <Link
+                to="/quiz"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.6rem',
+                  padding: '0.85rem 1.85rem',
+                  borderRadius: '6px',
+                  backgroundColor: 'var(--f1-red)',
+                  color: '#ffffff',
+                  fontWeight: 900,
+                  fontSize: '0.88rem',
+                  fontFamily: 'var(--font-mono)',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.06em',
+                  textDecoration: 'none',
+                  boxShadow: '0 0 25px rgba(225, 6, 0, 0.45)',
+                  flexShrink: 0,
+                  transition: 'transform 0.15s ease, box-shadow 0.15s ease',
+                }}
+              >
+                <span>GET YOUR RACING TAG</span>
+                <ArrowRight size={16} />
+              </Link>
+
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                Tiers: Rookie • Enthusiast • Insider • Strategist • Oracle
+              </div>
+            </div>
           </div>
         </section>
 

@@ -49,12 +49,12 @@ export const QuizPage: React.FC = () => {
 
   // SEO
   useEffect(() => {
-    document.title = 'Motorsport Fan Identity Quiz | GRDX';
+    document.title = 'Get Your Racing Tag | GRDX Knowledge Challenge';
     const metaDesc = document.querySelector('meta[name="description"]');
     if (metaDesc) {
       metaDesc.setAttribute(
         'content',
-        'GRDX — Test your racing knowledge across Formula 1, F2, F3, F4, Formula E, MotoGP, Endurance, and GT Racing. Discover your authentic motorsport fan identity tier.'
+        'GRDX — Discover how much you know about motorsport, take on verified racing questions across 8 disciplines, and earn a tag that represents your knowledge.'
       );
     }
   }, []);
@@ -252,9 +252,9 @@ export const QuizPage: React.FC = () => {
     <div className="container" style={{ paddingTop: '2rem', paddingBottom: '4rem' }}>
       {/* Universal Page Header */}
       <PageHeader
-        eyebrow="FAN IDENTITY"
-        title="MOTORSPORT FAN IDENTITY QUIZ"
-        subtitle="Test your knowledge across 8 premier disciplines. Max 15 questions. Instant deterministic scoring."
+        eyebrow="THE GRDX KNOWLEDGE CHALLENGE"
+        title="GET YOUR RACING TAG"
+        subtitle="Discover how much you know about motorsport, take on verified racing questions, and earn a tag that represents your knowledge."
         backTo={{ label: 'Home', path: '/' }}
       />
 
@@ -388,28 +388,59 @@ export const QuizPage: React.FC = () => {
               <Brain size={32} />
             </div>
 
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.4rem',
+                fontSize: '0.75rem',
+                fontWeight: 800,
+                color: 'var(--f1-red)',
+                letterSpacing: '0.12em',
+                textTransform: 'uppercase',
+                fontFamily: 'var(--font-mono)',
+                marginBottom: '0.5rem',
+              }}
+            >
+              <span>THE GRDX KNOWLEDGE CHALLENGE</span>
+            </div>
+
             <h1
               style={{
-                fontSize: 'clamp(1.8rem, 4vw, 2.5rem)',
+                fontSize: 'clamp(1.8rem, 4vw, 2.75rem)',
                 fontWeight: 900,
                 color: '#ffffff',
                 marginBottom: '1rem',
+                letterSpacing: '0.02em',
               }}
             >
-              DISCOVER YOUR MOTORSPORT IDENTITY
+              GET YOUR RACING TAG
             </h1>
 
             <p
               style={{
                 fontSize: '1.05rem',
                 color: 'var(--text-secondary)',
-                maxWidth: '580px',
-                margin: '0 auto 2rem auto',
+                maxWidth: '620px',
+                margin: '0 auto 1rem auto',
                 lineHeight: 1.6,
               }}
             >
-              Test your knowledge across 8 premier motorsport disciplines during race-free weeks. Select your favorite categories, answer 15 verified questions, and receive your authentic motorsport fan identity tier immediately.
+              Discover how much you know about motorsport, take on verified racing questions, and earn a tag that represents your knowledge.
             </p>
+
+            <div
+              style={{
+                fontSize: '0.9rem',
+                fontFamily: 'var(--font-mono)',
+                color: 'var(--telemetry-cyan)',
+                fontWeight: 700,
+                letterSpacing: '0.04em',
+                marginBottom: '2rem',
+              }}
+            >
+              Your knowledge. Your tag. Your GRDX profile.
+            </div>
 
             {/* Feature Pills */}
             <div
@@ -497,7 +528,7 @@ export const QuizPage: React.FC = () => {
                   transition: 'all 0.15s ease',
                 }}
               >
-                <span>CHOOSE CATEGORIES & START</span>
+                <span>GET YOUR RACING TAG</span>
                 <ArrowRight size={18} />
               </button>
 

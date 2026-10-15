@@ -1055,95 +1055,200 @@ html, body, #root {
    HOME & EXPLORE REFINED MOTORSPORT VISUAL SYSTEM
    ══════════════════════════════════════════════════════════════════════════════ */
 
-/* Home Hero Section */
+/* Home Hero Section — GRDX Cinematic Racetrack */
 .home-hero-section {
   position: relative;
-  background: radial-gradient(ellipse 90% 60% at 50% -15%, rgba(225, 6, 0, 0.22) 0%, rgba(15, 19, 28, 0.8) 55%, var(--bg-base) 100%);
-  border-bottom: 1px solid var(--border-subtle);
-  padding: 4.5rem 1.25rem 3.5rem 1.25rem;
+  background-color: #07090f;
+  background-image:
+    linear-gradient(180deg, rgba(7, 9, 15, 0.78) 0%, rgba(7, 9, 15, 0.42) 28%, rgba(7, 9, 15, 0.72) 65%, rgba(8, 10, 15, 0.96) 88%, var(--bg-base) 100%),
+    radial-gradient(ellipse 75% 55% at 50% 25%, rgba(225, 6, 0, 0.22) 0%, rgba(7, 9, 15, 0.55) 60%, transparent 100%),
+    var(--hero-bg-image, url('/images/grdx-hero-racetrack.jpg'));
+  background-size: cover;
+  background-position: center 36%;
+  background-repeat: no-repeat;
+  border-bottom: none;
+  padding: 5.25rem 1.25rem 4rem 1.25rem;
   overflow: hidden;
   text-align: center;
 }
 
-.home-hero-section::before {
+/* Seamless bottom fade mask to eliminate harsh image cutoffs and misaligned lines */
+.home-hero-section::after {
   content: '';
   position: absolute;
-  top: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 100%;
-  max-width: 1200px;
-  height: 1px;
-  background: linear-gradient(90deg, transparent 0%, rgba(225, 6, 0, 0.6) 50%, transparent 100%);
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 100px;
+  background: linear-gradient(180deg, transparent 0%, var(--bg-base) 100%);
   pointer-events: none;
+  z-index: 1;
+}
+
+.home-hero-section::before {
+  display: none;
+}
+
+/* Trackside Lighting Beam */
+.home-hero-trackside-beam {
+  display: none;
+}
+
+/* Lateral Red Light Streaks */
+.home-hero-light-streak-left,
+.home-hero-light-streak-right {
+  position: absolute;
+  top: 35%;
+  width: 320px;
+  height: 140px;
+  border-radius: 50%;
+  pointer-events: none;
+  opacity: 0.38;
+  filter: blur(32px);
+  animation: racingStreakPulse 4s ease-in-out infinite alternate;
+  z-index: 1;
+}
+
+.home-hero-light-streak-left {
+  left: -80px;
+  background: radial-gradient(circle, rgba(225, 6, 0, 0.65) 0%, transparent 70%);
+}
+
+.home-hero-light-streak-right {
+  right: -80px;
+  background: radial-gradient(circle, rgba(225, 6, 0, 0.55) 0%, rgba(255, 255, 255, 0.25) 25%, transparent 70%);
+}
+
+/* Checkered-Flag Pattern Lateral Accents */
+.home-hero-checkered-accent {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 160px;
+  pointer-events: none;
+  background-image:
+    linear-gradient(45deg, rgba(255, 255, 255, 0.08) 25%, transparent 25%),
+    linear-gradient(-45deg, rgba(255, 255, 255, 0.08) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, rgba(255, 255, 255, 0.08) 75%),
+    linear-gradient(-45deg, transparent 75%, rgba(255, 255, 255, 0.08) 75%);
+  background-size: 16px 16px;
+  background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+  opacity: 0.05;
+  z-index: 1;
+}
+
+.home-hero-checkered-accent--left {
+  left: 0;
+  mask-image: linear-gradient(90deg, rgba(0, 0, 0, 0.9) 0%, transparent 100%);
+  -webkit-mask-image: linear-gradient(90deg, rgba(0, 0, 0, 0.9) 0%, transparent 100%);
+}
+
+.home-hero-checkered-accent--right {
+  right: 0;
+  transform: scaleX(-1);
+  mask-image: linear-gradient(90deg, rgba(0, 0, 0, 0.9) 0%, transparent 100%);
+  -webkit-mask-image: linear-gradient(90deg, rgba(0, 0, 0, 0.9) 0%, transparent 100%);
 }
 
 .home-hero-container {
   max-width: 980px;
   margin: 0 auto;
   position: relative;
-  z-index: 1;
+  z-index: 2;
 }
 
-/* THE GRID brand typography */
+/* Brand Wordmark Typography: THE GRDX */
 .home-hero-brand-title {
-  font-family: var(--font-display);
-  font-size: clamp(3.4rem, 8.5vw, 5.8rem);
+  font-family: var(--font-display), 'Barlow Condensed', sans-serif;
+  font-size: clamp(3.6rem, 9.2vw, 6.4rem);
   font-weight: 900;
   letter-spacing: -0.02em;
-  line-height: 0.95;
+  line-height: 0.94;
   text-transform: uppercase;
   color: #ffffff;
-  margin: 0 0 1rem 0;
+  margin: 0 0 1.2rem 0;
   display: inline-flex;
   align-items: baseline;
   justify-content: center;
-  gap: 0.3em;
+  gap: 0.22em;
+  animation: heroWordmarkEntrance 0.75s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-.home-hero-grid-accent {
+.home-hero-the {
+  font-style: normal;
+  font-weight: 800;
+  font-size: 0.68em;
+  letter-spacing: 0.06em;
+  color: rgba(255, 255, 255, 0.88);
+  text-shadow: 0 2px 18px rgba(0, 0, 0, 0.8);
+}
+
+.home-hero-grid-accent,
+.grdx-hero-wordmark {
   font-style: italic;
   font-weight: 900;
   color: #ffffff;
   position: relative;
-  display: inline-block;
+  display: inline-flex;
+  align-items: baseline;
   letter-spacing: -0.01em;
 }
 
-.home-hero-grid-accent::after {
+.grdx-wordmark-grd {
+  color: #ffffff;
+  text-shadow: 0 4px 26px rgba(0, 0, 0, 0.9), 0 0 35px rgba(255, 255, 255, 0.12);
+}
+
+.grdx-wordmark-x {
+  color: var(--f1-red);
+  font-weight: 950;
+  font-style: italic;
+  display: inline-block;
+  margin-left: 0.02em;
+  animation: xGlowPulse 3s ease-in-out infinite alternate;
+}
+
+/* Sharp Red Underline / Racing Stripe Treatment */
+.home-hero-grid-accent::after,
+.grdx-hero-wordmark::after {
   content: '';
   position: absolute;
-  bottom: 0.08em;
-  left: 0;
-  width: 100%;
-  height: 4px;
-  background: var(--f1-red);
+  bottom: -0.06em;
+  left: -4%;
+  width: 108%;
+  height: 5px;
+  background: linear-gradient(90deg, transparent 0%, var(--f1-red) 12%, #ff3b30 50%, var(--f1-red) 88%, transparent 100%);
+  box-shadow: 0 0 16px rgba(225, 6, 0, 0.9), 0 0 32px rgba(225, 6, 0, 0.45);
   border-radius: 2px;
-  transform: skewX(-14deg);
+  transform: skewX(-16deg);
 }
 
 .home-hero-tagline {
-  font-family: var(--font-display);
-  font-size: clamp(1.1rem, 2.4vw, 1.45rem);
+  font-family: var(--font-display), sans-serif;
+  font-size: clamp(1.15rem, 2.5vw, 1.55rem);
   font-weight: 800;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   color: #ffffff;
   margin: 0 0 1rem 0;
-  line-height: 1.25;
+  line-height: 1.3;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.7);
 }
 
 .home-hero-tagline-accent {
   color: var(--f1-red);
+  font-weight: 900;
+  text-shadow: 0 0 16px rgba(225, 6, 0, 0.7);
 }
 
 .home-hero-description {
-  font-size: clamp(0.98rem, 1.9vw, 1.15rem);
-  color: var(--text-secondary);
+  font-size: clamp(1rem, 2vw, 1.18rem);
+  color: rgba(230, 236, 245, 0.9);
   max-width: 680px;
-  margin: 0 auto 2rem auto;
-  line-height: 1.55;
+  margin: 0 auto 2.25rem auto;
+  line-height: 1.6;
   font-weight: 400;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.8);
 }
 
 /* 4 Product Pillars (Compact) */
@@ -1156,18 +1261,20 @@ html, body, #root {
 }
 
 .home-pillar-item {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid var(--border-subtle);
+  background: rgba(18, 22, 32, 0.65);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: var(--radius-md);
-  padding: 0.9rem 0.8rem;
+  padding: 0.95rem 0.85rem;
   text-align: center;
-  transition: border-color 0.2s ease, transform 0.2s ease, background-color 0.2s ease;
+  transition: border-color 0.2s ease, transform 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .home-pillar-item:hover {
-  border-color: rgba(225, 6, 0, 0.45);
-  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(225, 6, 0, 0.5);
+  background: rgba(25, 30, 44, 0.8);
   transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5), 0 0 12px rgba(225, 6, 0, 0.25);
 }
 
 .home-pillar-header {
@@ -1205,7 +1312,7 @@ html, body, #root {
   align-items: center;
   justify-content: center;
   gap: 0.55rem;
-  padding: 0.75rem 1.6rem;
+  padding: 0.8rem 1.65rem;
   border-radius: var(--radius-sm);
   background-color: var(--f1-red);
   color: #ffffff;
@@ -1215,14 +1322,14 @@ html, body, #root {
   text-transform: uppercase;
   letter-spacing: 0.05em;
   text-decoration: none;
-  box-shadow: 0 4px 18px rgba(225, 6, 0, 0.42);
-  transition: background-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+  box-shadow: 0 4px 18px rgba(225, 6, 0, 0.45);
+  transition: background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .home-hero-primary-cta:hover {
   background-color: var(--f1-red-hover);
   transform: translateY(-2px);
-  box-shadow: 0 6px 22px rgba(225, 6, 0, 0.55);
+  box-shadow: 0 6px 24px rgba(225, 6, 0, 0.65);
 }
 
 .home-hero-secondary-cta {
@@ -1230,24 +1337,97 @@ html, body, #root {
   align-items: center;
   justify-content: center;
   gap: 0.55rem;
-  padding: 0.75rem 1.45rem;
+  padding: 0.8rem 1.5rem;
   border-radius: var(--radius-sm);
-  background-color: var(--bg-surface-elevated);
+  background-color: rgba(18, 22, 32, 0.75);
   color: #ffffff;
-  border: 1px solid var(--border-medium);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(8px);
   font-family: var(--font-display);
   font-weight: 700;
   font-size: 0.92rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   text-decoration: none;
-  transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+  transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
 }
 
 .home-hero-secondary-cta:hover {
-  background-color: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.3);
+  background-color: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.4);
   transform: translateY(-2px);
+}
+
+.home-hero-quiz-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  padding: 0.8rem 1.5rem;
+  border-radius: var(--radius-sm);
+  background: linear-gradient(135deg, rgba(225, 6, 0, 0.2) 0%, rgba(15, 19, 28, 0.85) 100%);
+  color: #ffffff;
+  border: 1px solid rgba(225, 6, 0, 0.45);
+  backdrop-filter: blur(8px);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.92rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  text-decoration: none;
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.home-hero-quiz-cta:hover {
+  background: linear-gradient(135deg, rgba(225, 6, 0, 0.35) 0%, rgba(20, 25, 36, 0.9) 100%);
+  border-color: var(--f1-red);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 18px rgba(225, 6, 0, 0.4);
+}
+
+/* Animations */
+@keyframes heroWordmarkEntrance {
+  0% {
+    opacity: 0;
+    transform: translateY(18px) scale(0.98);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes xGlowPulse {
+  0% {
+    text-shadow: 0 0 20px rgba(225, 6, 0, 0.8), 0 0 40px rgba(225, 6, 0, 0.45), 0 2px 10px rgba(0, 0, 0, 0.9);
+    filter: drop-shadow(0 0 4px rgba(225, 6, 0, 0.6));
+  }
+  100% {
+    text-shadow: 0 0 30px rgba(225, 6, 0, 1), 0 0 60px rgba(225, 6, 0, 0.7), 0 2px 12px rgba(0, 0, 0, 0.95);
+    filter: drop-shadow(0 0 10px rgba(225, 6, 0, 0.9));
+  }
+}
+
+@keyframes racingStreakPulse {
+  0% {
+    opacity: 0.25;
+    transform: scale(0.96);
+  }
+  100% {
+    opacity: 0.45;
+    transform: scale(1.04);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-hero-brand-title,
+  .grdx-wordmark-x,
+  .home-hero-light-streak-left,
+  .home-hero-light-streak-right,
+  .navbar-brand__logo {
+    animation: none !important;
+    transition: none !important;
+  }
 }
 
 /* Explore Hero Section */
@@ -1488,7 +1668,8 @@ html, body, #root {
     width: 100%;
   }
   .home-hero-primary-cta,
-  .home-hero-secondary-cta {
+  .home-hero-secondary-cta,
+  .home-hero-quiz-cta {
     width: 100%;
     min-height: 44px;
   }

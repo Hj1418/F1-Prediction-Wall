@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { QuizResultPayload } from '../../types/quiz';
 import { getTierDetails, getQuizCategory } from '../../services/quiz/quizRegistry';
 import { shareQuizResult } from '../../services/quiz/quizSharing';
@@ -110,7 +111,7 @@ export const QuizResultsView: React.FC<QuizResultsViewProps> = ({
             }}
           >
             <Sparkles size={14} />
-            MOTORSPORT FAN IDENTITY
+            YOUR RACING TAG
           </div>
 
           <h1
@@ -209,6 +210,31 @@ export const QuizResultsView: React.FC<QuizResultsViewProps> = ({
               <Share2 size={16} />
               <span>{isSharing ? 'GENERATING CARD...' : 'SHARE RESULT'}</span>
             </button>
+
+            {username && (
+              <Link
+                to={`/profile/${username}`}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  padding: '0.7rem 1.4rem',
+                  backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                  color: '#ffffff',
+                  border: '1px solid var(--border-medium)',
+                  borderRadius: 'var(--radius-sm)',
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '0.85rem',
+                  fontWeight: 800,
+                  letterSpacing: '0.05em',
+                  textDecoration: 'none',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                <Award size={16} style={{ color: tier.color }} />
+                <span>VIEW IN PROFILE</span>
+              </Link>
+            )}
 
             <button
               type="button"

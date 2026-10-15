@@ -45,12 +45,12 @@ export const UpcomingQuizFeatures: React.FC = () => {
           style={{
             fontSize: '0.88rem',
             color: 'var(--text-secondary)',
-            maxWidth: '620px',
+            maxWidth: '640px',
             margin: '0.5rem auto 0',
             lineHeight: 1.5,
           }}
         >
-          GRDX is continuously expanding across global racing disciplines. Discover upcoming championships, upcoming thematic challenges, and future achievement tiers.
+          We're expanding the GRDX quiz experience with more championships, new question sets, and more ways to test your motorsport knowledge.
         </p>
       </div>
 

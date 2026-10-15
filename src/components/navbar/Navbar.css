@@ -114,14 +114,63 @@
 
 .navbar-brand__logo {
   background-color: var(--f1-red);
-  width: 34px;
-  height: 34px;
-  border-radius: 5px;
+  width: 36px;
+  height: 32px;
+  border-radius: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
   box-shadow: 0 0 14px rgba(225, 6, 0, 0.4);
   flex-shrink: 0;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.navbar-brand:hover .navbar-brand__logo {
+  transform: translateY(-1px);
+  box-shadow: 0 0 20px rgba(225, 6, 0, 0.65);
+}
+
+.navbar-brand__logo.grdx-nav-badge {
+  background: linear-gradient(135deg, #181c25 0%, #0d1017 100%);
+  border: 1px solid rgba(225, 6, 0, 0.45);
+  box-shadow: 0 0 12px rgba(225, 6, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  position: relative;
+  overflow: hidden;
+  padding: 0 6px;
+  width: auto;
+  min-width: 44px;
+}
+
+.navbar-brand__logo.grdx-nav-badge::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 3px;
+  height: 100%;
+  background: var(--f1-red);
+}
+
+.grdx-badge-text {
+  font-family: var(--font-display), var(--font-mono), sans-serif;
+  font-weight: 900;
+  font-style: italic;
+  font-size: 0.88rem;
+  letter-spacing: -0.01em;
+  display: inline-flex;
+  align-items: baseline;
+  line-height: 1;
+}
+
+.grdx-badge-grd {
+  color: #ffffff;
+}
+
+.grdx-badge-x {
+  color: var(--f1-red);
+  font-weight: 950;
+  text-shadow: 0 0 8px rgba(225, 6, 0, 0.85);
+  margin-left: 0.5px;
 }
 
 .navbar-brand__logo-text {
@@ -139,18 +188,43 @@
 }
 
 .navbar-brand__title {
+  font-family: var(--font-display), sans-serif;
   font-weight: 900;
-  font-size: 1.05rem;
-  letter-spacing: 0.04em;
+  font-size: 1.12rem;
+  letter-spacing: 0.03em;
   color: #fff;
   line-height: 1;
+  display: inline-flex;
+  align-items: baseline;
+}
+
+.navbar-brand__title-the {
+  font-weight: 700;
+  font-size: 0.82em;
+  color: rgba(255, 255, 255, 0.85);
+  letter-spacing: 0.06em;
+}
+
+.navbar-brand__title-grd {
+  font-weight: 900;
+  font-style: italic;
+  color: #ffffff;
+  letter-spacing: -0.01em;
+}
+
+.navbar-brand__title-x {
+  font-weight: 950;
+  font-style: italic;
+  color: var(--f1-red);
+  text-shadow: 0 0 10px rgba(225, 6, 0, 0.7);
+  letter-spacing: -0.01em;
 }
 
 .navbar-brand__subtitle {
   font-size: 0.6rem;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--text-muted);
-  letter-spacing: 0.1em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   line-height: 1;
 }

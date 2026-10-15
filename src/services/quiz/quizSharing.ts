@@ -67,7 +67,7 @@ export async function generateQuizShareCard(
   ctx.font = '600 16px "Inter", sans-serif';
   ctx.fillStyle = '#94a3b8';
   ctx.letterSpacing = '1px';
-  ctx.fillText('MOTORSPORT FAN IDENTITY QUIZ', 142, 126);
+  ctx.fillText('THE GRDX KNOWLEDGE CHALLENGE', 142, 126);
 
   // Clean Red accent line
   ctx.fillStyle = '#e10600';
@@ -102,7 +102,7 @@ export async function generateQuizShareCard(
   ctx.fillStyle = tier.color;
   ctx.font = '800 20px "JetBrains Mono", monospace';
   ctx.letterSpacing = '3px';
-  ctx.fillText('FAN IDENTITY REVEALED', 540, 350);
+  ctx.fillText('RACING TAG EARNED', 540, 350);
 
   // Main Tier Title
   ctx.fillStyle = '#ffffff';
@@ -203,7 +203,7 @@ export async function shareQuizResult(
   result: QuizResultPayload,
   username?: string
 ): Promise<{ method: 'native' | 'download' | 'clipboard'; success: boolean }> {
-  const shareText = `I took the GRDX Motorsport Fan Identity Quiz and scored ${result.score}/${result.totalQuestions} (${result.percentage}%). My fan identity is "${result.fanIdentityTier}"! Discover yours:`;
+  const shareText = `I took the GRDX Knowledge Challenge and earned the "${result.fanIdentityTier}" Racing Tag with a score of ${result.score}/${result.totalQuestions} (${result.percentage}%). Test your knowledge:`;
   const shareUrl = `${window.location.origin}${window.location.pathname}#/quiz`;
 
   // Try generating image card
@@ -211,7 +211,7 @@ export async function shareQuizResult(
   try {
     const blob = await generateQuizShareCard(result, username);
     if (blob) {
-      imageFile = new File([blob], `grdx-fan-identity-${result.attemptId.substring(0, 8)}.png`, {
+      imageFile = new File([blob], `grdx-racing-tag-${result.attemptId.substring(0, 8)}.png`, {
         type: 'image/png',
       });
     }

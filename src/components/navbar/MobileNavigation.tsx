@@ -248,7 +248,7 @@ export const MobileNavigation: React.FC<MobileNavigationProps> = ({
           <span>Calendar</span>
         </Link>
 
-        {/* QUIZ */}
+        {/* RACING TAG */}
         <Link
           to="/quiz"
           onClick={onClose}
@@ -256,7 +256,7 @@ export const MobileNavigation: React.FC<MobileNavigationProps> = ({
           style={{ minHeight: '44px' }}
         >
           <Brain size={18} style={{ color: isItemActive('/quiz') ? 'var(--f1-red)' : 'var(--text-secondary)' }} />
-          <span>Motorsport Quiz</span>
+          <span>Get Your Racing Tag</span>
         </Link>
 
         {/* PREDICTIONS */}

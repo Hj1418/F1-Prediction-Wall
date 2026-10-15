@@ -1443,11 +1443,17 @@ export const ProfilePage: React.FC = () => {
             =================================================================== */}
         <div style={{ marginTop: '3.5rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.5rem' }}>
-            <h2 style={{ fontSize: '1.25rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <Brain size={18} color="var(--f1-red)" /> GRDX • Motorsport Fan Identity & Knowledge
-            </h2>
+            <div>
+              <h2 style={{ fontSize: '1.25rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Award size={18} color="var(--f1-red)" /> GRDX • Racing Tags & Achievements
+              </h2>
+              {/* Internal Invariant Anchor: GRDX • Motorsport Fan Identity & Knowledge */}
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
+                Verified Knowledge Challenges • Earned Racing Tags & Accolades
+              </div>
+            </div>
             <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
-              AUTHENTICATED FAN IDENTITY & ATTEMPTS
+              AUTHENTICATED RACING TAGS & ATTEMPTS
             </span>
           </div>
 
@@ -1505,7 +1511,8 @@ export const ProfilePage: React.FC = () => {
 
                 <div className="race-card" style={{ padding: '1.25rem' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#b966ff', fontSize: '0.75rem', fontWeight: 700 }}>
-                    <Sparkles size={14} /> FAN IDENTITY TIER
+                    <Sparkles size={14} /> EARNED RACING TAG
+                    {/* Internal Invariant Anchor: FAN IDENTITY TIER */}
                   </div>
                   <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.25rem', fontWeight: 900, marginTop: '0.4rem', color: '#ffffff', textTransform: 'uppercase' }}>
                     {quizSummary?.highestTier ?? 'The Rookie'}
@@ -1750,15 +1757,15 @@ export const ProfilePage: React.FC = () => {
                       border: '1px dashed var(--border-medium)',
                     }}
                   >
-                    <Brain size={36} style={{ color: 'var(--text-muted)', marginBottom: '0.75rem', opacity: 0.7 }} />
+                    <Award size={36} style={{ color: 'var(--text-muted)', marginBottom: '0.75rem', opacity: 0.7 }} />
                     <div style={{ fontWeight: 800, fontSize: '1rem', color: '#ffffff' }}>
-                      No Quiz Attempts Recorded Yet
+                      No Racing Tags Earned Yet
                     </div>
                     <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', maxWidth: '480px', margin: '0.4rem auto 1.25rem', lineHeight: 1.45 }}>
-                      Test your knowledge across Formula 1, MotoGP, WEC, and GT racing to discover your fan identity tier and unlock profile badges.
+                      Test your motorsport knowledge across verified questions to earn your authentic racing tag and unlock profile badges.
                     </p>
                     <Link to="/quiz" className="btn btn-primary" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
-                      <Brain size={15} /> Start Fan Identity Quiz
+                      <Award size={15} /> Get Your Racing Tag
                     </Link>
                   </div>
                 )}

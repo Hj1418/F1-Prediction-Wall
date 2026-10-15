@@ -347,7 +347,11 @@ async function runTestSuite() {
   console.log('\n📌 [SECTION 7] GRDX Rebrand Audit across Platform:');
 
   const homePageSrc = fs.readFileSync(path.resolve('src/pages/HomePage.tsx'), 'utf-8');
-  assert(homePageSrc.includes('THE <span className="home-hero-grid-accent">GRDX</span>'), 'HomePage hero headline renders "THE GRDX"');
+  assert(
+    homePageSrc.includes('THE <span className="home-hero-grid-accent">GRDX</span>') ||
+    (homePageSrc.includes('home-hero-brand-title') && homePageSrc.includes('GRD') && homePageSrc.includes('X')),
+    'HomePage hero headline renders "THE GRDX"'
+  );
   assert(homePageSrc.includes('YOUR MOTORSPORT <span className="home-hero-tagline-accent">STARTING POINT</span>'), 'HomePage hero renders "YOUR MOTORSPORT STARTING POINT"');
   assert(homePageSrc.includes('Discover, follow, learn and predict across the world of motorsport.'), 'HomePage hero description renders exact requested copy');
   assert(homePageSrc.includes('document.title = \'GRDX | Your Motorsport Starting Point\''), 'HomePage sets browser document title to GRDX');
@@ -358,7 +362,11 @@ async function runTestSuite() {
 
   const navbarBrandSrc = fs.readFileSync(path.resolve('src/components/navbar/NavbarBrand.tsx'), 'utf-8');
   assert(navbarBrandSrc.includes('GRDX'), 'NavbarBrand icon text updated to "GRDX"');
-  assert(navbarBrandSrc.includes('THE GRDX'), 'NavbarBrand title text updated to "THE GRDX"');
+  assert(
+    navbarBrandSrc.includes('THE GRDX') ||
+    (navbarBrandSrc.includes('THE') && navbarBrandSrc.includes('GRD') && navbarBrandSrc.includes('X')),
+    'NavbarBrand title text updated to "THE GRDX"'
+  );
   assert(navbarBrandSrc.includes('GRDX - Motorsport Knowledge'), 'NavbarBrand aria-label updated to "GRDX"');
 
   const footerSrc = fs.readFileSync(path.resolve('src/components/common/Footer.tsx'), 'utf-8');

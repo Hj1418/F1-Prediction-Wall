@@ -26,7 +26,7 @@ const NAV_ITEMS: NavItem[] = [
     icon: Calendar,
     matchPrefixes: ['/calendar', '/schedule', '/races', '/weekends'],
   },
-  { label: 'QUIZ', path: '/quiz', icon: Brain, matchPrefixes: ['/quiz'] },
+  { label: 'RACING TAG', path: '/quiz', icon: Brain, matchPrefixes: ['/quiz'] },
   { label: 'PREDICTIONS', path: '/predictions', icon: CircleDot, matchPrefixes: ['/predictions', '/predict'] },
   { label: 'LEADERBOARD', path: '/leaderboard', icon: Trophy, matchPrefixes: ['/leaderboard'] },
 ];

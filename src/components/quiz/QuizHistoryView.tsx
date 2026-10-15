@@ -51,7 +51,7 @@ export const QuizHistoryView: React.FC<QuizHistoryViewProps> = ({
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <History size={18} style={{ color: 'var(--f1-red)' }} />
           <h2 style={{ fontSize: '1.15rem', margin: 0, letterSpacing: '0.04em' }}>
-            YOUR QUIZ ATTEMPT HISTORY
+            YOUR RACING TAG & QUIZ HISTORY
           </h2>
         </div>
       </div>
@@ -70,8 +70,8 @@ export const QuizHistoryView: React.FC<QuizHistoryViewProps> = ({
           <h3 style={{ fontSize: '1.2rem', color: '#fff', marginBottom: '0.5rem' }}>
             NO COMPLETED ATTEMPTS YET
           </h3>
-          <p style={{ color: 'var(--text-secondary)', maxWidth: '420px', margin: '0 auto 1.5rem auto', fontSize: '0.88rem' }}>
-            Take your first motorsport knowledge quiz to discover your fan identity and build your attempt history.
+          <p style={{ color: 'var(--text-secondary)', maxWidth: '440px', margin: '0 auto 1.5rem auto', fontSize: '0.88rem' }}>
+            Take on verified motorsport questions to earn your official racing tag and build your attempt history.
           </p>
           <button
             type="button"
@@ -88,7 +88,7 @@ export const QuizHistoryView: React.FC<QuizHistoryViewProps> = ({
               cursor: 'pointer',
             }}
           >
-            START FIRST QUIZ
+            GET YOUR RACING TAG
           </button>
         </div>
       ) : (
