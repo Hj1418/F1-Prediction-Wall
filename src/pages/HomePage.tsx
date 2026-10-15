@@ -17,6 +17,7 @@ import {
   MapPin,
   Flame,
   Award,
+  Brain,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
@@ -95,7 +96,7 @@ export const HomePage: React.FC = () => {
   const [drivers, setDrivers] = useState<Driver[]>([]);
 
   useEffect(() => {
-    document.title = 'The Grid | Your Motorsport Starting Point';
+    document.title = 'GRDX | Your Motorsport Starting Point';
   }, []);
 
   // Background fetch for live updates without ever blocking initial render
@@ -174,9 +175,9 @@ export const HomePage: React.FC = () => {
           =================================================================== */}
       <section className="home-hero-section">
         <div className="home-hero-container">
-          {/* THE GRID Headline */}
-          <h1 className="home-hero-brand-title" aria-label="THE GRID">
-            THE <span className="home-hero-grid-accent">GRID</span>
+          {/* THE GRID Headline | THE <span className="home-hero-grid-accent">GRID</span> | Discovery Hubs: Indian Motorsport */}
+          <h1 className="home-hero-brand-title" aria-label="THE GRDX">
+            THE <span className="home-hero-grid-accent">GRDX</span>
           </h1>
 
           <div className="home-hero-tagline" aria-label="Your motorsport starting point">
@@ -184,7 +185,7 @@ export const HomePage: React.FC = () => {
           </div>
 
           <p className="home-hero-description">
-            Your motorsport starting point. Discover, follow, learn and predict across the world of motorsport — from Formula 1 to MotoGP, WEC, and Indian Motorsport.
+            Discover, follow, learn and predict across the world of motorsport.
           </p>
 
           {/* 4 Core Platform Pillars (Compact & Editorial) */}
@@ -744,8 +745,91 @@ export const HomePage: React.FC = () => {
         </section>
 
         {/* ===================================================================
-            4. EXPLORE MOTORSPORT: (Removed per product mandate - Discovery belongs exclusively in EXPLORE)
+            4. EXPLORE MOTORSPORT: (Discovery belongs exclusively in EXPLORE)
             =================================================================== */}
+        <section style={{ marginTop: '2.5rem' }}>
+          <div
+            style={{
+              position: 'relative',
+              overflow: 'hidden',
+              backgroundColor: 'var(--bg-surface)',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: 'var(--radius-lg)',
+              padding: '1.75rem 2rem',
+              display: 'flex',
+              flexWrap: 'wrap',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '1.5rem',
+              boxShadow: 'var(--shadow-card)',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', maxWidth: '640px' }}>
+              <div
+                style={{
+                  width: '52px',
+                  height: '52px',
+                  borderRadius: '12px',
+                  backgroundColor: 'rgba(225, 6, 0, 0.15)',
+                  border: '1px solid rgba(225, 6, 0, 0.35)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'var(--f1-red)',
+                  flexShrink: 0,
+                }}
+              >
+                <Brain size={26} />
+              </div>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+                  <span
+                    style={{
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: '0.72rem',
+                      fontWeight: 800,
+                      color: 'var(--telemetry-cyan)',
+                      letterSpacing: '0.08em',
+                      textTransform: 'uppercase',
+                    }}
+                  >
+                    RACE-FREE WEEK KNOWLEDGE TEST
+                  </span>
+                </div>
+                <h3 style={{ fontSize: '1.35rem', fontWeight: 900, textTransform: 'uppercase', color: '#fff', margin: '0 0 0.35rem 0' }}>
+                  DISCOVER YOUR MOTORSPORT IDENTITY
+                </h3>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.86rem', margin: 0, lineHeight: 1.5 }}>
+                  Select from 8 premier categories across Formula Racing, MotoGP, Endurance, and GT. Answer 15 verified questions and discover your authentic fan identity tier.
+                </p>
+              </div>
+            </div>
+
+            <Link
+              to="/quiz"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                padding: '0.75rem 1.6rem',
+                borderRadius: '6px',
+                backgroundColor: 'var(--f1-red)',
+                color: '#ffffff',
+                fontWeight: 800,
+                fontSize: '0.84rem',
+                fontFamily: 'var(--font-mono)',
+                textTransform: 'uppercase',
+                letterSpacing: '0.06em',
+                textDecoration: 'none',
+                boxShadow: '0 0 20px rgba(225, 6, 0, 0.4)',
+                flexShrink: 0,
+              }}
+            >
+              <span>TAKE THE QUIZ</span>
+              <ArrowRight size={15} />
+            </Link>
+          </div>
+        </section>
 
         {/* ===================================================================
             5. UPCOMING RACES: Interactive Multi-Category Racing Radar

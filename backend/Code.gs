@@ -27,7 +27,11 @@ const SHEET_NAMES = {
   ACHIEVEMENTS: 'Achievements',
   SYNC_LOGS: 'SyncLogs',
   NOTIFICATION_QUEUE: 'NotificationQueue',
-  NOTIFICATION_LOG: 'NotificationLog'
+  NOTIFICATION_LOG: 'NotificationLog',
+  QUIZ_CATEGORIES: 'QuizCategories',
+  QUIZ_QUESTIONS: 'QuizQuestions',
+  QUIZ_ATTEMPTS: 'QuizAttempts',
+  QUIZ_ACHIEVEMENTS: 'QuizAchievements'
 };
 
 const JOLPICA_BASE_URLS = [
@@ -137,6 +141,18 @@ function doGet(e) {
         break;
       case 'auditPlatformData':
         responseData = auditPlatformData(e.parameter.dryRun !== 'false');
+        break;
+      case 'getQuizCategories':
+        responseData = handleGetQuizCategories();
+        break;
+      case 'getUserQuizHistory':
+        responseData = handleGetUserQuizHistory(e.parameter.userId);
+        break;
+      case 'getQuizAttemptResult':
+        responseData = handleGetQuizAttemptResult(e.parameter.attemptId, e.parameter.userId);
+        break;
+      case 'getUserQuizAchievements':
+        responseData = handleGetUserQuizAchievements(e.parameter.userId);
         break;
       default:
         return createJsonResponse({
@@ -269,6 +285,12 @@ function doPost(e) {
         break;
       case 'normalizeAzerbaijanPredictions':
         responseData = normalizeAzerbaijanPredictionRoundIds();
+        break;
+      case 'startQuizAttempt':
+        responseData = handleStartQuizAttempt(payload);
+        break;
+      case 'submitQuizAttempt':
+        responseData = handleSubmitQuizAttempt(payload);
         break;
       default:
         return createJsonResponse({
@@ -4459,5 +4481,526 @@ function auditPlatformData(dryRun) {
   report.durationMs = Date.now() - startTime;
   Logger.log('[PLATFORM_AUDIT_COMPLETE] DryRun: ' + dryRun + ', Total Defects: ' + report.summary.totalDefects + ', Duration: ' + report.durationMs + 'ms');
   return report;
+}
+
+/**
+ * =========================================================================
+ * THE GRID — MOTORSPORT FAN IDENTITY QUIZ ENGINE
+ * =========================================================================
+ */
+
+function handleGetQuizCategories() {
+  const categories = [
+    { id: 'formula-1', displayName: 'Formula 1', grouping: 'Formula Racing', description: 'The pinnacle of open-wheel single-seater motorsport governed by the FIA.', status: 'available', questionBankRef: 'formula-1', color: '#e10600', badge: 'F1' },
+    { id: 'formula-2', displayName: 'Formula 2', grouping: 'Formula Racing', description: 'The ultimate feeder championship with spec Dallara chassis and Mecachrome engines.', status: 'available', questionBankRef: 'formula-2', color: '#0090d0', badge: 'F2' },
+    { id: 'formula-3', displayName: 'Formula 3', grouping: 'Formula Racing', description: 'High-intensity 30-car junior battles on Grand Prix weekends.', status: 'available', questionBankRef: 'formula-3', color: '#e03a3e', badge: 'F3' },
+    { id: 'formula-4', displayName: 'Formula 4', grouping: 'Formula Racing', description: 'The global entry-level single-seater category bridging karting to professional racing.', status: 'available', questionBankRef: 'formula-4', color: '#10b981', badge: 'F4' },
+    { id: 'formula-e', displayName: 'Formula E', grouping: 'Formula Racing', description: 'The premier all-electric FIA world championship racing on tight city circuits.', status: 'available', questionBankRef: 'formula-e', color: '#00d2be', badge: 'FE' },
+    { id: 'motogp', displayName: 'MotoGP', grouping: 'Motorcycle Racing', description: 'The pinnacle of two-wheeled motorcycle prototype road racing governed by FIM.', status: 'available', questionBankRef: 'motogp', color: '#dc2626', badge: 'MotoGP' },
+    { id: 'endurance-racing', displayName: 'Endurance Racing', grouping: 'Endurance Racing', description: 'Multi-class sports prototype & GT endurance racing, headlined by Le Mans & FIA WEC.', status: 'available', questionBankRef: 'endurance-racing', color: '#2563eb', badge: 'WEC' },
+    { id: 'gt-racing', displayName: 'GT Racing', grouping: 'GT Racing', description: 'Customer and manufacturer GT3/GT4 racing across premier sprint & endurance cups worldwide.', status: 'available', questionBankRef: 'gt-racing', color: '#f59e0b', badge: 'GT3' }
+  ];
+
+  return categories.map(function(c) {
+    return {
+      id: c.id,
+      displayName: c.displayName,
+      grouping: c.grouping,
+      description: c.description,
+      status: c.status,
+      questionBankRef: c.questionBankRef,
+      color: c.color,
+      badge: c.badge,
+      availableQuestions: 15
+    };
+  });
+}
+
+function handleStartQuizAttempt(payload) {
+  const reqUserId = payload.userId ? String(payload.userId).trim() : '';
+  if (!reqUserId || reqUserId === 'guest_user') {
+    throw new Error('Authentication required: You must be signed in to take the Motorsport Fan Identity Quiz.');
+  }
+
+  // Authoritatively verify user existence in database
+  const userProfile = getUserProfile(reqUserId);
+  if (!userProfile || !userProfile.userId) {
+    throw new Error('User not found or session expired. Please sign in to start your quiz attempt.');
+  }
+  const canonicalUserId = userProfile.userId;
+
+  const categoryIds = payload.categoryIds || [];
+  if (!categoryIds || categoryIds.length === 0) {
+    throw new Error('Please select at least one motorsport category.');
+  }
+
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let questions = getBackendApprovedQuestions();
+
+  const selectedCatSet = {};
+  categoryIds.forEach(function(c) { selectedCatSet[c] = true; });
+
+  const catPools = {};
+  categoryIds.forEach(function(c) { catPools[c] = []; });
+  questions.forEach(function(q) {
+    if (selectedCatSet[q.categoryId]) {
+      catPools[q.categoryId].push(q);
+    }
+  });
+
+  // Balanced allocation up to 15 questions max
+  const totalSlots = 15;
+  const numCats = categoryIds.length;
+  const basePerCat = Math.floor(totalSlots / numCats);
+  const remainder = totalSlots % numCats;
+
+  const chosenQuestions = [];
+  categoryIds.forEach(function(catId, idx) {
+    const quota = basePerCat + (idx < remainder ? 1 : 0);
+    const pool = catPools[catId] || [];
+    const shuffled = pool.slice().sort(function() { return 0.5 - Math.random(); });
+    const selected = shuffled.slice(0, quota);
+    selected.forEach(function(q) { chosenQuestions.push(q); });
+  });
+
+  const finalQuestions = chosenQuestions.sort(function() { return 0.5 - Math.random(); });
+  const attemptId = 'attempt_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9);
+  const startedAt = new Date().toISOString();
+
+  // Persist attempt in QuizAttempts sheet if available
+  const attemptsSheet = ss.getSheetByName(SHEET_NAMES.QUIZ_ATTEMPTS);
+  if (attemptsSheet) {
+    const qIds = finalQuestions.map(function(q) { return q.questionId; });
+    attemptsSheet.appendRow([
+      attemptId,
+      canonicalUserId,
+      JSON.stringify(categoryIds),
+      JSON.stringify(qIds),
+      JSON.stringify({}),
+      0,
+      finalQuestions.length,
+      0,
+      'The Rookie',
+      JSON.stringify({}),
+      startedAt,
+      '',
+      'in_progress'
+    ]);
+  }
+
+  // Strictly strip correctOptionId and explanation before returning to client
+  const clientQuestions = finalQuestions.map(function(q) {
+    return {
+      questionId: q.questionId,
+      categoryId: q.categoryId,
+      question: q.question,
+      options: q.options,
+      difficulty: q.difficulty,
+      topic: q.topic,
+      contentVersion: q.contentVersion,
+      context: q.context
+    };
+  });
+
+  return {
+    attemptId: attemptId,
+    totalQuestions: finalQuestions.length,
+    selectedCategories: categoryIds,
+    questions: clientQuestions,
+    startedAt: startedAt
+  };
+}
+
+function handleSubmitQuizAttempt(payload) {
+  const attemptId = payload.attemptId;
+  const reqUserId = payload.userId ? String(payload.userId).trim() : '';
+  const answers = payload.answers || {};
+
+  if (!reqUserId || reqUserId === 'guest_user') {
+    throw new Error('Authentication required: You must be signed in to submit your quiz attempt.');
+  }
+
+  const userProfile = getUserProfile(reqUserId);
+  if (!userProfile || !userProfile.userId) {
+    throw new Error('User not found or session expired. Please sign in to submit your quiz attempt.');
+  }
+  const canonicalUserId = userProfile.userId;
+
+  if (!attemptId) {
+    throw new Error('Missing attempt ID.');
+  }
+
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const attemptsSheet = ss.getSheetByName(SHEET_NAMES.QUIZ_ATTEMPTS);
+  let attemptRowIndex = -1;
+  let attemptData = null;
+
+  if (attemptsSheet) {
+    const rows = attemptsSheet.getDataRange().getValues();
+    for (let r = 1; r < rows.length; r++) {
+      if (String(rows[r][0] || '').trim() === attemptId) {
+        attemptRowIndex = r + 1;
+        attemptData = {
+          attemptId: rows[r][0],
+          userId: rows[r][1],
+          selectedCategories: JSON.parse(rows[r][2] || '[]'),
+          questionIds: JSON.parse(rows[r][3] || '[]'),
+          submittedAnswers: JSON.parse(rows[r][4] || '{}'),
+          score: Number(rows[r][5]) || 0,
+          totalQuestions: Number(rows[r][6]) || 0,
+          percentage: Number(rows[r][7]) || 0,
+          fanIdentityTier: rows[r][8],
+          categoryBreakdown: JSON.parse(rows[r][9] || '{}'),
+          startedAt: rows[r][10],
+          completedAt: rows[r][11],
+          status: rows[r][12]
+        };
+        break;
+      }
+    }
+  }
+
+  // Enforce ownership: reject submission if attempt belongs to someone else
+  if (attemptData && attemptData.userId && attemptData.userId !== canonicalUserId) {
+    throw new Error('Unauthorized: You do not own this quiz attempt.');
+  }
+
+  // Idempotency: if already completed, return existing immutable completed result
+  if (attemptData && attemptData.status === 'completed' && attemptData.completedAt) {
+    return formatBackendQuizAttemptResult(attemptData);
+  }
+
+  const qBank = getBackendApprovedQuestions();
+  const qMap = {};
+  qBank.forEach(function(q) { qMap[q.questionId] = q; });
+
+  const questionIds = attemptData ? attemptData.questionIds : Object.keys(answers);
+  const selectedCategories = attemptData ? attemptData.selectedCategories : [];
+
+  let totalScore = 0;
+  const scoredQuestions = [];
+  const categoryStats = {};
+
+  questionIds.forEach(function(qId) {
+    const q = qMap[qId];
+    if (!q) return;
+
+    const userOption = answers[qId] || null;
+    const isCorrect = Boolean(userOption && userOption === q.correctOptionId);
+    if (isCorrect) totalScore++;
+
+    if (!categoryStats[q.categoryId]) {
+      categoryStats[q.categoryId] = { correct: 0, total: 0, name: q.categoryId };
+    }
+    categoryStats[q.categoryId].total++;
+    if (isCorrect) categoryStats[q.categoryId].correct++;
+
+    scoredQuestions.push({
+      questionId: q.questionId,
+      categoryId: q.categoryId,
+      categoryName: q.categoryId,
+      question: q.question,
+      options: q.options,
+      selectedOptionId: userOption,
+      correctOptionId: q.correctOptionId,
+      isCorrect: isCorrect,
+      explanation: q.explanation,
+      sourceUrl: q.sourceUrl,
+      context: q.context,
+      contentVersion: q.contentVersion,
+      difficulty: q.difficulty,
+      topic: q.topic
+    });
+  });
+
+  const totalQuestions = questionIds.length;
+  const overallPercentage = totalQuestions > 0 ? Math.round((totalScore / totalQuestions) * 100) : 0;
+  let fanIdentityTier = 'The Rookie';
+  if (overallPercentage >= 95) fanIdentityTier = 'The Motorsport Oracle';
+  else if (overallPercentage >= 80) fanIdentityTier = 'The Race Strategist';
+  else if (overallPercentage >= 60) fanIdentityTier = 'The Paddock Insider';
+  else if (overallPercentage >= 40) fanIdentityTier = 'The Enthusiast';
+
+  const categoryBreakdown = {};
+  Object.keys(categoryStats).forEach(function(catId) {
+    const stat = categoryStats[catId];
+    categoryBreakdown[catId] = {
+      categoryId: catId,
+      categoryName: stat.name,
+      correct: stat.correct,
+      total: stat.total,
+      percentage: stat.total > 0 ? Math.round((stat.correct / stat.total) * 100) : 0
+    };
+  });
+
+  const completedAt = new Date().toISOString();
+
+  // Persist updated attempt
+  if (attemptsSheet && attemptRowIndex > 0) {
+    attemptsSheet.getRange(attemptRowIndex, 5).setValue(JSON.stringify(answers));
+    attemptsSheet.getRange(attemptRowIndex, 6).setValue(totalScore);
+    attemptsSheet.getRange(attemptRowIndex, 7).setValue(totalQuestions);
+    attemptsSheet.getRange(attemptRowIndex, 8).setValue(overallPercentage);
+    attemptsSheet.getRange(attemptRowIndex, 9).setValue(fanIdentityTier);
+    attemptsSheet.getRange(attemptRowIndex, 10).setValue(JSON.stringify(categoryBreakdown));
+    attemptsSheet.getRange(attemptRowIndex, 12).setValue(completedAt);
+    attemptsSheet.getRange(attemptRowIndex, 13).setValue('completed');
+  }
+
+  // Evaluate & award quiz achievements on backend (strictly once per user)
+  const newlyAwarded = evaluateBackendQuizAchievements(canonicalUserId, overallPercentage, categoryBreakdown);
+
+  return {
+    attemptId: attemptId,
+    userId: canonicalUserId,
+    selectedCategories: selectedCategories,
+    score: totalScore,
+    totalQuestions: totalQuestions,
+    percentage: overallPercentage,
+    fanIdentityTier: fanIdentityTier,
+    categoryBreakdown: categoryBreakdown,
+    startedAt: attemptData ? attemptData.startedAt : completedAt,
+    completedAt: completedAt,
+    questions: scoredQuestions,
+    newlyAwardedAchievements: newlyAwarded
+  };
+}
+
+function evaluateBackendQuizAchievements(userId, currentPercentage, categoryBreakdown) {
+  if (!userId || userId === 'guest_user') return [];
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const achSheet = ss.getSheetByName(SHEET_NAMES.QUIZ_ACHIEVEMENTS);
+  const attemptsSheet = ss.getSheetByName(SHEET_NAMES.QUIZ_ATTEMPTS);
+  if (!achSheet || !attemptsSheet) return [];
+
+  // 1. Get user's existing earned achievements
+  const existingRows = achSheet.getDataRange().getValues();
+  const existingSet = {};
+  for (let i = 1; i < existingRows.length; i++) {
+    if (String(existingRows[i][1] || '').trim() === userId) {
+      existingSet[String(existingRows[i][2] || '').trim()] = true;
+    }
+  }
+
+  // 2. Query all completed attempts for this user
+  const attRows = attemptsSheet.getDataRange().getValues();
+  let completedCount = 0;
+  let maxScorePct = currentPercentage || 0;
+  const categoriesSeen = {};
+  if (categoryBreakdown) {
+    Object.keys(categoryBreakdown).forEach(function(c) { categoriesSeen[c] = true; });
+  }
+
+  for (let r = 1; r < attRows.length; r++) {
+    if (String(attRows[r][1] || '').trim() === userId && String(attRows[r][12] || '').trim() === 'completed') {
+      completedCount++;
+      const p = Number(attRows[r][7]) || 0;
+      if (p > maxScorePct) maxScorePct = p;
+      try {
+        const cats = JSON.parse(attRows[r][2] || '[]');
+        cats.forEach(function(c) { categoriesSeen[c] = true; });
+      } catch (_e) {}
+    }
+  }
+
+  const distinctCatCount = Object.keys(categoriesSeen).length;
+  const newlyEarned = [];
+  const nowIso = new Date().toISOString();
+
+  // Rule definitions
+  const rules = [
+    { id: 'first-lap', title: 'First Lap', description: 'Complete your first motorsport knowledge quiz on GRDX.', icon: '🏁', color: '#10b981', qualifies: completedCount >= 1 },
+    { id: 'consistent-racer', title: 'Consistent Racer', description: 'Complete five official motorsport knowledge quizzes.', icon: '⚡', color: '#00d2be', qualifies: completedCount >= 5 },
+    { id: 'podium-performance', title: 'Podium Performance', description: 'Score 80% or higher on an official motorsport quiz attempt.', icon: '🏆', color: '#eab308', qualifies: maxScorePct >= 80 },
+    { id: 'motorsport-oracle', title: 'Motorsport Oracle', description: 'Reach the pinnacle of motorsport knowledge with a score of 95% or higher.', icon: '🔮', color: '#b966ff', qualifies: maxScorePct >= 95 },
+    { id: 'all-rounder', title: 'All-Rounder', description: 'Complete quizzes across at least three distinct motorsport categories.', icon: '🌐', color: '#f43f5e', qualifies: distinctCatCount >= 3 }
+  ];
+
+  rules.forEach(function(rule) {
+    if (rule.qualifies && !existingSet[rule.id]) {
+      const uAchId = 'qach_' + userId + '_' + rule.id;
+      achSheet.appendRow([
+        uAchId,
+        userId,
+        rule.id,
+        rule.title,
+        rule.description,
+        rule.icon,
+        rule.color,
+        nowIso,
+        1
+      ]);
+      existingSet[rule.id] = true;
+      newlyEarned.push({
+        achievementId: rule.id,
+        userId: userId,
+        title: rule.title,
+        description: rule.description,
+        badgeIcon: rule.icon,
+        badgeColor: rule.color,
+        earnedAt: nowIso,
+        ruleVersion: 1,
+        isUnlocked: true
+      });
+    }
+  });
+
+  return newlyEarned;
+}
+
+function handleGetUserQuizAchievements(userId) {
+  if (!userId || userId === 'guest_user') return [];
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const achSheet = ss.getSheetByName(SHEET_NAMES.QUIZ_ACHIEVEMENTS);
+  if (!achSheet) return [];
+
+  const rows = achSheet.getDataRange().getValues();
+  const achievements = [];
+  for (let i = 1; i < rows.length; i++) {
+    if (String(rows[i][1] || '').trim() === userId) {
+      achievements.push({
+        userAchievementId: rows[i][0],
+        userId: rows[i][1],
+        achievementId: rows[i][2],
+        title: rows[i][3],
+        description: rows[i][4],
+        badgeIcon: rows[i][5],
+        badgeColor: rows[i][6],
+        earnedAt: rows[i][7],
+        ruleVersion: Number(rows[i][8]) || 1,
+        isUnlocked: true
+      });
+    }
+  }
+  return achievements;
+}
+
+function handleGetUserQuizHistory(userId) {
+  if (!userId || userId === 'guest_user') return [];
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(SHEET_NAMES.QUIZ_ATTEMPTS);
+  if (!sheet) return [];
+
+  const rows = sheet.getDataRange().getValues();
+  const history = [];
+
+  for (let r = 1; r < rows.length; r++) {
+    const rowUid = String(rows[r][1] || '').trim();
+    const status = String(rows[r][12] || '').trim();
+    // Strictly return only records for the authenticated userId
+    if (status === 'completed' && rowUid === userId) {
+      history.push({
+        attemptId: rows[r][0],
+        userId: rows[r][1],
+        selectedCategories: JSON.parse(rows[r][2] || '[]'),
+        questionIds: JSON.parse(rows[r][3] || '[]'),
+        submittedAnswers: JSON.parse(rows[r][4] || '{}'),
+        score: Number(rows[r][5]) || 0,
+        totalQuestions: Number(rows[r][6]) || 0,
+        percentage: Number(rows[r][7]) || 0,
+        fanIdentityTier: rows[r][8],
+        categoryBreakdown: JSON.parse(rows[r][9] || '{}'),
+        startedAt: rows[r][10],
+        completedAt: rows[r][11],
+        status: status
+      });
+    }
+  }
+
+  return history.sort(function(a, b) {
+    return new Date(b.completedAt || b.startedAt).getTime() - new Date(a.completedAt || a.startedAt).getTime();
+  });
+}
+
+function handleGetQuizAttemptResult(attemptId, requestingUserId) {
+  if (!attemptId) return null;
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(SHEET_NAMES.QUIZ_ATTEMPTS);
+  if (!sheet) return null;
+
+  const rows = sheet.getDataRange().getValues();
+  for (let r = 1; r < rows.length; r++) {
+    if (String(rows[r][0] || '').trim() === attemptId) {
+      const record = {
+        attemptId: rows[r][0],
+        userId: rows[r][1],
+        selectedCategories: JSON.parse(rows[r][2] || '[]'),
+        questionIds: JSON.parse(rows[r][3] || '[]'),
+        submittedAnswers: JSON.parse(rows[r][4] || '{}'),
+        score: Number(rows[r][5]) || 0,
+        totalQuestions: Number(rows[r][6]) || 0,
+        percentage: Number(rows[r][7]) || 0,
+        fanIdentityTier: rows[r][8],
+        categoryBreakdown: JSON.parse(rows[r][9] || '{}'),
+        startedAt: rows[r][10],
+        completedAt: rows[r][11],
+        status: rows[r][12]
+      };
+
+      // Ownership enforcement: check requesting user
+      if (requestingUserId && record.userId !== requestingUserId) {
+        const u = getUserProfile(requestingUserId);
+        if (!u || u.role !== 'admin') {
+          throw new Error('Unauthorized: You do not have permission to view this quiz attempt.');
+        }
+      }
+
+      return formatBackendQuizAttemptResult(record);
+    }
+  }
+  return null;
+}
+
+function formatBackendQuizAttemptResult(record) {
+  const qBank = getBackendApprovedQuestions();
+  const qMap = {};
+  qBank.forEach(function(q) { qMap[q.questionId] = q; });
+
+  const scoredQuestions = [];
+  (record.questionIds || []).forEach(function(qId) {
+    const q = qMap[qId];
+    if (!q) return;
+
+    const userOption = (record.submittedAnswers || {})[qId] || null;
+    const isCorrect = Boolean(userOption && userOption === q.correctOptionId);
+
+    scoredQuestions.push({
+      questionId: q.questionId,
+      categoryId: q.categoryId,
+      categoryName: q.categoryId,
+      question: q.question,
+      options: q.options,
+      selectedOptionId: userOption,
+      correctOptionId: q.correctOptionId,
+      isCorrect: isCorrect,
+      explanation: q.explanation,
+      sourceUrl: q.sourceUrl,
+      context: q.context,
+      contentVersion: q.contentVersion,
+      difficulty: q.difficulty,
+      topic: q.topic
+    });
+  });
+
+  return {
+    attemptId: record.attemptId,
+    userId: record.userId,
+    selectedCategories: record.selectedCategories,
+    score: record.score,
+    totalQuestions: record.totalQuestions,
+    percentage: record.percentage,
+    fanIdentityTier: record.fanIdentityTier,
+    categoryBreakdown: record.categoryBreakdown,
+    startedAt: record.startedAt,
+    completedAt: record.completedAt || record.startedAt,
+    questions: scoredQuestions
+  };
+}
+
+function getBackendApprovedQuestions() {
+  // Returns fallback question bank for standalone execution
+  return [
+    { questionId: 'f1-001', categoryId: 'formula-1', question: 'Under standard FIA Formula 1 Sporting Regulations, what is the minimum race distance for a Grand Prix (excluding the Monaco Grand Prix)?', options: [{ id: 'a', text: '260 kilometres' }, { id: 'b', text: '300 kilometres' }, { id: 'c', text: '305 kilometres' }, { id: 'd', text: '350 kilometres' }], correctOptionId: 'c', explanation: 'Article 5.4 of the FIA F1 Sporting Regulations stipulates that the scheduled race distance for all Grands Prix shall be the least number of complete laps exceeding 305 km, with the sole historical exception of Monaco (approx. 260 km).', difficulty: 'easy', topic: 'Sporting Regulations', contentVersion: 1, sourceUrl: 'https://www.fia.com/regulation/category/110', approvalStatus: 'approved' }
+  ];
 }
 

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Mail, MessageCircle, HelpCircle, Home, Calendar, Trophy, Target, BookOpen, MapPin, Compass, Flag } from 'lucide-react';
+import { Mail, MessageCircle, HelpCircle, Home, Calendar, Trophy, Target, BookOpen, MapPin, Compass, Flag, Brain } from 'lucide-react';
 
 export const Footer: React.FC = () => {
   const linkStyle: React.CSSProperties = {
@@ -39,8 +39,9 @@ export const Footer: React.FC = () => {
               <div
                 style={{
                   backgroundColor: 'var(--f1-red)',
-                  width: '28px',
+                  minWidth: '38px',
                   height: '28px',
+                  padding: '0 4px',
                   borderRadius: '5px',
                   display: 'flex',
                   alignItems: 'center',
@@ -53,15 +54,16 @@ export const Footer: React.FC = () => {
                   style={{
                     fontFamily: 'var(--font-mono)',
                     fontWeight: 900,
-                    fontSize: '0.85rem',
+                    fontSize: '0.74rem',
                     color: '#fff',
+                    letterSpacing: '0.02em',
                   }}
                 >
-                  TG
+                  GRDX
                 </span>
               </div>
               <span style={{ fontWeight: 900, fontSize: '1.05rem', letterSpacing: '0.04em', color: '#fff' }}>
-                THE GRID
+                THE GRDX
               </span>
             </div>
             <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.5, maxWidth: '320px' }}>
@@ -102,6 +104,9 @@ export const Footer: React.FC = () => {
               </Link>
               <Link to="/predictions" style={linkStyle} onMouseEnter={e => (e.currentTarget.style.color = '#fff')} onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-secondary)')}>
                 <Target size={13} /> Prediction Bench
+              </Link>
+              <Link to="/quiz" style={linkStyle} onMouseEnter={e => (e.currentTarget.style.color = '#fff')} onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-secondary)')}>
+                <Brain size={13} /> Motorsport Quiz
               </Link>
               <Link to="/leaderboard" style={linkStyle} onMouseEnter={e => (e.currentTarget.style.color = '#fff')} onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-secondary)')}>
                 <Trophy size={13} /> Leaderboard
@@ -166,7 +171,7 @@ export const Footer: React.FC = () => {
             gap: '0.75rem',
           }}
         >
-          <div>© {new Date().getFullYear()} The Grid. An open motorsport platform. Not affiliated with Formula 1, the FIA, or any motorsport governing body.</div>
+          <div>© {new Date().getFullYear()} GRDX. An open motorsport platform. Not affiliated with Formula 1, the FIA, or any motorsport governing body.</div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
             <span>Privacy Policy</span>
             <span>Terms of Use</span>

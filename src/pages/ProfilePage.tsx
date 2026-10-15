@@ -29,6 +29,10 @@ import { PointsBreakdownModal } from '../components/predictions/PointsBreakdownM
 import { notificationService } from '../services/notificationService';
 import { CANONICAL_ACHIEVEMENT_REGISTRY } from '../services/achievementRegistry';
 import { generateUserResultStoryCanvas } from '../services/sharing/storyShareService';
+import { quizService } from '../services/quiz/quizService';
+import { QuizAttemptRecord, UserQuizAchievement, QuizPerformanceSummary } from '../types/quiz';
+import { getTierDetails, getQuizCategory } from '../services/quiz/quizRegistry';
+import { Brain, Compass } from 'lucide-react';
 
 const GLOBAL_CONSTRUCTORS_LIST = [
   ...F1_CONSTRUCTORS_2026.map(c => ({ ...c, series: 'Formula 1' })),
@@ -70,6 +74,9 @@ export const ProfilePage: React.FC = () => {
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [isPasswordSetupOpen, setIsPasswordSetupOpen] = useState(false);
   const [trophies, setTrophies] = useState<WeekendTrophy[]>([]);
+  const [quizHistory, setQuizHistory] = useState<QuizAttemptRecord[]>([]);
+  const [quizAchievements, setQuizAchievements] = useState<UserQuizAchievement[]>([]);
+  const [quizSummary, setQuizSummary] = useState<QuizPerformanceSummary | null>(null);
   const [isBreakdownModalOpen, setIsBreakdownModalOpen] = useState(false);
   const [selectedBreakdownItem, setSelectedBreakdownItem] = useState<any | null>(null);
   const [shareModalTitle, setShareModalTitle] = useState('');
@@ -279,6 +286,17 @@ export const ProfilePage: React.FC = () => {
             userTrophies.forEach(t => {
               notificationService.notifyTrophyAwarded(effectiveUser!.userId, t);
             });
+
+            // Fetch private authenticated quiz history and achievements
+            Promise.all([
+              quizService.getUserQuizHistory(effectiveUser.userId).catch(() => []),
+              quizService.getUserQuizAchievements(effectiveUser.userId).catch(() => []),
+              quizService.getQuizPerformanceSummary(effectiveUser.userId).catch(() => null),
+            ]).then(([qHist, qAchs, qSum]) => {
+              setQuizHistory(qHist);
+              setQuizAchievements(qAchs);
+              setQuizSummary(qSum);
+            }).catch(() => {});
           }
 
           const historyStats = calculateUserStatsFromHistory(userHistory);
@@ -1417,6 +1435,335 @@ export const ProfilePage: React.FC = () => {
             <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
               No predictions recorded for this user yet.
             </div>
+          )}
+        </div>
+
+        {/* ===================================================================
+            GRDX • Motorsport Fan Identity & Quiz History
+            =================================================================== */}
+        <div style={{ marginTop: '3.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+            <h2 style={{ fontSize: '1.25rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <Brain size={18} color="var(--f1-red)" /> GRDX • Motorsport Fan Identity & Knowledge
+            </h2>
+            <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+              AUTHENTICATED FAN IDENTITY & ATTEMPTS
+            </span>
+          </div>
+
+          {!isOwner ? (
+            <div
+              className="race-card"
+              style={{
+                padding: '2rem 1.5rem',
+                textAlign: 'center',
+                border: '1px dashed var(--border-medium)',
+              }}
+            >
+              <Brain size={32} style={{ color: 'var(--text-muted)', marginBottom: '0.5rem', opacity: 0.6 }} />
+              <div style={{ fontWeight: 700, fontSize: '0.92rem', color: 'var(--text-secondary)' }}>
+                Racer Knowledge Telemetry is Private
+              </div>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', maxWidth: '520px', margin: '0.35rem auto 0', lineHeight: 1.4 }}>
+                Motorsport quiz attempts and detailed fan identity records are securely protected and visible only to the authenticated racer.
+              </p>
+            </div>
+          ) : (
+            <>
+              {/* Performance Summary Cards */}
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                  gap: '1rem',
+                  marginBottom: '2rem',
+                }}
+              >
+                <div className="race-card" style={{ padding: '1.25rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#10b981', fontSize: '0.75rem', fontWeight: 700 }}>
+                    <Brain size={14} /> QUIZZES COMPLETED
+                  </div>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.75rem', fontWeight: 900, marginTop: '0.4rem' }}>
+                    {quizSummary?.quizzesCompleted ?? 0}
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                    Official scored attempts
+                  </div>
+                </div>
+
+                <div className="race-card" style={{ padding: '1.25rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#eab308', fontSize: '0.75rem', fontWeight: 700 }}>
+                    <Target size={14} /> BEST KNOWLEDGE SCORE
+                  </div>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.75rem', fontWeight: 900, marginTop: '0.4rem' }}>
+                    {quizSummary?.bestScorePercentage ?? 0}%
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                    {quizSummary?.bestScoreCorrect ?? 0} / {quizSummary?.bestScoreTotal ?? 0} correct answers
+                  </div>
+                </div>
+
+                <div className="race-card" style={{ padding: '1.25rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#b966ff', fontSize: '0.75rem', fontWeight: 700 }}>
+                    <Sparkles size={14} /> FAN IDENTITY TIER
+                  </div>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.25rem', fontWeight: 900, marginTop: '0.4rem', color: '#ffffff', textTransform: 'uppercase' }}>
+                    {quizSummary?.highestTier ?? 'The Rookie'}
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                    Based on verified quiz performance
+                  </div>
+                </div>
+
+                <div className="race-card" style={{ padding: '1.25rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#38bdf8', fontSize: '0.75rem', fontWeight: 700 }}>
+                    <Compass size={14} /> CATEGORIES TESTED
+                  </div>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.75rem', fontWeight: 900, marginTop: '0.4rem' }}>
+                    {quizSummary?.uniqueDisciplinesCount ?? 0} <span style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-muted)' }}>/ 8</span>
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                    Formula, MotoGP, WEC & GT
+                  </div>
+                </div>
+              </div>
+
+              {/* Quiz Achievements & Awards Section */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+                <h3 style={{ fontSize: '1.1rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <Award size={16} color="var(--f1-red)" /> Quiz Achievements & Awards ({quizAchievements.filter(a => a.isUnlocked).length}/{quizAchievements.length || 5})
+                </h3>
+                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                  SEPARATE FROM PREDICTION TROPHIES
+                </span>
+              </div>
+
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+                  gap: '1rem',
+                  marginBottom: '2.5rem',
+                }}
+              >
+                {quizAchievements.map(ach => {
+                  const isUnlocked = Boolean(ach.isUnlocked);
+                  const progressCurrent = ach.progress?.current ?? (isUnlocked ? ach.progress?.target ?? 1 : 0);
+                  const progressTarget = ach.progress?.target ?? 1;
+                  const progressPct = Math.min(100, Math.round((progressCurrent / progressTarget) * 100));
+
+                  return (
+                    <div
+                      key={ach.achievementId}
+                      className="race-card"
+                      style={{
+                        padding: '1.25rem',
+                        border: isUnlocked
+                          ? `1px solid ${ach.badgeColor || '#10b981'}`
+                          : '1px solid var(--border-medium)',
+                        background: isUnlocked
+                          ? `linear-gradient(135deg, ${ach.badgeColor || '#10b981'}15 0%, var(--bg-surface-card) 100%)`
+                          : 'var(--bg-surface-card)',
+                        display: 'flex',
+                        alignItems: 'flex-start',
+                        gap: '1rem',
+                        opacity: isUnlocked ? 1 : 0.72,
+                      }}
+                    >
+                      <div
+                        style={{
+                          fontSize: '2rem',
+                          background: 'var(--bg-surface-elevated)',
+                          width: '52px',
+                          height: '52px',
+                          borderRadius: 'var(--radius-md)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          border: isUnlocked ? `1px solid ${ach.badgeColor}` : '1px solid var(--border-subtle)',
+                          flexShrink: 0,
+                          filter: isUnlocked ? 'none' : 'grayscale(100%)',
+                        }}
+                      >
+                        {ach.badgeIcon}
+                      </div>
+
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.4rem' }}>
+                          <div style={{ fontWeight: 800, fontSize: '0.95rem', textTransform: 'uppercase', color: isUnlocked ? '#ffffff' : 'var(--text-secondary)' }}>
+                            {ach.title}
+                          </div>
+                          {isUnlocked ? (
+                            <span
+                              style={{
+                                fontSize: '0.62rem',
+                                fontFamily: 'var(--font-mono)',
+                                fontWeight: 800,
+                                backgroundColor: 'rgba(16, 185, 129, 0.15)',
+                                color: '#10b981',
+                                padding: '0.15rem 0.4rem',
+                                borderRadius: '3px',
+                                border: '1px solid rgba(16, 185, 129, 0.3)',
+                              }}
+                            >
+                              UNLOCKED
+                            </span>
+                          ) : (
+                            <span
+                              style={{
+                                fontSize: '0.62rem',
+                                fontFamily: 'var(--font-mono)',
+                                fontWeight: 700,
+                                backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                                color: 'var(--text-muted)',
+                                padding: '0.15rem 0.4rem',
+                                borderRadius: '3px',
+                              }}
+                            >
+                              LOCKED
+                            </span>
+                          )}
+                        </div>
+
+                        <p style={{ fontSize: '0.76rem', color: 'var(--text-secondary)', marginTop: '0.25rem', lineHeight: 1.35 }}>
+                          {ach.description}
+                        </p>
+
+                        {isUnlocked ? (
+                          <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginTop: '0.5rem', fontFamily: 'var(--font-mono)' }}>
+                            ✓ Earned {ach.earnedAt ? new Date(ach.earnedAt).toLocaleDateString() : 'Active'}
+                          </div>
+                        ) : (
+                          <div style={{ marginTop: '0.6rem' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.65rem', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', marginBottom: '0.2rem' }}>
+                              <span>Progress</span>
+                              <span>{progressCurrent} / {progressTarget}</span>
+                            </div>
+                            <div style={{ height: '4px', backgroundColor: 'var(--bg-input)', borderRadius: '2px', overflow: 'hidden' }}>
+                              <div
+                                style={{
+                                  height: '100%',
+                                  width: `${progressPct}%`,
+                                  backgroundColor: 'var(--f1-red)',
+                                  borderRadius: '2px',
+                                }}
+                              />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Quiz Attempts Ledger */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+                <h3 style={{ fontSize: '1.1rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <Brain size={16} color="var(--f1-red)" /> Quiz Attempts Ledger ({quizHistory.length})
+                </h3>
+                <Link to="/quiz" className="btn btn-primary btn-sm" style={{ gap: '0.35rem', fontSize: '0.75rem', padding: '0.35rem 0.75rem' }}>
+                  Take Quiz <ChevronRight size={13} />
+                </Link>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                {quizHistory.map(att => {
+                  const tier = getTierDetails(att.fanIdentityTier);
+                  return (
+                    <div
+                      key={att.attemptId}
+                      className="race-card"
+                      style={{
+                        padding: '1rem 1.25rem',
+                        display: 'flex',
+                        flexWrap: 'wrap',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: '1rem',
+                      }}
+                    >
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                          <span
+                            style={{
+                              fontSize: '0.68rem',
+                              fontFamily: 'var(--font-mono)',
+                              fontWeight: 800,
+                              padding: '0.15rem 0.5rem',
+                              borderRadius: '4px',
+                              backgroundColor: `${tier.color}22`,
+                              color: tier.color,
+                              border: `1px solid ${tier.color}55`,
+                              textTransform: 'uppercase',
+                            }}
+                          >
+                            {att.fanIdentityTier}
+                          </span>
+                          <span style={{ fontWeight: 800, fontSize: '0.95rem' }}>
+                            {att.score} / {att.totalQuestions} ({att.percentage}%)
+                          </span>
+                        </div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.35rem', display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+                          <span>Completed {new Date(att.completedAt || att.startedAt).toLocaleDateString()}</span>
+                          <span>•</span>
+                          <span>Categories:</span>
+                          {(att.selectedCategories || []).map(catId => {
+                            const cat = getQuizCategory(catId);
+                            return (
+                              <span
+                                key={catId}
+                                style={{
+                                  backgroundColor: 'var(--bg-input)',
+                                  color: 'var(--text-secondary)',
+                                  padding: '0.1rem 0.35rem',
+                                  borderRadius: '3px',
+                                  fontSize: '0.68rem',
+                                }}
+                              >
+                                {cat?.displayName || catId}
+                              </span>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      <div>
+                        <Link
+                          to={`/quiz/${att.attemptId}`}
+                          className="btn btn-outline btn-sm"
+                          style={{ gap: '0.3rem', fontSize: '0.75rem' }}
+                        >
+                          Review Answers <ChevronRight size={13} />
+                        </Link>
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {quizHistory.length === 0 && (
+                  <div
+                    className="race-card"
+                    style={{
+                      padding: '2.5rem 1.5rem',
+                      textAlign: 'center',
+                      border: '1px dashed var(--border-medium)',
+                    }}
+                  >
+                    <Brain size={36} style={{ color: 'var(--text-muted)', marginBottom: '0.75rem', opacity: 0.7 }} />
+                    <div style={{ fontWeight: 800, fontSize: '1rem', color: '#ffffff' }}>
+                      No Quiz Attempts Recorded Yet
+                    </div>
+                    <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', maxWidth: '480px', margin: '0.4rem auto 1.25rem', lineHeight: 1.45 }}>
+                      Test your knowledge across Formula 1, MotoGP, WEC, and GT racing to discover your fan identity tier and unlock profile badges.
+                    </p>
+                    <Link to="/quiz" className="btn btn-primary" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
+                      <Brain size={15} /> Start Fan Identity Quiz
+                    </Link>
+                  </div>
+                )}
+              </div>
+            </>
           )}
         </div>
       </div>

@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Compass, Calendar, CircleDot, Trophy, ChevronDown } from 'lucide-react';
+import { Home, Compass, Calendar, CircleDot, Trophy, ChevronDown, Brain } from 'lucide-react';
 import { ExploreMegaMenu } from './ExploreMegaMenu';
 
 interface NavItem {
@@ -26,6 +26,7 @@ const NAV_ITEMS: NavItem[] = [
     icon: Calendar,
     matchPrefixes: ['/calendar', '/schedule', '/races', '/weekends'],
   },
+  { label: 'QUIZ', path: '/quiz', icon: Brain, matchPrefixes: ['/quiz'] },
   { label: 'PREDICTIONS', path: '/predictions', icon: CircleDot, matchPrefixes: ['/predictions', '/predict'] },
   { label: 'LEADERBOARD', path: '/leaderboard', icon: Trophy, matchPrefixes: ['/leaderboard'] },
 ];

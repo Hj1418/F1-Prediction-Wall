@@ -83,6 +83,7 @@ export const PredictionPage: React.FC = () => {
 
   // Driver modal selector state
   const [activeDriverField, setActiveDriverField] = useState<PredictionFieldConfig | null>(null);
+  const hasTrackedStartRef = React.useRef(false);
 
   // Synchronize state if roundId changes or syncRound updates
   useEffect(() => {
@@ -286,7 +287,6 @@ export const PredictionPage: React.FC = () => {
     return disabledMap;
   };
 
-  const hasTrackedStartRef = React.useRef(false);
 
   const trackStartEditing = () => {
     if (!hasTrackedStartRef.current && round) {

@@ -28,6 +28,7 @@ const ChampionshipsPage = lazy(() => import('./pages/ChampionshipsPage').then(m 
 const ChampionshipDetailPage = lazy(() => import('./pages/ChampionshipDetailPage').then(m => ({ default: m.ChampionshipDetailPage })));
 const IndianMotorsportPage = lazy(() => import('./pages/IndianMotorsportPage').then(m => ({ default: m.IndianMotorsportPage })));
 const CalendarPage = lazy(() => import('./pages/CalendarPage').then(m => ({ default: m.CalendarPage })));
+const QuizPage = lazy(() => import('./pages/QuizPage').then(m => ({ default: m.QuizPage })));
 const UniversalSearchModal = lazy(() => import('./components/search/UniversalSearchModal').then(m => ({ default: m.UniversalSearchModal })));
 
 const AppLayout: React.FC = () => {
@@ -74,6 +75,8 @@ const AppLayout: React.FC = () => {
             <Route path="/circuits" element={<CircuitsPage />} />
             <Route path="/circuits/:circuitId" element={<CircuitsPage />} />
             <Route path="/indian-motorsport" element={<IndianMotorsportPage />} />
+            <Route path="/quiz" element={<QuizPage />} />
+            <Route path="/quiz/:attemptId" element={<QuizPage />} />
             <Route path="/predictions" element={<PredictionsHubPage />} />
             <Route path="/predict/:roundId" element={<PredictionPage />} />
             <Route path="/leaderboard" element={<LeaderboardPage />} />

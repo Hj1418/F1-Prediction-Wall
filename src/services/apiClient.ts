@@ -1466,6 +1466,21 @@ export const api = {
     }, { ttlMs: TTL.LONG });
   },
 
+  async getUserQuizHistory(userId: string) {
+    const { quizService } = await import('./quiz/quizService');
+    return quizService.getUserQuizHistory(userId);
+  },
+
+  async getUserQuizAchievements(userId: string) {
+    const { quizService } = await import('./quiz/quizService');
+    return quizService.getUserQuizAchievements(userId);
+  },
+
+  async getQuizPerformanceSummary(userId: string) {
+    const { quizService } = await import('./quiz/quizService');
+    return quizService.getQuizPerformanceSummary(userId);
+  },
+
   resetDemoData() {
     mockApi.resetToDefaults();
   },

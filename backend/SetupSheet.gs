@@ -65,6 +65,26 @@ function initializeDatabase() {
       name: 'NotificationLog',
       headers: ['id', 'queueId', 'recipientEmail', 'notificationType', 'idempotencyKey', 'sentAt', 'status', 'deliveryMetadata'],
       headerColor: '#6366f1'
+    },
+    {
+      name: 'QuizCategories',
+      headers: ['categoryId', 'displayName', 'grouping', 'description', 'status', 'questionBankRef', 'color', 'badge'],
+      headerColor: '#8b5cf6'
+    },
+    {
+      name: 'QuizQuestions',
+      headers: ['questionId', 'categoryId', 'question', 'optionsJson', 'correctOptionId', 'explanation', 'difficulty', 'topic', 'contentVersion', 'sourceUrl', 'context', 'approvalStatus'],
+      headerColor: '#06b6d4'
+    },
+    {
+      name: 'QuizAttempts',
+      headers: ['attemptId', 'userId', 'selectedCategoriesJson', 'questionIdsJson', 'submittedAnswersJson', 'score', 'totalQuestions', 'percentage', 'fanIdentityTier', 'categoryBreakdownJson', 'startedAt', 'completedAt', 'status'],
+      headerColor: '#f97316'
+    },
+    {
+      name: 'QuizAchievements',
+      headers: ['userAchievementId', 'userId', 'achievementId', 'title', 'description', 'badgeIcon', 'badgeColor', 'earnedAt', 'ruleVersion'],
+      headerColor: '#10b981'
     }
   ];
 
