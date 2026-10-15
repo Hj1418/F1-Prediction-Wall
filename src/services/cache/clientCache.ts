@@ -215,7 +215,9 @@ class ClientCache {
     const promise = (async () => {
       try {
         const result = await fetcher();
-        this.set<T>(key, result, ttlMs, persist);
+        if (result !== null && result !== undefined) {
+          this.set<T>(key, result, ttlMs, persist);
+        }
         return result;
       } finally {
         // Always clean up in-flight mapping on resolve or reject

@@ -50,7 +50,7 @@ const GLOBAL_CONSTRUCTORS_LIST = [
 export const ProfilePage: React.FC = () => {
   const { username } = useParams<{ username: string }>();
   const navigate = useNavigate();
-  const { currentUser, updateProfile, openLoginModal } = useAuth();
+  const { currentUser, allUsers, isLoadingAuth, updateProfile, openLoginModal } = useAuth();
   const { showToast } = useApp();
 
   const [profileUser, setProfileUser] = useState<User | null>(null);
@@ -217,6 +217,11 @@ export const ProfilePage: React.FC = () => {
 
   useEffect(() => {
     async function loadProfile() {
+      // If auth is still restoring and route has no explicit username, wait for auth to finish
+      if (!username && isLoadingAuth) {
+        return;
+      }
+
       try {
         setLoading(true);
         const targetUsername = username || currentUser?.username;
@@ -225,6 +230,23 @@ export const ProfilePage: React.FC = () => {
           setLoading(false);
           return;
         }
+
+        const isSelf = Boolean(
+          currentUser && (
+            (currentUser.username && currentUser.username.toLowerCase() === targetUsername.toLowerCase()) ||
+            currentUser.userId === targetUsername
+          )
+        );
+
+        // Optimistically set profileUser from currentUser if viewing own profile so user never sees a blank or missing screen
+        if (isSelf && currentUser) {
+          setProfileUser(currentUser);
+          setSelectedFavDriver(currentUser.favouriteDriver || '');
+          setSelectedFavConstructor(currentUser.favouriteConstructor || 'ferrari');
+          setSelectedFavChampionship(currentUser.favouriteChampionship || 'f1');
+          setSelectedBio(currentUser.bio || '');
+        }
+
         const [u, dList, seasonStandings] = await Promise.all([
           api.getUserProfile(targetUsername).catch(() => null),
           api.getDrivers().catch(() => []),
@@ -232,6 +254,13 @@ export const ProfilePage: React.FC = () => {
         ]);
 
         let effectiveUser = u;
+
+        // Fallback 1: If current user matches target, use currentUser
+        if (!effectiveUser && isSelf && currentUser) {
+          effectiveUser = currentUser;
+        }
+
+        // Fallback 2: Check season standings
         if (!effectiveUser) {
           const lbMatch = (seasonStandings || []).find(
             e => e.userId === targetUsername ||
@@ -245,7 +274,7 @@ export const ProfilePage: React.FC = () => {
               displayName: lbMatch.displayName || lbMatch.username || targetUsername,
               email: `${lbMatch.userId}@thegrid.mock`,
               avatarUrl: lbMatch.avatarUrl || '',
-              favouriteDriver: 'norris',
+              favouriteDriver: lbMatch.favouriteDriver || 'norris',
               role: 'user',
               totalPoints: lbMatch.totalPoints || 0,
               seasonRank: lbMatch.rank || 1,
@@ -257,6 +286,18 @@ export const ProfilePage: React.FC = () => {
               bestWeekendScore: lbMatch.totalPoints || 0,
               createdAt: new Date().toISOString(),
             };
+          }
+        }
+
+        // Fallback 3: Check allUsers from auth directory
+        if (!effectiveUser && allUsers && allUsers.length > 0) {
+          const matchedUser = allUsers.find(
+            a => a.userId === targetUsername ||
+                 (a.username && a.username.toLowerCase() === targetUsername.toLowerCase()) ||
+                 (a.displayName && a.displayName.toLowerCase() === targetUsername.toLowerCase())
+          );
+          if (matchedUser) {
+            effectiveUser = matchedUser;
           }
         }
 
@@ -279,7 +320,7 @@ export const ProfilePage: React.FC = () => {
           setTrophies(userTrophies);
 
           // If current logged-in user is viewing their own profile, evaluate and trigger verified unlock notifications
-          if (currentUser && currentUser.userId === effectiveUser.userId) {
+          if (currentUser && (currentUser.userId === effectiveUser.userId || (currentUser.username && currentUser.username.toLowerCase() === effectiveUser.username.toLowerCase()))) {
             achs.filter(a => a.isUnlocked).forEach(a => {
               notificationService.notifyAchievementUnlocked(effectiveUser!.userId, a);
             });
@@ -345,7 +386,7 @@ export const ProfilePage: React.FC = () => {
     }
 
     loadProfile();
-  }, [username, currentUser?.userId, currentUser?.username]);
+  }, [username, currentUser?.userId, currentUser?.username, isLoadingAuth]);
 
   if (loading) {
     return (
@@ -366,7 +407,7 @@ export const ProfilePage: React.FC = () => {
         <p style={{ color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
           {isSelfProfile
             ? 'Please sign in to manage your racer license, driver picks, and prediction history.'
-            : 'The requested racer profile could not be found.'}
+            : 'The requested racer profile could not be found or connection timed out.'}
         </p>
         <div style={{ marginTop: '1.5rem', display: 'flex', gap: '0.75rem', justifyContent: 'center' }}>
           {isSelfProfile && (
@@ -374,6 +415,9 @@ export const ProfilePage: React.FC = () => {
               Sign In
             </button>
           )}
+          <button onClick={() => window.location.reload()} className="btn btn-primary">
+            Retry Connection
+          </button>
           <Link to="/" className="btn btn-secondary">
             Back to Overview
           </Link>
@@ -382,7 +426,12 @@ export const ProfilePage: React.FC = () => {
     );
   }
 
-  const isOwner = Boolean(currentUser && currentUser.userId === profileUser.userId);
+  const isOwner = Boolean(
+    currentUser && (
+      currentUser.userId === profileUser.userId ||
+      (currentUser.username && profileUser.username && currentUser.username.toLowerCase() === profileUser.username.toLowerCase())
+    )
+  );
   const favDriver = drivers.find(d => d.id === (isEditingFavDriver ? selectedFavDriver : profileUser.favouriteDriver));
   const favConstructor = GLOBAL_CONSTRUCTORS_LIST.find(
     c => c.id === (isEditingFavConstructor ? selectedFavConstructor : profileUser.favouriteConstructor)

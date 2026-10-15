@@ -64,20 +64,35 @@ export const isLiveBackend = Boolean(API_BASE_URL && API_BASE_URL.startsWith('ht
 const isProd = typeof import.meta !== 'undefined' && Boolean(import.meta.env?.PROD);
 
 /**
- * Fast network fetch with AbortController timeout.
- * Prevents Google Apps Script serverless cold-start latency from freezing the browser UI.
+ * Network fetch with AbortController timeout and cold-start tolerance.
+ * Provides resilient handling for Google Apps Script serverless cold-start latency.
  */
-async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutMs: number = 8000): Promise<Response> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    const res = await fetch(url, { ...options, signal: controller.signal });
-    clearTimeout(timer);
-    return res;
-  } catch (err) {
-    clearTimeout(timer);
-    throw err;
+async function fetchWithTimeout(
+  url: string,
+  options: RequestInit = {},
+  timeoutMs: number = 25000,
+  retries: number = 1
+): Promise<Response> {
+  const isGet = !options.method || options.method.toUpperCase() === 'GET';
+  const maxAttempts = isGet ? Math.max(0, retries) : 0;
+
+  for (let attempt = 0; attempt <= maxAttempts; attempt++) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const res = await fetch(url, { ...options, signal: controller.signal });
+      clearTimeout(timer);
+      return res;
+    } catch (err) {
+      clearTimeout(timer);
+      if (attempt === maxAttempts) {
+        throw err;
+      }
+      // Brief pause before retry so Google Apps Script container has time to wake up
+      await new Promise(r => setTimeout(r, 800));
+    }
   }
+  throw new Error('fetchWithTimeout failed');
 }
 
 /**
@@ -630,7 +645,7 @@ export const api = {
       if (isLiveBackend) {
         try {
           const url = `${API_BASE_URL}?action=getLeaderboard&type=${type}${id ? `&id=${encodeURIComponent(id)}` : ''}`;
-          const res = await fetchWithTimeout(url);
+          const res = await fetchWithTimeout(url, {}, 25000);
           const json: ApiResponse<LeaderboardEntry[]> = await res.json();
           if (json.success && Array.isArray(json.data) && json.data.length > 0) {
             return json.data;
@@ -640,19 +655,27 @@ export const api = {
         }
       }
 
-      if (isProd) {
-        return [];
+      const mockLb = await mockApi.getLeaderboard(type, id);
+      if (mockLb && mockLb.length > 0) {
+        return mockLb;
       }
 
-      return mockApi.getLeaderboard(type, id);
-    }, { ttlMs: TTL.SHORT });
+      return [];
+    }, { ttlMs: TTL.MEDIUM });
   },
 
   async getUserProfile(usernameOrId: string): Promise<User | null> {
-    return clientCache.getOrFetch(`user_profile_${usernameOrId}`, async () => {
+    if (!usernameOrId || !usernameOrId.trim()) return null;
+    const cleanId = usernameOrId.trim();
+
+    return clientCache.getOrFetch(`user_profile_${cleanId.toLowerCase()}`, async () => {
       if (isLiveBackend) {
         try {
-          const res = await fetchWithTimeout(`${API_BASE_URL}?action=getUserProfile&userId=${encodeURIComponent(usernameOrId)}`);
+          const res = await fetchWithTimeout(
+            `${API_BASE_URL}?action=getUserProfile&userId=${encodeURIComponent(cleanId)}&username=${encodeURIComponent(cleanId)}`,
+            {},
+            25000
+          );
           const json: ApiResponse<User> = await res.json();
           if (json.success && json.data) {
             return json.data;
@@ -662,42 +685,60 @@ export const api = {
         }
       }
 
-      if (isProd) {
-        return null;
+      // Robust fallback 1: Cross-reference season leaderboard
+      let user: User | null = null;
+      try {
+        const leaderboard = await this.getLeaderboard('season');
+        const lbEntry = (leaderboard || []).find(
+          e => e.userId === cleanId ||
+               (e.username && e.username.toLowerCase() === cleanId.toLowerCase()) ||
+               (e.displayName && e.displayName.toLowerCase() === cleanId.toLowerCase())
+        );
+        if (lbEntry) {
+          user = {
+            userId: lbEntry.userId,
+            username: lbEntry.username || cleanId,
+            displayName: lbEntry.displayName || lbEntry.username || cleanId,
+            email: `${lbEntry.userId}@thegrid.mock`,
+            avatarUrl: lbEntry.avatarUrl || '',
+            favouriteDriver: lbEntry.favouriteDriver || 'norris',
+            role: 'user',
+            totalPoints: lbEntry.totalPoints || 0,
+            seasonRank: lbEntry.rank || 1,
+            previousRank: lbEntry.previousRank || lbEntry.rank || 1,
+            racesParticipated: lbEntry.racesParticipated || 0,
+            exactP1Count: lbEntry.exactP1Count || 0,
+            perfectPodiumCount: lbEntry.perfectPodiumCount || 0,
+            wildcardsCorrect: 0,
+            bestWeekendScore: lbEntry.totalPoints || 0,
+            createdAt: new Date().toISOString(),
+          };
+        }
+      } catch (_err) {}
+
+      // Robust fallback 2: Check locally cached authenticated profile in localStorage
+      if (!user && typeof window !== 'undefined' && window.localStorage) {
+        try {
+          const cachedProfileRaw = window.localStorage.getItem('f1_pred_current_user_profile');
+          if (cachedProfileRaw) {
+            const cachedUser: User = JSON.parse(cachedProfileRaw);
+            if (
+              cachedUser &&
+              (cachedUser.userId === cleanId ||
+               (cachedUser.username && cachedUser.username.toLowerCase() === cleanId.toLowerCase()))
+            ) {
+              user = cachedUser;
+            }
+          }
+        } catch (_storageErr) {}
       }
 
-      const localUser = await mockApi.getUserProfile(usernameOrId);
-      let user: User | null = localUser;
-
+      // Robust fallback 3: Local mock user (development / offline test data)
       if (!user) {
-        try {
-          const leaderboard = await this.getLeaderboard('season');
-          const lbEntry = leaderboard.find(
-            e => e.userId === usernameOrId ||
-                 (e.username && e.username.toLowerCase() === usernameOrId.toLowerCase()) ||
-                 (e.displayName && e.displayName.toLowerCase() === usernameOrId.toLowerCase())
-          );
-          if (lbEntry) {
-            user = {
-              userId: lbEntry.userId,
-              username: lbEntry.username || usernameOrId,
-              displayName: lbEntry.displayName || lbEntry.username || usernameOrId,
-              email: `${lbEntry.userId}@thegrid.mock`,
-              avatarUrl: lbEntry.avatarUrl || '',
-              favouriteDriver: 'norris',
-              role: 'user',
-              totalPoints: lbEntry.totalPoints || 0,
-              seasonRank: lbEntry.rank || 1,
-              previousRank: lbEntry.previousRank || lbEntry.rank || 1,
-              racesParticipated: lbEntry.racesParticipated || 0,
-              exactP1Count: lbEntry.exactP1Count || 0,
-              perfectPodiumCount: lbEntry.perfectPodiumCount || 0,
-              wildcardsCorrect: 0,
-              bestWeekendScore: lbEntry.totalPoints || 0,
-              createdAt: new Date().toISOString(),
-            };
-          }
-        } catch (_err) {}
+        const localUser = await mockApi.getUserProfile(cleanId);
+        if (localUser) {
+          user = localUser;
+        }
       }
 
       if (user) {
@@ -733,7 +774,7 @@ export const api = {
       }
 
       return user;
-    }, { ttlMs: TTL.SHORT });
+    }, { ttlMs: TTL.MEDIUM });
   },
 
   async getUserAchievements(userId: string): Promise<Achievement[]> {
@@ -1009,7 +1050,12 @@ export const api = {
     if (!isLiveBackend && isProd) {
       throw new Error('Live database connection is required for profile updates.');
     }
-    if (!isLiveBackend) return mockApi.updateUser(userId, updates);
+    if (!isLiveBackend) {
+      const res = await mockApi.updateUser(userId, updates);
+      clientCache.remove(`user_profile_${userId.toLowerCase()}`);
+      if (res.username) clientCache.remove(`user_profile_${res.username.toLowerCase()}`);
+      return res;
+    }
     try {
       const res = await fetch(`${API_BASE_URL}?action=updateUser`, {
         method: 'POST',
@@ -1017,7 +1063,14 @@ export const api = {
         body: JSON.stringify({ action: 'updateUser', userId, updates }),
       });
       const json = await res.json();
-      if (json.success && json.data) return json.data;
+      if (json.success && json.data) {
+        clientCache.remove(`user_profile_${userId.toLowerCase()}`);
+        if (json.data.username) {
+          clientCache.remove(`user_profile_${json.data.username.toLowerCase()}`);
+        }
+        clientCache.invalidatePrefix('leaderboard_');
+        return json.data;
+      }
       throw new Error(json.message || 'Profile update failed on database');
     } catch (e: any) {
       console.error('Live API updateUser failed:', e);

@@ -31,6 +31,7 @@ interface AuthContextType {
 }
 
 const CURRENT_USER_KEY = 'f1_pred_current_user_id';
+const CURRENT_USER_PROFILE_KEY = 'f1_pred_current_user_profile';
 const AUTH_STATUS_KEY = 'f1_pred_auth_status';
 const AUTH_TOKEN_KEY = 'f1_pred_auth_token';
 
@@ -57,6 +58,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (profile) {
             setCurrentUser(profile);
             setIsAuthenticated(true);
+            localStorage.setItem(CURRENT_USER_PROFILE_KEY, JSON.stringify(profile));
           }
         } catch (err) {
           console.warn('Failed to fetch user profile in refreshUsers:', err);
@@ -85,8 +87,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setIsLoadingAuth(true);
         const authStatus = localStorage.getItem(AUTH_STATUS_KEY);
         const savedUserId = localStorage.getItem(CURRENT_USER_KEY);
+        const cachedProfileRaw = localStorage.getItem(CURRENT_USER_PROFILE_KEY);
 
         if (authStatus === 'authenticated' && savedUserId) {
+          // Optimistically restore session immediately from cached profile if present
+          let hadOptimisticProfile = false;
+          if (cachedProfileRaw) {
+            try {
+              const cachedProfile: User = JSON.parse(cachedProfileRaw);
+              if (cachedProfile && (cachedProfile.userId === savedUserId || cachedProfile.username)) {
+                const savedToken = localStorage.getItem(AUTH_TOKEN_KEY);
+                if (savedToken && cachedProfile.role === 'admin') {
+                  cachedProfile.authToken = savedToken;
+                }
+                setCurrentUser(cachedProfile);
+                setIsAuthenticated(true);
+                hadOptimisticProfile = true;
+              }
+            } catch (_e) {}
+          }
+
           try {
             const profile = await api.getUserProfile(savedUserId);
             if (profile) {
@@ -96,6 +116,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               }
               setCurrentUser(profile);
               setIsAuthenticated(true);
+              localStorage.setItem(CURRENT_USER_PROFILE_KEY, JSON.stringify(profile));
               if (!profile.username || profile.username.trim() === '') {
                 setOnboardingUser(profile);
               }
@@ -107,6 +128,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
           } catch (profileErr) {
             console.warn('Could not fetch user profile from live database:', profileErr);
+          }
+
+          // If we had a valid cached profile, keep user authenticated even if network timed out
+          if (hadOptimisticProfile) {
+            return;
           }
 
           // Fallback check in mock data (development only)
@@ -126,6 +152,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         localStorage.removeItem(AUTH_STATUS_KEY);
         localStorage.removeItem(CURRENT_USER_KEY);
         localStorage.removeItem(AUTH_TOKEN_KEY);
+        localStorage.removeItem(CURRENT_USER_PROFILE_KEY);
       } catch (e) {
         console.warn('Failed to restore auth session:', e);
         setCurrentUser(null);
@@ -161,6 +188,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsAuthenticated(true);
     localStorage.setItem(AUTH_STATUS_KEY, 'authenticated');
     localStorage.setItem(CURRENT_USER_KEY, user.userId);
+    localStorage.setItem(CURRENT_USER_PROFILE_KEY, JSON.stringify(user));
     if (user.authToken) {
       localStorage.setItem(AUTH_TOKEN_KEY, user.authToken);
     } else {
@@ -180,6 +208,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsAuthenticated(true);
     localStorage.setItem(AUTH_STATUS_KEY, 'authenticated');
     localStorage.setItem(CURRENT_USER_KEY, newUser.userId);
+    localStorage.setItem(CURRENT_USER_PROFILE_KEY, JSON.stringify(newUser));
     setAuthModalOpen(false);
     trackSignupCompleted({ method: 'password', user_type: 'new' });
     if (!newUser.username || newUser.username.trim() === '') {
@@ -219,6 +248,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsAuthenticated(true);
     localStorage.setItem(AUTH_STATUS_KEY, 'authenticated');
     localStorage.setItem(CURRENT_USER_KEY, user.userId);
+    localStorage.setItem(CURRENT_USER_PROFILE_KEY, JSON.stringify(user));
     if (user.authToken) {
       localStorage.setItem(AUTH_TOKEN_KEY, user.authToken);
     } else {
@@ -248,6 +278,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.removeItem(AUTH_STATUS_KEY);
     localStorage.removeItem(CURRENT_USER_KEY);
     localStorage.removeItem(AUTH_TOKEN_KEY);
+    localStorage.removeItem(CURRENT_USER_PROFILE_KEY);
   };
 
   const updateProfile = async (updated: Partial<User>) => {
@@ -258,6 +289,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const saved = await api.updateUser(currentUser.userId, safeUpdates);
     setCurrentUser(saved);
+    localStorage.setItem(CURRENT_USER_PROFILE_KEY, JSON.stringify(saved));
     setAllUsers(prev => prev.map(u => (u.userId === saved.userId ? saved : u)));
   };
 
