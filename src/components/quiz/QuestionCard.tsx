@@ -139,7 +139,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
           style={{
             width: `${progressPercent}%`,
             height: '100%',
-            backgroundColor: categoryMeta?.color || 'var(--f1-red)',
+            background: 'var(--gradient-flame)',
             transition: 'width 0.25s ease',
           }}
         />
@@ -217,13 +217,13 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
                   alignItems: 'center',
                   gap: '1rem',
                   padding: '1.1rem 1.25rem',
-                  backgroundColor: isSelected ? 'var(--bg-surface-elevated)' : 'rgba(255, 255, 255, 0.02)',
-                  border: `1.5px solid ${isSelected ? (categoryMeta?.color || 'var(--f1-red)') : 'var(--border-subtle)'}`,
+                  backgroundColor: isSelected ? 'var(--color-surface-elevated, #1B2027)' : 'rgba(255, 255, 255, 0.02)',
+                  border: `1.5px solid ${isSelected ? 'var(--color-accent, #FF4B33)' : 'var(--color-border, #292F38)'}`,
                   borderRadius: 'var(--radius-md)',
                   color: isSelected ? '#ffffff' : 'var(--text-primary)',
                   cursor: 'pointer',
                   textAlign: 'left',
-                  boxShadow: isSelected ? `0 0 15px -4px ${categoryMeta?.color || 'var(--f1-red)'}40` : 'none',
+                  boxShadow: isSelected ? '0 0 16px rgba(255, 75, 51, 0.25)' : 'none',
                   transition: 'all 0.15s ease',
                   width: '100%',
                 }}
@@ -241,9 +241,9 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
                     fontWeight: 900,
                     fontSize: '0.88rem',
                     flexShrink: 0,
-                    backgroundColor: isSelected ? (categoryMeta?.color || 'var(--f1-red)') : 'rgba(255, 255, 255, 0.05)',
-                    color: isSelected ? '#ffffff' : 'var(--text-secondary)',
-                    border: `1px solid ${isSelected ? (categoryMeta?.color || 'var(--f1-red)') : 'var(--border-medium)'}`,
+                    backgroundColor: isSelected ? 'var(--color-accent, #FF4B33)' : 'rgba(255, 255, 255, 0.05)',
+                    color: isSelected ? '#070809' : 'var(--text-secondary)',
+                    border: `1px solid ${isSelected ? 'var(--color-accent, #FF4B33)' : 'var(--color-border, #292F38)'}`,
                   }}
                 >
                   {letter}
@@ -262,7 +262,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
                 </span>
 
                 {/* Radio indicator */}
-                <div style={{ flexShrink: 0, color: isSelected ? (categoryMeta?.color || 'var(--f1-red)') : 'var(--text-muted)' }}>
+                <div style={{ flexShrink: 0, color: isSelected ? 'var(--color-accent, #FF4B33)' : 'var(--text-muted)' }}>
                   {isSelected ? <CheckCircle2 size={18} /> : <Circle size={18} />}
                 </div>
               </button>
@@ -321,12 +321,12 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
                 fontFamily: 'var(--font-mono)',
                 fontWeight: 900,
                 letterSpacing: '0.06em',
-                backgroundColor: 'var(--f1-red)',
-                color: '#ffffff',
+                background: 'var(--gradient-flame)',
+                color: '#070809',
                 border: 'none',
                 borderRadius: 'var(--radius-sm)',
                 cursor: isSubmitting ? 'not-allowed' : 'pointer',
-                boxShadow: '0 0 20px rgba(225, 6, 0, 0.45)',
+                boxShadow: 'var(--shadow-flame)',
                 transition: 'all 0.15s ease',
               }}
             >

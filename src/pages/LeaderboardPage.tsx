@@ -252,7 +252,7 @@ export const LeaderboardPage: React.FC = () => {
             style={{
               fontSize: '0.75rem',
               fontWeight: 800,
-              color: 'var(--f1-red)',
+              color: 'var(--color-accent, #FF4B33)',
               textTransform: 'uppercase',
               letterSpacing: '0.12em',
             }}
@@ -275,16 +275,16 @@ export const LeaderboardPage: React.FC = () => {
               onClick={handleShareLeaderboard}
               className="btn btn-sm"
               style={{
-                backgroundColor: 'var(--f1-red)',
-                color: '#fff',
-                fontWeight: 800,
+                background: 'var(--gradient-flame)',
+                color: '#070809',
+                fontWeight: 900,
                 fontSize: '0.78rem',
                 letterSpacing: '0.05em',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '0.4rem',
                 border: 'none',
-                boxShadow: '0 0 14px rgba(225, 6, 0, 0.4)',
+                boxShadow: 'var(--shadow-flame)',
                 cursor: 'pointer',
                 padding: '0.5rem 0.95rem',
               }}
@@ -297,10 +297,10 @@ export const LeaderboardPage: React.FC = () => {
           <div
             style={{
               display: 'flex',
-              background: 'var(--bg-surface-elevated)',
+              background: 'var(--color-surface, #14171C)',
               padding: '0.3rem',
               borderRadius: 'var(--radius-sm)',
-              border: '1px solid var(--border-subtle)',
+              border: '1px solid var(--color-border, #292F38)',
               maxWidth: '100%',
               overflowX: 'auto',
               whiteSpace: 'nowrap',
@@ -313,8 +313,8 @@ export const LeaderboardPage: React.FC = () => {
               onClick={() => handleTabChange('season')}
               className="btn btn-sm"
               style={{
-                background: tab === 'season' ? 'var(--f1-red)' : 'transparent',
-                color: tab === 'season' ? '#fff' : 'var(--text-secondary)',
+                background: tab === 'season' ? 'var(--gradient-flame)' : 'transparent',
+                color: tab === 'season' ? '#070809' : 'var(--text-secondary)',
                 border: 'none',
                 flexShrink: 0,
                 fontWeight: 800,
@@ -329,8 +329,8 @@ export const LeaderboardPage: React.FC = () => {
               onClick={() => handleTabChange('weekend')}
               className="btn btn-sm"
               style={{
-                background: tab === 'weekend' ? 'var(--f1-red)' : 'transparent',
-                color: tab === 'weekend' ? '#fff' : 'var(--text-secondary)',
+                background: tab === 'weekend' ? 'var(--gradient-flame)' : 'transparent',
+                color: tab === 'weekend' ? '#070809' : 'var(--text-secondary)',
                 border: 'none',
                 flexShrink: 0,
                 fontWeight: 800,
@@ -351,8 +351,8 @@ export const LeaderboardPage: React.FC = () => {
           style={{
             padding: '1.25rem 1.75rem',
             marginBottom: '2rem',
-            background: 'linear-gradient(135deg, rgba(225, 6, 0, 0.12) 0%, var(--bg-surface-card) 100%)',
-            border: '1px solid rgba(225, 6, 0, 0.35)',
+            background: 'linear-gradient(135deg, rgba(255, 75, 51, 0.12) 0%, var(--color-surface, #14171C) 100%)',
+            border: '1px solid rgba(255, 75, 51, 0.35)',
             display: 'flex',
             flexWrap: 'wrap',
             alignItems: 'center',
@@ -370,7 +370,7 @@ export const LeaderboardPage: React.FC = () => {
               <div
                 style={{
                   fontSize: '0.72rem',
-                  color: 'var(--f1-red)',
+                  color: 'var(--color-accent, #FF4B33)',
                   fontWeight: 800,
                   textTransform: 'uppercase',
                   letterSpacing: '0.1em',
@@ -488,7 +488,7 @@ export const LeaderboardPage: React.FC = () => {
               style={{
                 fontSize: '0.8rem',
                 fontWeight: 800,
-                color: 'var(--f1-red)',
+                color: 'var(--color-accent, #FF4B33)',
                 textTransform: 'uppercase',
                 letterSpacing: '0.06em',
               }}
@@ -554,7 +554,7 @@ export const LeaderboardPage: React.FC = () => {
           <div style={{ padding: '4rem 0', textAlign: 'center' }}>
             <div
               className="live-pulse"
-              style={{ width: '10px', height: '10px', backgroundColor: 'var(--f1-red)', marginBottom: '0.75rem' }}
+              style={{ width: '10px', height: '10px', backgroundColor: 'var(--color-accent, #FF4B33)', marginBottom: '0.75rem' }}
             />
             <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
               COMPUTING CHAMPIONSHIP STANDINGS & SECTOR DELTAS...

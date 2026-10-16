@@ -114,7 +114,7 @@ export const CalendarPage: React.FC = () => {
       {/* 1. COMPACT PAGE HEADER */}
       <section
         style={{
-          background: 'radial-gradient(ellipse at 50% -20%, rgba(225, 6, 0, 0.14) 0%, var(--bg-base) 70%)',
+          background: 'radial-gradient(ellipse at 50% -20%, rgba(255, 75, 51, 0.14) 0%, var(--color-background, #070809) 70%)',
           borderBottom: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.08))',
           padding: '2rem 0 1.5rem 0',
         }}
@@ -230,8 +230,8 @@ export const CalendarPage: React.FC = () => {
                   whiteSpace: 'nowrap',
                 }}
                 onMouseEnter={e => {
-                  e.currentTarget.style.backgroundColor = 'rgba(225, 6, 0, 0.12)';
-                  e.currentTarget.style.borderColor = 'var(--f1-red, #e10600)';
+                  e.currentTarget.style.backgroundColor = 'rgba(255, 75, 51, 0.15)';
+                  e.currentTarget.style.borderColor = 'var(--color-accent, #FF4B33)';
                   e.currentTarget.style.color = '#ffffff';
                 }}
                 onMouseLeave={e => {
@@ -240,7 +240,7 @@ export const CalendarPage: React.FC = () => {
                   e.currentTarget.style.color = '#ffffff';
                 }}
               >
-                <CalendarPlus size={15} style={{ color: 'var(--f1-red, #e10600)' }} />
+                <CalendarPlus size={15} style={{ color: 'var(--color-accent, #FF4B33)' }} />
                 <span>+ ADD TO GOOGLE CALENDAR</span>
               </button>
             </div>
@@ -252,7 +252,7 @@ export const CalendarPage: React.FC = () => {
       <section
         style={{
           borderBottom: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.08))',
-          backgroundColor: 'rgba(15, 19, 28, 0.95)',
+          backgroundColor: 'rgba(11, 13, 16, 0.95)',
           padding: '0.75rem 0',
           position: 'sticky',
           top: 0,
@@ -290,14 +290,14 @@ export const CalendarPage: React.FC = () => {
                     fontSize: '0.76rem',
                     fontWeight: 800,
                     fontFamily: 'var(--font-mono, monospace)',
-                    backgroundColor: isActive ? 'var(--f1-red, #e10600)' : 'rgba(255, 255, 255, 0.03)',
-                    color: isActive ? '#ffffff' : 'var(--text-secondary, #cbd5e1)',
-                    border: isActive ? '1px solid var(--f1-red, #e10600)' : '1px solid var(--border-subtle, rgba(255, 255, 255, 0.08))',
+                    backgroundColor: isActive ? 'var(--color-accent, #FF4B33)' : 'rgba(255, 255, 255, 0.03)',
+                    color: isActive ? '#070809' : 'var(--text-secondary, #cbd5e1)',
+                    border: isActive ? '1px solid var(--color-accent, #FF4B33)' : '1px solid var(--border-subtle, rgba(255, 255, 255, 0.08))',
                     cursor: 'pointer',
                     whiteSpace: 'nowrap',
                     transition: 'all 0.15s ease',
                     flexShrink: 0,
-                    boxShadow: isActive ? '0 0 12px rgba(225, 6, 0, 0.35)' : 'none',
+                    boxShadow: isActive ? '0 0 12px rgba(255, 75, 51, 0.35)' : 'none',
                   }}
                 >
                   <span

@@ -201,12 +201,12 @@ export const PredictionSpeedometer: React.FC<PredictionSpeedometerProps> = ({
     <div
       className={`speedometer-card ${className}`}
       style={{
-        background: 'linear-gradient(135deg, rgba(18, 23, 34, 0.95) 0%, rgba(10, 13, 20, 0.98) 100%)',
-        border: milestone.isMilestoneHit ? '1px solid rgba(0, 230, 118, 0.45)' : '1px solid var(--border-subtle)',
+        background: 'linear-gradient(135deg, rgba(27, 32, 39, 0.95) 0%, rgba(20, 23, 28, 0.98) 100%)',
+        border: milestone.isMilestoneHit ? '1px solid rgba(255, 176, 0, 0.45)' : '1px solid var(--color-border, #292F38)',
         borderRadius: '16px',
         padding: variant === 'compact' ? '1.25rem 1rem' : '1.75rem 1.5rem',
         boxShadow: milestone.isMilestoneHit
-          ? '0 0 25px rgba(0, 230, 118, 0.15), 0 4px 20px rgba(0, 0, 0, 0.5)'
+          ? '0 0 25px rgba(255, 176, 0, 0.18), 0 4px 20px rgba(0, 0, 0, 0.5)'
           : 'var(--shadow-card)',
         position: 'relative',
         overflow: 'hidden',
@@ -221,7 +221,7 @@ export const PredictionSpeedometer: React.FC<PredictionSpeedometerProps> = ({
           right: 0,
           width: '180px',
           height: '180px',
-          background: 'radial-gradient(circle at top right, rgba(225, 6, 0, 0.08) 0%, transparent 70%)',
+          background: 'radial-gradient(circle at top right, rgba(255, 75, 51, 0.1) 0%, transparent 70%)',
           pointerEvents: 'none',
         }}
       />
@@ -238,7 +238,7 @@ export const PredictionSpeedometer: React.FC<PredictionSpeedometerProps> = ({
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
-          <Zap size={14} style={{ color: 'var(--f1-red)' }} />
+          <Zap size={14} style={{ color: 'var(--color-accent, #FF4B33)' }} />
           <span
             style={{
               fontFamily: 'var(--font-mono)',
@@ -261,9 +261,9 @@ export const PredictionSpeedometer: React.FC<PredictionSpeedometerProps> = ({
               gap: '0.35rem',
               padding: '0.2rem 0.6rem',
               borderRadius: '9999px',
-              backgroundColor: 'rgba(234, 179, 8, 0.12)',
-              border: '1px solid rgba(234, 179, 8, 0.3)',
-              color: '#eab308',
+              backgroundColor: 'rgba(255, 176, 0, 0.12)',
+              border: '1px solid rgba(255, 176, 0, 0.35)',
+              color: 'var(--color-accent-amber, #FFB000)',
               fontFamily: 'var(--font-mono)',
               fontSize: '0.72rem',
               fontWeight: 800,
@@ -329,9 +329,9 @@ export const PredictionSpeedometer: React.FC<PredictionSpeedometerProps> = ({
           >
             <defs>
               <linearGradient id="gaugeGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stopColor="var(--telemetry-cyan)" />
-                <stop offset="65%" stopColor="var(--telemetry-green)" />
-                <stop offset="100%" stopColor="var(--f1-red)" />
+                <stop offset="0%" stopColor="#FFB000" />
+                <stop offset="50%" stopColor="#FF6A00" />
+                <stop offset="100%" stopColor="#FF4B33" />
               </linearGradient>
               <filter id="needleGlow" x="-50%" y="-50%" width="200%" height="200%">
                 <feGaussianBlur stdDeviation="2" result="blur" />
@@ -358,7 +358,7 @@ export const PredictionSpeedometer: React.FC<PredictionSpeedometerProps> = ({
                 strokeLinecap="round"
                 style={{
                   transition: prefersReducedMotion ? 'none' : 'stroke 0.4s ease',
-                  filter: 'drop-shadow(0 0 6px rgba(0, 230, 118, 0.4))',
+                  filter: 'drop-shadow(0 0 6px rgba(255, 75, 51, 0.4))',
                 }}
               />
             )}
@@ -371,7 +371,7 @@ export const PredictionSpeedometer: React.FC<PredictionSpeedometerProps> = ({
                 y1={t.y1}
                 x2={t.x2}
                 y2={t.y2}
-                stroke={t.isRedline ? 'rgba(225, 6, 0, 0.6)' : 'rgba(255, 255, 255, 0.25)'}
+                stroke={t.isRedline ? 'rgba(255, 75, 51, 0.75)' : 'rgba(255, 255, 255, 0.25)'}
                 strokeWidth={t.isMajor ? '2' : '1'}
               />
             ))}
@@ -438,7 +438,7 @@ export const PredictionSpeedometer: React.FC<PredictionSpeedometerProps> = ({
                 {/* Needle Body */}
                 <polygon
                   points={`-2.5,0 0,${-r + 8} 2.5,0`}
-                  fill="var(--f1-red)"
+                  fill="var(--color-accent, #FF4B33)"
                   filter="url(#needleGlow)"
                 />
                 <circle cx={0} cy={-r + 8} r="2" fill="#ffffff" />
@@ -447,7 +447,7 @@ export const PredictionSpeedometer: React.FC<PredictionSpeedometerProps> = ({
 
             {/* Center Pivot Hub */}
             <circle cx={cx} cy={cy} r="8" fill="#121722" stroke="rgba(255, 255, 255, 0.25)" strokeWidth="2" />
-            <circle cx={cx} cy={cy} r="4" fill="var(--f1-red)" />
+            <circle cx={cx} cy={cy} r="4" fill="var(--color-accent, #FF4B33)" />
           </svg>
 
           {/* Central Point Counter */}
@@ -599,7 +599,7 @@ export const PredictionSpeedometer: React.FC<PredictionSpeedometerProps> = ({
                 style={{
                   width: `${Math.round(milestone.progressRatio * 100)}%`,
                   height: '100%',
-                  background: 'linear-gradient(90deg, var(--telemetry-cyan), var(--telemetry-green))',
+                  background: 'var(--gradient-flame)',
                   borderRadius: '4px',
                   transition: prefersReducedMotion ? 'none' : 'width 0.6s cubic-bezier(0.16, 1, 0.3, 1)',
                 }}
@@ -616,7 +616,7 @@ export const PredictionSpeedometer: React.FC<PredictionSpeedometerProps> = ({
                 fontFamily: 'var(--font-mono)',
               }}
             >
-              <span style={{ color: 'var(--telemetry-cyan)', fontWeight: 800 }}>
+              <span style={{ color: 'var(--color-accent-amber, #FFB000)', fontWeight: 800 }}>
                 {milestone.pointsToGo === 0
                   ? 'Milestone Reached! 🏁'
                   : `${milestone.pointsToGo} pts to go`}
@@ -636,14 +636,14 @@ export const PredictionSpeedometer: React.FC<PredictionSpeedometerProps> = ({
                 gap: '0.5rem',
                 padding: '0.55rem 0.85rem',
                 borderRadius: '10px',
-                background: 'rgba(0, 230, 118, 0.08)',
-                border: '1px solid rgba(0, 230, 118, 0.25)',
+                background: 'rgba(255, 176, 0, 0.08)',
+                border: '1px solid rgba(255, 176, 0, 0.25)',
                 fontSize: '0.76rem',
               }}
             >
-              <Flame size={14} style={{ color: 'var(--telemetry-green)', flexShrink: 0 }} />
+              <Flame size={14} style={{ color: 'var(--color-accent-amber, #FFB000)', flexShrink: 0 }} />
               <div style={{ flex: 1 }}>
-                <span style={{ color: 'var(--telemetry-green)', fontWeight: 800, fontFamily: 'var(--font-mono)' }}>
+                <span style={{ color: 'var(--color-accent-amber, #FFB000)', fontWeight: 800, fontFamily: 'var(--font-mono)' }}>
                   +{recentPoints} PTS
                 </span>{' '}
                 <span style={{ color: 'var(--text-secondary)' }}>
@@ -662,9 +662,9 @@ export const PredictionSpeedometer: React.FC<PredictionSpeedometerProps> = ({
                 gap: '0.45rem',
                 padding: '0.5rem 0.75rem',
                 borderRadius: '8px',
-                background: 'rgba(0, 230, 118, 0.15)',
-                border: '1px solid rgba(0, 230, 118, 0.35)',
-                color: 'var(--telemetry-green)',
+                background: 'rgba(255, 176, 0, 0.12)',
+                border: '1px solid rgba(255, 176, 0, 0.35)',
+                color: 'var(--color-accent-amber, #FFB000)',
                 fontFamily: 'var(--font-mono)',
                 fontSize: '0.72rem',
                 fontWeight: 800,
@@ -698,12 +698,14 @@ export const PredictionSpeedometer: React.FC<PredictionSpeedometerProps> = ({
                 transition: 'background 0.2s, border-color 0.2s',
               }}
               onMouseEnter={e => {
-                e.currentTarget.style.backgroundColor = 'var(--f1-red)';
-                e.currentTarget.style.borderColor = 'var(--f1-red)';
+                e.currentTarget.style.backgroundColor = 'var(--color-accent, #FF4B33)';
+                e.currentTarget.style.borderColor = 'var(--color-accent, #FF4B33)';
+                e.currentTarget.style.color = '#070809';
               }}
               onMouseLeave={e => {
                 e.currentTarget.style.backgroundColor = 'var(--bg-input)';
                 e.currentTarget.style.borderColor = 'var(--border-medium)';
+                e.currentTarget.style.color = '#ffffff';
               }}
             >
               <span>{actionLabel}</span>

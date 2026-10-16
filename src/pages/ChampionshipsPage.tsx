@@ -64,7 +64,7 @@ export const ChampionshipsPage: React.FC = () => {
               onClick={openSearch}
               className="explore-search-trigger"
             >
-              <Search size={16} style={{ color: 'var(--f1-red)', flexShrink: 0 }} />
+              <Search size={16} style={{ color: 'var(--color-accent, #FF4B33)', flexShrink: 0 }} />
               <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, textAlign: 'left' }}>
                 Search drivers, teams, circuits, championships...
               </span>
@@ -120,9 +120,10 @@ export const ChampionshipsPage: React.FC = () => {
                       fontFamily: 'var(--font-mono)',
                       fontWeight: isSelected ? 800 : 600,
                       letterSpacing: '0.04em',
-                      border: isSelected ? '1px solid var(--f1-red)' : '1px solid var(--border-subtle)',
-                      backgroundColor: isSelected ? 'rgba(225, 6, 0, 0.15)' : 'var(--bg-surface-elevated)',
+                      border: isSelected ? '1px solid var(--color-accent, #FF4B33)' : '1px solid var(--border-subtle)',
+                      backgroundColor: isSelected ? 'rgba(255, 75, 51, 0.15)' : 'var(--bg-surface-elevated)',
                       color: isSelected ? '#ffffff' : 'var(--text-secondary)',
+                      boxShadow: isSelected ? '0 0 12px rgba(255, 75, 51, 0.25)' : 'none',
                       cursor: 'pointer',
                       whiteSpace: 'nowrap',
                       transition: 'all 0.15s ease',

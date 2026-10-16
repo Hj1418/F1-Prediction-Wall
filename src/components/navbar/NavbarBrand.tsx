@@ -1,15 +1,13 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { GrdxWordmark } from '../common/GrdxWordmark';
 
 export const NavbarBrand: React.FC = () => {
   return (
     <Link to="/" className="navbar-brand" aria-label="GRDX - Motorsport Knowledge & Community Platform">
-      {/* Brand Icon Tile: Compact racing badge with signature red X */}
+      {/* Brand Icon Tile: Compact racing badge with signature flame X */}
       <div className="navbar-brand__logo grdx-nav-badge" title="GRDX">
-        <span className="navbar-brand__logo-text grdx-badge-text">
-          <span className="grdx-badge-grd">GRD</span>
-          <span className="grdx-badge-x">X</span>
-        </span>
+        <GrdxWordmark variant="navbar" className="grdx-badge-text" />
       </div>
 
       {/* Brand Title Row + Subtitle: THE GRDX | MOTORSPORT PLATFORM */}

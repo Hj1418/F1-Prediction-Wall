@@ -57,7 +57,7 @@ export const CategorySelector: React.FC<CategorySelectorProps> = ({
       >
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.25rem' }}>
-            <Layers size={18} style={{ color: 'var(--f1-red)' }} />
+            <Layers size={18} style={{ color: 'var(--color-accent, #FF4B33)' }} />
             <h2 style={{ fontSize: '1.2rem', margin: 0, letterSpacing: '0.04em' }}>
               SELECT MOTORSPORT DISCIPLINES
             </h2>
@@ -124,7 +124,7 @@ export const CategorySelector: React.FC<CategorySelectorProps> = ({
                 style={{
                   width: '4px',
                   height: '14px',
-                  backgroundColor: 'var(--f1-red)',
+                  backgroundColor: 'var(--color-accent, #FF4B33)',
                   borderRadius: '2px',
                 }}
               />
@@ -272,11 +272,11 @@ export const CategorySelector: React.FC<CategorySelectorProps> = ({
           bottom: '1.5rem',
           marginTop: '2rem',
           padding: '1.15rem 1.5rem',
-          backgroundColor: 'rgba(15, 19, 28, 0.95)',
+          backgroundColor: 'rgba(11, 13, 16, 0.95)',
           backdropFilter: 'blur(12px)',
-          border: '1px solid var(--border-medium)',
+          border: '1px solid var(--color-border, #292F38)',
           borderRadius: 'var(--radius-lg)',
-          boxShadow: '0 10px 30px rgba(0, 0, 0, 0.6)',
+          boxShadow: '0 10px 30px rgba(0, 0, 0, 0.7)',
           display: 'flex',
           flexWrap: 'wrap',
           alignItems: 'center',
@@ -309,14 +309,14 @@ export const CategorySelector: React.FC<CategorySelectorProps> = ({
             padding: '0.75rem 1.75rem',
             fontSize: '0.92rem',
             fontFamily: 'var(--font-mono)',
-            fontWeight: 800,
+            fontWeight: 900,
             letterSpacing: '0.06em',
-            backgroundColor: isStartDisabled ? 'var(--bg-input)' : 'var(--f1-red)',
-            color: isStartDisabled ? 'var(--text-muted)' : '#ffffff',
+            background: isStartDisabled ? 'var(--bg-input)' : 'var(--gradient-flame)',
+            color: isStartDisabled ? 'var(--text-muted)' : '#070809',
             border: 'none',
             borderRadius: 'var(--radius-sm)',
             cursor: isStartDisabled ? 'not-allowed' : 'pointer',
-            boxShadow: isStartDisabled ? 'none' : '0 0 20px rgba(225, 6, 0, 0.45)',
+            boxShadow: isStartDisabled ? 'none' : 'var(--shadow-flame)',
             transition: 'all 0.15s ease',
           }}
         >

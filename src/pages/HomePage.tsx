@@ -6,6 +6,7 @@ import {
   Calendar,
   Zap,
   ChevronRight,
+  ChevronLeft,
   BookOpen,
   ArrowRight,
   Lock,
@@ -18,6 +19,11 @@ import {
   Flame,
   Award,
   Brain,
+  Play,
+  PlayCircle,
+  Flag,
+  Users,
+  BarChart3,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
@@ -32,7 +38,16 @@ import { getAllChampionships } from '../services/motorsport/motorsportRegistry';
 import { PredictionSpeedometer } from '../components/predictions/PredictionSpeedometer';
 import { testGrandPrixService } from '../services/testGrandPrix/testGrandPrixService';
 import { getCircuitAssetUrl, CIRCUIT_SOURCE_MAPPING } from '../services/circuits/circuitRegistry';
+import { FlameX } from '../components/common/FlameX';
+import { GrdxWordmark } from '../components/common/GrdxWordmark';
 import heroRacetrackBg from '../assets/grdx-hero-racetrack.jpg';
+import heroFlameRacetrackBg from '../assets/grdx-flame-hero-racetrack.jpg';
+import cotaNightBg from '../assets/grdx-cota-night.jpg';
+import cardPredictionsImg from '../assets/grdx-card-predictions.jpg';
+import cardRacingTagImg from '../assets/grdx-card-racing-tag.jpg';
+import cardCalendarImg from '../assets/grdx-card-calendar.jpg';
+import cardLeaderboardImg from '../assets/grdx-card-leaderboard.jpg';
+import cardHighlightImg from '../assets/grdx-card-highlight.jpg';
 
 function getCircuitSvgForRace(circuitId?: string, circuitName?: string, grandPrixName?: string): string {
   const normId = (circuitId || '').toLowerCase().trim().replace(/[-\s]+/g, '_');
@@ -186,343 +201,361 @@ export const HomePage: React.FC = () => {
         <div className="home-hero-checkered-accent home-hero-checkered-accent--right" aria-hidden="true" />
 
         <div className="home-hero-container">
-          {/* THE GRID Headline | THE <span className="home-hero-grid-accent">GRID</span> | Discovery Hubs: Indian Motorsport */}
-          {/* Canonical Hero Anchor: THE <span className="home-hero-grid-accent">GRDX</span> */}
-          <h1 className="home-hero-brand-title" aria-label="THE GRDX">
-            <span className="home-hero-the">THE</span>{' '}
-            <span className="home-hero-grid-accent grdx-hero-wordmark">
-              <span className="grdx-wordmark-grd">GRD</span>
-              <span className="grdx-wordmark-x">X</span>
-            </span>
-          </h1>
+          <div className="home-hero-main-content">
+            {/* THE GRID Headline | THE <span className="home-hero-grid-accent">GRID</span> | Discovery Hubs: Indian Motorsport */}
+            {/* Canonical Hero Anchor: THE <span className="home-hero-grid-accent">GRDX</span> */}
+            <h1 className="home-hero-brand-title" aria-label="THE GRDX">
+              <span className="home-hero-the">THE</span>{' '}
+              <span className="home-hero-grid-accent grdx-hero-wordmark" title="GRDX">
+                <GrdxWordmark variant="hero" />
+                <span className="sr-only">GRD X</span>
+              </span>
+            </h1>
 
-          <div className="home-hero-tagline" aria-label="Your motorsport starting point">
-            YOUR MOTORSPORT <span className="home-hero-tagline-accent">STARTING POINT</span>
+            <div className="home-hero-tagline" aria-label="Your motorsport starting point">
+              YOUR MOTORSPORT <span className="home-hero-tagline-accent">STARTING POINT</span>
+            </div>
+
+            <p className="home-hero-description">
+              Discover, follow, learn and predict across the world of motorsport.
+            </p>
+
+            {/* 4 Core Platform Pillars (Compact & Editorial - Image 2) */}
+            <div className="home-pillar-grid">
+              <div className="home-pillar-item">
+                <div className="home-pillar-header">
+                  <BookOpen size={14} style={{ color: 'var(--grdx-flame-orange, #FF7A00)' }} />
+                  <span>LEARN</span>
+                </div>
+                <p className="home-pillar-desc">Understand the sport</p>
+              </div>
+              <div className="home-pillar-item">
+                <div className="home-pillar-header">
+                  <Calendar size={14} style={{ color: 'var(--grdx-flame-orange, #FF7A00)' }} />
+                  <span>FOLLOW</span>
+                </div>
+                <p className="home-pillar-desc">Stay updated</p>
+              </div>
+              <div className="home-pillar-item">
+                <div className="home-pillar-header">
+                  <Compass size={14} style={{ color: 'var(--grdx-flame-orange, #FF7A00)' }} />
+                  <span>EXPLORE</span>
+                </div>
+                <p className="home-pillar-desc">Dive deeper</p>
+              </div>
+              <div className="home-pillar-item">
+                <div className="home-pillar-header">
+                  <Zap size={14} style={{ color: 'var(--grdx-flame-orange, #FF7A00)' }} />
+                  <span>COMPETE</span>
+                </div>
+                <p className="home-pillar-desc">Test your knowledge</p>
+              </div>
+            </div>
+
+            {/* Hero Action Buttons: Focused Primary Actions (Explore Motorsport & Global Calendar) */}
+            <div className="home-hero-cta-row">
+              <Link to="/explore" className="home-hero-primary-cta">
+                <ArrowRight size={16} />
+                <span>EXPLORE MOTORSPORT</span>
+              </Link>
+
+              <Link to="/calendar" className="home-hero-secondary-cta">
+                <Calendar size={16} />
+                <span>GLOBAL CALENDAR</span>
+              </Link>
+            </div>
           </div>
 
-          <p className="home-hero-description">
-            Discover, follow, learn and predict across the world of motorsport.
-          </p>
-
-          {/* 4 Core Platform Pillars (Compact & Editorial) */}
-          <div className="home-pillar-grid">
-            <div className="home-pillar-item">
-              <div className="home-pillar-header">
-                <BookOpen size={14} style={{ color: '#00d2be' }} />
-                <span>LEARN</span>
-              </div>
-              <p className="home-pillar-desc">Understand the sport</p>
+          {/* Decorative Right-Side Quote Block (Image 2) */}
+          <div className="home-hero-quote-block" aria-hidden="true">
+            <span className="home-hero-quote-mark">“</span>
+            <div className="home-hero-quote-text">
+              <span className="home-hero-quote-line">SAME TRACKS.</span>
+              <span className="home-hero-quote-line">DIFFERENT STORIES.</span>
+              <span className="home-hero-quote-line home-hero-quote-line--flame">ALWAYS A NEXT ROUND.</span>
+              <div className="home-hero-quote-accent-bar" />
             </div>
-            <div className="home-pillar-item">
-              <div className="home-pillar-header">
-                <Calendar size={14} style={{ color: '#ffd600' }} />
-                <span>FOLLOW</span>
-              </div>
-              <p className="home-pillar-desc">Stay updated</p>
-            </div>
-            <div className="home-pillar-item">
-              <div className="home-pillar-header">
-                <Compass size={14} style={{ color: '#3b82f6' }} />
-                <span>EXPLORE</span>
-              </div>
-              <p className="home-pillar-desc">Dive deeper</p>
-            </div>
-            <div className="home-pillar-item">
-              <div className="home-pillar-header">
-                <Zap size={14} style={{ color: 'var(--f1-red)' }} />
-                <span>COMPETE</span>
-              </div>
-              <p className="home-pillar-desc">Test your knowledge</p>
-            </div>
-          </div>
-
-          {/* Hero Action Buttons: Focused Primary Actions (Explore Motorsport & Global Calendar) */}
-          <div className="home-hero-cta-row">
-            <Link to="/explore" className="home-hero-primary-cta">
-              <Compass size={16} />
-              <span>Explore Motorsport</span>
-            </Link>
-
-            <Link to="/calendar" className="home-hero-secondary-cta">
-              <Calendar size={16} />
-              <span>Global Calendar</span>
-            </Link>
           </div>
         </div>
       </section>
 
-      <div className="container" style={{ maxWidth: '1240px', margin: '0 auto', padding: '0 1.25rem' }}>
+      <div className="container" style={{ maxWidth: '1360px', margin: '0 auto', padding: '0 1.5rem' }}>
         {/* ===================================================================
-            2. NEXT / CURRENT RACE: Multi-Category Racing Radar
+            2. NEXT / CURRENT RACE: NEXT UP IN MOTORSPORT (SINGLE FOCUSED CARD)
             =================================================================== */}
         <section style={{ marginTop: '2.5rem' }}>
           <div
             style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              marginBottom: '1rem',
-              flexWrap: 'wrap',
-              gap: '0.5rem',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <div
-                style={{
-                  width: '8px',
-                  height: '8px',
-                  borderRadius: '50%',
-                  backgroundColor: 'var(--f1-red)',
-                  boxShadow: '0 0 10px var(--f1-red)',
-                }}
-              />
-              <span
-                style={{
-                  fontFamily: 'var(--font-mono)',
-                  fontSize: '0.75rem',
-                  fontWeight: 800,
-                  color: 'var(--f1-red)',
-                  letterSpacing: '0.1em',
-                  textTransform: 'uppercase',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  marginBottom: '0.85rem',
+                  flexWrap: 'wrap',
+                  gap: '0.5rem',
                 }}
               >
-                NEXT UP IN MOTORSPORT
-              </span>
-            </div>
-            <Link
-              to="/races"
-              style={{
-                fontSize: '0.8rem',
-                color: 'var(--text-secondary)',
-                textDecoration: 'none',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.25rem',
-                fontWeight: 700,
-              }}
-            >
-              <span>Full Calendar</span>
-              <ChevronRight size={14} />
-            </Link>
-          </div>
-
-          {/* Primary Featured Event Card */}
-          {(() => {
-            const circuitSvgFile = getCircuitSvgForRace(nextRace.circuitId, nextRace.circuitName, nextRace.grandPrixName);
-            const circuitAssetUrl = getCircuitAssetUrl(circuitSvgFile);
-            const locationText = nextRace.city && nextRace.country && nextRace.city.toLowerCase() !== nextRace.country.toLowerCase()
-              ? `${nextRace.city}, ${nextRace.country}`
-              : (nextRace.city || nextRace.country || '');
-
-            return (
-              <div className="featured-next-up-card race-card-interactive">
-                <div className="featured-card-left">
-                  {/* Top Meta Row: Series badge + Round + Prediction Status pill */}
-                  <div className="featured-card-meta-row">
-                    <span className="featured-series-badge">F1</span>
-                    <span className="featured-round-label">
-                      ROUND {nextRace.roundNumber} • FORMULA 1
-                    </span>
-
-                    {/* Prominent Inline Prediction State Indicator */}
-                    <span
-                      className="featured-status-pill"
-                      style={{
-                        backgroundColor:
-                          predictionHighlight.status === 'OPEN'
-                            ? 'rgba(0, 230, 118, 0.15)'
-                            : userPrediction
-                            ? 'rgba(255, 214, 0, 0.15)'
-                            : userScore
-                            ? 'rgba(157, 78, 221, 0.15)'
-                            : 'rgba(239, 68, 68, 0.15)',
-                        color:
-                          predictionHighlight.status === 'OPEN'
-                            ? 'var(--telemetry-green)'
-                            : userPrediction
-                            ? 'var(--telemetry-yellow)'
-                            : userScore
-                            ? 'var(--telemetry-purple)'
-                            : '#ef4444',
-                        border:
-                          predictionHighlight.status === 'OPEN'
-                            ? '1px solid rgba(0, 230, 118, 0.35)'
-                            : userPrediction
-                            ? '1px solid rgba(255, 214, 0, 0.35)'
-                            : userScore
-                            ? '1px solid rgba(157, 78, 221, 0.35)'
-                            : '1px solid rgba(239, 68, 68, 0.35)',
-                      }}
-                    >
-                      {predictionHighlight.status === 'OPEN'
-                        ? '● Prediction Open'
-                        : userPrediction
-                        ? '🔒 Prediction Locked'
-                        : userScore
-                        ? 'Result Available'
-                        : 'Prediction Closed'}
-                    </span>
-                  </div>
-
-                  {/* Grand Prix Title */}
-                  <h2 className="featured-card-title">
-                    {nextRace.grandPrixName}
-                  </h2>
-
-                  {/* Clean Location & Date */}
-                  <p className="featured-card-location">
-                    <span>{nextRace.circuitName}</span>
-                    {locationText && (
-                      <>
-                        <span style={{ opacity: 0.35 }}>•</span>
-                        <span>{locationText}</span>
-                      </>
-                    )}
-                    <span style={{ opacity: 0.35 }}>•</span>
-                    <strong style={{ color: '#ffffff' }}>{nextRace.dates}</strong>
-                  </p>
-
-                  {/* Action Buttons: Primary Prediction CTA + Race Weekend */}
-                  <div className="featured-card-actions">
-                    {predictionHighlight.status === 'OPEN' ? (
-                      <Link
-                        to={`/predict/${predictionHighlight.roundId}`}
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '0.45rem',
-                          padding: '0.6rem 1.25rem',
-                          borderRadius: '6px',
-                          backgroundColor: 'var(--f1-red)',
-                          color: '#ffffff',
-                          fontWeight: 800,
-                          fontSize: '0.82rem',
-                          textTransform: 'uppercase',
-                          letterSpacing: '0.04em',
-                          textDecoration: 'none',
-                          boxShadow: '0 0 16px rgba(225, 6, 0, 0.45)',
-                          transition: 'all 0.15s ease',
-                        }}
-                      >
-                        <Zap size={14} />
-                        <span>MAKE PREDICTION</span>
-                      </Link>
-                    ) : userPrediction ? (
-                      <Link
-                        to={`/predict/${predictionHighlight.roundId}`}
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '0.45rem',
-                          padding: '0.6rem 1.25rem',
-                          borderRadius: '6px',
-                          backgroundColor: 'rgba(255, 255, 255, 0.08)',
-                          border: '1px solid rgba(255, 255, 255, 0.2)',
-                          color: '#ffffff',
-                          fontWeight: 800,
-                          fontSize: '0.82rem',
-                          textTransform: 'uppercase',
-                          letterSpacing: '0.04em',
-                          textDecoration: 'none',
-                        }}
-                      >
-                        <Lock size={14} style={{ color: 'var(--telemetry-green)' }} />
-                        <span>VIEW PREDICTION</span>
-                      </Link>
-                    ) : userScore ? (
-                      <Link
-                        to={`/predict/${predictionHighlight.roundId}`}
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '0.45rem',
-                          padding: '0.6rem 1.25rem',
-                          borderRadius: '6px',
-                          backgroundColor: 'rgba(157, 78, 221, 0.15)',
-                          border: '1px solid rgba(157, 78, 221, 0.4)',
-                          color: '#ffffff',
-                          fontWeight: 800,
-                          fontSize: '0.82rem',
-                          textTransform: 'uppercase',
-                          letterSpacing: '0.04em',
-                          textDecoration: 'none',
-                        }}
-                      >
-                        <Trophy size={14} style={{ color: 'var(--telemetry-purple)' }} />
-                        <span>VIEW RESULT</span>
-                      </Link>
-                    ) : null}
-
-                    <Link
-                      to={`/races/${nextRace.roundNumber}`}
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '0.4rem',
-                        padding: '0.6rem 1.15rem',
-                        borderRadius: '6px',
-                        backgroundColor: 'rgba(255, 255, 255, 0.06)',
-                        border: '1px solid var(--border-medium)',
-                        color: 'var(--text-primary)',
-                        fontWeight: 700,
-                        fontSize: '0.82rem',
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.04em',
-                        textDecoration: 'none',
-                        transition: 'all 0.15s ease',
-                      }}
-                    >
-                      <span>Race Weekend</span>
-                      <ArrowRight size={13} />
-                    </Link>
-                  </div>
-
-                  {/* Session Breakdown Mini Pills (if available) */}
-                  {nextRace.sessions && nextRace.sessions.length > 0 && (
-                    <div style={{ display: 'flex', gap: '0.45rem', flexWrap: 'wrap', marginTop: '0.45rem' }}>
-                      {nextRace.sessions.map((s, idx) => (
-                        <div
-                          key={idx}
-                          style={{
-                            background: s.isKeySession ? 'rgba(225, 6, 0, 0.14)' : 'rgba(255, 255, 255, 0.04)',
-                            border: s.isKeySession ? '1px solid rgba(225, 6, 0, 0.35)' : '1px solid rgba(255, 255, 255, 0.08)',
-                            borderRadius: '4px',
-                            padding: '0.2rem 0.5rem',
-                            fontSize: '0.68rem',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.35rem',
-                          }}
-                        >
-                          <span style={{ fontWeight: 800, color: s.isKeySession ? 'var(--f1-red)' : 'var(--text-muted)' }}>{s.name}</span>
-                          <span style={{ color: '#fff', fontWeight: 600 }}>{s.day}</span>
-                          <span style={{ color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)' }}>{s.time}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* Right side: Compact Framed Circuit Graphic */}
-                <Link
-                  to={`/circuits/${nextRace.circuitId || 'albert_park'}`}
-                  className="featured-circuit-frame"
-                  title={`Explore ${nextRace.circuitName} Circuit Layout`}
-                >
-                  <img
-                    src={circuitAssetUrl}
-                    alt={`${nextRace.circuitName} track layout`}
-                    className="featured-track-img"
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <div
+                    style={{
+                      width: '8px',
+                      height: '8px',
+                      borderRadius: '50%',
+                      backgroundColor: 'var(--grdx-flame-orange, #FF7A00)',
+                      boxShadow: '0 0 10px #FF7A00',
+                    }}
                   />
-                  <div className="featured-circuit-label">
-                    <span>{nextRace.circuitName}</span>
-                    <ChevronRight size={12} style={{ color: 'var(--f1-red)' }} />
-                  </div>
+                  <span
+                    style={{
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: '0.75rem',
+                      fontWeight: 800,
+                      color: 'var(--grdx-flame-orange, #FF7A00)',
+                      letterSpacing: '0.1em',
+                      textTransform: 'uppercase',
+                    }}
+                  >
+                    NEXT UP IN MOTORSPORT
+                  </span>
+                </div>
+                <Link
+                  to="/calendar"
+                  style={{
+                    fontSize: '0.78rem',
+                    color: '#A4ABB6',
+                    textDecoration: 'none',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.2rem',
+                    fontWeight: 700,
+                  }}
+                >
+                  <span>Full Calendar</span>
+                  <ChevronRight size={13} />
                 </Link>
               </div>
-            );
-          })()}
+
+              {(() => {
+                const circuitSvgFile = getCircuitSvgForRace(nextRace.circuitId, nextRace.circuitName, nextRace.grandPrixName);
+                const circuitAssetUrl = getCircuitAssetUrl(circuitSvgFile);
+                const isAustinCota = (nextRace.circuitId || '').includes('cota') || (nextRace.circuitName || '').includes('Americas') || (nextRace.grandPrixName || '').includes('United States');
+                const displayCity = isAustinCota
+                  ? 'Austin'
+                  : (nextRace.city && nextRace.city.toLowerCase() !== 'us' && nextRace.city.toLowerCase() !== 'usa' ? nextRace.city : '');
+                const displayCountry = isAustinCota
+                  ? 'USA'
+                  : (nextRace.country && nextRace.country.toLowerCase() !== 'us' ? nextRace.country : 'USA');
+                const locationText = displayCity ? `${displayCity}, ${displayCountry}` : displayCountry;
+
+                return (
+                  <div className="grdx-race-card">
+                    {/* Left details */}
+                    <div className="grdx-race-card__content" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', zIndex: 2 }}>
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.65rem' }}>
+                          <span
+                            style={{
+                              background: '#FFB000',
+                              color: '#050505',
+                              fontWeight: 900,
+                              fontSize: '0.75rem',
+                              padding: '0.15rem 0.5rem',
+                              borderRadius: '4px',
+                              fontFamily: 'var(--font-display)',
+                            }}
+                          >
+                            R{nextRace.roundNumber || 18}
+                          </span>
+                          <span style={{ fontSize: '0.75rem', color: '#C1C1C1', fontFamily: 'var(--font-mono)', fontWeight: 700, letterSpacing: '0.04em' }}>
+                            ROUND {nextRace.roundNumber || 18} • FORMULA 1 •
+                          </span>
+                          <span
+                            style={{
+                              fontSize: '0.68rem',
+                              fontWeight: 800,
+                              padding: '0.15rem 0.55rem',
+                              borderRadius: '4px',
+                              fontFamily: 'var(--font-mono)',
+                              textTransform: 'uppercase',
+                              background:
+                                predictionHighlight.status === 'OPEN'
+                                  ? 'rgba(0, 230, 118, 0.15)'
+                                  : 'rgba(244, 43, 22, 0.18)',
+                              color:
+                                predictionHighlight.status === 'OPEN'
+                                  ? 'var(--telemetry-green)'
+                                  : '#F42B16',
+                              border:
+                                predictionHighlight.status === 'OPEN'
+                                  ? '1px solid rgba(0, 230, 118, 0.4)'
+                                  : '1px solid rgba(244, 43, 22, 0.4)',
+                            }}
+                          >
+                            {predictionHighlight.status === 'OPEN'
+                              ? '● PREDICTION OPEN'
+                              : userPrediction
+                              ? '🔒 PREDICTION LOCKED'
+                              : 'PREDICTION CLOSED'}
+                          </span>
+                        </div>
+
+                        <h2
+                          style={{
+                            fontFamily: 'var(--font-heading)',
+                            fontSize: 'clamp(1.4rem, 2.5vw, 1.85rem)',
+                            fontWeight: 700,
+                            color: '#ffffff',
+                            textTransform: 'uppercase',
+                            margin: '0 0 0.4rem 0',
+                            letterSpacing: '0.02em',
+                            lineHeight: 1.15,
+                          }}
+                        >
+                          {nextRace.grandPrixName || 'UNITED STATES GRAND PRIX'}
+                        </h2>
+
+                        <p
+                          style={{
+                            color: '#C1C1C1',
+                            fontFamily: 'var(--font-ui)',
+                            fontSize: '0.82rem',
+                            margin: '0 0 1.25rem 0',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.5rem',
+                            flexWrap: 'wrap',
+                          }}
+                        >
+                          <span>{nextRace.circuitName || 'Circuit of the Americas'}</span>
+                          <span style={{ opacity: 0.4 }}>•</span>
+                          <span>{locationText}</span>
+                          <span style={{ opacity: 0.4 }}>•</span>
+                          <strong style={{ color: '#ffffff' }}>{nextRace.dates || 'Oct 23–Oct 26'}</strong>
+                        </p>
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
+                        <Link
+                          to={`/races/${nextRace.roundNumber || 18}`}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.45rem',
+                            padding: '0.55rem 1.15rem',
+                            borderRadius: '6px',
+                            background: 'rgba(11, 11, 13, 0.85)',
+                            border: '1px solid rgba(255, 176, 0, 0.65)',
+                            color: '#ffffff',
+                            fontFamily: 'var(--font-ui)',
+                            fontWeight: 700,
+                            fontSize: '0.8rem',
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.04em',
+                            textDecoration: 'none',
+                            transition: 'all 0.2s ease',
+                          }}
+                        >
+                          <span>RACE WEEKEND</span>
+                          <ArrowRight size={13} style={{ color: '#FFB000' }} />
+                        </Link>
+
+                        {predictionHighlight.status === 'OPEN' && (
+                          <Link
+                            to={`/predict/${predictionHighlight.roundId}`}
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '0.45rem',
+                              padding: '0.55rem 1.15rem',
+                              borderRadius: '6px',
+                              background: 'var(--grdx-flame-gradient)',
+                              color: '#050505',
+                              fontWeight: 800,
+                              fontSize: '0.8rem',
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.04em',
+                              textDecoration: 'none',
+                              boxShadow: '0 0 16px rgba(255, 122, 0, 0.4)',
+                            }}
+                          >
+                            <Zap size={13} />
+                            <span>MAKE PREDICTION</span>
+                          </Link>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Right visual: COTA Night photo + Glowing Red Neon Circuit SVG */}
+                    <div
+                      className="grdx-race-card__visual"
+                      style={{
+                        position: 'relative',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        minHeight: '185px',
+                        borderRadius: '10px',
+                        overflow: 'hidden',
+                      }}
+                    >
+                      <div
+                        style={{
+                          position: 'absolute',
+                          inset: 0,
+                          backgroundImage: `linear-gradient(90deg, #0B0B0D 0%, rgba(11, 11, 13, 0.45) 45%, rgba(11, 11, 13, 0.65) 100%), url(${cotaNightBg})`,
+                          backgroundSize: 'cover',
+                          backgroundPosition: 'center',
+                          opacity: 0.8,
+                        }}
+                      />
+
+                      <Link
+                        to={`/circuits/${nextRace.circuitId || 'cota'}`}
+                        style={{
+                          position: 'relative',
+                          zIndex: 2,
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          textDecoration: 'none',
+                          gap: '0.5rem',
+                        }}
+                        title={`Explore ${nextRace.circuitName || 'Circuit of the Americas'}`}
+                      >
+                        <img
+                          src={circuitAssetUrl}
+                          alt={`${nextRace.circuitName} layout`}
+                          style={{
+                            maxHeight: '100px',
+                            maxWidth: '160px',
+                            objectFit: 'contain',
+                            filter: 'drop-shadow(0 0 12px rgba(244, 43, 22, 0.9)) drop-shadow(0 0 24px rgba(244, 43, 22, 0.5))',
+                          }}
+                        />
+                        <span
+                          style={{
+                            fontFamily: 'var(--font-mono)',
+                            fontSize: '0.72rem',
+                            fontWeight: 800,
+                            color: '#ffffff',
+                            letterSpacing: '0.05em',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.25rem',
+                            textShadow: '0 2px 8px rgba(0,0,0,0.9)',
+                          }}
+                        >
+                          <span>{(nextRace.circuitName || 'CIRCUIT OF THE AMERICAS').toUpperCase()}</span>
+                          <ChevronRight size={12} style={{ color: 'var(--grdx-flame-orange)' }} />
+                        </span>
+                      </Link>
+                    </div>
+                  </div>
+                );
+              })()}
         </section>
+
+
 
         {/* ===================================================================
             3. YOUR PREDICTION PROGRESS: Community Competition & Speedometer
