@@ -6,6 +6,7 @@ interface CountdownTimerProps {
   prefix?: string;
   onExpire?: () => void;
   compact?: boolean;
+  size?: 'standard' | 'mini';
 }
 
 export const CountdownTimer: React.FC<CountdownTimerProps> = ({
@@ -13,6 +14,7 @@ export const CountdownTimer: React.FC<CountdownTimerProps> = ({
   prefix = 'Closes in',
   onExpire,
   compact = false,
+  size = 'standard',
 }) => {
   const calculateTimeLeft = () => {
     const diff = new Date(targetDate).getTime() - Date.now();
@@ -45,8 +47,8 @@ export const CountdownTimer: React.FC<CountdownTimerProps> = ({
 
   if (timeLeft.isExpired) {
     return (
-      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', color: '#f87171', fontFamily: 'var(--font-mono)', fontSize: '0.85rem' }}>
-        <Clock size={14} />
+      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', color: '#f87171', fontFamily: 'var(--font-mono)', fontSize: size === 'mini' ? '0.75rem' : '0.85rem' }}>
+        <Clock size={size === 'mini' ? 12 : 14} />
         <span>DEADLINE PASSED</span>
       </div>
     );
@@ -60,6 +62,47 @@ export const CountdownTimer: React.FC<CountdownTimerProps> = ({
         {timeLeft.days > 0 ? `${timeLeft.days}d ` : ''}
         {pad(timeLeft.hours)}:{pad(timeLeft.minutes)}:{pad(timeLeft.seconds)}
       </span>
+    );
+  }
+
+  if (size === 'mini') {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+        {prefix && (
+          <span style={{ fontSize: '0.66rem', fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.06em', fontFamily: 'var(--font-mono)' }}>
+            {prefix}
+          </span>
+        )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+          <div style={{ width: '38px', height: '40px', background: 'rgba(8, 9, 12, 0.85)', borderRadius: '6px', border: '1px solid rgba(255, 255, 255, 0.1)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '15px', fontWeight: 800, color: '#fff', lineHeight: 1.1 }}>
+              {pad(timeLeft.days)}
+            </div>
+            <div style={{ fontSize: '9px', color: '#848B96', textTransform: 'uppercase', lineHeight: 1, marginTop: '1px' }}>DAYS</div>
+          </div>
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', fontWeight: 800, color: 'rgba(255, 255, 255, 0.3)' }}>:</span>
+          <div style={{ width: '38px', height: '40px', background: 'rgba(8, 9, 12, 0.85)', borderRadius: '6px', border: '1px solid rgba(255, 255, 255, 0.1)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '15px', fontWeight: 800, color: '#fff', lineHeight: 1.1 }}>
+              {pad(timeLeft.hours)}
+            </div>
+            <div style={{ fontSize: '9px', color: '#848B96', textTransform: 'uppercase', lineHeight: 1, marginTop: '1px' }}>HRS</div>
+          </div>
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', fontWeight: 800, color: 'rgba(255, 255, 255, 0.3)' }}>:</span>
+          <div style={{ width: '38px', height: '40px', background: 'rgba(8, 9, 12, 0.85)', borderRadius: '6px', border: '1px solid rgba(255, 255, 255, 0.1)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '15px', fontWeight: 800, color: '#fff', lineHeight: 1.1 }}>
+              {pad(timeLeft.minutes)}
+            </div>
+            <div style={{ fontSize: '9px', color: '#848B96', textTransform: 'uppercase', lineHeight: 1, marginTop: '1px' }}>MIN</div>
+          </div>
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', fontWeight: 800, color: 'rgba(255, 255, 255, 0.3)' }}>:</span>
+          <div style={{ width: '38px', height: '40px', background: 'rgba(8, 9, 12, 0.85)', borderRadius: '6px', border: '1px solid rgba(255, 255, 255, 0.1)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '15px', fontWeight: 800, color: 'var(--telemetry-green, #00e676)', lineHeight: 1.1 }}>
+              {pad(timeLeft.seconds)}
+            </div>
+            <div style={{ fontSize: '9px', color: '#848B96', textTransform: 'uppercase', lineHeight: 1, marginTop: '1px' }}>SEC</div>
+          </div>
+        </div>
+      </div>
     );
   }
 

@@ -81,7 +81,7 @@ export const RaceStatusStrip: React.FC = () => {
 
   return (
     <div className="race-status-strip">
-      <div className="race-status-strip__inner">
+      <div className="header-container race-status-strip__inner">
         {state === 'active' && (
           <>
             <span className="race-status-strip__live-dot" />

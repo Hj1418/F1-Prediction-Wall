@@ -65,11 +65,11 @@ export const UserProfileMenu: React.FC<UserProfileMenuProps> = ({
           <Link
             to="/register"
             className="auth-btn auth-btn--register"
-            title="Join The Grid"
-            aria-label="Join The Grid"
+            title="Join The GRDX"
+            aria-label="Join The GRDX"
           >
             <UserPlus size={13} className="auth-btn__icon" />
-            <span className="auth-btn__text-full">JOIN THE GRID</span>
+            <span className="auth-btn__text-full">JOIN THE GRDX</span>
             <span className="auth-btn__text-short">JOIN</span>
           </Link>
         </>
@@ -78,115 +78,113 @@ export const UserProfileMenu: React.FC<UserProfileMenuProps> = ({
           <NotificationCenter />
           {/* User Profile Avatar & Dropdown */}
           <div className="user-profile-wrapper" ref={menuRef} style={{ position: 'relative' }}>
-          <button
-            onClick={() => setIsOpen(prev => !prev)}
-            className={`user-profile-trigger ${isOpen ? 'user-profile-trigger--open' : ''}`}
-            aria-label="Open profile menu"
-            aria-expanded={isOpen}
-            type="button"
-          >
-            {/* Circular Initials / Profile Avatar */}
-            <UserInitialsAvatar
-              name={userDisplayName}
-              imageUrl={currentUser?.avatarUrl}
-              size="sm"
-              className="shrink-0"
-              showBorder={false}
-            />
-
-            {/* User Info (Name + Points) */}
-            <div className="user-profile-trigger__info">
-              <span className="user-profile-trigger__name">{userDisplayName}</span>
-              <span className="user-profile-trigger__points">
-                {currentUser?.totalPoints ?? 0} PTS
-              </span>
-            </div>
-
-            {/* Chevron indicator */}
-            <ChevronDown
-              size={14}
-              className={`user-profile-trigger__chevron ${isOpen ? 'user-profile-trigger__chevron--open' : ''}`}
-            />
-          </button>
-
-        {/* Profile Dropdown Menu */}
-        {isOpen && (
-          <div className="user-dropdown" role="menu">
-            {/* Header with avatar, name, handle and stats */}
-            <div className="user-dropdown__header" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <button
+              onClick={() => setIsOpen(prev => !prev)}
+              className={`user-profile-trigger ${isOpen ? 'user-profile-trigger--open' : ''}`}
+              aria-label="Open profile menu"
+              aria-expanded={isOpen}
+              type="button"
+            >
+              {/* Circular Initials / Profile Avatar (32px × 32px) */}
               <UserInitialsAvatar
                 name={userDisplayName}
                 imageUrl={currentUser?.avatarUrl}
-                size="md"
+                size="sm"
+                className="shrink-0 user-profile-trigger__avatar"
                 showBorder={false}
               />
-              <div style={{ minWidth: 0, flex: 1 }}>
-                <div className="user-dropdown__header-name">{currentUser?.username || 'Grid User'}</div>
-                <div className="user-dropdown__header-handle">@{currentUser?.username || 'user'}</div>
-                <div className="user-dropdown__header-stats">
-                  <span style={{ fontSize: '0.72rem', fontFamily: 'var(--font-mono)', color: 'var(--telemetry-yellow)', fontWeight: 700 }}>
-                    {currentUser?.totalPoints ?? 0} PTS
-                  </span>
-                  <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>•</span>
-                  <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
-                    Rank P{currentUser?.seasonRank || 1}
-                  </span>
-                </div>
-              </div>
-            </div>
 
-            {/* Menu Items */}
-            <Link
-              to={`/profile/${currentUser?.username || ''}`}
-              onClick={() => setIsOpen(false)}
-              className="user-dropdown__item"
-              role="menuitem"
-            >
-              <UserIcon size={14} style={{ color: 'var(--text-secondary)' }} />
-              <span>My Profile</span>
-            </Link>
-
-            <Link
-              to="/predictions"
-              onClick={() => setIsOpen(false)}
-              className="user-dropdown__item"
-              role="menuitem"
-            >
-              <Target size={14} style={{ color: 'var(--text-secondary)' }} />
-              <span>My Predictions</span>
-            </Link>
-
-            {isAdmin && (
-              <Link
-                to="/admin"
-                onClick={() => setIsOpen(false)}
-                className="user-dropdown__item user-dropdown__item--admin"
-                role="menuitem"
-              >
-                <Shield size={14} />
-                <span>Race Control (Admin)</span>
-              </Link>
-            )}
-
-            <div className="user-dropdown__divider" />
-
-            <button
-              onClick={() => {
-                setIsOpen(false);
-                logout();
-              }}
-              className="user-dropdown__item user-dropdown__item--danger"
-              role="menuitem"
-              type="button"
-            >
-              <LogOut size={14} />
-              <span>Sign Out</span>
+              {/* Dropdown Arrow: Subtle chevron icon */}
+              <ChevronDown
+                size={12}
+                className={`user-profile-trigger__chevron ${isOpen ? 'user-profile-trigger__chevron--open' : ''}`}
+              />
             </button>
+
+            {/* Profile Dropdown Menu */}
+            {isOpen && (
+              <div className="user-dropdown" role="menu">
+                {/* Top User Info Header (Avatar side-by-side with username & points) */}
+                <div className="user-dropdown__header">
+                  <UserInitialsAvatar
+                    name={userDisplayName}
+                    imageUrl={currentUser?.avatarUrl}
+                    size={42}
+                    showBorder={false}
+                  />
+                  <div className="user-dropdown__details">
+                    <div className="user-dropdown__header-name">{currentUser?.username || 'Grid User'}</div>
+                    <div className="user-dropdown__header-points">
+                      ⚡ {currentUser?.totalPoints ?? 0} PTS
+                    </div>
+                  </div>
+                </div>
+
+                {/* Divider */}
+                <div className="user-dropdown__divider" />
+
+                {/* Menu Links */}
+                <Link
+                  to={`/profile/${currentUser?.username || ''}`}
+                  onClick={() => setIsOpen(false)}
+                  className="user-dropdown__item"
+                  role="menuitem"
+                >
+                  <UserIcon size={14} className="user-dropdown__icon" />
+                  <span>Profile Settings</span>
+                </Link>
+
+                <Link
+                  to="/quiz"
+                  onClick={() => setIsOpen(false)}
+                  className="user-dropdown__item"
+                  role="menuitem"
+                >
+                  <Users size={14} className="user-dropdown__icon" />
+                  <span>My Racing Tag</span>
+                </Link>
+
+                <Link
+                  to="/predictions"
+                  onClick={() => setIsOpen(false)}
+                  className="user-dropdown__item"
+                  role="menuitem"
+                >
+                  <Target size={14} className="user-dropdown__icon" />
+                  <span>Prediction History</span>
+                </Link>
+
+                {isAdmin && (
+                  <Link
+                    to="/admin"
+                    onClick={() => setIsOpen(false)}
+                    className="user-dropdown__item user-dropdown__item--admin"
+                    role="menuitem"
+                  >
+                    <Shield size={14} className="user-dropdown__icon" />
+                    <span>Race Control (Admin)</span>
+                  </Link>
+                )}
+
+                <div className="user-dropdown__divider" />
+
+                <button
+                  onClick={() => {
+                    setIsOpen(false);
+                    logout();
+                  }}
+                  className="user-dropdown__item user-dropdown__item--danger"
+                  role="menuitem"
+                  type="button"
+                >
+                  <LogOut size={14} className="user-dropdown__icon" />
+                  <span>Log Out</span>
+                </button>
+              </div>
+            )}
           </div>
-        )}
-      </div>
         </>
-    )}
+      )}
 
       {/* Mobile Hamburger Menu Toggle */}
       {onToggleMobileMenu && (

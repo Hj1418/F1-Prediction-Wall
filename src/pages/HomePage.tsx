@@ -24,9 +24,13 @@ import {
   Flag,
   Users,
   BarChart3,
+  Layers,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
+import { quizService } from '../services/quiz/quizService';
+import { QuizAttemptRecord } from '../types/quiz';
+import { getTierDetails } from '../services/quiz/quizRegistry';
 import { api } from '../services/apiClient';
 import { Prediction, RoundScore, Driver } from '../types';
 import {
@@ -39,7 +43,8 @@ import { PredictionSpeedometer } from '../components/predictions/PredictionSpeed
 import { testGrandPrixService } from '../services/testGrandPrix/testGrandPrixService';
 import { getCircuitAssetUrl, CIRCUIT_SOURCE_MAPPING } from '../services/circuits/circuitRegistry';
 import { FlameX } from '../components/common/FlameX';
-import { GrdxWordmark } from '../components/common/GrdxWordmark';
+import { GrdxWordmark, GrdxLogo } from '../components/common/GrdxWordmark';
+import { CountdownTimer } from '../components/common/CountdownTimer';
 import heroRacetrackBg from '../assets/grdx-hero-racetrack.jpg';
 import heroFlameRacetrackBg from '../assets/grdx-flame-hero-racetrack.jpg';
 import cotaNightBg from '../assets/grdx-cota-night.jpg';
@@ -110,6 +115,25 @@ export const HomePage: React.FC = () => {
   const [userPrediction, setUserPrediction] = useState<Prediction | null>(null);
   const [userScore, setUserScore] = useState<RoundScore | null>(null);
   const [drivers, setDrivers] = useState<Driver[]>([]);
+  const [userQuizHistory, setUserQuizHistory] = useState<QuizAttemptRecord[]>([]);
+
+  useEffect(() => {
+    let isMounted = true;
+    if (currentUser?.userId) {
+      quizService.getUserQuizHistory(currentUser.userId)
+        .then(history => {
+          if (isMounted) setUserQuizHistory(history);
+        })
+        .catch(() => {
+          if (isMounted) setUserQuizHistory([]);
+        });
+    } else {
+      setUserQuizHistory([]);
+    }
+    return () => {
+      isMounted = false;
+    };
+  }, [currentUser?.userId]);
 
   useEffect(() => {
     document.title = 'GRDX | Your Motorsport Starting Point';
@@ -201,13 +225,14 @@ export const HomePage: React.FC = () => {
         <div className="home-hero-checkered-accent home-hero-checkered-accent--right" aria-hidden="true" />
 
         <div className="home-hero-container">
+          {/* Main Hero Content (Left-Aligned, Uncluttered) */}
           <div className="home-hero-main-content">
             {/* THE GRID Headline | THE <span className="home-hero-grid-accent">GRID</span> | Discovery Hubs: Indian Motorsport */}
             {/* Canonical Hero Anchor: THE <span className="home-hero-grid-accent">GRDX</span> */}
             <h1 className="home-hero-brand-title" aria-label="THE GRDX">
               <span className="home-hero-the">THE</span>{' '}
               <span className="home-hero-grid-accent grdx-hero-wordmark" title="GRDX">
-                <GrdxWordmark variant="hero" />
+                <GrdxLogo variant="hero" />
                 <span className="sr-only">GRD X</span>
               </span>
             </h1>
@@ -216,212 +241,196 @@ export const HomePage: React.FC = () => {
               YOUR MOTORSPORT <span className="home-hero-tagline-accent">STARTING POINT</span>
             </div>
 
-            <p className="home-hero-description">
+            <p className="home-hero-description" style={{ maxWidth: '520px' }}>
               Discover, follow, learn and predict across the world of motorsport.
             </p>
 
-            {/* 4 Core Platform Pillars (Compact & Editorial - Image 2) */}
+            {/* Hero Action Buttons: Focused Primary Actions (Explore Motorsport & Global Calendar) */}
+            <div className="home-hero-cta-row">
+              <Link
+                to="/explore"
+                className="home-hero-primary-cta btn-primary-conversion"
+                style={{ height: '48px', padding: '0 1.75rem', gap: '0.5rem', fontSize: '0.86rem', display: 'inline-flex', alignItems: 'center' }}
+              >
+                <ArrowRight size={16} />
+                <span>Explore Motorsport</span>
+              </Link>
+
+              <Link
+                to="/calendar"
+                className="home-hero-secondary-cta btn-secondary"
+                style={{ height: '48px', padding: '0 1.5rem', gap: '0.5rem', fontSize: '0.86rem', display: 'inline-flex', alignItems: 'center' }}
+              >
+                <Calendar size={16} />
+                <span>Global Calendar</span>
+              </Link>
+            </div>
+          </div>
+
+          {/* 1.2 Bottom Hero Glass Strip (4-Column Value Pillars) */}
+          <div style={{ marginTop: '44px', width: '100%' }}>
             <div className="home-pillar-grid">
               <div className="home-pillar-item">
                 <div className="home-pillar-header">
-                  <BookOpen size={14} style={{ color: 'var(--grdx-flame-orange, #FF7A00)' }} />
+                  <BookOpen size={16} style={{ color: 'var(--grdx-flame-orange, #FF7A00)' }} />
                   <span>LEARN</span>
                 </div>
                 <p className="home-pillar-desc">Understand the sport</p>
               </div>
+
               <div className="home-pillar-item">
                 <div className="home-pillar-header">
-                  <Calendar size={14} style={{ color: 'var(--grdx-flame-orange, #FF7A00)' }} />
+                  <Calendar size={16} style={{ color: 'var(--grdx-flame-orange, #FF7A00)' }} />
                   <span>FOLLOW</span>
                 </div>
                 <p className="home-pillar-desc">Stay updated</p>
               </div>
+
               <div className="home-pillar-item">
                 <div className="home-pillar-header">
-                  <Compass size={14} style={{ color: 'var(--grdx-flame-orange, #FF7A00)' }} />
+                  <Compass size={16} style={{ color: 'var(--grdx-flame-orange, #FF7A00)' }} />
                   <span>EXPLORE</span>
                 </div>
                 <p className="home-pillar-desc">Dive deeper</p>
               </div>
+
               <div className="home-pillar-item">
                 <div className="home-pillar-header">
-                  <Zap size={14} style={{ color: 'var(--grdx-flame-orange, #FF7A00)' }} />
+                  <Zap size={16} style={{ color: 'var(--grdx-flame-orange, #FF7A00)' }} />
                   <span>COMPETE</span>
                 </div>
                 <p className="home-pillar-desc">Test your knowledge</p>
               </div>
             </div>
-
-            {/* Hero Action Buttons: Focused Primary Actions (Explore Motorsport & Global Calendar) */}
-            <div className="home-hero-cta-row">
-              <Link to="/explore" className="home-hero-primary-cta">
-                <ArrowRight size={16} />
-                <span>EXPLORE MOTORSPORT</span>
-              </Link>
-
-              <Link to="/calendar" className="home-hero-secondary-cta">
-                <Calendar size={16} />
-                <span>GLOBAL CALENDAR</span>
-              </Link>
-            </div>
-          </div>
-
-          {/* Decorative Right-Side Quote Block (Image 2) */}
-          <div className="home-hero-quote-block" aria-hidden="true">
-            <span className="home-hero-quote-mark">“</span>
-            <div className="home-hero-quote-text">
-              <span className="home-hero-quote-line">SAME TRACKS.</span>
-              <span className="home-hero-quote-line">DIFFERENT STORIES.</span>
-              <span className="home-hero-quote-line home-hero-quote-line--flame">ALWAYS A NEXT ROUND.</span>
-              <div className="home-hero-quote-accent-bar" />
-            </div>
           </div>
         </div>
       </section>
 
-      <div className="container" style={{ maxWidth: '1360px', margin: '0 auto', padding: '0 1.5rem' }}>
+      <div className="container" style={{ maxWidth: '1320px', margin: '0 auto', padding: '0 24px' }}>
         {/* ===================================================================
-            2. NEXT / CURRENT RACE: NEXT UP IN MOTORSPORT (SINGLE FOCUSED CARD)
+            2. NEXT / CURRENT RACE: NEXT UP IN MOTORSPORT (LIVE FEATURE SPOTLIGHT)
             =================================================================== */}
-        <section style={{ marginTop: '2.5rem' }}>
-          <div
-            style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  marginBottom: '0.85rem',
-                  flexWrap: 'wrap',
-                  gap: '0.5rem',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <div
-                    style={{
-                      width: '8px',
-                      height: '8px',
-                      borderRadius: '50%',
-                      backgroundColor: 'var(--grdx-flame-orange, #FF7A00)',
-                      boxShadow: '0 0 10px #FF7A00',
-                    }}
-                  />
-                  <span
-                    style={{
-                      fontFamily: 'var(--font-mono)',
-                      fontSize: '0.75rem',
-                      fontWeight: 800,
-                      color: 'var(--grdx-flame-orange, #FF7A00)',
-                      letterSpacing: '0.1em',
-                      textTransform: 'uppercase',
-                    }}
-                  >
-                    NEXT UP IN MOTORSPORT
-                  </span>
-                </div>
-                <Link
-                  to="/calendar"
+            {(() => {
+              const circuitSvgFile = getCircuitSvgForRace(nextRace.circuitId, nextRace.circuitName, nextRace.grandPrixName);
+              const circuitAssetUrl = getCircuitAssetUrl(circuitSvgFile);
+              const isAustinCota = (nextRace.circuitId || '').includes('cota') || (nextRace.circuitName || '').includes('Americas') || (nextRace.grandPrixName || '').includes('United States');
+              const displayCity = isAustinCota
+                ? 'Austin'
+                : (nextRace.city && nextRace.city.toLowerCase() !== 'us' && nextRace.city.toLowerCase() !== 'usa' ? nextRace.city : '');
+              const displayCountry = isAustinCota
+                ? 'USA'
+                : (nextRace.country && nextRace.country.toLowerCase() !== 'us' ? nextRace.country : 'USA');
+              const locationText = displayCity ? `${displayCity}, ${displayCountry}` : displayCountry;
+              const countdownTarget = (predictionHighlight as any).lockTime || (nextRace as any).startTimeUtc || '2026-10-24T18:00:00Z';
+
+              const displaySessions = (nextRace.sessions && nextRace.sessions.length > 0)
+                ? nextRace.sessions
+                : [
+                    { name: 'Practice 1', day: 'Fri', time: '23:00 IST' },
+                    { name: 'Sprint Quali', day: 'Sat', time: '03:00 IST' },
+                    { name: 'Sprint', day: 'Sat', time: '23:30 IST' },
+                    { name: 'Qualifying', day: 'Sun', time: '03:30 IST' },
+                    { name: 'Main Race', day: 'Mon', time: '00:30 IST', isKeySession: true },
+                  ];
+
+              return (
+                <section
+                  className="home-next-up-banner-section"
                   style={{
-                    fontSize: '0.78rem',
-                    color: '#A4ABB6',
-                    textDecoration: 'none',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.2rem',
-                    fontWeight: 700,
+                    marginTop: '2rem',
+                    width: '100%',
                   }}
                 >
-                  <span>Full Calendar</span>
-                  <ChevronRight size={13} />
-                </Link>
-              </div>
+                  <div className="home-next-up-banner">
+                    <div className="home-next-up-3zone-grid">
+                      {/* ZONE 1 (Left — Race Identity & Actions) */}
+                      <div style={{ display: 'flex', flexDirection: 'column' }}>
+                        {/* Top Badges */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.45rem' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                            <span
+                              style={{
+                                width: '8px',
+                                height: '8px',
+                                borderRadius: '50%',
+                                backgroundColor: '#FF5500',
+                                boxShadow: '0 0 10px #FF5500',
+                                display: 'inline-block',
+                                animation: 'restrainedPulse 2s ease-in-out infinite',
+                              }}
+                            />
+                            <span
+                              style={{
+                                fontFamily: 'var(--font-mono)',
+                                fontSize: '0.72rem',
+                                fontWeight: 800,
+                                color: '#FF7A00',
+                                letterSpacing: '0.08em',
+                                textTransform: 'uppercase',
+                              }}
+                            >
+                              NEXT UP IN MOTORSPORT
+                            </span>
+                          </div>
 
-              {(() => {
-                const circuitSvgFile = getCircuitSvgForRace(nextRace.circuitId, nextRace.circuitName, nextRace.grandPrixName);
-                const circuitAssetUrl = getCircuitAssetUrl(circuitSvgFile);
-                const isAustinCota = (nextRace.circuitId || '').includes('cota') || (nextRace.circuitName || '').includes('Americas') || (nextRace.grandPrixName || '').includes('United States');
-                const displayCity = isAustinCota
-                  ? 'Austin'
-                  : (nextRace.city && nextRace.city.toLowerCase() !== 'us' && nextRace.city.toLowerCase() !== 'usa' ? nextRace.city : '');
-                const displayCountry = isAustinCota
-                  ? 'USA'
-                  : (nextRace.country && nextRace.country.toLowerCase() !== 'us' ? nextRace.country : 'USA');
-                const locationText = displayCity ? `${displayCity}, ${displayCountry}` : displayCountry;
-
-                return (
-                  <div className="grdx-race-card">
-                    {/* Left details */}
-                    <div className="grdx-race-card__content" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', zIndex: 2 }}>
-                      <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.65rem' }}>
-                          <span
-                            style={{
-                              background: '#FFB000',
-                              color: '#050505',
-                              fontWeight: 900,
-                              fontSize: '0.75rem',
-                              padding: '0.15rem 0.5rem',
-                              borderRadius: '4px',
-                              fontFamily: 'var(--font-display)',
-                            }}
-                          >
-                            R{nextRace.roundNumber || 18}
-                          </span>
-                          <span style={{ fontSize: '0.75rem', color: '#C1C1C1', fontFamily: 'var(--font-mono)', fontWeight: 700, letterSpacing: '0.04em' }}>
-                            ROUND {nextRace.roundNumber || 18} • FORMULA 1 •
-                          </span>
-                          <span
-                            style={{
-                              fontSize: '0.68rem',
-                              fontWeight: 800,
-                              padding: '0.15rem 0.55rem',
-                              borderRadius: '4px',
-                              fontFamily: 'var(--font-mono)',
-                              textTransform: 'uppercase',
-                              background:
-                                predictionHighlight.status === 'OPEN'
-                                  ? 'rgba(0, 230, 118, 0.15)'
-                                  : 'rgba(244, 43, 22, 0.18)',
-                              color:
-                                predictionHighlight.status === 'OPEN'
-                                  ? 'var(--telemetry-green)'
-                                  : '#F42B16',
-                              border:
-                                predictionHighlight.status === 'OPEN'
-                                  ? '1px solid rgba(0, 230, 118, 0.4)'
-                                  : '1px solid rgba(244, 43, 22, 0.4)',
-                            }}
-                          >
-                            {predictionHighlight.status === 'OPEN'
-                              ? '● PREDICTION OPEN'
-                              : userPrediction
-                              ? '🔒 PREDICTION LOCKED'
-                              : 'PREDICTION CLOSED'}
-                          </span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                            <span
+                              style={{
+                                background: '#FFB000',
+                                color: '#050505',
+                                fontWeight: 900,
+                                fontSize: '0.68rem',
+                                padding: '0.15rem 0.45rem',
+                                borderRadius: '4px',
+                                fontFamily: 'var(--font-display)',
+                              }}
+                            >
+                              R{nextRace.roundNumber || 18}
+                            </span>
+                            <span
+                              style={{
+                                fontSize: '0.68rem',
+                                fontWeight: 800,
+                                padding: '0.15rem 0.45rem',
+                                borderRadius: '4px',
+                                fontFamily: 'var(--font-mono)',
+                                textTransform: 'uppercase',
+                                background: predictionHighlight.status === 'OPEN' ? 'rgba(0, 230, 118, 0.15)' : 'rgba(244, 43, 22, 0.18)',
+                                color: predictionHighlight.status === 'OPEN' ? 'var(--telemetry-green)' : '#F42B16',
+                                border: predictionHighlight.status === 'OPEN' ? '1px solid rgba(0, 230, 118, 0.4)' : '1px solid rgba(244, 43, 22, 0.4)',
+                              }}
+                            >
+                              {predictionHighlight.status === 'OPEN' ? '● PREDICTION OPEN' : userPrediction ? '🔒 PREDICTION LOCKED' : 'PREDICTION CLOSED'}
+                            </span>
+                          </div>
                         </div>
 
+                        {/* Race Title */}
                         <h2
                           style={{
-                            fontFamily: 'var(--font-heading)',
-                            fontSize: 'clamp(1.4rem, 2.5vw, 1.85rem)',
-                            fontWeight: 700,
+                            fontFamily: "var(--font-heading, 'Barlow Condensed', sans-serif)",
+                            fontSize: '22px',
+                            fontWeight: 800,
                             color: '#ffffff',
                             textTransform: 'uppercase',
-                            margin: '0 0 0.4rem 0',
+                            margin: '0 0 4px 0',
                             letterSpacing: '0.02em',
-                            lineHeight: 1.15,
+                            lineHeight: 1.2,
                           }}
                         >
                           {nextRace.grandPrixName || 'UNITED STATES GRAND PRIX'}
                         </h2>
 
+                        {/* Subtitle */}
                         <p
                           style={{
-                            color: '#C1C1C1',
-                            fontFamily: 'var(--font-ui)',
-                            fontSize: '0.82rem',
-                            margin: '0 0 1.25rem 0',
+                            color: '#D1D5DB',
+                            fontFamily: 'var(--font-sans)',
+                            fontSize: '12px',
+                            margin: '0 0 14px 0',
                             display: 'flex',
                             alignItems: 'center',
-                            gap: '0.5rem',
+                            gap: '0.45rem',
                             flexWrap: 'wrap',
                           }}
                         >
@@ -431,129 +440,259 @@ export const HomePage: React.FC = () => {
                           <span style={{ opacity: 0.4 }}>•</span>
                           <strong style={{ color: '#ffffff' }}>{nextRace.dates || 'Oct 23–Oct 26'}</strong>
                         </p>
-                      </div>
 
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
-                        <Link
-                          to={`/races/${nextRace.roundNumber || 18}`}
-                          style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '0.45rem',
-                            padding: '0.55rem 1.15rem',
-                            borderRadius: '6px',
-                            background: 'rgba(11, 11, 13, 0.85)',
-                            border: '1px solid rgba(255, 176, 0, 0.65)',
-                            color: '#ffffff',
-                            fontFamily: 'var(--font-ui)',
-                            fontWeight: 700,
-                            fontSize: '0.8rem',
-                            textTransform: 'uppercase',
-                            letterSpacing: '0.04em',
-                            textDecoration: 'none',
-                            transition: 'all 0.2s ease',
-                          }}
-                        >
-                          <span>RACE WEEKEND</span>
-                          <ArrowRight size={13} style={{ color: '#FFB000' }} />
-                        </Link>
-
-                        {predictionHighlight.status === 'OPEN' && (
+                        {/* Action Buttons */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem', flexWrap: 'wrap' }}>
                           <Link
-                            to={`/predict/${predictionHighlight.roundId}`}
+                            to={`/races/${nextRace.roundNumber || 18}`}
+                            className="btn-secondary"
                             style={{
+                              height: '38px',
+                              minHeight: '38px',
+                              padding: '0 16px',
+                              fontSize: '12px',
+                              fontWeight: 700,
+                              letterSpacing: '0.04em',
                               display: 'inline-flex',
                               alignItems: 'center',
-                              gap: '0.45rem',
-                              padding: '0.55rem 1.15rem',
-                              borderRadius: '6px',
-                              background: 'var(--grdx-flame-gradient)',
-                              color: '#050505',
-                              fontWeight: 800,
-                              fontSize: '0.8rem',
-                              textTransform: 'uppercase',
-                              letterSpacing: '0.04em',
-                              textDecoration: 'none',
-                              boxShadow: '0 0 16px rgba(255, 122, 0, 0.4)',
+                              gap: '6px',
+                              borderRadius: '8px',
                             }}
                           >
-                            <Zap size={13} />
-                            <span>MAKE PREDICTION</span>
+                            <span>RACE WEEKEND</span>
+                            <ArrowRight size={13} style={{ color: 'var(--color-accent)' }} />
                           </Link>
-                        )}
-                      </div>
-                    </div>
 
-                    {/* Right visual: COTA Night photo + Glowing Red Neon Circuit SVG */}
-                    <div
-                      className="grdx-race-card__visual"
-                      style={{
-                        position: 'relative',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        minHeight: '185px',
-                        borderRadius: '10px',
-                        overflow: 'hidden',
-                      }}
-                    >
+                          {predictionHighlight.status === 'OPEN' && (
+                            <Link
+                              to={`/predict/${predictionHighlight.roundId}`}
+                              className="btn-primary-conversion"
+                              style={{
+                                height: '38px',
+                                minHeight: '38px',
+                                padding: '0 16px',
+                                fontSize: '12px',
+                                fontWeight: 800,
+                                letterSpacing: '0.04em',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                borderRadius: '8px',
+                              }}
+                            >
+                              <Zap size={13} />
+                              <span>MAKE A PREDICTION</span>
+                            </Link>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* ZONE 2 (Center — Full Non-Truncated Session Schedule & Countdown) */}
                       <div
                         style={{
-                          position: 'absolute',
-                          inset: 0,
-                          backgroundImage: `linear-gradient(90deg, #0B0B0D 0%, rgba(11, 11, 13, 0.45) 45%, rgba(11, 11, 13, 0.65) 100%), url(${cotaNightBg})`,
-                          backgroundSize: 'cover',
-                          backgroundPosition: 'center',
-                          opacity: 0.8,
-                        }}
-                      />
-
-                      <Link
-                        to={`/circuits/${nextRace.circuitId || 'cota'}`}
-                        style={{
-                          position: 'relative',
-                          zIndex: 2,
+                          background: 'rgba(8, 9, 12, 0.55)',
+                          border: '1px solid rgba(255, 255, 255, 0.08)',
+                          borderRadius: '12px',
+                          padding: '12px 16px',
                           display: 'flex',
                           flexDirection: 'column',
-                          alignItems: 'center',
-                          textDecoration: 'none',
-                          gap: '0.5rem',
+                          gap: '10px',
                         }}
-                        title={`Explore ${nextRace.circuitName || 'Circuit of the Americas'}`}
                       >
+                        {/* Top Row inside Zone 2: Sessions Label + Live Countdown */}
+                        <div
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            gap: '10px',
+                            flexWrap: 'wrap',
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <Clock size={13} style={{ color: 'var(--color-accent, #FF5500)' }} />
+                            <span
+                              style={{
+                                fontFamily: 'var(--font-mono)',
+                                fontSize: '11px',
+                                fontWeight: 800,
+                                color: 'var(--text-secondary, #D1D5DB)',
+                                letterSpacing: '0.06em',
+                                textTransform: 'uppercase',
+                              }}
+                            >
+                              RACE WEEKEND SESSIONS (IST)
+                            </span>
+                          </div>
+
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span
+                              style={{
+                                fontFamily: 'var(--font-mono)',
+                                fontSize: '10px',
+                                fontWeight: 800,
+                                color: '#FFB000',
+                                letterSpacing: '0.04em',
+                              }}
+                            >
+                              LOCK IN:
+                            </span>
+                            <CountdownTimer targetDate={countdownTarget} size="mini" />
+                          </div>
+                        </div>
+
+                        {/* Non-Truncated Sessions Strip */}
+                        <div
+                          style={{
+                            display: 'grid',
+                            gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
+                            gap: '8px',
+                          }}
+                        >
+                          {displaySessions.map((sess: any, sIdx: number) => (
+                            <div
+                              key={sIdx}
+                              style={{
+                                background: sess.isKeySession
+                                  ? 'linear-gradient(135deg, rgba(255, 85, 0, 0.16) 0%, rgba(255, 85, 0, 0.04) 100%)'
+                                  : 'rgba(255, 255, 255, 0.035)',
+                                border: sess.isKeySession
+                                  ? '1px solid rgba(255, 85, 0, 0.45)'
+                                  : '1px solid rgba(255, 255, 255, 0.08)',
+                                borderRadius: '8px',
+                                padding: '6px 10px',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '2px',
+                                whiteSpace: 'nowrap',
+                                overflow: 'visible',
+                              }}
+                            >
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px' }}>
+                                <span
+                                  style={{
+                                    fontFamily: 'var(--font-mono)',
+                                    fontSize: '10px',
+                                    fontWeight: 800,
+                                    color: sess.isKeySession ? '#FF5500' : '#848B96',
+                                    textTransform: 'uppercase',
+                                  }}
+                                >
+                                  {sess.day}
+                                </span>
+                                <span
+                                  style={{
+                                    fontFamily: 'var(--font-mono)',
+                                    fontSize: '10px',
+                                    color: '#FFB000',
+                                    fontWeight: 700,
+                                  }}
+                                >
+                                  {sess.time}
+                                </span>
+                              </div>
+                              <span
+                                style={{
+                                  fontSize: '12px',
+                                  fontWeight: 700,
+                                  color: sess.isKeySession ? '#ffffff' : '#E5E7EB',
+                                  whiteSpace: 'nowrap',
+                                  overflow: 'visible',
+                                }}
+                              >
+                                {sess.name}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* ZONE 3 (Right — Circuit Artwork & Map Preview) */}
+                      <div
+                        style={{
+                          width: '240px',
+                          height: '135px',
+                          borderRadius: '12px',
+                          overflow: 'hidden',
+                          position: 'relative',
+                          background: 'radial-gradient(circle at center, rgba(255, 85, 0, 0.14) 0%, rgba(8, 9, 12, 0.95) 100%)',
+                          border: '1px solid rgba(255, 255, 255, 0.12)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          boxShadow: 'inset 0 0 25px rgba(0, 0, 0, 0.8), 0 4px 16px rgba(0, 0, 0, 0.5)',
+                          flexShrink: 0,
+                          justifySelf: 'end',
+                        }}
+                      >
+                        {/* Circuit Background Grid Texture */}
+                        <div
+                          style={{
+                            position: 'absolute',
+                            inset: 0,
+                            backgroundImage: 'radial-gradient(rgba(255, 255, 255, 0.12) 1px, transparent 1px)',
+                            backgroundSize: '12px 12px',
+                            opacity: 0.35,
+                            pointerEvents: 'none',
+                          }}
+                        />
+
+                        {/* Circuit Silhouette */}
                         <img
                           src={circuitAssetUrl}
                           alt={`${nextRace.circuitName} layout`}
                           style={{
-                            maxHeight: '100px',
-                            maxWidth: '160px',
+                            maxHeight: '80px',
+                            maxWidth: '170px',
                             objectFit: 'contain',
-                            filter: 'drop-shadow(0 0 12px rgba(244, 43, 22, 0.9)) drop-shadow(0 0 24px rgba(244, 43, 22, 0.5))',
+                            filter: 'drop-shadow(0 0 12px rgba(255, 85, 0, 0.75))',
+                            position: 'relative',
+                            zIndex: 1,
                           }}
                         />
-                        <span
+
+                        {/* VIEW MAP -> Overlay Link */}
+                        <Link
+                          to={`/circuits/${nextRace.circuitId || 'cota'}`}
                           style={{
+                            position: 'absolute',
+                            bottom: '8px',
+                            right: '8px',
+                            zIndex: 2,
+                            background: 'rgba(17, 19, 26, 0.9)',
+                            backdropFilter: 'blur(8px)',
+                            border: '1px solid rgba(255, 255, 255, 0.15)',
+                            borderRadius: '6px',
+                            padding: '3px 8px',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            fontSize: '10px',
                             fontFamily: 'var(--font-mono)',
-                            fontSize: '0.72rem',
                             fontWeight: 800,
                             color: '#ffffff',
-                            letterSpacing: '0.05em',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.25rem',
-                            textShadow: '0 2px 8px rgba(0,0,0,0.9)',
+                            textDecoration: 'none',
+                            letterSpacing: '0.04em',
+                            transition: 'all 0.15s ease',
+                          }}
+                          onMouseEnter={e => {
+                            e.currentTarget.style.borderColor = 'var(--color-accent, #FF5500)';
+                            e.currentTarget.style.color = 'var(--color-accent, #FF5500)';
+                          }}
+                          onMouseLeave={e => {
+                            e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.15)';
+                            e.currentTarget.style.color = '#ffffff';
                           }}
                         >
-                          <span>{(nextRace.circuitName || 'CIRCUIT OF THE AMERICAS').toUpperCase()}</span>
-                          <ChevronRight size={12} style={{ color: 'var(--grdx-flame-orange)' }} />
-                        </span>
-                      </Link>
+                          <span>VIEW MAP</span>
+                          <ArrowRight size={10} />
+                        </Link>
+                      </div>
                     </div>
                   </div>
-                );
-              })()}
-        </section>
+                </section>
+              );
+            })()}
 
 
 
@@ -637,12 +776,12 @@ export const HomePage: React.FC = () => {
             <div
               className="race-card-interactive"
               style={{
-                background: 'linear-gradient(135deg, rgba(22, 27, 34, 0.95) 0%, rgba(13, 17, 23, 0.98) 100%)',
+                background: 'linear-gradient(135deg, rgba(17, 19, 26, 0.98) 0%, rgba(24, 27, 36, 0.96) 100%)',
                 border: userScore
                   ? '1px solid rgba(157, 78, 221, 0.4)'
                   : userPrediction
                   ? '1px solid rgba(0, 230, 118, 0.35)'
-                  : '1px solid var(--border-subtle)',
+                  : '1px solid rgba(255, 255, 255, 0.08)',
                 borderRadius: '16px',
                 padding: '1.5rem',
                 display: 'flex',
@@ -651,8 +790,8 @@ export const HomePage: React.FC = () => {
               }}
             >
               <div>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.65rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
                     <span style={{ fontSize: '1rem' }}>🏁</span>
                     <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
                       {predictionHighlight.roundName}
@@ -662,7 +801,7 @@ export const HomePage: React.FC = () => {
                     style={{
                       fontSize: '0.68rem',
                       fontWeight: 800,
-                      padding: '0.15rem 0.5rem',
+                      padding: '0.2rem 0.55rem',
                       borderRadius: '4px',
                       fontFamily: 'var(--font-mono)',
                       background:
@@ -679,7 +818,7 @@ export const HomePage: React.FC = () => {
                   </span>
                 </div>
 
-                <h3 style={{ fontSize: '1.25rem', fontWeight: 900, textTransform: 'uppercase', color: '#fff', margin: '0 0 0.35rem 0' }}>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 900, textTransform: 'uppercase', color: '#fff', margin: '0 0 0.35rem 0', fontFamily: 'var(--font-heading)' }}>
                   {userScore
                     ? `Scored: +${userScore.totalScore} PTS`
                     : userPrediction
@@ -695,16 +834,17 @@ export const HomePage: React.FC = () => {
                 </p>
 
                 {/* Pick Preview if user has predicted */}
-                {userPrediction && (
+                {userPrediction ? (
                   <div
                     style={{
-                      marginTop: '0.85rem',
-                      padding: '0.65rem 0.85rem',
+                      marginTop: '0.95rem',
+                      padding: '0.75rem 0.95rem',
                       background: 'rgba(0, 230, 118, 0.06)',
-                      border: '1px solid rgba(0, 230, 118, 0.2)',
+                      border: '1px solid rgba(0, 230, 118, 0.25)',
                       borderRadius: '8px',
                       display: 'flex',
-                      gap: '0.75rem',
+                      flexWrap: 'wrap',
+                      gap: '0.85rem',
                       fontSize: '0.74rem',
                       fontFamily: 'var(--font-mono)',
                     }}
@@ -721,6 +861,50 @@ export const HomePage: React.FC = () => {
                       <span style={{ color: 'var(--text-muted)' }}>P3: </span>
                       <strong style={{ color: '#fff' }}>{getDriverLastName(userPrediction.predictionData?.p3)}</strong>
                     </div>
+                    {userPrediction.predictionData?.fastestLap && (
+                      <div>
+                        <span style={{ color: 'var(--text-muted)' }}>FL: </span>
+                        <strong style={{ color: 'var(--telemetry-purple)' }}>{getDriverLastName(userPrediction.predictionData?.fastestLap)}</strong>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  /* High-value Scoring & Target Preview when not yet predicted (Eliminates empty void) */
+                  <div
+                    style={{
+                      marginTop: '1rem',
+                      padding: '0.85rem 1rem',
+                      background: 'rgba(255, 255, 255, 0.02)',
+                      border: '1px solid rgba(255, 255, 255, 0.06)',
+                      borderRadius: '8px',
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.55rem' }}>
+                      <span style={{ fontSize: '0.68rem', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700 }}>
+                        Scoring Breakdown
+                      </span>
+                      <span style={{ fontSize: '0.68rem', fontFamily: 'var(--font-mono)', color: 'var(--color-accent)', fontWeight: 800 }}>
+                        {predictionHighlight.totalPointsAvailable || 60} PTS MAX
+                      </span>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.45rem', textAlign: 'center' }}>
+                      <div style={{ padding: '0.35rem 0.2rem', background: 'rgba(255, 255, 255, 0.03)', borderRadius: '6px', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                        <div style={{ fontSize: '0.64rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>P1</div>
+                        <div style={{ fontSize: '0.78rem', fontWeight: 800, color: '#fff', fontFamily: 'var(--font-mono)' }}>+25</div>
+                      </div>
+                      <div style={{ padding: '0.35rem 0.2rem', background: 'rgba(255, 255, 255, 0.03)', borderRadius: '6px', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                        <div style={{ fontSize: '0.64rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>P2</div>
+                        <div style={{ fontSize: '0.78rem', fontWeight: 800, color: '#fff', fontFamily: 'var(--font-mono)' }}>+18</div>
+                      </div>
+                      <div style={{ padding: '0.35rem 0.2rem', background: 'rgba(255, 255, 255, 0.03)', borderRadius: '6px', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                        <div style={{ fontSize: '0.64rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>P3</div>
+                        <div style={{ fontSize: '0.78rem', fontWeight: 800, color: '#fff', fontFamily: 'var(--font-mono)' }}>+15</div>
+                      </div>
+                      <div style={{ padding: '0.35rem 0.2rem', background: 'rgba(255, 255, 255, 0.03)', borderRadius: '6px', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                        <div style={{ fontSize: '0.64rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>FAST LAP</div>
+                        <div style={{ fontSize: '0.78rem', fontWeight: 800, color: '#fff', fontFamily: 'var(--font-mono)' }}>+10</div>
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
@@ -733,14 +917,15 @@ export const HomePage: React.FC = () => {
                       display: 'inline-flex',
                       alignItems: 'center',
                       gap: '0.4rem',
-                      padding: '0.6rem 1.1rem',
+                      padding: '0.6rem 1.15rem',
                       borderRadius: '6px',
-                      backgroundColor: 'var(--f1-red)',
-                      color: '#ffffff',
+                      background: 'var(--grdx-flame-gradient)',
+                      color: '#050505',
                       fontWeight: 800,
                       fontSize: '0.78rem',
                       textTransform: 'uppercase',
                       textDecoration: 'none',
+                      boxShadow: '0 0 16px rgba(255, 122, 0, 0.35)',
                     }}
                   >
                     <span>{userPrediction ? 'Review My Picks' : 'Make Your Prediction'}</span>
@@ -755,8 +940,8 @@ export const HomePage: React.FC = () => {
                       gap: '0.4rem',
                       padding: '0.6rem 1.1rem',
                       borderRadius: '6px',
-                      backgroundColor: 'var(--bg-input)',
-                      border: '1px solid var(--border-medium)',
+                      backgroundColor: 'rgba(255, 255, 255, 0.04)',
+                      border: '1px solid rgba(255, 255, 255, 0.1)',
                       color: '#ffffff',
                       fontWeight: 700,
                       fontSize: '0.78rem',
@@ -777,7 +962,7 @@ export const HomePage: React.FC = () => {
                     padding: '0.6rem 0.9rem',
                     borderRadius: '6px',
                     backgroundColor: 'rgba(255, 255, 255, 0.04)',
-                    border: '1px solid var(--border-subtle)',
+                    border: '1px solid rgba(255, 255, 255, 0.08)',
                     color: 'var(--text-secondary)',
                     fontWeight: 700,
                     fontSize: '0.78rem',
@@ -797,186 +982,355 @@ export const HomePage: React.FC = () => {
             4. EXPLORE MOTORSPORT: THE GRDX KNOWLEDGE CHALLENGE (GET YOUR RACING TAG)
             =================================================================== */}
         <section style={{ marginTop: '2.5rem' }}>
-          <div
-            style={{
-              position: 'relative',
-              overflow: 'hidden',
-              backgroundColor: 'var(--bg-surface)',
-              border: '1px solid var(--border-subtle)',
-              borderLeft: '4px solid var(--f1-red)',
-              borderRadius: 'var(--radius-lg)',
-              padding: '2rem 2.25rem',
-              display: 'flex',
-              flexWrap: 'wrap',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: '1.75rem',
-              boxShadow: 'var(--shadow-card)',
-            }}
-          >
-            {/* Background watermark */}
-            <div
-              style={{
-                position: 'absolute',
-                right: '-20px',
-                top: '-20px',
-                opacity: 0.03,
-                fontSize: '8rem',
-                fontWeight: 900,
-                fontFamily: 'var(--font-display)',
-                pointerEvents: 'none',
-                userSelect: 'none',
-                color: '#ffffff',
-              }}
-            >
-              GRDX
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1.5rem', maxWidth: '680px', position: 'relative', zIndex: 1 }}>
-              <div
-                style={{
-                  width: '56px',
-                  height: '56px',
-                  borderRadius: '14px',
-                  backgroundColor: 'rgba(225, 6, 0, 0.12)',
-                  border: '1px solid rgba(225, 6, 0, 0.35)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: 'var(--f1-red)',
-                  flexShrink: 0,
-                  marginTop: '0.2rem',
-                }}
-              >
-                <Award size={28} />
-              </div>
-
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.4rem' }}>
-                  <span
-                    style={{
-                      fontFamily: 'var(--font-mono)',
-                      fontSize: '0.72rem',
-                      fontWeight: 800,
-                      color: 'var(--f1-red)',
-                      letterSpacing: '0.1em',
-                      textTransform: 'uppercase',
-                    }}
-                  >
-                    THE GRDX KNOWLEDGE CHALLENGE
-                  </span>
-                  <span style={{ color: 'var(--text-muted)', fontSize: '0.65rem' }}>•</span>
-                  <span style={{ fontSize: '0.68rem', color: '#10b981', fontFamily: 'var(--font-mono)', fontWeight: 700 }}>
-                    8 Verified Disciplines
-                  </span>
-                </div>
-
-                <h3
-                  style={{
-                    fontSize: 'clamp(1.4rem, 2.5vw, 1.85rem)',
-                    fontWeight: 900,
-                    textTransform: 'uppercase',
-                    color: '#ffffff',
-                    margin: '0 0 0.5rem 0',
-                    letterSpacing: '0.02em',
-                  }}
-                >
-                  GET YOUR RACING TAG
-                </h3>
-
-                <p
-                  style={{
-                    color: 'var(--text-secondary)',
-                    fontSize: '0.9rem',
-                    margin: '0 0 0.85rem 0',
-                    lineHeight: 1.55,
-                  }}
-                >
-                  Discover how much you know about motorsport, take on verified racing questions, and earn a tag that represents your knowledge.
-                </p>
-
-                {/* Supporting line */}
+          {userQuizHistory && userQuizHistory.length > 0 ? (
+            (() => {
+              const latestQuiz = userQuizHistory[userQuizHistory.length - 1];
+              const tierInfo = getTierDetails(latestQuiz.fanIdentityTier);
+              return (
                 <div
                   style={{
-                    fontSize: '0.82rem',
-                    fontFamily: 'var(--font-mono)',
-                    color: 'var(--telemetry-cyan)',
-                    fontWeight: 700,
-                    letterSpacing: '0.04em',
-                    marginBottom: '1.15rem',
+                    position: 'relative',
+                    overflow: 'hidden',
+                    backgroundColor: 'var(--color-surface, #11131A)',
+                    border: '1px solid rgba(255, 255, 255, 0.08)',
+                    borderLeft: `4px solid ${tierInfo.color}`,
+                    borderRadius: 'var(--radius-lg, 16px)',
+                    padding: '2rem 2.25rem',
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '1.75rem',
+                    boxShadow: 'var(--shadow-card, 0 8px 32px rgba(0, 0, 0, 0.35))',
                   }}
                 >
-                  Your knowledge. Your tag. Your GRDX profile.
+                  <div
+                    style={{
+                      position: 'absolute',
+                      right: '-20px',
+                      top: '-20px',
+                      opacity: 0.03,
+                      fontSize: '8rem',
+                      fontWeight: 900,
+                      fontFamily: 'var(--font-display)',
+                      pointerEvents: 'none',
+                      userSelect: 'none',
+                      color: '#ffffff',
+                    }}
+                  >
+                    GRDX
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1.5rem', maxWidth: '680px', position: 'relative', zIndex: 1 }}>
+                    <div
+                      style={{
+                        width: '56px',
+                        height: '56px',
+                        borderRadius: '14px',
+                        backgroundColor: `${tierInfo.color}1a`,
+                        border: `1px solid ${tierInfo.color}55`,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: tierInfo.color,
+                        flexShrink: 0,
+                        marginTop: '0.2rem',
+                      }}
+                    >
+                      <Award size={28} />
+                    </div>
+
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.4rem' }}>
+                        <span
+                          style={{
+                            fontFamily: 'var(--font-mono)',
+                            fontSize: '0.72rem',
+                            fontWeight: 800,
+                            color: tierInfo.color,
+                            letterSpacing: '0.1em',
+                            textTransform: 'uppercase',
+                          }}
+                        >
+                          YOUR RACING IDENTITY
+                        </span>
+                        <span style={{ color: 'var(--text-muted)', fontSize: '0.65rem' }}>•</span>
+                        <span style={{ fontSize: '0.68rem', color: '#10b981', fontFamily: 'var(--font-mono)', fontWeight: 700 }}>
+                          {latestQuiz.percentage}% Score ({latestQuiz.score}/{latestQuiz.totalQuestions})
+                        </span>
+                      </div>
+
+                      <h3
+                        style={{
+                          fontSize: 'clamp(1.4rem, 2.5vw, 1.85rem)',
+                          fontWeight: 900,
+                          fontFamily: 'var(--font-display)',
+                          textTransform: 'uppercase',
+                          color: '#ffffff',
+                          margin: '0 0 0.5rem 0',
+                          letterSpacing: '0.02em',
+                        }}
+                      >
+                        {tierInfo.title}
+                      </h3>
+
+                      <p
+                        style={{
+                          color: 'var(--text-secondary)',
+                          fontSize: '0.9rem',
+                          margin: '0 0 0.85rem 0',
+                          lineHeight: 1.55,
+                        }}
+                      >
+                        {tierInfo.tagline}. {tierInfo.description}
+                      </p>
+
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', alignItems: 'center' }}>
+                        <span
+                          style={{
+                            padding: '0.2rem 0.55rem',
+                            borderRadius: '4px',
+                            backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                            border: '1px solid rgba(255, 255, 255, 0.1)',
+                            fontSize: '0.68rem',
+                            fontFamily: 'var(--font-mono)',
+                            color: 'var(--text-secondary)',
+                            fontWeight: 600,
+                          }}
+                        >
+                          Completed: {latestQuiz.completedAt ? new Date(latestQuiz.completedAt).toLocaleDateString() : 'Active'}
+                        </span>
+                        <span
+                          style={{
+                            padding: '0.2rem 0.55rem',
+                            borderRadius: '4px',
+                            backgroundColor: `${tierInfo.color}15`,
+                            border: `1px solid ${tierInfo.color}40`,
+                            fontSize: '0.68rem',
+                            fontFamily: 'var(--font-mono)',
+                            color: tierInfo.color,
+                            fontWeight: 700,
+                          }}
+                        >
+                          Official Pit Pass Active
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '0.75rem', position: 'relative', zIndex: 1 }}>
+                    <Link
+                      to="/quiz"
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.6rem',
+                        padding: '0.85rem 1.85rem',
+                        borderRadius: '6px',
+                        backgroundColor: 'var(--f1-red)',
+                        color: '#ffffff',
+                        fontWeight: 900,
+                        fontSize: '0.88rem',
+                        fontFamily: 'var(--font-mono)',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.06em',
+                        textDecoration: 'none',
+                        boxShadow: '0 0 25px rgba(225, 6, 0, 0.45)',
+                        flexShrink: 0,
+                        transition: 'transform 0.15s ease, box-shadow 0.15s ease',
+                      }}
+                    >
+                      <span>VIEW MY RACING TAG</span>
+                      <ArrowRight size={16} />
+                    </Link>
+
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                      Retake anytime to level up your status
+                    </div>
+                  </div>
+                </div>
+              );
+            })()
+          ) : (
+            <div
+              style={{
+                position: 'relative',
+                overflow: 'hidden',
+                backgroundColor: 'var(--color-surface, #11131A)',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+                borderLeft: '4px solid var(--f1-red)',
+                borderRadius: 'var(--radius-lg, 16px)',
+                padding: '2rem 2.25rem',
+                display: 'flex',
+                flexWrap: 'wrap',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '1.75rem',
+                boxShadow: 'var(--shadow-card, 0 8px 32px rgba(0, 0, 0, 0.35))',
+              }}
+            >
+              <div
+                style={{
+                  position: 'absolute',
+                  right: '-20px',
+                  top: '-20px',
+                  opacity: 0.03,
+                  fontSize: '8rem',
+                  fontWeight: 900,
+                  fontFamily: 'var(--font-display)',
+                  pointerEvents: 'none',
+                  userSelect: 'none',
+                  color: '#ffffff',
+                }}
+              >
+                GRDX
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1.5rem', maxWidth: '680px', position: 'relative', zIndex: 1 }}>
+                <div
+                  style={{
+                    width: '56px',
+                    height: '56px',
+                    borderRadius: '14px',
+                    backgroundColor: 'rgba(225, 6, 0, 0.12)',
+                    border: '1px solid rgba(225, 6, 0, 0.35)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: 'var(--f1-red)',
+                    flexShrink: 0,
+                    marginTop: '0.2rem',
+                  }}
+                >
+                  <Award size={28} />
                 </div>
 
-                {/* Categories Badge Strip */}
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', alignItems: 'center' }}>
-                  {['F1', 'F2', 'F3', 'F4', 'Formula E', 'MotoGP', 'Endurance', 'GT Racing'].map(cat => (
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.4rem' }}>
                     <span
-                      key={cat}
+                      style={{
+                        fontFamily: 'var(--font-mono)',
+                        fontSize: '0.72rem',
+                        fontWeight: 800,
+                        color: 'var(--f1-red)',
+                        letterSpacing: '0.1em',
+                        textTransform: 'uppercase',
+                      }}
+                    >
+                      THE GRDX KNOWLEDGE CHALLENGE
+                    </span>
+                    <span style={{ color: 'var(--text-muted)', fontSize: '0.65rem' }}>•</span>
+                    <span style={{ fontSize: '0.68rem', color: '#10b981', fontFamily: 'var(--font-mono)', fontWeight: 700 }}>
+                      8 Verified Disciplines
+                    </span>
+                  </div>
+
+                  <h3
+                    style={{
+                      fontSize: 'clamp(1.4rem, 2.5vw, 1.85rem)',
+                      fontWeight: 900,
+                      fontFamily: 'var(--font-display)',
+                      textTransform: 'uppercase',
+                      color: '#ffffff',
+                      margin: '0 0 0.5rem 0',
+                      letterSpacing: '0.02em',
+                    }}
+                  >
+                    GET YOUR RACING TAG
+                  </h3>
+
+                  <p
+                    style={{
+                      color: 'var(--text-secondary)',
+                      fontSize: '0.9rem',
+                      margin: '0 0 0.85rem 0',
+                      lineHeight: 1.55,
+                    }}
+                  >
+                    Discover how much you know about motorsport, take on verified racing questions, and earn a tag that represents your knowledge.
+                  </p>
+
+                  <div
+                    style={{
+                      fontSize: '0.82rem',
+                      fontFamily: 'var(--font-mono)',
+                      color: 'var(--telemetry-cyan)',
+                      fontWeight: 700,
+                      letterSpacing: '0.04em',
+                      marginBottom: '1.15rem',
+                    }}
+                  >
+                    Your knowledge. Your tag. Your GRDX profile.
+                  </div>
+
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', alignItems: 'center' }}>
+                    {['F1', 'F2', 'F3', 'F4', 'Formula E', 'MotoGP', 'Endurance', 'GT Racing'].map(cat => (
+                      <span
+                        key={cat}
+                        style={{
+                          padding: '0.2rem 0.55rem',
+                          borderRadius: '4px',
+                          backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                          border: '1px solid rgba(255, 255, 255, 0.08)',
+                          fontSize: '0.68rem',
+                          fontFamily: 'var(--font-mono)',
+                          color: 'var(--text-secondary)',
+                          fontWeight: 600,
+                        }}
+                      >
+                        {cat}
+                      </span>
+                    ))}
+                    <span
                       style={{
                         padding: '0.2rem 0.55rem',
                         borderRadius: '4px',
-                        backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                        border: '1px solid var(--border-subtle)',
+                        backgroundColor: 'transparent',
+                        border: '1px dashed rgba(255, 255, 255, 0.2)',
                         fontSize: '0.68rem',
                         fontFamily: 'var(--font-mono)',
-                        color: 'var(--text-secondary)',
-                        fontWeight: 600,
+                        color: 'var(--text-muted)',
+                        fontStyle: 'italic',
                       }}
                     >
-                      {cat}
+                      + IndyCar & Supercars coming soon
                     </span>
-                  ))}
-                  <span
-                    style={{
-                      padding: '0.2rem 0.55rem',
-                      borderRadius: '4px',
-                      backgroundColor: 'transparent',
-                      border: '1px dashed rgba(255, 255, 255, 0.2)',
-                      fontSize: '0.68rem',
-                      fontFamily: 'var(--font-mono)',
-                      color: 'var(--text-muted)',
-                      fontStyle: 'italic',
-                    }}
-                  >
-                    + IndyCar & Supercars coming soon
-                  </span>
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '0.75rem', position: 'relative', zIndex: 1 }}>
+                <Link
+                  to="/quiz"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.6rem',
+                    padding: '0.85rem 1.85rem',
+                    borderRadius: '6px',
+                    backgroundColor: 'var(--f1-red)',
+                    color: '#ffffff',
+                    fontWeight: 900,
+                    fontSize: '0.88rem',
+                    fontFamily: 'var(--font-mono)',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.06em',
+                    textDecoration: 'none',
+                    boxShadow: '0 0 25px rgba(225, 6, 0, 0.45)',
+                    flexShrink: 0,
+                    transition: 'transform 0.15s ease, box-shadow 0.15s ease',
+                  }}
+                >
+                  <span>GET YOUR RACING TAG</span>
+                  <ArrowRight size={16} />
+                </Link>
+
+                <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                  Tiers: Rookie • Enthusiast • Insider • Strategist • Oracle
                 </div>
               </div>
             </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '0.75rem', position: 'relative', zIndex: 1 }}>
-              <Link
-                to="/quiz"
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '0.6rem',
-                  padding: '0.85rem 1.85rem',
-                  borderRadius: '6px',
-                  backgroundColor: 'var(--f1-red)',
-                  color: '#ffffff',
-                  fontWeight: 900,
-                  fontSize: '0.88rem',
-                  fontFamily: 'var(--font-mono)',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.06em',
-                  textDecoration: 'none',
-                  boxShadow: '0 0 25px rgba(225, 6, 0, 0.45)',
-                  flexShrink: 0,
-                  transition: 'transform 0.15s ease, box-shadow 0.15s ease',
-                }}
-              >
-                <span>GET YOUR RACING TAG</span>
-                <ArrowRight size={16} />
-              </Link>
-
-              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
-                Tiers: Rookie • Enthusiast • Insider • Strategist • Oracle
-              </div>
-            </div>
-          </div>
+          )}
         </section>
 
         {/* ===================================================================
@@ -1131,7 +1485,18 @@ export const HomePage: React.FC = () => {
                 }}
               >
                 {filteredRaces.map((item, idx) => {
-                  const accentColor = item.badgeColor || 'var(--f1-red)';
+                  const getSeriesColor = (badge?: string, champId?: string) => {
+                    const norm = (badge || champId || '').toUpperCase();
+                    if (norm.includes('F1') || norm.includes('FORMULA 1')) return '#E10600';
+                    if (norm.includes('MOTO') || norm.includes('MOTOGP')) return '#00D2BE';
+                    if (norm.includes('WEC') || norm.includes('ENDURANCE')) return '#0055FF';
+                    if (norm.includes('INDY')) return '#FFB800';
+                    if (norm.includes('FE') || norm.includes('FORMULA E')) return '#00D2BE';
+                    return item.badgeColor || 'var(--f1-red)';
+                  };
+                  const accentColor = getSeriesColor(item.badge, item.championshipId);
+                  const circuitSvg = getCircuitSvgForRace(undefined, item.circuit, item.eventName);
+                  const circuitSvgUrl = getCircuitAssetUrl(circuitSvg);
                   return (
                     <Link
                       key={idx}
@@ -1142,6 +1507,25 @@ export const HomePage: React.FC = () => {
                         '--card-accent-glow': `${accentColor}44`,
                       } as React.CSSProperties}
                     >
+                      {circuitSvgUrl && (
+                        <div
+                          aria-hidden="true"
+                          style={{
+                            position: 'absolute',
+                            right: '-10px',
+                            bottom: '-10px',
+                            width: '120px',
+                            height: '90px',
+                            opacity: 0.06,
+                            pointerEvents: 'none',
+                            backgroundImage: `url(${circuitSvgUrl})`,
+                            backgroundSize: 'contain',
+                            backgroundPosition: 'right bottom',
+                            backgroundRepeat: 'no-repeat',
+                            filter: 'brightness(1.8)',
+                          }}
+                        />
+                      )}
                       <div>
                         {/* Card Header: Series Badge & Status / Championship Name */}
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.85rem' }}>
@@ -1368,85 +1752,106 @@ export const HomePage: React.FC = () => {
           </div>
 
           {activeLearnTab === 'topics' ? (
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))',
-                gap: '1rem',
-              }}
-            >
-              {featuredLearnTopics.map((topic, idx) => (
-                <Link
-                  key={idx}
-                  to={topic.learnUrl}
-                  className="race-card-interactive"
-                  style={{
-                    background: 'var(--bg-surface)',
-                    border: '1px solid var(--border-subtle)',
-                    borderRadius: '12px',
-                    padding: '1.25rem',
-                    textDecoration: 'none',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'space-between',
-                  }}
-                >
-                  <div>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                      <span
-                        style={{
-                          fontSize: '0.68rem',
-                          fontWeight: 800,
-                          padding: '0.15rem 0.45rem',
-                          borderRadius: '4px',
-                          background: 'rgba(255, 255, 255, 0.05)',
-                          color: topic.badgeColor || 'var(--text-muted)',
-                          fontFamily: 'var(--font-mono)',
-                          textTransform: 'uppercase',
-                        }}
-                      >
-                        {topic.badge || topic.category}
-                      </span>
-                      <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
-                        {topic.category}
-                      </span>
-                    </div>
-
-                    <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: '#ffffff', margin: '0 0 0.35rem 0' }}>
-                      {topic.title}
-                    </h3>
-                    <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: '0 0 0.75rem 0', lineHeight: 1.45 }}>
-                      {topic.shortExplanation}
-                    </p>
-                  </div>
-
-                  <div
+            <div className="grdx-fundamentals-grid">
+              {featuredLearnTopics.map((topic, idx) => {
+                const TopicIcon = [BookOpen, Flag, Layers, Calendar, Zap, BarChart3][idx % 6];
+                return (
+                  <Link
+                    key={idx}
+                    to={topic.learnUrl}
+                    className="race-card-interactive"
                     style={{
+                      background: 'var(--color-surface, #11131A)',
+                      border: '1px solid rgba(255, 255, 255, 0.08)',
+                      borderRadius: '12px',
+                      padding: '1.35rem',
+                      textDecoration: 'none',
                       display: 'flex',
-                      alignItems: 'center',
+                      flexDirection: 'column',
                       justifyContent: 'space-between',
-                      paddingTop: '0.6rem',
-                      borderTop: '1px solid var(--border-subtle)',
-                      fontSize: '0.72rem',
-                      color: 'var(--f1-red)',
-                      fontWeight: 700,
-                      fontFamily: 'var(--font-mono)',
+                      position: 'relative',
+                      overflow: 'hidden',
+                      transition: 'border-color 0.2s ease, transform 0.2s ease',
                     }}
                   >
-                    <span>Explore Hub</span>
-                    <ChevronRight size={13} />
-                  </div>
-                </Link>
-              ))}
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                          <div
+                            style={{
+                              width: '28px',
+                              height: '28px',
+                              borderRadius: '6px',
+                              backgroundColor: `${topic.badgeColor || 'var(--grdx-flame-orange)'}15`,
+                              border: `1px solid ${topic.badgeColor || 'var(--grdx-flame-orange)'}33`,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              color: topic.badgeColor || 'var(--grdx-flame-orange)',
+                            }}
+                          >
+                            <TopicIcon size={14} />
+                          </div>
+                          <span
+                            style={{
+                              fontSize: '0.68rem',
+                              fontWeight: 800,
+                              padding: '0.15rem 0.45rem',
+                              borderRadius: '4px',
+                              background: 'rgba(255, 255, 255, 0.05)',
+                              color: topic.badgeColor || 'var(--text-muted)',
+                              fontFamily: 'var(--font-mono)',
+                              textTransform: 'uppercase',
+                            }}
+                          >
+                            {topic.badge || topic.category}
+                          </span>
+                        </div>
+                        <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                          {topic.category}
+                        </span>
+                      </div>
+
+                      <h3
+                        style={{
+                          fontSize: '1.15rem',
+                          fontWeight: 800,
+                          fontFamily: 'var(--font-display)',
+                          letterSpacing: '0.02em',
+                          textTransform: 'uppercase',
+                          color: '#ffffff',
+                          margin: '0 0 0.4rem 0',
+                        }}
+                      >
+                        {topic.title}
+                      </h3>
+                      <p style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', margin: '0 0 0.85rem 0', lineHeight: 1.5 }}>
+                        {topic.shortExplanation}
+                      </p>
+                    </div>
+
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        paddingTop: '0.75rem',
+                        borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+                        fontSize: '0.74rem',
+                        color: 'var(--grdx-flame-primary, #FF5500)',
+                        fontWeight: 700,
+                        fontFamily: 'var(--font-mono)',
+                      }}
+                    >
+                      <span>EXPLORE HUB</span>
+                      <ChevronRight size={13} />
+                    </div>
+                  </Link>
+                );
+              })}
             </div>
           ) : (
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))',
-                gap: '1rem',
-              }}
-            >
+            <div className="grdx-fundamentals-grid">
               {understandIn30Seconds.map((item, idx) => (
                 <Link
                   key={idx}

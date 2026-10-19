@@ -27,22 +27,20 @@ export const Navbar: React.FC = () => {
   }, [location.pathname]);
 
   return (
-    <header className="navbar-header">
+    <header className="grdx-header navbar-header">
       {/* Level 1: Race Status Strip */}
       <RaceStatusStrip />
 
       {/* Level 2: Main Navigation Bar */}
-      <div className="navbar-main">
-        <div className="navbar-main__inner">
-          <NavbarBrand />
-          <NavbarLinks />
-          <div className="navbar-right">
-            <PredictionCTA onActiveRoundChange={setActiveRoundLink} />
-            <UserProfileMenu
-              mobileMenuOpen={mobileMenuOpen}
-              onToggleMobileMenu={handleToggleMobile}
-            />
-          </div>
+      <div className="header-container navbar-main navbar-main__inner">
+        <NavbarBrand />
+        <NavbarLinks />
+        <div className="navbar-right">
+          <PredictionCTA onActiveRoundChange={setActiveRoundLink} />
+          <UserProfileMenu
+            mobileMenuOpen={mobileMenuOpen}
+            onToggleMobileMenu={handleToggleMobile}
+          />
         </div>
       </div>
 

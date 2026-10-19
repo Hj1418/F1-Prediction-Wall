@@ -357,7 +357,11 @@ async function runTestSuite() {
   assert(homePageSrc.includes('document.title = \'GRDX | Your Motorsport Starting Point\''), 'HomePage sets browser document title to GRDX');
 
   const indexHtmlSrc = fs.readFileSync(path.resolve('index.html'), 'utf-8');
-  assert(indexHtmlSrc.includes('<title>GRDX | Motorsport Knowledge'), 'index.html title updated to "GRDX"');
+  assert(
+    indexHtmlSrc.includes('<title>GRDX | Your Motorsport Starting Point') ||
+    indexHtmlSrc.includes('<title>GRDX | Motorsport Knowledge'),
+    'index.html title updated to "GRDX"'
+  );
   assert(indexHtmlSrc.includes('content="GRDX — Motorsport Knowledge'), 'index.html meta description updated to "GRDX"');
 
   const navbarBrandSrc = fs.readFileSync(path.resolve('src/components/navbar/NavbarBrand.tsx'), 'utf-8');

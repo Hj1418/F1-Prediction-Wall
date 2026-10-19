@@ -1,24 +1,19 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import {
-  Search,
-  Grid,
-  Clock,
-  List,
-  CalendarPlus,
-} from 'lucide-react';
+import { Search } from 'lucide-react';
 import {
   getAllGlobalCalendarEvents,
   getSupportedCalendarSeries,
   filterCalendarEvents,
 } from '../services/calendar/globalCalendarService';
-import { CalendarMonthView } from '../components/calendar/CalendarMonthView';
+import { CalendarMiniDock } from '../components/calendar/CalendarMiniDock';
+import { CalendarDayFeed } from '../components/calendar/CalendarDayFeed';
 import { CalendarWeekView } from '../components/calendar/CalendarWeekView';
 import { CalendarListView } from '../components/calendar/CalendarListView';
 import { AddToGoogleCalendarModal } from '../components/calendar/AddToGoogleCalendarModal';
 import { getTodayIst } from '../utils/istTimeUtils';
 
-type CalendarViewMode = 'month' | 'week' | 'list';
+type CalendarViewMode = 'month' | 'week' | 'upcoming';
 
 export const CalendarPage: React.FC = () => {
   // Use October 1, 2026 as reference anchor date for deterministic season sync
@@ -32,7 +27,8 @@ export const CalendarPage: React.FC = () => {
 
   const activeSeries = searchParams.get('series') || 'all';
   const monthParam = searchParams.get('month'); // e.g., '2026-10'
-  const viewMode = (searchParams.get('view') as CalendarViewMode) || 'month';
+  const rawView = searchParams.get('view');
+  const viewMode: CalendarViewMode = rawView === 'week' ? 'week' : rawView === 'upcoming' || rawView === 'list' ? 'upcoming' : 'month';
   const searchQuery = searchParams.get('q') || '';
 
   // Canonical active calendar month date (defaults to current runtime month in IST)
@@ -47,13 +43,34 @@ export const CalendarPage: React.FC = () => {
     return new Date(Date.UTC(today.year, today.month, 1));
   }, [monthParam]);
 
+  // Selected date for day-level inspection (defaulting to runtime today in IST on initial load)
+  const [selectedDate, setSelectedDate] = useState<Date>(() => {
+    const today = getTodayIst();
+    return new Date(Date.UTC(today.year, today.month, today.day));
+  });
+
+  // Keep selected date synced if user navigates month via query parameter
+  useEffect(() => {
+    if (monthParam && /^\d{4}-\d{2}$/.test(monthParam)) {
+      const [y, m] = monthParam.split('-').map(Number);
+      if (!isNaN(y) && !isNaN(m)) {
+        setSelectedDate(prev => {
+          if (prev.getUTCFullYear() !== y || prev.getUTCMonth() !== m - 1) {
+            return new Date(Date.UTC(y, m - 1, 1));
+          }
+          return prev;
+        });
+      }
+    }
+  }, [monthParam]);
+
   // All 2026/active calendar events
   const allEvents = useMemo(() => getAllGlobalCalendarEvents(referenceDate), [referenceDate]);
 
   // Series filter items with counts
   const seriesFilterItems = useMemo(() => getSupportedCalendarSeries(allEvents), [allEvents]);
 
-  // Filtered events
+  // Filtered events based on series pill and search query
   const filteredEvents = useMemo(() => {
     return filterCalendarEvents(allEvents, {
       seriesId: activeSeries,
@@ -110,13 +127,13 @@ export const CalendarPage: React.FC = () => {
   };
 
   return (
-    <div className="calendar-page" style={{ paddingBottom: '6rem', minHeight: '80vh' }}>
-      {/* 1. COMPACT PAGE HEADER */}
+    <div className="calendar-page" style={{ paddingBottom: '6rem', minHeight: '85vh' }}>
+      {/* 1. COMPACT PAGE HEADER & SEARCH */}
       <section
         style={{
-          background: 'radial-gradient(ellipse at 50% -20%, rgba(255, 75, 51, 0.14) 0%, var(--color-background, #070809) 70%)',
+          background: 'radial-gradient(ellipse at 50% -20%, rgba(255, 85, 0, 0.12) 0%, var(--color-background, #08090C) 70%)',
           borderBottom: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.08))',
-          padding: '2rem 0 1.5rem 0',
+          padding: '1.5rem 0 1.15rem 0',
         }}
       >
         <div className="container">
@@ -126,18 +143,20 @@ export const CalendarPage: React.FC = () => {
               alignItems: 'flex-start',
               justifyContent: 'space-between',
               flexWrap: 'wrap',
-              gap: '1rem',
+              gap: '1.25rem',
             }}
           >
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', flex: 1, minWidth: '280px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', flex: 1, minWidth: '280px' }}>
               <h1
                 style={{
-                  fontSize: 'clamp(2rem, 4vw, 3rem)',
+                  fontSize: 'clamp(2rem, 4vw, 2.85rem)',
                   fontWeight: 900,
+                  fontFamily: 'var(--font-display, sans-serif)',
                   color: '#ffffff',
                   margin: 0,
                   letterSpacing: '-0.02em',
                   lineHeight: 1.1,
+                  textTransform: 'uppercase',
                 }}
               >
                 RACE CALENDAR
@@ -146,7 +165,7 @@ export const CalendarPage: React.FC = () => {
               <p
                 style={{
                   fontSize: 'clamp(0.95rem, 1.6vw, 1.05rem)',
-                  color: 'var(--text-secondary, #cbd5e1)',
+                  color: 'var(--text-secondary, #D1D5DB)',
                   maxWidth: '650px',
                   margin: 0,
                   lineHeight: 1.5,
@@ -161,15 +180,15 @@ export const CalendarPage: React.FC = () => {
                   display: 'flex',
                   alignItems: 'center',
                   gap: '0.6rem',
-                  backgroundColor: 'var(--bg-surface, #131722)',
-                  border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.1))',
+                  backgroundColor: '#11131A',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
                   borderRadius: '8px',
-                  padding: '0.4rem 0.8rem',
+                  padding: '0.45rem 0.85rem',
                   maxWidth: '380px',
                   marginTop: '0.4rem',
                 }}
               >
-                <Search size={15} style={{ color: 'var(--text-muted, #94a3b8)' }} />
+                <Search size={15} style={{ color: 'var(--text-muted, #848B96)' }} />
                 <input
                   type="text"
                   placeholder="Search event, circuit, or city..."
@@ -194,7 +213,7 @@ export const CalendarPage: React.FC = () => {
                     style={{
                       background: 'transparent',
                       border: 'none',
-                      color: 'var(--text-muted, #94a3b8)',
+                      color: 'var(--text-muted, #848B96)',
                       cursor: 'pointer',
                       fontSize: '0.75rem',
                     }}
@@ -204,55 +223,15 @@ export const CalendarPage: React.FC = () => {
                 )}
               </div>
             </div>
-
-            {/* + ADD TO GOOGLE CALENDAR ACTION */}
-            <div style={{ alignSelf: 'flex-start', paddingTop: '0.25rem' }}>
-              <button
-                type="button"
-                id="btn-add-to-google-calendar"
-                onClick={() => setIsCalendarModalOpen(true)}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '0.5rem',
-                  padding: '0.6rem 1.1rem',
-                  minHeight: '44px',
-                  borderRadius: '8px',
-                  border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.16))',
-                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                  color: '#ffffff',
-                  fontFamily: 'var(--font-mono, monospace)',
-                  fontSize: '0.78rem',
-                  fontWeight: 800,
-                  letterSpacing: '0.04em',
-                  cursor: 'pointer',
-                  transition: 'all 0.15s ease',
-                  whiteSpace: 'nowrap',
-                }}
-                onMouseEnter={e => {
-                  e.currentTarget.style.backgroundColor = 'rgba(255, 75, 51, 0.15)';
-                  e.currentTarget.style.borderColor = 'var(--color-accent, #FF4B33)';
-                  e.currentTarget.style.color = '#ffffff';
-                }}
-                onMouseLeave={e => {
-                  e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.05)';
-                  e.currentTarget.style.borderColor = 'var(--border-subtle, rgba(255, 255, 255, 0.16))';
-                  e.currentTarget.style.color = '#ffffff';
-                }}
-              >
-                <CalendarPlus size={15} style={{ color: 'var(--color-accent, #FF4B33)' }} />
-                <span>+ ADD TO GOOGLE CALENDAR</span>
-              </button>
-            </div>
           </div>
         </div>
       </section>
 
-      {/* 2. MOTORSPORT FILTERS BAR */}
+      {/* 2. MOTORSPORT SERIES FILTERS BAR */}
       <section
         style={{
           borderBottom: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.08))',
-          backgroundColor: 'rgba(11, 13, 16, 0.95)',
+          backgroundColor: 'rgba(8, 9, 12, 0.95)',
           padding: '0.75rem 0',
           position: 'sticky',
           top: 0,
@@ -260,7 +239,7 @@ export const CalendarPage: React.FC = () => {
           backdropFilter: 'blur(10px)',
         }}
       >
-        <div className="container" style={{ paddingLeft: '1rem', paddingRight: '1rem' }}>
+        <div className="container">
           <div
             style={{
               display: 'flex',
@@ -285,19 +264,21 @@ export const CalendarPage: React.FC = () => {
                     alignItems: 'center',
                     gap: '0.4rem',
                     padding: '0.45rem 0.85rem',
-                    minHeight: '44px',
+                    minHeight: '40px',
                     borderRadius: '8px',
                     fontSize: '0.76rem',
                     fontWeight: 800,
                     fontFamily: 'var(--font-mono, monospace)',
-                    backgroundColor: isActive ? 'var(--color-accent, #FF4B33)' : 'rgba(255, 255, 255, 0.03)',
-                    color: isActive ? '#070809' : 'var(--text-secondary, #cbd5e1)',
-                    border: isActive ? '1px solid var(--color-accent, #FF4B33)' : '1px solid var(--border-subtle, rgba(255, 255, 255, 0.08))',
+                    backgroundColor: isActive ? 'var(--color-accent, #FF5500)' : 'rgba(255, 255, 255, 0.03)',
+                    color: isActive ? '#ffffff' : 'var(--text-secondary, #D1D5DB)',
+                    border: isActive
+                      ? '1px solid var(--color-accent, #FF5500)'
+                      : '1px solid rgba(255, 255, 255, 0.08)',
                     cursor: 'pointer',
                     whiteSpace: 'nowrap',
                     transition: 'all 0.15s ease',
                     flexShrink: 0,
-                    boxShadow: isActive ? '0 0 12px rgba(255, 75, 51, 0.35)' : 'none',
+                    boxShadow: isActive ? '0 0 14px rgba(255, 85, 0, 0.4)' : 'none',
                   }}
                 >
                   <span
@@ -312,8 +293,8 @@ export const CalendarPage: React.FC = () => {
                   <span
                     style={{
                       fontSize: '0.66rem',
-                      opacity: 0.7,
-                      backgroundColor: isActive ? 'rgba(0, 0, 0, 0.25)' : 'rgba(255, 255, 255, 0.06)',
+                      opacity: 0.75,
+                      backgroundColor: isActive ? 'rgba(0, 0, 0, 0.3)' : 'rgba(255, 255, 255, 0.06)',
                       padding: '0.1rem 0.35rem',
                       borderRadius: '4px',
                     }}
@@ -327,171 +308,49 @@ export const CalendarPage: React.FC = () => {
         </div>
       </section>
 
-      {/* 3. PRIMARY CALENDAR HERO CONTAINER */}
-      <div className="container" style={{ marginTop: '1.75rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-        {/* SUBTLE VIEW CONTROLS & EVENT COUNTER */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: '0.75rem',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <span
-              style={{
-                fontSize: '0.76rem',
-                fontFamily: 'var(--font-mono, monospace)',
-                color: 'var(--text-muted, #94a3b8)',
-                fontWeight: 700,
-                textTransform: 'uppercase',
-              }}
-            >
-              SHOWING {filteredEvents.length} {filteredEvents.length === 1 ? 'EVENT' : 'EVENTS'}:
-            </span>
-            <span
-              style={{
-                fontSize: '0.78rem',
-                fontFamily: 'var(--font-mono, monospace)',
-                fontWeight: 800,
-                color: '#ffffff',
-              }}
-            >
-              {activeSeries.toUpperCase()}
-            </span>
-            <span style={{ color: 'rgba(255, 255, 255, 0.2)' }}>•</span>
-            <span
-              style={{
-                fontSize: '0.72rem',
-                fontFamily: 'var(--font-mono, monospace)',
-                color: 'var(--f1-red, #e10600)',
-                fontWeight: 700,
-                letterSpacing: '0.04em',
-                textTransform: 'uppercase',
-              }}
-            >
-              All times in IST
-            </span>
-          </div>
+      {/* 3. SPLIT-PANE WORKSPACE: AGENDA + MINI-CALENDAR DOCK */}
+      <div className="container" style={{ marginTop: '1.25rem' }}>
+        <div className="calendar-split-container">
+          {/* LEFT COLUMN: ACTIVE DAY / EVENT FEED (~65% width) */}
+          <main className="calendar-feed-column">
+            {viewMode === 'month' && (
+              <CalendarDayFeed
+                selectedDate={selectedDate}
+                onSelectDate={setSelectedDate}
+                onMonthChange={handleDateChange}
+                filteredEvents={filteredEvents}
+                allEvents={allEvents}
+              />
+            )}
 
-          {/* View Mode Segmented Controls: [MONTH] [WEEK] [LIST] */}
-          <div
-            role="group"
-            aria-label="Calendar view options"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              backgroundColor: 'var(--bg-surface, #131722)',
-              border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.1))',
-              borderRadius: '8px',
-              padding: '3px',
-              gap: '2px',
-            }}
-          >
-            <button
-              type="button"
-              id="view-month"
-              onClick={() => handleViewModeChange('month')}
-              aria-pressed={viewMode === 'month'}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.35rem',
-                padding: '0.4rem 0.8rem',
-                minHeight: '36px',
-                borderRadius: '6px',
-                border: 'none',
-                backgroundColor: viewMode === 'month' ? 'var(--f1-red, #e10600)' : 'transparent',
-                color: viewMode === 'month' ? '#ffffff' : 'var(--text-secondary, #cbd5e1)',
-                fontFamily: 'var(--font-mono, monospace)',
-                fontSize: '0.76rem',
-                fontWeight: 800,
-                cursor: 'pointer',
-                transition: 'all 0.15s ease',
-              }}
-            >
-              <Grid size={14} />
-              <span>MONTH</span>
-            </button>
+            {viewMode === 'week' && (
+              <CalendarWeekView
+                events={filteredEvents}
+                referenceDate={selectedDate}
+              />
+            )}
 
-            <button
-              type="button"
-              id="view-week"
-              onClick={() => handleViewModeChange('week')}
-              aria-pressed={viewMode === 'week'}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.35rem',
-                padding: '0.4rem 0.8rem',
-                minHeight: '36px',
-                borderRadius: '6px',
-                border: 'none',
-                backgroundColor: viewMode === 'week' ? 'var(--f1-red, #e10600)' : 'transparent',
-                color: viewMode === 'week' ? '#ffffff' : 'var(--text-secondary, #cbd5e1)',
-                fontFamily: 'var(--font-mono, monospace)',
-                fontSize: '0.76rem',
-                fontWeight: 800,
-                cursor: 'pointer',
-                transition: 'all 0.15s ease',
-              }}
-            >
-              <Clock size={14} />
-              <span>WEEK</span>
-            </button>
+            {viewMode === 'upcoming' && (
+              <CalendarListView
+                events={filteredEvents}
+              />
+            )}
+          </main>
 
-            <button
-              type="button"
-              id="view-list"
-              onClick={() => handleViewModeChange('list')}
-              aria-pressed={viewMode === 'list'}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.35rem',
-                padding: '0.4rem 0.8rem',
-                minHeight: '36px',
-                borderRadius: '6px',
-                border: 'none',
-                backgroundColor: viewMode === 'list' ? 'var(--f1-red, #e10600)' : 'transparent',
-                color: viewMode === 'list' ? '#ffffff' : 'var(--text-secondary, #cbd5e1)',
-                fontFamily: 'var(--font-mono, monospace)',
-                fontSize: '0.76rem',
-                fontWeight: 800,
-                cursor: 'pointer',
-                transition: 'all 0.15s ease',
-              }}
-            >
-              <List size={14} />
-              <span>LIST</span>
-            </button>
-          </div>
-        </div>
-
-        {/* PRIMARY CALENDAR VIEW RENDERER (THE HERO) */}
-        <div>
-          {viewMode === 'month' && (
-            <CalendarMonthView
-              events={filteredEvents}
+          {/* RIGHT COLUMN: STICKY MINI-CALENDAR TAB DOCK (~35% width, 380px fixed on desktop) */}
+          <aside className="calendar-dock-column">
+            <CalendarMiniDock
               currentDate={currentMonthDate}
+              selectedDate={selectedDate}
+              onSelectDate={setSelectedDate}
               onDateChange={handleDateChange}
+              viewMode={viewMode}
+              onViewModeChange={handleViewModeChange}
+              allEvents={allEvents}
+              activeSeries={activeSeries}
+              onOpenGoogleCalendar={() => setIsCalendarModalOpen(true)}
             />
-          )}
-
-          {viewMode === 'week' && (
-            <CalendarWeekView
-              events={filteredEvents}
-              referenceDate={currentMonthDate}
-            />
-          )}
-
-          {viewMode === 'list' && (
-            <CalendarListView
-              events={filteredEvents}
-            />
-          )}
+          </aside>
         </div>
       </div>
 

@@ -109,16 +109,20 @@ export const NotificationCenter: React.FC = () => {
         aria-label="View notifications"
         aria-expanded={isOpen}
         style={{
+          width: '40px',
+          height: '40px',
           background: isOpen ? 'rgba(255, 255, 255, 0.1)' : 'transparent',
           border: '1px solid rgba(255, 255, 255, 0.12)',
           borderRadius: '8px',
-          padding: '0.45rem',
-          display: 'flex',
+          padding: 0,
+          display: 'inline-flex',
           alignItems: 'center',
           justifyContent: 'center',
           cursor: 'pointer',
           color: unreadCount > 0 ? '#fff' : '#8E9BAE',
           position: 'relative',
+          flexShrink: 0,
+          boxSizing: 'border-box',
         }}
       >
         <Bell size={18} />
