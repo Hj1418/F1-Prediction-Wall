@@ -1,0 +1,237 @@
+<svg viewBox="0 0 380 90" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="GRDX">
+  <defs>
+    <!-- Metallic "GRD" Text Gradient -->
+    <linearGradient id="grd-metallic" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" />
+      <stop offset="30%" stop-color="#F8FAFC" />
+      <stop offset="70%" stop-color="#CBD5E1" />
+      <stop offset="100%" stop-color="#94A3B8" />
+    </linearGradient>
+
+    <!-- Crisp White Race Car Silhouette Pearl/Metallic Body Gradient -->
+    <linearGradient id="car-body" x1="0%" y1="0%" x2="100%" y2="60%">
+      <stop offset="0%" stop-color="#FFFFFF" />
+      <stop offset="55%" stop-color="#F8FAFC" />
+      <stop offset="85%" stop-color="#E2E8F0" />
+      <stop offset="100%" stop-color="#CBD5E1" />
+    </linearGradient>
+
+    <!-- Tinted Cockpit Glass Gradient -->
+    <linearGradient id="cockpit-glass" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0B132B" />
+      <stop offset="50%" stop-color="#1C2541" />
+      <stop offset="100%" stop-color="#080C14" />
+    </linearGradient>
+
+    <!-- Yellow-Orange Flame Gradient -->
+    <linearGradient id="flame-yo" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFCC00" />
+      <stop offset="100%" stop-color="#FF6600" />
+    </linearGradient>
+
+    <!-- Deep Red Flame Gradient -->
+    <linearGradient id="flame-dr" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#E60000" />
+      <stop offset="100%" stop-color="#800000" />
+    </linearGradient>
+
+    <!-- Volcanic Glowing Border Gradient -->
+    <linearGradient id="volcanic-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFAA00" />
+      <stop offset="50%" stop-color="#FF5500" />
+      <stop offset="100%" stop-color="#FF2200" />
+    </linearGradient>
+
+    <!-- Aero Wake Speed Streamer (Rear Wing to Flame X) -->
+    <linearGradient id="aero-wake-top" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.95" />
+      <stop offset="45%" stop-color="#FFA600" stop-opacity="0.85" />
+      <stop offset="85%" stop-color="#FF4400" stop-opacity="0.75" />
+      <stop offset="100%" stop-color="#FF2200" stop-opacity="0.3" />
+    </linearGradient>
+
+    <!-- Aero Wake Speed Streamer (Exhaust to Center Core of X) -->
+    <linearGradient id="aero-wake-mid" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#FF6A00" stop-opacity="0.95" />
+      <stop offset="60%" stop-color="#FFCC00" stop-opacity="0.9" />
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0.7" />
+    </linearGradient>
+
+    <!-- Racing Checkered Pattern with Yellow-Red Flame Squares -->
+    <pattern id="fire-checker" width="12" height="12" patternUnits="userSpaceOnUse">
+      <rect width="6" height="6" fill="url(#flame-yo)" />
+      <rect x="6" width="6" height="6" fill="url(#flame-dr)" />
+      <rect y="6" width="6" height="6" fill="url(#flame-dr)" />
+      <rect x="6" y="6" width="6" height="6" fill="url(#flame-yo)" />
+    </pattern>
+
+    <!-- Volcanic Glow DropShadow Filter -->
+    <filter id="flame-glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="0" stdDeviation="4" floodColor="#FF4400" floodOpacity="0.65" />
+    </filter>
+  </defs>
+
+  <!-- ZONE 1: "GRD" Racing Wordmark Text (Left-Hand Bold Italic) -->
+  <g class="grdx-wordmark-grd-svg" transform="skewX(-12) translate(22, 0)">
+    <text
+      x="0"
+      y="67"
+      font-family="'Orbitron', 'Barlow Condensed', sans-serif"
+      font-weight="900"
+      font-size="52"
+      letter-spacing="-0.03em"
+      fill="url(#grd-metallic)"
+    >
+      GRD
+    </text>
+  </g>
+
+  <!-- SEAMLESS TRANSITION 1: FLOW LINES FROM "D" INTO THE RACE CAR -->
+  <g class="grdx-aero-flow-intake" opacity="0.95">
+    <path d="M 120 68 L 148 68" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round" />
+    <path d="M 124 50 C 132 50 138 54 146 56" stroke="#CBD5E1" stroke-width="1.6" stroke-linecap="round" stroke-dasharray="8 3" />
+    <path d="M 122 38 C 130 38 138 43 148 48" stroke="rgba(255, 255, 255, 0.45)" stroke-width="1.2" stroke-linecap="round" />
+  </g>
+
+  <!-- ZONE 2: WHITE GT RACE CAR SILHOUETTE -->
+  <g class="grdx-car-silhouette">
+    <!-- Front Splitter & Canards -->
+    <path d="M 142 68 L 160 68" stroke="#FFFFFF" stroke-width="2.8" stroke-linecap="round" />
+    <path d="M 146 68 C 143 67 141 64 140 61" stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round" />
+
+    <!-- Main Body Contour -->
+    <path
+      d="
+        M 141 68
+        C 144 65, 149 59, 155 57
+        C 156 52, 161 47, 168 47
+        C 175 47, 179 51, 181 53
+        L 192 51
+        L 211 37
+        L 229 38
+        C 238 43, 246 48, 256 51
+        L 268 61
+        L 268 68
+        L 255 68
+        L 237 68
+        L 177 68
+        L 159 68
+        Z
+      "
+      fill="url(#car-body)"
+    />
+
+    <!-- Front Fender Aero Louvers -->
+    <line x1="165" y1="50" x2="171" y2="49" stroke="#CBD5E1" stroke-width="1" stroke-linecap="round" />
+    <line x1="166" y1="52" x2="173" y2="51" stroke="#CBD5E1" stroke-width="1" stroke-linecap="round" />
+
+    <!-- Side Body Aerodynamic Chiseled Contour -->
+    <path d="M 183 55 C 195 56, 212 55, 226 52" stroke="#CBD5E1" stroke-width="1.2" stroke-linecap="round" fill="none" opacity="0.85" />
+
+    <!-- Rear Haunch Accent -->
+    <path d="M 228 50 C 235 46, 243 46, 248 47 C 253 49, 256 52, 258 55" stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round" fill="none" />
+
+    <!-- Side Skirt -->
+    <line x1="177" y1="68" x2="237" y2="68" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round" />
+
+    <!-- Cockpit Tinted Window & Specular Glint -->
+    <polygon points="195,49 209,39 225,40 221,49" fill="url(#cockpit-glass)" stroke="#CBD5E1" stroke-width="1" />
+    <line x1="199" y1="48" x2="212" y2="40" stroke="#FFFFFF" stroke-width="1.2" stroke-linecap="round" opacity="0.85" />
+
+    <!-- Shark Fin -->
+    <path d="M 223 38 L 243 32 L 241 40 Z" fill="#FFFFFF" opacity="0.9" />
+
+    <!-- GT Swan-Neck Rear Wing -->
+    <path d="M 245 48 C 243 38, 244 32, 246 27 M 253 49 C 251 39, 252 32, 254 27" stroke="#FFFFFF" stroke-width="1.6" stroke-linecap="round" fill="none" />
+    <path d="M 236 27 C 248 25.5, 260 25.5, 271 28" stroke="#FFFFFF" stroke-width="2.8" stroke-linecap="round" />
+    <line x1="236" y1="23" x2="236" y2="31" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" />
+    <line x1="271" y1="23" x2="271" y2="32" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" />
+
+    <!-- Rear Diffuser -->
+    <path d="M 256 68 L 274 68 M 262 68 L 266 65 M 268 68 L 272 65" stroke="#CBD5E1" stroke-width="1.8" stroke-linecap="round" />
+
+    <!-- Front Racing Wheel -->
+    <circle cx="168" cy="68" r="9.5" fill="#0A0D14" />
+    <circle cx="168" cy="68" r="8.2" fill="#1E2430" stroke="#4B5563" stroke-width="1" />
+    <circle cx="168" cy="68" r="5.8" fill="#374151" />
+    <path d="M 163 65 A 5.5 5.5 0 0 1 166 62 L 166 66 Z" fill="#E10600" />
+    <line x1="168" y1="62" x2="168" y2="74" stroke="#FFFFFF" stroke-width="1.2" stroke-linecap="round" />
+    <line x1="163" y1="65" x2="173" y2="71" stroke="#FFFFFF" stroke-width="1.2" stroke-linecap="round" />
+    <line x1="163" y1="71" x2="173" y2="65" stroke="#FFFFFF" stroke-width="1.2" stroke-linecap="round" />
+    <circle cx="168" cy="68" r="1.4" fill="#FF7A00" />
+
+    <!-- Rear Racing Wheel -->
+    <circle cx="246" cy="68" r="9.5" fill="#0A0D14" />
+    <circle cx="246" cy="68" r="8.2" fill="#1E2430" stroke="#4B5563" stroke-width="1" />
+    <circle cx="246" cy="68" r="5.8" fill="#374151" />
+    <path d="M 241 65 A 5.5 5.5 0 0 1 244 62 L 244 66 Z" fill="#E10600" />
+    <line x1="246" y1="62" x2="246" y2="74" stroke="#FFFFFF" stroke-width="1.2" stroke-linecap="round" />
+    <line x1="241" y1="65" x2="251" y2="71" stroke="#FFFFFF" stroke-width="1.2" stroke-linecap="round" />
+    <line x1="241" y1="71" x2="251" y2="65" stroke="#FFFFFF" stroke-width="1.2" stroke-linecap="round" />
+    <circle cx="246" cy="68" r="1.4" fill="#FF7A00" />
+  </g>
+
+  <!-- SEAMLESS TRANSITION 2: HIGH-SPEED AERO WAKE FROM CAR INTO FLAME "X" -->
+  <g class="grdx-aero-wake-flow">
+    <path d="M 271 27 C 282 27, 294 25, 306 24" stroke="url(#aero-wake-top)" stroke-width="2.2" stroke-linecap="round" />
+    <path d="M 268 61 C 280 60, 294 56, 314 49" stroke="url(#aero-wake-mid)" stroke-width="2.4" stroke-linecap="round" />
+    <path d="M 274 68 L 294 68" stroke="#FF7A00" stroke-width="2.2" stroke-linecap="round" opacity="0.95" />
+  </g>
+
+  <!-- ZONE 3: CHECKERED-FLAME "X" -->
+  <g class="grdx-wordmark-flame-x" filter="url(#flame-glow)">
+    <!-- Diagonal Stroke 1: Top-Left to Bottom-Right (\) -->
+    <path d="M 306 18 L 324 18 L 358 72 L 340 72 Z" fill="url(#fire-checker)" />
+    <path d="M 306 18 L 324 18 L 358 72 L 340 72 Z" fill="none" stroke="url(#volcanic-grad)" stroke-width="1.8" />
+
+    <!-- Diagonal Stroke 2: Bottom-Left to Top-Right Unified Flame Silhouette (/) -->
+    <path
+      d="
+        M 293 72
+        L 311 72
+        L 333 46
+        C 341 34 350 21 361 7
+        C 359 14 356 20 353 25
+        C 350 20 348 14 346 9
+        C 342 16 337 25 330 36
+        L 316 54
+        Z
+      "
+      fill="url(#fire-checker)"
+    />
+    <path
+      d="
+        M 293 72
+        L 311 72
+        L 333 46
+        C 341 34 350 21 361 7
+        C 359 14 356 20 353 25
+        C 350 20 348 14 346 9
+        C 342 16 337 25 330 36
+        L 316 54
+        Z
+      "
+      fill="none"
+      stroke="url(#volcanic-grad)"
+      stroke-width="1.8"
+    />
+
+    <!-- Inner Flame Tongue -->
+    <path d="M 333 42 C 339 33 346 24 354 15 C 352 19 350 23 347 27 C 343 33 338 38 333 42 Z" fill="url(#flame-yo)" opacity="0.9" />
+
+    <!-- Center Hot Glow -->
+    <ellipse cx="326" cy="47" rx="10" ry="9" fill="#FFFFFF" opacity="0.95" filter="url(#flame-glow)" />
+  </g>
+
+  <!-- Micro Speed Elements: Trailing Embers & Sparks -->
+  <g class="grdx-trailing-speed-embers">
+    <line x1="361" y1="12" x2="374" y2="14" stroke="#FFCC00" stroke-width="1.8" stroke-linecap="round" opacity="0.95" />
+    <line x1="363" y1="19" x2="376" y2="21" stroke="#FF8800" stroke-width="1.4" stroke-linecap="round" opacity="0.85" />
+    <polygon points="372,9 375,11 373,13 370,11" fill="#FFCC00" opacity="0.9" />
+    <circle cx="368" cy="7" r="1.4" fill="#FFE066" opacity="0.85" />
+    <line x1="359" y1="70" x2="374" y2="68" stroke="#FFCC00" stroke-width="1.8" stroke-linecap="round" opacity="0.95" />
+    <line x1="361" y1="63" x2="375" y2="61" stroke="#FF8800" stroke-width="1.4" stroke-linecap="round" opacity="0.85" />
+    <polygon points="372,69 375,67 374,70 371,71" fill="#FFCC00" opacity="0.9" />
+    <circle cx="367" cy="74" r="1.4" fill="#FFE066" opacity="0.85" />
+  </g>
+</svg>

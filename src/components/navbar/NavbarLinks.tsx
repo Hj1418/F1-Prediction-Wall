@@ -11,7 +11,51 @@ interface NavItem {
   isMegaMenu?: boolean;
 }
 
-const NAV_ITEMS: NavItem[] = [
+export interface CompeteSubItem {
+  label: string;
+  path: string;
+  icon: React.ComponentType<{ size?: number | string; className?: string }>;
+  title: string;
+  description: string;
+  pillText: string;
+  colorType: 'flame' | 'gold' | 'cyan';
+  matchPrefixes: string[];
+}
+
+export const COMPETE_ITEMS: CompeteSubItem[] = [
+  {
+    label: 'PREDICTIONS',
+    path: '/predictions',
+    icon: CircleDot,
+    title: 'PREDICTIONS',
+    description: 'Predict podiums, poles & safety cars to earn GP points.',
+    pillText: 'PREDICT & SCORE',
+    colorType: 'flame',
+    matchPrefixes: ['/predictions', '/predict'],
+  },
+  {
+    label: 'LEADERBOARD',
+    path: '/leaderboard',
+    icon: Trophy,
+    title: 'LEADERBOARD',
+    description: 'Global community standings, user tiers & season ranks.',
+    pillText: 'STANDINGS',
+    colorType: 'gold',
+    matchPrefixes: ['/leaderboard'],
+  },
+  {
+    label: 'RACING TAG',
+    path: '/quiz',
+    icon: Brain,
+    title: 'RACING TAG & QUIZ',
+    description: 'Test motorsport IQ across 120 verified regulation questions.',
+    pillText: 'QUIZ',
+    colorType: 'cyan',
+    matchPrefixes: ['/quiz'],
+  },
+];
+
+const PRIMARY_NAV_ITEMS: NavItem[] = [
   { label: 'HOME', path: '/', icon: Home },
   {
     label: 'EXPLORE',
@@ -26,18 +70,19 @@ const NAV_ITEMS: NavItem[] = [
     icon: Calendar,
     matchPrefixes: ['/calendar', '/schedule', '/races', '/weekends'],
   },
-  { label: 'RACING TAG', path: '/quiz', icon: Brain, matchPrefixes: ['/quiz'] },
-  { label: 'PREDICTIONS', path: '/predictions', icon: CircleDot, matchPrefixes: ['/predictions', '/predict'] },
-  { label: 'LEADERBOARD', path: '/leaderboard', icon: Trophy, matchPrefixes: ['/leaderboard'] },
 ];
 
 export const NavbarLinks: React.FC = () => {
   const location = useLocation();
   const [isExploreOpen, setIsExploreOpen] = useState(false);
-  const closeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [isCompeteOpen, setIsCompeteOpen] = useState(false);
+  const exploreCloseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const competeCloseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const exploreTriggerRef = useRef<HTMLAnchorElement | null>(null);
+  const competeTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const competeWrapperRef = useRef<HTMLDivElement | null>(null);
 
-  const isItemActive = (item: NavItem): boolean => {
+  const isPrimaryActive = (item: NavItem): boolean => {
     if (item.path === '/') {
       return location.pathname === '/';
     }
@@ -47,49 +92,98 @@ export const NavbarLinks: React.FC = () => {
     return location.pathname.startsWith(item.path);
   };
 
+  const isCompeteActive = COMPETE_ITEMS.some(item =>
+    item.matchPrefixes.some(prefix => location.pathname.startsWith(prefix))
+  );
+
+  // Explore hover handlers
   const handleMouseEnterExplore = useCallback(() => {
-    if (closeTimeoutRef.current) {
-      clearTimeout(closeTimeoutRef.current);
-      closeTimeoutRef.current = null;
+    if (exploreCloseTimeoutRef.current) {
+      clearTimeout(exploreCloseTimeoutRef.current);
+      exploreCloseTimeoutRef.current = null;
     }
+    setIsCompeteOpen(false);
     setIsExploreOpen(true);
   }, []);
 
   const handleMouseLeaveExplore = useCallback(() => {
-    closeTimeoutRef.current = setTimeout(() => {
+    exploreCloseTimeoutRef.current = setTimeout(() => {
       setIsExploreOpen(false);
     }, 150);
   }, []);
 
   const handleCloseMegaMenu = useCallback(() => {
-    if (closeTimeoutRef.current) {
-      clearTimeout(closeTimeoutRef.current);
-      closeTimeoutRef.current = null;
+    if (exploreCloseTimeoutRef.current) {
+      clearTimeout(exploreCloseTimeoutRef.current);
+      exploreCloseTimeoutRef.current = null;
     }
     setIsExploreOpen(false);
+  }, []);
+
+  // Compete hover handlers
+  const handleMouseEnterCompete = useCallback(() => {
+    if (competeCloseTimeoutRef.current) {
+      clearTimeout(competeCloseTimeoutRef.current);
+      competeCloseTimeoutRef.current = null;
+    }
+    setIsExploreOpen(false);
+    setIsCompeteOpen(true);
+  }, []);
+
+  const handleMouseLeaveCompete = useCallback(() => {
+    competeCloseTimeoutRef.current = setTimeout(() => {
+      setIsCompeteOpen(false);
+    }, 150);
+  }, []);
+
+  const handleCloseCompete = useCallback(() => {
+    if (competeCloseTimeoutRef.current) {
+      clearTimeout(competeCloseTimeoutRef.current);
+      competeCloseTimeoutRef.current = null;
+    }
+    setIsCompeteOpen(false);
+  }, []);
+
+  // Close menus on outside click
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (competeWrapperRef.current && !competeWrapperRef.current.contains(e.target as Node)) {
+        setIsCompeteOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
   }, []);
 
   // Keyboard navigation & accessibility
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isExploreOpen) {
-        setIsExploreOpen(false);
-        exploreTriggerRef.current?.focus();
+      if (e.key === 'Escape') {
+        if (isExploreOpen) {
+          setIsExploreOpen(false);
+          exploreTriggerRef.current?.focus();
+        }
+        if (isCompeteOpen) {
+          setIsCompeteOpen(false);
+          competeTriggerRef.current?.focus();
+        }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isExploreOpen]);
+  }, [isExploreOpen, isCompeteOpen]);
 
-  // Close on route change
+  // Close menus on route change
   useEffect(() => {
     setIsExploreOpen(false);
+    setIsCompeteOpen(false);
   }, [location.pathname]);
 
   return (
     <nav className="navbar-links" aria-label="Main Navigation">
-      {NAV_ITEMS.map(item => {
-        const active = isItemActive(item);
+      {/* Primary Links: HOME, EXPLORE (MegaMenu), CALENDAR */}
+      {PRIMARY_NAV_ITEMS.map(item => {
+        const active = isPrimaryActive(item);
         const Icon = item.icon;
 
         if (item.isMegaMenu) {
@@ -145,6 +239,85 @@ export const NavbarLinks: React.FC = () => {
           </Link>
         );
       })}
+
+      {/* Gamification Hub: COMPETE Dropdown */}
+      <div
+        ref={competeWrapperRef}
+        className="navbar-compete-wrapper"
+        onMouseEnter={handleMouseEnterCompete}
+        onMouseLeave={handleMouseLeaveCompete}
+      >
+        <button
+          ref={competeTriggerRef}
+          type="button"
+          className={`nav-link ${isCompeteActive ? 'nav-link--active' : ''} ${isCompeteOpen ? 'nav-link--menu-open' : ''}`}
+          aria-haspopup="true"
+          aria-expanded={isCompeteOpen}
+          aria-label="Compete menu"
+          onClick={() => setIsCompeteOpen(prev => !prev)}
+          onFocus={handleMouseEnterCompete}
+          onKeyDown={(e) => {
+            if (e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              setIsCompeteOpen(true);
+            }
+          }}
+        >
+          <Trophy size={14} className="nav-link__icon" />
+          <span>COMPETE</span>
+          <ChevronDown
+            size={12}
+            className={`nav-link__chevron ${isCompeteOpen ? 'nav-link__chevron--open' : ''}`}
+          />
+        </button>
+
+        {/* Dropdown Menu for Gamification Features */}
+        {isCompeteOpen && (
+          <div
+            className="compete-dropdown-menu"
+            role="menu"
+            aria-label="Compete and Gamification"
+            onMouseEnter={handleMouseEnterCompete}
+            onMouseLeave={handleMouseLeaveCompete}
+          >
+            <div className="compete-dropdown__header">
+              <span className="compete-dropdown__label">GAMIFICATION &amp; CHALLENGES</span>
+              <span className="compete-dropdown__badge">2026 SEASON</span>
+            </div>
+            <div className="compete-dropdown__items">
+              {COMPETE_ITEMS.map(item => {
+                const ItemIcon = item.icon;
+                const itemActive = item.matchPrefixes.some(prefix => location.pathname.startsWith(prefix));
+
+                return (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    className={`compete-dropdown__item ${itemActive ? 'compete-dropdown__item--active' : ''}`}
+                    role="menuitem"
+                    onClick={handleCloseCompete}
+                  >
+                    <div className={`compete-dropdown__icon-box compete-dropdown__icon-box--${item.colorType}`}>
+                      <ItemIcon size={18} />
+                    </div>
+                    <div className="compete-dropdown__item-content">
+                      <div className="compete-dropdown__item-header">
+                        <span className="compete-dropdown__item-title">{item.title}</span>
+                        <span className={`compete-dropdown__item-pill compete-dropdown__item-pill--${item.colorType}`}>
+                          {item.pillText}
+                        </span>
+                      </div>
+                      <p className="compete-dropdown__item-desc">
+                        {item.description}
+                      </p>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
     </nav>
   );
 };

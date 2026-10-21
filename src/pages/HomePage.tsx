@@ -232,12 +232,12 @@ export const HomePage: React.FC = () => {
             <h1 className="home-hero-brand-title" aria-label="THE GRDX">
               <span className="home-hero-the">THE</span>{' '}
               <span className="home-hero-grid-accent grdx-hero-wordmark" title="GRDX">
-                <GrdxLogo variant="hero" />
+                <GrdxLogo showTagline={false} variant="hero" className="grdx-hero-logo h-20 md:h-28 lg:h-32 w-auto" />
                 <span className="sr-only">GRD X</span>
               </span>
             </h1>
 
-            <div className="home-hero-tagline" aria-label="Your motorsport starting point">
+            <div className="home-hero-tagline sr-only" aria-label="Your motorsport starting point">
               YOUR MOTORSPORT <span className="home-hero-tagline-accent">STARTING POINT</span>
             </div>
 

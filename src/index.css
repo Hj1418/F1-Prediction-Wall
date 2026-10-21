@@ -1306,8 +1306,19 @@ html, body, #root {
   z-index: 1;
 }
 
+/* Subtle Carbon-Fiber Weave Texture Overlay */
 .home-hero-section::before {
-  display: none;
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 0),
+    radial-gradient(rgba(0, 0, 0, 0.5) 1px, transparent 0);
+  background-size: 6px 6px;
+  background-position: 0 0, 3px 3px;
+  opacity: 0.35;
+  pointer-events: none;
+  z-index: 1;
 }
 
 /* Trackside Lighting Beam */
@@ -1394,21 +1405,54 @@ html, body, #root {
 
 /* Brand Wordmark Typography: GRDX */
 .home-hero-brand-title {
-  font-family: var(--font-display), 'Barlow Condensed', sans-serif;
-  font-size: clamp(4.6rem, 10.5vw, 7.8rem);
-  font-weight: 800;
-  line-height: 1;
-  text-transform: uppercase;
-  color: #ffffff;
-  margin: 0 0 clamp(1.2rem, 2.5vw, 1.85rem) 0;
+  margin: 0 0 clamp(1rem, 2vw, 1.4rem) 0;
   display: inline-flex;
-  align-items: baseline;
+  align-items: center;
   overflow: visible;
   animation: heroWordmarkEntrance 0.75s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .home-hero-the {
   display: none;
+}
+
+/* GrdxLogo sizing utility classes */
+.h-8 {
+  height: 32px;
+}
+
+.h-10 {
+  height: 40px;
+}
+
+.h-16 {
+  height: 64px;
+}
+
+.h-20 {
+  height: 80px;
+}
+
+.w-auto {
+  width: auto;
+}
+
+@media (min-width: 768px) {
+  .md\:h-20 {
+    height: 80px;
+  }
+  .md\:h-24 {
+    height: 96px;
+  }
+  .md\:h-28 {
+    height: 112px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .lg\:h-32 {
+    height: 128px;
+  }
 }
 
 /* Screen-reader accessible utility */
@@ -1432,6 +1476,21 @@ html, body, #root {
   position: relative;
   line-height: 1;
   overflow: visible;
+}
+
+/* Hero section GrdxLogo blending seamlessly with background and enhanced prominence */
+.grdx-hero-logo {
+  mix-blend-mode: screen;
+  display: block;
+  height: clamp(80px, 9.5vw, 115px);
+  width: auto;
+  filter: drop-shadow(0 0 28px rgba(235, 87, 34, 0.4));
+  transition: filter 0.3s ease, transform 0.3s ease;
+}
+
+.home-hero-brand-title:hover .grdx-hero-logo {
+  filter: drop-shadow(0 0 42px rgba(235, 87, 34, 0.6));
+  transform: scale(1.02);
 }
 
 .grdx-wordmark-grd {
