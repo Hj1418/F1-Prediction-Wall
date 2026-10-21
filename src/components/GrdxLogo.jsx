@@ -1,4 +1,5 @@
 import React from 'react';
+import grdxLogoAsset from '../assets/grdx-logo.svg';
 
 export default function GrdxLogo({
   showTagline = false,
@@ -23,6 +24,8 @@ export default function GrdxLogo({
     ...style,
   };
 
+  const logoHref = grdxLogoAsset || `${(import.meta.env.BASE_URL || './').replace(/\/$/, '')}/grdx-logo.svg`;
+
   return (
     <svg 
       viewBox={computedViewBox} 
@@ -36,8 +39,8 @@ export default function GrdxLogo({
       {...props}
     >
       <image
-        href="/Gemini_Generated_Image_9w9vec9w9vec9w9v.svg"
-        xlinkHref="/Gemini_Generated_Image_9w9vec9w9vec9w9v.svg"
+        href={logoHref}
+        xlinkHref={logoHref}
         x="0"
         y="0"
         width="2838"
@@ -48,3 +51,4 @@ export default function GrdxLogo({
 }
 
 export { GrdxLogo };
+
