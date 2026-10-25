@@ -9,21 +9,27 @@ import {
   QuizCategoryResult,
   UserQuizAchievement,
   QuizPerformanceSummary,
+  QuizDifficultyLevel,
 } from '../../types/quiz';
 import {
   MOTORSPORT_QUIZ_CATEGORIES,
+  DEFAULT_QUIZ_QUESTION_COUNT,
   resolveCategoryId,
   getQuizCategory,
   allocateQuestionsPerCategory,
   calculateOverallPercentage,
   calculateCategoryPercentage,
   calculateFanIdentityTier,
+  normalizeQuestionDifficulty,
+  getDifficultyConfig,
+  isQuestionPermittedForDifficulty,
 } from './quizRegistry';
 import { VERIFIED_QUESTION_BANK, getApprovedQuestions } from './questionBank';
 import {
   evaluateQuizAchievements,
   calculateQuizPerformanceSummary,
 } from './quizAchievementRegistry';
+import { notificationService } from '../notificationService';
 
 const STORAGE_ATTEMPTS_KEY = 'thegrid_quiz_attempts_v1';
 const STORAGE_ACHIEVEMENTS_KEY = 'gridx_quiz_achievements_v1';
@@ -53,6 +59,8 @@ export function sanitizeQuestionForClient(question: QuizQuestion): PublicQuizQue
     topic: question.topic,
     contentVersion: question.contentVersion,
     context: question.context,
+    era: question.era,
+    season: question.season,
   };
 }
 
@@ -133,10 +141,14 @@ export const quizService = {
   isLive: isLiveBackend,
 
   /**
-   * Fetches the category registry with approved question counts
+   * Fetches the category registry with approved question counts, optionally filtered by difficulty
    */
-  async getCategories() {
-    const approved = getApprovedQuestions();
+  async getCategories(difficultyLevel?: QuizDifficultyLevel | string) {
+    const rawApproved = getApprovedQuestions();
+    const approved = difficultyLevel
+      ? rawApproved.filter(q => isQuestionPermittedForDifficulty(q.difficulty, difficultyLevel))
+      : rawApproved;
+
     const countMap: Record<string, number> = {};
     for (const q of approved) {
       countMap[q.categoryId] = (countMap[q.categoryId] || 0) + 1;
@@ -149,13 +161,18 @@ export const quizService = {
   },
 
   /**
-   * Starts a new quiz attempt.
-   * Allocates up to 15 questions balanced across selected categories.
-   * Securely strips answer keys and persists attempt in 'in_progress' status.
+   * Starts a new standard 20-question quiz attempt.
+   * Enforces selected difficulty ceiling:
+   * - Rookie: Rookie questions only
+   * - Apex: Rookie and Apex questions
+   * - Race Analyst: Rookie, Apex, and Race Analyst questions
+   * Allocates 20 unique questions balanced across selected categories.
+   * If insufficient eligible questions exist, raises an explicit error.
    */
   async startQuizAttempt(params: {
     userId: string;
     categoryIds: string[];
+    difficultyLevel?: QuizDifficultyLevel | string;
   }): Promise<QuizStartResponse> {
     const userId = (params.userId || '').trim();
     if (!userId || userId === 'guest_user') {
@@ -175,6 +192,9 @@ export const quizService = {
       throw new Error('No valid motorsport categories selected.');
     }
 
+    const resolvedDifficulty: QuizDifficultyLevel = normalizeQuestionDifficulty(params.difficultyLevel || 'apex');
+    const diffConfig = getDifficultyConfig(resolvedDifficulty);
+
     // Try live backend if available
     if (isLiveBackend) {
       try {
@@ -183,7 +203,7 @@ export const quizService = {
         const res = await fetch(`${API_BASE_URL}?action=startQuizAttempt`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId, categoryIds: resolvedCategories }),
+          body: JSON.stringify({ userId, categoryIds: resolvedCategories, difficultyLevel: resolvedDifficulty }),
           signal: controller.signal,
         });
         clearTimeout(timer);
@@ -197,7 +217,11 @@ export const quizService = {
     }
 
     // Authoritative Local Engine
-    const approvedPool = getApprovedQuestions();
+    // Filter questions by difficulty ceiling: questions must not exceed selected difficulty
+    const approvedPool = getApprovedQuestions().filter(q =>
+      isQuestionPermittedForDifficulty(q.difficulty, resolvedDifficulty)
+    );
+
     const availableByCat: Record<string, number> = {};
     const poolByCat: Record<string, QuizQuestion[]> = {};
 
@@ -206,7 +230,28 @@ export const quizService = {
       availableByCat[catId] = poolByCat[catId].length;
     }
 
-    const allocation = allocateQuestionsPerCategory(resolvedCategories, 15, availableByCat);
+    const totalAvailable = Object.values(availableByCat).reduce((a, b) => a + b, 0);
+
+    // Safeguard: do not silently duplicate or downgrade difficulty if inventory is insufficient
+    if (totalAvailable < DEFAULT_QUIZ_QUESTION_COUNT) {
+      throw new Error(
+        `Insufficient eligible questions available (${totalAvailable} available, ${DEFAULT_QUIZ_QUESTION_COUNT} required) for the selected categories and difficulty level (${diffConfig.label}). Please select additional categories or choose a higher difficulty ceiling.`
+      );
+    }
+
+    const allocation = allocateQuestionsPerCategory(
+      resolvedCategories,
+      DEFAULT_QUIZ_QUESTION_COUNT,
+      availableByCat
+    );
+
+    const totalAllocated = Object.values(allocation).reduce((a, b) => a + b, 0);
+    if (totalAllocated < DEFAULT_QUIZ_QUESTION_COUNT) {
+      throw new Error(
+        `Insufficient eligible questions available (${totalAllocated} allocated, ${DEFAULT_QUIZ_QUESTION_COUNT} required) for the selected categories and difficulty level (${diffConfig.label}). Please select additional categories or choose a higher difficulty ceiling.`
+      );
+    }
+
     const selectedQuestions: QuizQuestion[] = [];
 
     // Avoid immediately repeating recent questions for this user
@@ -223,20 +268,49 @@ export const quizService = {
       if (quota <= 0) continue;
 
       const catPool = poolByCat[catId] || [];
-      const freshQuestions = catPool.filter(q => !recentQuestionIds.has(q.questionId));
-      const poolToDrawFrom = freshQuestions.length >= quota ? freshQuestions : catPool;
 
-      const shuffled = shuffleArray(poolToDrawFrom);
-      const chosen = shuffled.slice(0, quota);
+      // Sort category pool according to difficulty distribution policy:
+      // - Rookie: 100% Rookie
+      // - Apex: Prioritize Apex, filled with Rookie
+      // - Race Analyst: Prioritize Race Analyst, then Apex, then Rookie
+      const rookieQuestions = shuffleArray(catPool.filter(q => normalizeQuestionDifficulty(q.difficulty) === 'rookie'));
+      const apexQuestions = shuffleArray(catPool.filter(q => normalizeQuestionDifficulty(q.difficulty) === 'apex'));
+      const analystQuestions = shuffleArray(catPool.filter(q => normalizeQuestionDifficulty(q.difficulty) === 'race_analyst'));
+
+      let prioritizedPool: QuizQuestion[] = [];
+      if (resolvedDifficulty === 'race_analyst') {
+        prioritizedPool = [...analystQuestions, ...apexQuestions, ...rookieQuestions];
+      } else if (resolvedDifficulty === 'apex') {
+        prioritizedPool = [...apexQuestions, ...rookieQuestions];
+      } else {
+        prioritizedPool = rookieQuestions;
+      }
+
+      const freshQuestions = prioritizedPool.filter(q => !recentQuestionIds.has(q.questionId));
+      const poolToDrawFrom = freshQuestions.length >= quota ? freshQuestions : prioritizedPool;
+
+      const chosen = poolToDrawFrom.slice(0, quota);
       selectedQuestions.push(...chosen);
     }
 
-    if (selectedQuestions.length === 0) {
-      throw new Error('No approved questions available for the selected categories.');
+    // Verify uniqueness of question IDs
+    const seenIds = new Set<string>();
+    const uniqueSelected: QuizQuestion[] = [];
+    for (const q of selectedQuestions) {
+      if (!seenIds.has(q.questionId)) {
+        seenIds.add(q.questionId);
+        uniqueSelected.push(q);
+      }
     }
 
-    // Shuffle questions order for dynamic experience
-    const finalQuestions = shuffleArray(selectedQuestions);
+    if (uniqueSelected.length < DEFAULT_QUIZ_QUESTION_COUNT) {
+      throw new Error(
+        `Insufficient unique questions available (${uniqueSelected.length} unique, ${DEFAULT_QUIZ_QUESTION_COUNT} required).`
+      );
+    }
+
+    // Shuffle questions order for dynamic interactive experience
+    const finalQuestions = shuffleArray(uniqueSelected.slice(0, DEFAULT_QUIZ_QUESTION_COUNT));
 
     const attemptId = `attempt_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
     const startedAt = new Date().toISOString();
@@ -251,6 +325,7 @@ export const quizService = {
       attemptId,
       userId,
       selectedCategories: resolvedCategories,
+      difficultyLevel: resolvedDifficulty,
       questionIds,
       questionContentVersions: questionVersions,
       submittedAnswers: {},
@@ -271,6 +346,7 @@ export const quizService = {
       attemptId,
       totalQuestions: finalQuestions.length,
       selectedCategories: resolvedCategories,
+      difficultyLevel: resolvedDifficulty,
       questions: publicQuestions,
       startedAt,
     };
@@ -410,6 +486,8 @@ export const quizService = {
         contentVersion: q.contentVersion,
         difficulty: q.difficulty,
         topic: q.topic,
+        era: q.era,
+        season: q.season,
       });
     }
 
@@ -453,10 +531,18 @@ export const quizService = {
     const evalRes = evaluateQuizAchievements(cleanUserId, allUserAttempts, existingEarnedAchs);
     saveLocalQuizAchievements(cleanUserId, evalRes.allAchievements);
 
+    // Notify newly unlocked quiz achievements idempotently with compact toasts
+    if (evalRes.newlyUnlocked && evalRes.newlyUnlocked.length > 0) {
+      for (const ach of evalRes.newlyUnlocked) {
+        notificationService.notifyQuizAchievementUnlocked(cleanUserId, ach);
+      }
+    }
+
     return {
       attemptId,
       userId: cleanUserId,
       selectedCategories: existing.selectedCategories,
+      difficultyLevel: existing.difficultyLevel,
       score: totalScore,
       totalQuestions,
       percentage: overallPercentage,
@@ -588,6 +674,8 @@ export const quizService = {
         contentVersion: q.contentVersion,
         difficulty: q.difficulty,
         topic: q.topic,
+        era: q.era,
+        season: q.season,
       });
     }
 
@@ -595,6 +683,7 @@ export const quizService = {
       attemptId: record.attemptId,
       userId: record.userId,
       selectedCategories: record.selectedCategories,
+      difficultyLevel: record.difficultyLevel,
       score: record.score,
       totalQuestions: record.totalQuestions,
       percentage: record.percentage,

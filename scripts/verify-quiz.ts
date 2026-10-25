@@ -28,8 +28,8 @@ async function runQuizVerificationSuite() {
   const validation = validateQuestionBank();
 
   assert(validation.isValid, 'Question bank passes full validation with 0 errors');
-  assert(validation.totalCount === 120, `Total questions must be exactly 120 (got: ${validation.totalCount})`);
-  assert(validation.approvedCount === 120, `All 120 questions must have approvalStatus "approved" (got: ${validation.approvedCount})`);
+  assert(validation.totalCount === 170, `Total questions must be exactly 170 (got: ${validation.totalCount})`);
+  assert(validation.approvedCount === 170, `All 170 questions must have approvalStatus "approved" (got: ${validation.approvedCount})`);
 
   const expectedCategories = [
     'formula-1',
@@ -44,7 +44,8 @@ async function runQuizVerificationSuite() {
 
   for (const catId of expectedCategories) {
     const count = validation.countByCategory[catId] || 0;
-    assert(count === 15, `Category "${catId}" has exactly 15 verified questions (got: ${count})`);
+    const expectedCount = catId === 'formula-1' ? 65 : 15;
+    assert(count === expectedCount, `Category "${catId}" has exactly ${expectedCount} verified questions (got: ${count})`);
   }
 
   // Check every question individually
@@ -55,7 +56,7 @@ async function runQuizVerificationSuite() {
     assert(q.explanation.length > 20, `Question ${q.questionId} has detailed factual explanation`);
     assert(q.sourceUrl.startsWith('http'), `Question ${q.questionId} has valid verification source URL`);
     assert(q.contentVersion >= 1, `Question ${q.questionId} has valid contentVersion`);
-    assert(['easy', 'medium', 'hard'].includes(q.difficulty), `Question ${q.questionId} has valid difficulty rating`);
+    assert(['easy', 'medium', 'hard', 'rookie', 'apex', 'race_analyst'].includes(q.difficulty), `Question ${q.questionId} has valid difficulty rating`);
   }
 
   // =========================================================================
@@ -79,33 +80,32 @@ async function runQuizVerificationSuite() {
   // =========================================================================
   console.log('\n📌 [SECTION 3] Balanced Question Allocation Algorithm:');
 
-  // Single category: up to 15 questions
-  const alloc1 = allocateQuestionsPerCategory(['formula-1'], 15);
-  assert(alloc1['formula-1'] === 15, `1 selected category: allocated 15 questions (got: ${alloc1['formula-1']})`);
+  // Single category: up to 20 questions
+  const alloc1 = allocateQuestionsPerCategory(['formula-1'], 20);
+  assert(alloc1['formula-1'] === 20, `1 selected category: allocated 20 questions (got: ${alloc1['formula-1']})`);
 
-  // Two categories: 8 and 7 (balanced)
-  const alloc2 = allocateQuestionsPerCategory(['formula-1', 'motogp'], 15);
+  // Two categories: 10 and 10 (balanced)
+  const alloc2 = allocateQuestionsPerCategory(['formula-1', 'motogp'], 20);
   const sum2 = (alloc2['formula-1'] || 0) + (alloc2['motogp'] || 0);
-  assert(sum2 === 15, `2 categories: total questions capped at 15 (got: ${sum2})`);
-  assert(Math.abs((alloc2['formula-1'] || 0) - (alloc2['motogp'] || 0)) <= 1, '2 categories: distributed as evenly as possible');
+  assert(sum2 === 20, `2 categories: total questions capped at 20 (got: ${sum2})`);
+  assert(alloc2['formula-1'] === 10 && alloc2['motogp'] === 10, '2 categories: exactly 10 questions each');
 
-  // Three categories: 5, 5, 5
-  const alloc3 = allocateQuestionsPerCategory(['formula-1', 'formula-2', 'motogp'], 15);
+  // Three categories: 7, 7, 6
+  const alloc3 = allocateQuestionsPerCategory(['formula-1', 'formula-2', 'motogp'], 20);
   const sum3 = Object.values(alloc3).reduce((a, b) => a + b, 0);
-  assert(sum3 === 15, `3 categories: total questions capped at 15 (got: ${sum3})`);
-  assert(alloc3['formula-1'] === 5 && alloc3['formula-2'] === 5 && alloc3['motogp'] === 5, '3 categories: exactly 5 questions each');
+  assert(sum3 === 20, `3 categories: total questions capped at 20 (got: ${sum3})`);
+  assert(Math.max(...Object.values(alloc3)) - Math.min(...Object.values(alloc3)) <= 1, '3 categories: balanced distribution (7, 7, 6)');
 
-  // Four categories: 4, 4, 4, 3 (balanced)
-  const alloc4 = allocateQuestionsPerCategory(['formula-1', 'motogp', 'endurance-racing', 'gt-racing'], 15);
+  // Four categories: 5, 5, 5, 5 (exact 5 per category)
+  const alloc4 = allocateQuestionsPerCategory(['formula-1', 'motogp', 'endurance-racing', 'gt-racing'], 20);
   const sum4 = Object.values(alloc4).reduce((a, b) => a + b, 0);
-  assert(sum4 === 15, `4 categories: total questions capped at 15 (got: ${sum4})`);
-  const values4 = Object.values(alloc4);
-  assert(Math.max(...values4) - Math.min(...values4) <= 1, '4 categories: balanced distribution');
+  assert(sum4 === 20, `4 categories: total questions capped at 20 (got: ${sum4})`);
+  assert(Object.values(alloc4).every(v => v === 5), '4 categories: exactly 5 questions each');
 
-  // All 8 categories: 2, 2, 2, 2, 2, 2, 2, 1 = 15
-  const alloc8 = allocateQuestionsPerCategory(expectedCategories, 15);
+  // All 8 categories: 20 total balanced
+  const alloc8 = allocateQuestionsPerCategory(expectedCategories, 20);
   const sum8 = Object.values(alloc8).reduce((a, b) => a + b, 0);
-  assert(sum8 === 15, `8 categories: total questions capped at 15 (got: ${sum8})`);
+  assert(sum8 === 20, `8 categories: total questions capped at 20 (got: ${sum8})`);
   const values8 = Object.values(alloc8);
   assert(Math.max(...values8) - Math.min(...values8) <= 1, '8 categories: balanced distribution');
 
@@ -113,13 +113,13 @@ async function runQuizVerificationSuite() {
   assert(alloc2['formula-3'] === undefined, 'No questions allocated from unselected categories');
 
   // Constrained pool handling (e.g. only 2 available in one category)
-  const allocConstrained = allocateQuestionsPerCategory(['formula-1', 'motogp'], 15, {
+  const allocConstrained = allocateQuestionsPerCategory(['formula-1', 'motogp'], 20, {
     'formula-1': 2,
-    'motogp': 15,
+    'motogp': 20,
   });
   assert(allocConstrained['formula-1'] === 2, 'Constrained category allocates only available count (2)');
-  assert(allocConstrained['motogp'] === 13, 'Surplus allocation fills remaining capacity up to 15');
-  assert(allocConstrained['formula-1'] + allocConstrained['motogp'] === 15, 'Constrained allocation respects 15 question total');
+  assert(allocConstrained['motogp'] === 18, 'Surplus allocation fills remaining capacity up to 20');
+  assert(allocConstrained['formula-1'] + allocConstrained['motogp'] === 20, 'Constrained allocation respects 20 question total');
 
   // =========================================================================
   // 4. SCORING & FAN IDENTITY TIER BOUNDARIES
@@ -185,8 +185,8 @@ async function runQuizVerificationSuite() {
   });
 
   assert(Boolean(startAttemptRes.attemptId), 'Quiz attempt created with unique ID');
-  assert(startAttemptRes.totalQuestions === 15, `Attempt allocated exactly 15 questions (got: ${startAttemptRes.totalQuestions})`);
-  assert(startAttemptRes.questions.length === 15, 'Attempt returned 15 client-safe questions');
+  assert(startAttemptRes.totalQuestions === 20, `Attempt allocated exactly 20 questions (got: ${startAttemptRes.totalQuestions})`);
+  assert(startAttemptRes.questions.length === 20, 'Attempt returned 20 client-safe questions');
 
   for (const q of startAttemptRes.questions) {
     assert((q as any).correctOptionId === undefined, 'No question returned by startQuizAttempt exposes correctOptionId');
@@ -223,11 +223,11 @@ async function runQuizVerificationSuite() {
   });
 
   assert(scoredResult.attemptId === startAttemptRes.attemptId, 'Scored result matches attempt ID');
-  assert(scoredResult.score === 10, `Score is accurately 10 / 15 (got: ${scoredResult.score})`);
-  assert(scoredResult.totalQuestions === 15, 'Total questions is 15');
-  assert(scoredResult.percentage === 67, `Percentage is Math.round(10/15*100) = 67% (got: ${scoredResult.percentage})`);
-  assert(scoredResult.fanIdentityTier === 'The Paddock Insider', `Fan identity tier is "The Paddock Insider" for 67% (got: ${scoredResult.fanIdentityTier})`);
-  assert(scoredResult.questions.length === 15, 'Result contains 15 reviewed questions');
+  assert(scoredResult.score === 10, `Score is accurately 10 / 20 (got: ${scoredResult.score})`);
+  assert(scoredResult.totalQuestions === 20, 'Total questions is 20');
+  assert(scoredResult.percentage === 50, `Percentage is Math.round(10/20*100) = 50% (got: ${scoredResult.percentage})`);
+  assert(scoredResult.fanIdentityTier === 'The Enthusiast', `Fan identity tier is "The Enthusiast" for 50% (got: ${scoredResult.fanIdentityTier})`);
+  assert(scoredResult.questions.length === 20, 'Result contains 20 reviewed questions');
 
   // Verified review details exist in result
   const firstReviewed = scoredResult.questions[0];
@@ -259,7 +259,7 @@ async function runQuizVerificationSuite() {
   const foundInHistory = history.find(h => h.attemptId === startAttemptRes.attemptId);
   assert(Boolean(foundInHistory), 'Completed attempt exists in history');
   assert(foundInHistory?.score === 10, 'History record contains accurate score');
-  assert(foundInHistory?.fanIdentityTier === 'The Paddock Insider', 'History record contains accurate fan identity tier');
+  assert(foundInHistory?.fanIdentityTier === 'The Enthusiast', 'History record contains accurate fan identity tier');
 
   // Retake preserves history: starting a second attempt creates a separate attempt
   const secondAttempt = await quizService.startQuizAttempt({

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { QuizResultPayload } from '../../types/quiz';
-import { getTierDetails, getQuizCategory } from '../../services/quiz/quizRegistry';
+import { getTierDetails, getQuizCategory, getDifficultyConfig } from '../../services/quiz/quizRegistry';
 import { shareQuizResult } from '../../services/quiz/quizSharing';
 import {
   Trophy,
@@ -95,23 +95,53 @@ export const QuizResultsView: React.FC<QuizResultsViewProps> = ({
         <div style={{ position: 'relative', zIndex: 1 }}>
           <div
             style={{
-              display: 'inline-flex',
+              display: 'flex',
               alignItems: 'center',
-              gap: '0.4rem',
-              padding: '0.35rem 0.85rem',
-              borderRadius: '999px',
-              backgroundColor: `${tier.color}20`,
-              border: `1px solid ${tier.color}55`,
-              color: tier.color,
-              fontFamily: 'var(--font-mono)',
-              fontSize: '0.78rem',
-              fontWeight: 800,
-              letterSpacing: '0.08em',
+              justifyContent: 'center',
+              flexWrap: 'wrap',
+              gap: '0.6rem',
               marginBottom: '1rem',
             }}
           >
-            <Sparkles size={14} />
-            YOUR RACING TAG
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.4rem',
+                padding: '0.35rem 0.85rem',
+                borderRadius: '999px',
+                backgroundColor: `${tier.color}20`,
+                border: `1px solid ${tier.color}55`,
+                color: tier.color,
+                fontFamily: 'var(--font-mono)',
+                fontSize: '0.78rem',
+                fontWeight: 800,
+                letterSpacing: '0.08em',
+              }}
+            >
+              <Sparkles size={14} />
+              YOUR RACING TAG
+            </div>
+            {result.difficultyLevel && (
+              <div
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.4rem',
+                  padding: '0.35rem 0.85rem',
+                  borderRadius: '999px',
+                  backgroundColor: 'rgba(255, 255, 255, 0.06)',
+                  border: '1px solid var(--border-medium)',
+                  color: 'var(--text-secondary)',
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '0.76rem',
+                  fontWeight: 700,
+                  letterSpacing: '0.06em',
+                }}
+              >
+                <span>LEVEL: {getDifficultyConfig(result.difficultyLevel).title.toUpperCase()}</span>
+              </div>
+            )}
           </div>
 
           <h1
@@ -522,6 +552,22 @@ export const QuizResultsView: React.FC<QuizResultsViewProps> = ({
                     >
                       {meta?.badge || q.categoryId}
                     </span>
+                    {q.era && (
+                      <span
+                        style={{
+                          padding: '0.15rem 0.45rem',
+                          fontSize: '0.68rem',
+                          fontFamily: 'var(--font-mono)',
+                          fontWeight: 700,
+                          borderRadius: '3px',
+                          backgroundColor: 'rgba(56, 189, 248, 0.1)',
+                          color: 'var(--telemetry-cyan)',
+                          border: '1px solid rgba(56, 189, 248, 0.25)',
+                        }}
+                      >
+                        {q.era}
+                      </span>
+                    )}
                     <span style={{ fontSize: '0.75rem', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
                       {q.topic} {q.context ? `• ${q.context}` : ''}
                     </span>

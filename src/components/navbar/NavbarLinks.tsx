@@ -11,7 +11,7 @@ interface NavItem {
   isMegaMenu?: boolean;
 }
 
-export interface CompeteSubItem {
+interface CompeteSubItem {
   label: string;
   path: string;
   icon: React.ComponentType<{ size?: number | string; className?: string }>;
@@ -22,7 +22,7 @@ export interface CompeteSubItem {
   matchPrefixes: string[];
 }
 
-export const COMPETE_ITEMS: CompeteSubItem[] = [
+const COMPETE_ITEMS: CompeteSubItem[] = [
   {
     label: 'PREDICTIONS',
     path: '/predictions',
@@ -96,6 +96,8 @@ export const NavbarLinks: React.FC = () => {
     item.matchPrefixes.some(prefix => location.pathname.startsWith(prefix))
   );
 
+  const competeOpenTimeRef = useRef<number>(0);
+
   // Explore hover handlers
   const handleMouseEnterExplore = useCallback(() => {
     if (exploreCloseTimeoutRef.current) {
@@ -109,7 +111,7 @@ export const NavbarLinks: React.FC = () => {
   const handleMouseLeaveExplore = useCallback(() => {
     exploreCloseTimeoutRef.current = setTimeout(() => {
       setIsExploreOpen(false);
-    }, 150);
+    }, 200);
   }, []);
 
   const handleCloseMegaMenu = useCallback(() => {
@@ -120,20 +122,25 @@ export const NavbarLinks: React.FC = () => {
     setIsExploreOpen(false);
   }, []);
 
-  // Compete hover handlers
+  // Compete hover handlers - robust continuous hover area with 250ms grace delay
   const handleMouseEnterCompete = useCallback(() => {
     if (competeCloseTimeoutRef.current) {
       clearTimeout(competeCloseTimeoutRef.current);
       competeCloseTimeoutRef.current = null;
     }
+    competeOpenTimeRef.current = Date.now();
     setIsExploreOpen(false);
     setIsCompeteOpen(true);
   }, []);
 
   const handleMouseLeaveCompete = useCallback(() => {
+    if (competeCloseTimeoutRef.current) {
+      clearTimeout(competeCloseTimeoutRef.current);
+    }
     competeCloseTimeoutRef.current = setTimeout(() => {
       setIsCompeteOpen(false);
-    }, 150);
+      competeCloseTimeoutRef.current = null;
+    }, 250);
   }, []);
 
   const handleCloseCompete = useCallback(() => {
@@ -143,6 +150,20 @@ export const NavbarLinks: React.FC = () => {
     }
     setIsCompeteOpen(false);
   }, []);
+
+  // Handle click on the Compete button: toggle menu, but prevent accidental closing if just opened via hover
+  const handleCompeteTriggerClick = useCallback(() => {
+    const timeSinceOpen = Date.now() - competeOpenTimeRef.current;
+    if (isCompeteOpen && timeSinceOpen < 350) {
+      return;
+    }
+    setIsCompeteOpen(prev => {
+      if (!prev) {
+        competeOpenTimeRef.current = Date.now();
+      }
+      return !prev;
+    });
+  }, [isCompeteOpen]);
 
   // Close menus on outside click
   useEffect(() => {
@@ -254,7 +275,7 @@ export const NavbarLinks: React.FC = () => {
           aria-haspopup="true"
           aria-expanded={isCompeteOpen}
           aria-label="Compete menu"
-          onClick={() => setIsCompeteOpen(prev => !prev)}
+          onClick={handleCompeteTriggerClick}
           onFocus={handleMouseEnterCompete}
           onKeyDown={(e) => {
             if (e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ') {

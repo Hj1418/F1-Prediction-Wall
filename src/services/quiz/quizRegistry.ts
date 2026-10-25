@@ -1,4 +1,83 @@
-import { QuizCategory, FanIdentityTier } from '../../types/quiz';
+import { QuizCategory, FanIdentityTier, QuizDifficultyLevel, QuestionDifficulty } from '../../types/quiz';
+
+export const DEFAULT_QUIZ_QUESTION_COUNT = 20;
+
+/**
+ * Three Distinct Difficulty Levels:
+ * 1. Rookie: Foundational motorsport knowledge
+ * 2. Apex: Intermediate comprehension (historical results, technical rules, strategy)
+ * 3. Race Analyst: Expert telemetry, deep historical records, and tactical analysis
+ */
+export interface DifficultyLevelConfig {
+  id: QuizDifficultyLevel;
+  label: string;
+  title: string;
+  badge: string;
+  subtitle: string;
+  description: string;
+  ceilingDescription: string;
+  permittedDifficulties: QuizDifficultyLevel[];
+}
+
+export const QUIZ_DIFFICULTY_LEVELS: DifficultyLevelConfig[] = [
+  {
+    id: 'rookie',
+    label: 'Level 1: Rookie',
+    title: 'Rookie',
+    badge: 'LVL 1',
+    subtitle: 'Foundational Knowledge',
+    description: 'Iconic drivers, marquee constructors, championship landmarks, and foundational sporting regulations.',
+    ceilingDescription: 'Questions strictly limited to Rookie difficulty.',
+    permittedDifficulties: ['rookie'],
+  },
+  {
+    id: 'apex',
+    label: 'Level 2: Apex (Intermediate)',
+    title: 'Apex',
+    badge: 'LVL 2',
+    subtitle: 'Intermediate Acumen',
+    description: 'Historical race battles, technical developments, pit strategies, and modern-era milestones.',
+    ceilingDescription: 'Questions permitted up to Apex difficulty.',
+    permittedDifficulties: ['rookie', 'apex'],
+  },
+  {
+    id: 'race_analyst',
+    label: 'Level 3: Race Analyst (Expert)',
+    title: 'Race Analyst',
+    badge: 'LVL 3',
+    subtitle: 'Expert Telemetry',
+    description: 'Advanced historical statistics, regulation shifts, engineering trade-offs, and encyclopedic lore.',
+    ceilingDescription: 'Comprehensive pool spanning up to Race Analyst difficulty.',
+    permittedDifficulties: ['rookie', 'apex', 'race_analyst'],
+  },
+];
+
+export function normalizeQuestionDifficulty(raw: QuestionDifficulty | string | undefined | null): QuizDifficultyLevel {
+  const normalized = (raw || '').toString().toLowerCase().trim();
+  if (normalized === 'rookie' || normalized === 'easy' || normalized === 'level_1') return 'rookie';
+  if (normalized === 'apex' || normalized === 'medium' || normalized === 'intermediate' || normalized === 'level_2') return 'apex';
+  if (normalized === 'race_analyst' || normalized === 'hard' || normalized === 'expert' || normalized === 'level_3') return 'race_analyst';
+  return 'apex';
+}
+
+export function getDifficultyConfig(level: QuizDifficultyLevel | string): DifficultyLevelConfig {
+  const norm = normalizeQuestionDifficulty(level);
+  return QUIZ_DIFFICULTY_LEVELS.find(d => d.id === norm) || QUIZ_DIFFICULTY_LEVELS[1];
+}
+
+export function getPermittedDifficulties(selectedLevel: QuizDifficultyLevel | string): QuizDifficultyLevel[] {
+  const config = getDifficultyConfig(selectedLevel);
+  return config.permittedDifficulties;
+}
+
+export function isQuestionPermittedForDifficulty(
+  questionDifficulty: QuestionDifficulty | string,
+  selectedLevel: QuizDifficultyLevel | string
+): boolean {
+  const qNorm = normalizeQuestionDifficulty(questionDifficulty);
+  const permitted = getPermittedDifficulties(selectedLevel);
+  return permitted.includes(qNorm);
+}
 
 /**
  * The Grid — Centralized Motorsport Category Registry
@@ -239,14 +318,19 @@ export function getTierDetails(tier: FanIdentityTier): TierConfig {
 
 /**
  * Balanced Question Allocation Algorithm:
- * - Never exceeds maxTotal (default 15).
- * - Distributes questions as evenly as possible across selected categories.
- * - Respects available approved question count per category.
- * - If a category has fewer than its base quota, remaining quota is distributed to other selected categories.
+ * - Default standard quiz: 20 questions (DEFAULT_QUIZ_QUESTION_COUNT).
+ * - Distributes questions across selected categories according to the policy:
+ *   - 4 categories: 5 questions each (4 * 5 = 20).
+ *   - 1 category: 20 questions.
+ *   - 2 categories: 10 questions each (total 20).
+ *   - 3 categories: 7, 7, 6 questions (total 20).
+ *   - Respects available eligible question count per category (within difficulty ceiling).
+ *   - If a category has fewer than its base quota, remaining quota is distributed to other selected categories.
+ *   - Never exceeds maxTotal.
  */
 export function allocateQuestionsPerCategory(
   selectedCategoryIds: string[],
-  maxTotal: number = 15,
+  maxTotal: number = DEFAULT_QUIZ_QUESTION_COUNT,
   availablePerCategory: Record<string, number> = {}
 ): Record<string, number> {
   const allocation: Record<string, number> = {};
@@ -268,12 +352,12 @@ export function allocateQuestionsPerCategory(
     allocation[catId] = 0;
   }
 
-  // Calculate available counts (defaulting to 15 if not specified)
+  // Calculate available counts (defaulting to maxTotal if not specified)
   const available: Record<string, number> = {};
   for (const catId of resolvedCategories) {
     available[catId] = typeof availablePerCategory[catId] === 'number'
       ? availablePerCategory[catId]
-      : 15;
+      : maxTotal;
   }
 
   let remainingSlots = maxTotal;

@@ -53,12 +53,12 @@ async function runTestSuite() {
   
   const validation = validateQuestionBank();
   assert(validation.isValid === true, `Question bank schema and metadata valid (valid: ${validation.isValid})`);
-  assert(validation.totalCount === 120, `Question bank contains exactly 120 questions (got: ${validation.totalCount})`);
-  assert(validation.approvedCount === 120, `All 120 questions are approved and verified (got: ${validation.approvedCount})`);
+  assert(validation.totalCount === 170, `Question bank contains exactly 170 questions (got: ${validation.totalCount})`);
+  assert(validation.approvedCount === 170, `All 170 questions are approved and verified (got: ${validation.approvedCount})`);
   assert(validation.errors.length === 0, `Zero validation errors encountered (got: ${validation.errors.length})`);
 
   const approvedQuestions = getApprovedQuestions();
-  assert(approvedQuestions.length === 120, `getApprovedQuestions() returns only approved items (got: ${approvedQuestions.length})`);
+  assert(approvedQuestions.length === 170, `getApprovedQuestions() returns only approved items (got: ${approvedQuestions.length})`);
 
   // Verify sources, content versions, and distinct options
   let allSourcesValid = true;
@@ -140,7 +140,7 @@ async function runTestSuite() {
   });
 
   assert(Boolean(attemptA.attemptId), `Attempt created with unique ID: ${attemptA.attemptId}`);
-  assert(attemptA.questions.length === 15, `Attempt allocated exactly 15 questions (got: ${attemptA.questions.length})`);
+  assert(attemptA.questions.length === 20, `Attempt allocated exactly 20 questions (got: ${attemptA.questions.length})`);
   assert(!('correctOptionId' in attemptA.questions[0]), 'Attempt questions do not leak correct answer keys');
 
   // Cross-user submission denial
@@ -197,7 +197,7 @@ async function runTestSuite() {
   assert(typeof submitResult1.score === 'number', `Scored result has numeric score: ${submitResult1.score}/${submitResult1.totalQuestions}`);
   assert(typeof submitResult1.percentage === 'number', `Scored result has percentage: ${submitResult1.percentage}%`);
   assert(Boolean(submitResult1.fanIdentityTier), `Scored result assigned fan identity: ${submitResult1.fanIdentityTier}`);
-  assert(submitResult1.questions.length === 15, 'Scored result includes all 15 questions with answers and explanations for review');
+  assert(submitResult1.questions.length === 20, 'Scored result includes all 20 questions with answers and explanations for review');
   assert(Boolean(submitResult1.questions[0].correctOptionId), 'Answer review exposes correct answer key post-submission');
   assert(Boolean(submitResult1.questions[0].explanation), 'Answer review exposes factual explanation post-submission');
 

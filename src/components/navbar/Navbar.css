@@ -484,9 +484,20 @@ header.grdx-header,
   height: 38px;
 }
 
+/* Invisible bridge extending down from trigger to guarantee continuous hover boundary */
+.navbar-compete-wrapper::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: -16px;
+  right: -16px;
+  height: 14px;
+  pointer-events: auto;
+}
+
 .compete-dropdown-menu {
   position: absolute;
-  top: calc(100% + 14px);
+  top: calc(100% + 8px);
   left: 50%;
   transform: translateX(-50%);
   width: 380px;
@@ -508,16 +519,17 @@ header.grdx-header,
 .compete-dropdown-menu::before {
   content: '';
   position: absolute;
-  top: -16px;
+  top: -12px;
   left: 0;
   right: 0;
-  height: 16px;
+  height: 12px;
+  pointer-events: auto;
 }
 
 @keyframes competeDropdownFade {
   from {
     opacity: 0;
-    transform: translateX(-50%) translateY(-6px);
+    transform: translateX(-50%) translateY(-4px);
   }
   to {
     opacity: 1;

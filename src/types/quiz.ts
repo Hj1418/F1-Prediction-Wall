@@ -21,7 +21,9 @@ export type QuizCategoryGroup =
   | 'Endurance Racing'
   | 'GT Racing';
 
-export type QuestionDifficulty = 'easy' | 'medium' | 'hard';
+export type QuizDifficultyLevel = 'rookie' | 'apex' | 'race_analyst';
+
+export type QuestionDifficulty = 'easy' | 'medium' | 'hard' | 'rookie' | 'apex' | 'race_analyst';
 
 export type QuestionApprovalStatus = 'draft' | 'in_review' | 'approved' | 'retired';
 
@@ -56,6 +58,8 @@ export interface QuizQuestion {
   sourceUrl: string;
   context?: string;
   approvalStatus: QuestionApprovalStatus;
+  era?: string;
+  season?: number | string;
 }
 
 /**
@@ -72,6 +76,8 @@ export interface PublicQuizQuestion {
   topic: string;
   contentVersion: number;
   context?: string;
+  era?: string;
+  season?: number | string;
 }
 
 export interface QuizCategoryResult {
@@ -97,12 +103,15 @@ export interface ScoredQuestionReview {
   contentVersion: number;
   difficulty: QuestionDifficulty;
   topic: string;
+  era?: string;
+  season?: number | string;
 }
 
 export interface QuizResultPayload {
   attemptId: string;
   userId: string;
   selectedCategories: string[];
+  difficultyLevel?: QuizDifficultyLevel;
   score: number;
   totalQuestions: number;
   percentage: number;
@@ -117,6 +126,7 @@ export interface QuizAttemptRecord {
   attemptId: string;
   userId: string;
   selectedCategories: string[];
+  difficultyLevel?: QuizDifficultyLevel;
   questionIds: string[];
   questionContentVersions: Record<string, number>;
   submittedAnswers: Record<string, string>;
@@ -134,6 +144,7 @@ export interface QuizStartResponse {
   attemptId: string;
   totalQuestions: number;
   selectedCategories: string[];
+  difficultyLevel?: QuizDifficultyLevel;
   questions: PublicQuizQuestion[];
   startedAt: string;
 }
@@ -176,7 +187,7 @@ export interface QuizPerformanceSummary {
   bestScorePercentage: number;
   bestScoreCorrect: number;
   bestScoreTotal: number;
-  highestTier: FanIdentityTier;
+  highestTier: FanIdentityTier | null;
   uniqueDisciplinesCount: number;
   totalQuestionsAnswered: number;
 }

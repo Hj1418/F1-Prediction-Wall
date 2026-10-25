@@ -191,7 +191,7 @@ export function calculateQuizPerformanceSummary(
       bestScorePercentage: 0,
       bestScoreCorrect: 0,
       bestScoreTotal: 0,
-      highestTier: 'The Rookie',
+      highestTier: null,
       uniqueDisciplinesCount: 0,
       totalQuestionsAnswered: 0,
     };

@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { quizService } from '../services/quiz/quizService';
 import {
   QuizCategory,
+  QuizDifficultyLevel,
   PublicQuizQuestion,
   QuizResultPayload,
   QuizAttemptRecord,
@@ -35,6 +36,7 @@ export const QuizPage: React.FC = () => {
 
   // State
   const [stage, setStage] = useState<QuizStage>('intro');
+  const [selectedDifficulty, setSelectedDifficulty] = useState<QuizDifficultyLevel>('apex');
   const [categories, setCategories] = useState<(QuizCategory & { availableQuestions: number })[]>([]);
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
   const [currentAttemptId, setCurrentAttemptId] = useState<string | null>(null);
@@ -59,14 +61,19 @@ export const QuizPage: React.FC = () => {
     }
   }, []);
 
-  // Load Categories & History on Mount
+  // Load Categories & History on Mount / Difficulty change
   useEffect(() => {
     const init = async () => {
       try {
-        const cats = await quizService.getCategories();
+        const cats = await quizService.getCategories(selectedDifficulty);
         setCategories(cats);
-        // Default select all available
-        setSelectedCategoryIds(cats.filter(c => c.availableQuestions > 0).map(c => c.id));
+        // Default select all available if none selected yet
+        setSelectedCategoryIds(prev => {
+          if (prev.length === 0) {
+            return cats.filter(c => c.availableQuestions > 0).map(c => c.id);
+          }
+          return prev;
+        });
 
         if (activeUserId) {
           const history = await quizService.getUserQuizHistory(activeUserId);
@@ -88,7 +95,7 @@ export const QuizPage: React.FC = () => {
       }
     };
     init();
-  }, [activeUserId, urlAttemptId]);
+  }, [activeUserId, urlAttemptId, selectedDifficulty]);
 
   // Stage A -> Stage B: Go to Category Selection
   const handleStartFromIntro = () => {
@@ -130,6 +137,7 @@ export const QuizPage: React.FC = () => {
       const startRes = await quizService.startQuizAttempt({
         userId: currentUser.userId,
         categoryIds: selectedCategoryIds,
+        difficultyLevel: selectedDifficulty,
       });
 
       setCurrentAttemptId(startRes.attemptId);
@@ -249,22 +257,24 @@ export const QuizPage: React.FC = () => {
   };
 
   return (
-    <div className="container" style={{ paddingTop: '2rem', paddingBottom: '4rem' }}>
+    <div className="container" style={{ paddingTop: '1.25rem', paddingBottom: '2.5rem' }}>
       {/* Universal Page Header */}
-      <PageHeader
-        eyebrow="THE GRDX KNOWLEDGE CHALLENGE"
-        title="GET YOUR RACING TAG"
-        subtitle="Discover how much you know about motorsport, take on verified racing questions, and earn a tag that represents your knowledge."
-        backTo={{ label: 'Home', path: '/' }}
-      />
+      <div style={{ marginBottom: '1rem' }}>
+        <PageHeader
+          eyebrow="THE GRDX KNOWLEDGE CHALLENGE"
+          title="GET YOUR RACING TAG"
+          subtitle="Discover how much you know about motorsport, take on verified racing questions, and earn a tag that represents your knowledge."
+          backTo={{ label: 'Home', path: '/' }}
+        />
+      </div>
 
       {/* Error Banner */}
       {errorMessage && (
         <div
           style={{
-            maxWidth: '820px',
-            margin: '0 auto 1.5rem auto',
-            padding: '1rem 1.25rem',
+            maxWidth: '1040px',
+            margin: '0 auto 1rem auto',
+            padding: '0.75rem 1rem',
             backgroundColor: 'rgba(239, 68, 68, 0.12)',
             border: '1px solid var(--f1-red)',
             borderRadius: 'var(--radius-md)',
@@ -272,11 +282,11 @@ export const QuizPage: React.FC = () => {
             display: 'flex',
             alignItems: 'center',
             gap: '0.65rem',
-            fontSize: '0.88rem',
+            fontSize: '0.84rem',
             fontFamily: 'var(--font-mono)',
           }}
         >
-          <AlertTriangle size={18} style={{ flexShrink: 0 }} />
+          <AlertTriangle size={16} style={{ flexShrink: 0 }} />
           <span>{errorMessage}</span>
         </div>
       )}
@@ -363,43 +373,43 @@ export const QuizPage: React.FC = () => {
         <div style={{ maxWidth: '820px', margin: '0 auto', textAlign: 'center' }}>
           <div
             style={{
-              padding: '3rem 2rem',
+              padding: '1.75rem 1.75rem',
               backgroundColor: 'var(--bg-surface)',
               border: '1px solid var(--border-subtle)',
               borderRadius: 'var(--radius-lg)',
               boxShadow: 'var(--shadow-card)',
-              marginBottom: '2rem',
+              marginBottom: '1rem',
             }}
           >
             <div
               style={{
-                width: '64px',
-                height: '64px',
-                borderRadius: '16px',
+                width: '46px',
+                height: '46px',
+                borderRadius: '12px',
                 backgroundColor: 'rgba(225, 6, 0, 0.15)',
                 border: '1px solid rgba(225, 6, 0, 0.35)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                margin: '0 auto 1.5rem auto',
+                margin: '0 auto 0.75rem auto',
                 color: 'var(--f1-red)',
               }}
             >
-              <Brain size={32} />
+              <Brain size={24} />
             </div>
 
             <div
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: '0.4rem',
-                fontSize: '0.75rem',
+                gap: '0.35rem',
+                fontSize: '0.7rem',
                 fontWeight: 800,
                 color: 'var(--f1-red)',
                 letterSpacing: '0.12em',
                 textTransform: 'uppercase',
                 fontFamily: 'var(--font-mono)',
-                marginBottom: '0.5rem',
+                marginBottom: '0.35rem',
               }}
             >
               <span>THE GRDX KNOWLEDGE CHALLENGE</span>
@@ -407,11 +417,12 @@ export const QuizPage: React.FC = () => {
 
             <h1
               style={{
-                fontSize: 'clamp(1.8rem, 4vw, 2.75rem)',
+                fontSize: 'clamp(1.5rem, 3.2vw, 2.1rem)',
                 fontWeight: 900,
                 color: '#ffffff',
-                marginBottom: '1rem',
+                marginBottom: '0.45rem',
                 letterSpacing: '0.02em',
+                lineHeight: 1.2,
               }}
             >
               GET YOUR RACING TAG
@@ -419,11 +430,11 @@ export const QuizPage: React.FC = () => {
 
             <p
               style={{
-                fontSize: '1.05rem',
+                fontSize: '0.9rem',
                 color: 'var(--text-secondary)',
-                maxWidth: '620px',
-                margin: '0 auto 1rem auto',
-                lineHeight: 1.6,
+                maxWidth: '580px',
+                margin: '0 auto 0.4rem auto',
+                lineHeight: 1.5,
               }}
             >
               Discover how much you know about motorsport, take on verified racing questions, and earn a tag that represents your knowledge.
@@ -431,12 +442,12 @@ export const QuizPage: React.FC = () => {
 
             <div
               style={{
-                fontSize: '0.9rem',
+                fontSize: '0.82rem',
                 fontFamily: 'var(--font-mono)',
                 color: 'var(--telemetry-cyan)',
                 fontWeight: 700,
                 letterSpacing: '0.04em',
-                marginBottom: '2rem',
+                marginBottom: '0.85rem',
               }}
             >
               Your knowledge. Your tag. Your GRDX profile.
@@ -448,74 +459,75 @@ export const QuizPage: React.FC = () => {
                 display: 'flex',
                 flexWrap: 'wrap',
                 justifyContent: 'center',
-                gap: '0.75rem',
-                marginBottom: '2.5rem',
+                gap: '0.5rem',
+                marginBottom: '1.25rem',
               }}
             >
               <div
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '0.4rem',
-                  padding: '0.4rem 0.85rem',
+                  gap: '0.35rem',
+                  padding: '0.3rem 0.65rem',
                   borderRadius: '999px',
                   backgroundColor: 'rgba(255, 255, 255, 0.04)',
                   border: '1px solid var(--border-subtle)',
-                  fontSize: '0.78rem',
+                  fontSize: '0.74rem',
                   fontFamily: 'var(--font-mono)',
                   color: 'var(--text-secondary)',
                 }}
               >
-                <ShieldCheck size={14} style={{ color: 'var(--telemetry-green)' }} />
-                <span>120 Verified Questions</span>
+                <ShieldCheck size={13} style={{ color: 'var(--telemetry-green)' }} />
+                <span>170 Verified Questions</span>
               </div>
               <div
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '0.4rem',
-                  padding: '0.4rem 0.85rem',
+                  gap: '0.35rem',
+                  padding: '0.3rem 0.65rem',
                   borderRadius: '999px',
                   backgroundColor: 'rgba(255, 255, 255, 0.04)',
                   border: '1px solid var(--border-subtle)',
-                  fontSize: '0.78rem',
+                  fontSize: '0.74rem',
                   fontFamily: 'var(--font-mono)',
                   color: 'var(--text-secondary)',
                 }}
               >
-                <CheckCircle2 size={14} style={{ color: 'var(--telemetry-cyan)' }} />
-                <span>Balanced 15-Question Cap</span>
+                <CheckCircle2 size={13} style={{ color: 'var(--telemetry-cyan)' }} />
+                <span>Standard 20-Question Challenge</span>
               </div>
               <div
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '0.4rem',
-                  padding: '0.4rem 0.85rem',
+                  gap: '0.35rem',
+                  padding: '0.3rem 0.65rem',
                   borderRadius: '999px',
                   backgroundColor: 'rgba(255, 255, 255, 0.04)',
                   border: '1px solid var(--border-subtle)',
-                  fontSize: '0.78rem',
+                  fontSize: '0.74rem',
                   fontFamily: 'var(--font-mono)',
                   color: 'var(--text-secondary)',
                 }}
               >
-                <Sparkles size={14} style={{ color: 'var(--telemetry-amber)' }} />
+                <Sparkles size={13} style={{ color: 'var(--telemetry-amber)' }} />
                 <span>Instant Scoring & Identity Card</span>
               </div>
             </div>
 
             {/* CTA Buttons */}
-            <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '1rem' }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '0.75rem' }}>
               <button
+                id="btn-get-racing-tag"
                 type="button"
                 onClick={handleStartFromIntro}
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
-                  gap: '0.65rem',
-                  padding: '0.85rem 2.2rem',
-                  fontSize: '0.98rem',
+                  gap: '0.55rem',
+                  padding: '0.65rem 1.8rem',
+                  fontSize: '0.9rem',
                   fontFamily: 'var(--font-mono)',
                   fontWeight: 900,
                   letterSpacing: '0.06em',
@@ -524,12 +536,12 @@ export const QuizPage: React.FC = () => {
                   border: 'none',
                   borderRadius: 'var(--radius-sm)',
                   cursor: 'pointer',
-                  boxShadow: '0 0 25px rgba(225, 6, 0, 0.5)',
+                  boxShadow: '0 0 20px rgba(225, 6, 0, 0.45)',
                   transition: 'all 0.15s ease',
                 }}
               >
                 <span>GET YOUR RACING TAG</span>
-                <ArrowRight size={18} />
+                <ArrowRight size={16} />
               </button>
 
               {historyAttempts.length > 0 && (
@@ -539,9 +551,9 @@ export const QuizPage: React.FC = () => {
                   style={{
                     display: 'inline-flex',
                     alignItems: 'center',
-                    gap: '0.5rem',
-                    padding: '0.85rem 1.6rem',
-                    fontSize: '0.9rem',
+                    gap: '0.45rem',
+                    padding: '0.65rem 1.25rem',
+                    fontSize: '0.84rem',
                     fontFamily: 'var(--font-mono)',
                     fontWeight: 700,
                     backgroundColor: 'var(--bg-surface-elevated)',
@@ -552,7 +564,7 @@ export const QuizPage: React.FC = () => {
                     transition: 'all 0.15s ease',
                   }}
                 >
-                  <History size={16} />
+                  <History size={15} />
                   <span>PAST ATTEMPTS ({historyAttempts.length})</span>
                 </button>
               )}
@@ -567,9 +579,9 @@ export const QuizPage: React.FC = () => {
           {!currentUser && (
             <div
               style={{
-                maxWidth: '960px',
-                margin: '0 auto 1.5rem auto',
-                padding: '1.25rem 1.5rem',
+                maxWidth: '1040px',
+                margin: '0 auto 0.85rem auto',
+                padding: '0.75rem 1.15rem',
                 backgroundColor: 'rgba(225, 6, 0, 0.08)',
                 border: '1px solid rgba(225, 6, 0, 0.3)',
                 borderRadius: 'var(--radius-lg)',
@@ -577,14 +589,14 @@ export const QuizPage: React.FC = () => {
                 alignItems: 'center',
                 justifyContent: 'space-between',
                 flexWrap: 'wrap',
-                gap: '1rem',
+                gap: '0.75rem',
               }}
             >
               <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', color: 'var(--f1-red)', fontSize: '0.78rem', fontWeight: 800, fontFamily: 'var(--font-mono)' }}>
-                  <ShieldCheck size={16} /> RACER SIGN-IN REQUIRED
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', color: 'var(--f1-red)', fontSize: '0.76rem', fontWeight: 800, fontFamily: 'var(--font-mono)' }}>
+                  <ShieldCheck size={15} /> RACER SIGN-IN REQUIRED
                 </div>
-                <p style={{ margin: '0.25rem 0 0', fontSize: '0.84rem', color: 'var(--text-secondary)' }}>
+                <p style={{ margin: '0.2rem 0 0', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
                   Sign in with your GRDX racer account to start an official attempt, record verified scores, and unlock quiz achievements on your profile.
                 </p>
               </div>
@@ -592,15 +604,17 @@ export const QuizPage: React.FC = () => {
                 type="button"
                 onClick={() => openLoginModal('/quiz')}
                 className="btn btn-primary btn-sm"
-                style={{ fontWeight: 800, display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
+                style={{ fontWeight: 800, display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.4rem 0.85rem', fontSize: '0.78rem' }}
               >
-                <LogIn size={14} /> Sign In
+                <LogIn size={13} /> Sign In
               </button>
             </div>
           )}
           <CategorySelector
             categories={categories}
             selectedCategoryIds={selectedCategoryIds}
+            selectedDifficulty={selectedDifficulty}
+            onSelectDifficulty={setSelectedDifficulty}
             onToggleCategory={handleToggleCategory}
             onSelectAll={handleSelectAllCategories}
             onClearAll={handleClearCategories}

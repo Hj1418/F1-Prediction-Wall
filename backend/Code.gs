@@ -4534,8 +4534,21 @@ function handleStartQuizAttempt(payload) {
     throw new Error('Please select at least one motorsport category.');
   }
 
+  const diffLevel = (payload.difficultyLevel || 'apex').toLowerCase();
+  const normalizedDiff = (diffLevel === 'rookie' || diffLevel === 'easy') ? 'rookie' : (diffLevel === 'race_analyst' || diffLevel === 'hard') ? 'race_analyst' : 'apex';
+
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   let questions = getBackendApprovedQuestions();
+
+  // Filter questions by difficulty ceiling
+  questions = questions.filter(function(q) {
+    const qDiff = (q.difficulty || 'medium').toLowerCase();
+    const isRookie = (qDiff === 'easy' || qDiff === 'rookie');
+    const isApex = (qDiff === 'medium' || qDiff === 'apex');
+    if (normalizedDiff === 'rookie') return isRookie;
+    if (normalizedDiff === 'apex') return isRookie || isApex;
+    return true; // race_analyst ceiling permits all
+  });
 
   const selectedCatSet = {};
   categoryIds.forEach(function(c) { selectedCatSet[c] = true; });
@@ -4548,8 +4561,8 @@ function handleStartQuizAttempt(payload) {
     }
   });
 
-  // Balanced allocation up to 15 questions max
-  const totalSlots = 15;
+  // Balanced allocation up to 20 questions max
+  const totalSlots = 20;
   const numCats = categoryIds.length;
   const basePerCat = Math.floor(totalSlots / numCats);
   const remainder = totalSlots % numCats;
@@ -4584,7 +4597,8 @@ function handleStartQuizAttempt(payload) {
       JSON.stringify({}),
       startedAt,
       '',
-      'in_progress'
+      'in_progress',
+      normalizedDiff
     ]);
   }
 
@@ -4606,6 +4620,7 @@ function handleStartQuizAttempt(payload) {
     attemptId: attemptId,
     totalQuestions: finalQuestions.length,
     selectedCategories: categoryIds,
+    difficultyLevel: normalizedDiff,
     questions: clientQuestions,
     startedAt: startedAt
   };
@@ -4653,7 +4668,8 @@ function handleSubmitQuizAttempt(payload) {
           categoryBreakdown: JSON.parse(rows[r][9] || '{}'),
           startedAt: rows[r][10],
           completedAt: rows[r][11],
-          status: rows[r][12]
+          status: rows[r][12],
+          difficultyLevel: rows[r][13] || 'apex'
         };
         break;
       }
@@ -4754,6 +4770,7 @@ function handleSubmitQuizAttempt(payload) {
     attemptId: attemptId,
     userId: canonicalUserId,
     selectedCategories: selectedCategories,
+    difficultyLevel: attemptData ? (attemptData.difficultyLevel || 'apex') : 'apex',
     score: totalScore,
     totalQuestions: totalQuestions,
     percentage: overallPercentage,
@@ -4902,7 +4919,8 @@ function handleGetUserQuizHistory(userId) {
         categoryBreakdown: JSON.parse(rows[r][9] || '{}'),
         startedAt: rows[r][10],
         completedAt: rows[r][11],
-        status: status
+        status: status,
+        difficultyLevel: rows[r][13] || 'apex'
       });
     }
   }
@@ -4934,7 +4952,8 @@ function handleGetQuizAttemptResult(attemptId, requestingUserId) {
         categoryBreakdown: JSON.parse(rows[r][9] || '{}'),
         startedAt: rows[r][10],
         completedAt: rows[r][11],
-        status: rows[r][12]
+        status: rows[r][12],
+        difficultyLevel: rows[r][13] || 'apex'
       };
 
       // Ownership enforcement: check requesting user
@@ -4986,6 +5005,7 @@ function formatBackendQuizAttemptResult(record) {
     attemptId: record.attemptId,
     userId: record.userId,
     selectedCategories: record.selectedCategories,
+    difficultyLevel: record.difficultyLevel || 'apex',
     score: record.score,
     totalQuestions: record.totalQuestions,
     percentage: record.percentage,

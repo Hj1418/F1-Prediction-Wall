@@ -77,6 +77,7 @@ export const ProfilePage: React.FC = () => {
   const [quizHistory, setQuizHistory] = useState<QuizAttemptRecord[]>([]);
   const [quizAchievements, setQuizAchievements] = useState<UserQuizAchievement[]>([]);
   const [quizSummary, setQuizSummary] = useState<QuizPerformanceSummary | null>(null);
+  const [isQuizLoading, setIsQuizLoading] = useState(true);
   const [isBreakdownModalOpen, setIsBreakdownModalOpen] = useState(false);
   const [selectedBreakdownItem, setSelectedBreakdownItem] = useState<any | null>(null);
   const [shareModalTitle, setShareModalTitle] = useState('');
@@ -319,25 +320,24 @@ export const ProfilePage: React.FC = () => {
           setHistory(userHistory);
           setTrophies(userTrophies);
 
-          // If current logged-in user is viewing their own profile, evaluate and trigger verified unlock notifications
+          // If current logged-in user is viewing their own profile, fetch private authenticated quiz history and achievements
           if (currentUser && (currentUser.userId === effectiveUser.userId || (currentUser.username && currentUser.username.toLowerCase() === effectiveUser.username.toLowerCase()))) {
-            achs.filter(a => a.isUnlocked).forEach(a => {
-              notificationService.notifyAchievementUnlocked(effectiveUser!.userId, a);
-            });
-            userTrophies.forEach(t => {
-              notificationService.notifyTrophyAwarded(effectiveUser!.userId, t);
-            });
-
-            // Fetch private authenticated quiz history and achievements
+            setIsQuizLoading(true);
+            const activeQuizUserId = currentUser.userId || effectiveUser.userId;
             Promise.all([
-              quizService.getUserQuizHistory(effectiveUser.userId).catch(() => []),
-              quizService.getUserQuizAchievements(effectiveUser.userId).catch(() => []),
-              quizService.getQuizPerformanceSummary(effectiveUser.userId).catch(() => null),
+              quizService.getUserQuizHistory(activeQuizUserId).catch(() => []),
+              quizService.getUserQuizAchievements(activeQuizUserId).catch(() => []),
+              quizService.getQuizPerformanceSummary(activeQuizUserId).catch(() => null),
             ]).then(([qHist, qAchs, qSum]) => {
               setQuizHistory(qHist);
               setQuizAchievements(qAchs);
               setQuizSummary(qSum);
-            }).catch(() => {});
+              setIsQuizLoading(false);
+            }).catch(() => {
+              setIsQuizLoading(false);
+            });
+          } else {
+            setIsQuizLoading(false);
           }
 
           const historyStats = calculateUserStatsFromHistory(userHistory);
@@ -1564,10 +1564,10 @@ export const ProfilePage: React.FC = () => {
                     {/* Internal Invariant Anchor: FAN IDENTITY TIER */}
                   </div>
                   <div style={{ fontFamily: 'var(--font-mono)', fontSize: '1.25rem', fontWeight: 900, marginTop: '0.4rem', color: '#ffffff', textTransform: 'uppercase' }}>
-                    {quizSummary?.highestTier ?? 'The Rookie'}
+                    {quizSummary?.highestTier && (quizSummary?.quizzesCompleted ?? 0) > 0 ? quizSummary.highestTier : 'Not Yet Earned'}
                   </div>
                   <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                    Based on verified quiz performance
+                    {(quizSummary?.quizzesCompleted ?? 0) > 0 ? 'Based on verified quiz performance' : 'Complete a quiz to earn your Racing Tag'}
                   </div>
                 </div>
 
@@ -1797,7 +1797,21 @@ export const ProfilePage: React.FC = () => {
                   );
                 })}
 
-                {quizHistory.length === 0 && (
+                {isQuizLoading && (
+                  <div
+                    style={{
+                      padding: '2.5rem 1.5rem',
+                      textAlign: 'center',
+                      color: 'var(--text-muted)',
+                      fontSize: '0.85rem',
+                    }}
+                  >
+                    <div className="loading-spinner" style={{ margin: '0 auto 0.75rem auto', width: '22px', height: '22px' }} />
+                    Loading motorsport quiz telemetry...
+                  </div>
+                )}
+
+                {!isQuizLoading && quizHistory.length === 0 && (
                   <div
                     className="race-card"
                     style={{

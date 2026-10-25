@@ -2,9 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { notificationService } from '../../services/notificationService';
 import { InAppNotification } from '../../types';
-import { AchievementUnlockModal } from './AchievementUnlockModal';
 import { TrophyModal } from './TrophyModal';
 import { GooglePasswordSetupModal } from './GooglePasswordSetupModal';
+import { AchievementToastContainer } from './AchievementToastContainer';
 
 export const NotificationCoordinator: React.FC = () => {
   const { currentUser, isAuthenticated } = useAuth();
@@ -68,37 +68,28 @@ export const NotificationCoordinator: React.FC = () => {
     setIsPasswordModalOpen(false);
   };
 
-  // Strict priority rendering: exactly ONE modal active at any time
-  if (isPasswordModalOpen) {
-    return (
-      <GooglePasswordSetupModal
-        isOpen={isPasswordModalOpen}
-        onClose={() => setIsPasswordModalOpen(false)}
-        onRemindLater={handleRemindLaterPassword}
-        onSuccess={handleSuccessPassword}
-      />
-    );
-  }
+  return (
+    <>
+      {/* Non-intrusive compact toast container for achievement & milestone events */}
+      <AchievementToastContainer />
 
-  if (activeModal) {
-    if (activeModal.type === 'TROPHY_AWARDED') {
-      return (
+      {/* Google Password Setup Modal */}
+      {isPasswordModalOpen && (
+        <GooglePasswordSetupModal
+          isOpen={isPasswordModalOpen}
+          onClose={() => setIsPasswordModalOpen(false)}
+          onRemindLater={handleRemindLaterPassword}
+          onSuccess={handleSuccessPassword}
+        />
+      )}
+
+      {/* High-priority celebration modals (e.g. Podium Trophies) */}
+      {!isPasswordModalOpen && activeModal && activeModal.type === 'TROPHY_AWARDED' && (
         <TrophyModal
           notification={activeModal}
           onClose={handleDismissModal}
         />
-      );
-    }
-
-    if (activeModal.type === 'ACHIEVEMENT_UNLOCKED') {
-      return (
-        <AchievementUnlockModal
-          notification={activeModal}
-          onClose={handleDismissModal}
-        />
-      );
-    }
-  }
-
-  return null;
+      )}
+    </>
+  );
 };

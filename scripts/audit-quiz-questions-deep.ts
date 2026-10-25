@@ -9,10 +9,10 @@ assert(isValid, `Schema validation failed: ${errors.join(', ')}`);
 console.log('✅ PASS: Overall schema structure is valid');
 
 // 2. Count verification
-assert.strictEqual(VERIFIED_QUESTION_BANK.length, 120, 'Question bank must have exactly 120 questions');
+assert.strictEqual(VERIFIED_QUESTION_BANK.length, 170, 'Question bank must have exactly 170 questions');
 const approved = getApprovedQuestions();
-assert.strictEqual(approved.length, 120, 'All 120 questions must be approved');
-console.log(`✅ PASS: Exactly 120 approved questions in bank across 8 categories`);
+assert.strictEqual(approved.length, 170, 'All 170 questions must be approved');
+console.log(`✅ PASS: Exactly 170 approved questions in bank across 8 categories`);
 
 // 3. Category distribution
 const categoryCounts: Record<string, number> = {};
@@ -69,10 +69,11 @@ for (const q of VERIFIED_QUESTION_BANK) {
 }
 
 for (const cat of expectedCategories) {
-  assert.strictEqual(categoryCounts[cat], 15, `Category ${cat} must have exactly 15 questions, got ${categoryCounts[cat]}`);
-  console.log(`  ✓ Category [${cat}]: exactly 15 verified questions`);
+  const expectedCount = cat === 'formula-1' ? 65 : 15;
+  assert.strictEqual(categoryCounts[cat], expectedCount, `Category ${cat} must have exactly ${expectedCount} questions, got ${categoryCounts[cat]}`);
+  console.log(`  ✓ Category [${cat}]: exactly ${expectedCount} verified questions`);
 }
 
 console.log('\n======================================================');
-console.log('🏆 DEEP CONTENT & ACCURACY AUDIT: 120/120 QUESTIONS VERIFIED');
+console.log('🏆 DEEP CONTENT & ACCURACY AUDIT: 170/170 QUESTIONS VERIFIED');
 console.log('======================================================\n');

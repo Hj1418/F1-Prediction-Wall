@@ -1,0 +1,125 @@
+/* ==========================================================================
+   CATEGORY SELECTOR STYLES — GRDX Quiz Setup
+   Compact, cohesive, and responsive motorsport discipline selector
+   ========================================================================== */
+
+.quiz-setup-container {
+  max-width: 1040px;
+  margin: 0 auto;
+}
+
+/* ── Section Cards (Compact) ── */
+.quiz-setup-card {
+  padding: 0.85rem 1.15rem;
+  background-color: var(--bg-surface, #14171C);
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+  border-radius: var(--radius-lg, 12px);
+  margin-bottom: 0.85rem;
+  box-sizing: border-box;
+}
+
+/* ── Difficulty Grid: 3 Compact Columns ── */
+.difficulty-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+}
+
+.difficulty-card {
+  padding: 0.75rem 0.85rem;
+  border-radius: var(--radius-md, 8px);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-sizing: border-box;
+  outline: none;
+}
+
+.difficulty-card:hover {
+  background-color: var(--bg-surface-elevated, #1c2027);
+  transform: translateY(-1px);
+}
+
+.difficulty-card:focus-visible {
+  box-shadow: 0 0 0 2px var(--color-accent, #FF4B33);
+}
+
+@media (max-width: 768px) {
+  .difficulty-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── Category Multi-Column Grid ── */
+.categories-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.75rem;
+}
+
+@media (max-width: 1024px) {
+  .categories-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 580px) {
+  .categories-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.category-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 0.75rem 0.85rem;
+  border-radius: var(--radius-md, 8px);
+  box-sizing: border-box;
+  transition: all 0.15s ease;
+  outline: none;
+  min-height: 108px;
+}
+
+.category-card:hover {
+  transform: translateY(-1px);
+}
+
+.category-card:focus-visible {
+  box-shadow: 0 0 0 2px var(--color-accent, #FF4B33);
+}
+
+/* ── Sticky Action Bar ── */
+.quiz-setup-action-bar {
+  position: sticky;
+  bottom: 1rem;
+  margin-top: 1rem;
+  padding: 0.75rem 1.25rem;
+  background-color: rgba(12, 15, 19, 0.96);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--color-border, #292F38);
+  border-radius: var(--radius-lg, 12px);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.85rem;
+  z-index: 10;
+  box-sizing: border-box;
+}
+
+@media (max-width: 640px) {
+  .quiz-setup-action-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .quiz-setup-action-bar button {
+    width: 100%;
+    justify-content: center;
+  }
+}

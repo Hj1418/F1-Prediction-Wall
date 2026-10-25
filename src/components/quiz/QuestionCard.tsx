@@ -157,7 +157,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
         }}
       >
         {/* Context / Topic Pill */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '1rem' }}>
           <span
             style={{
               fontSize: '0.72rem',
@@ -173,6 +173,21 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
           >
             {question.topic}
           </span>
+          {question.era && (
+            <span
+              style={{
+                fontSize: '0.72rem',
+                fontFamily: 'var(--font-mono)',
+                color: 'var(--telemetry-cyan)',
+                backgroundColor: 'rgba(56, 189, 248, 0.08)',
+                padding: '0.2rem 0.5rem',
+                borderRadius: '4px',
+                border: '1px solid rgba(56, 189, 248, 0.2)',
+              }}
+            >
+              {question.era}
+            </span>
+          )}
           {question.context && (
             <span
               style={{
@@ -390,7 +405,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: `repeat(${Math.min(15, totalQuestions)}, 1fr)`,
+            gridTemplateColumns: 'repeat(auto-fit, minmax(32px, 1fr))',
             gap: '0.4rem',
           }}
         >
