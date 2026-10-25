@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      margin: 0;
+      padding: 24px;
+      background: #FFFFFF;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      display: inline-block;
+    }
+    #wrapper {
+      background: #FFFFFF;
+      border-radius: 12px;
+      padding: 24px 28px;
+      border: 1px solid #E2E8F0;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+      display: inline-block;
+      width: max-content;
+    }
+    svg {
+      max-width: none !important;
+    }
+    .mermaid {
+      background: #FFFFFF;
+    }
+    .edgeLabel {
+      background-color: #FFFFFF !important;
+      border: 1px solid #CBD5E1 !important;
+      border-radius: 4px !important;
+      padding: 3px 6px !important;
+      font-size: 11px !important;
+      font-weight: 500 !important;
+      color: #334155 !important;
+    }
+    .cluster rect {
+      fill: #F8FAFC !important;
+      stroke: #94A3B8 !important;
+      stroke-width: 1.5px !important;
+      rx: 8px !important;
+      ry: 8px !important;
+    }
+    .cluster text {
+      font-weight: 700 !important;
+      fill: #1E293B !important;
+      font-size: 13px !important;
+    }
+    .node rect, .node circle, .node ellipse, .node polygon, .node path {
+      rx: 6px !important;
+      ry: 6px !important;
+    }
+  </style>
+</head>
+<body>
+  <div id="wrapper">
+    <div class="mermaid" id="chart">
+flowchart TB
+    subgraph FrontendPipeline["1. Frontend CI/CD Pipeline (GitHub Pages)"]
+        direction LR
+        Dev["Developer Commit"] --> Git["GitHub Repository"]
+        Git --> CI["GitHub Actions (deploy.yml)"]
+        CI --> Build["Generate Calendar"]
+        Build --> Type["TypeScript Checks (tsc -b)"]
+        Type --> Bundle["Vite Bundle & Minify"]
+        Bundle --> Publish["Deploy to gh-pages Branch"]
+    end
+
+    subgraph RuntimeBackend["2. CDN Delivery & Apps Script Backend"]
+        direction LR
+        Publish --> Pages["GitHub Pages Edge CDN"]
+        Pages --> Browser["User Browser (React 19 SPA)"]
+        Browser --> Script["Google Apps Script Backend Project"]
+        Script --> DeployScript["Version Deployment / Web App URL"]
+    end
+
+    classDef core fill:#DCFCE7,stroke:#16A34A,stroke-width:2px,color:#14532D,font-weight:600;
+    classDef external fill:#FEF3C7,stroke:#D97706,stroke-width:2px,color:#78350F,font-weight:600;
+    classDef client fill:#DBEAFE,stroke:#2563EB,stroke-width:2px,color:#1E3A8A,font-weight:600;
+    classDef pages fill:#EFF6FF,stroke:#3B82F6,stroke-width:2px,color:#1D4ED8,font-weight:600;
+
+    class Dev,Browser client;
+    class Git,CI,Build,Type,Bundle,Publish core;
+    class Pages pages;
+    class Script,DeployScript external;
+    </div>
+  </div>
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'base',
+      themeVariables: {
+        primaryColor: '#DCFCE7',
+        primaryTextColor: '#14532D',
+        primaryBorderColor: '#16A34A',
+        lineColor: '#64748B',
+        secondaryColor: '#FEF3C7',
+        tertiaryColor: '#F3E8FF',
+        background: '#FFFFFF',
+        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif',
+        fontSize: '14px'
+      }
+    });
+  </script>
+</body>
+</html>

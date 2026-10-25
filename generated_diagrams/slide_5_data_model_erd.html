@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      margin: 0;
+      padding: 24px;
+      background: #FFFFFF;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      display: inline-block;
+    }
+    #wrapper {
+      background: #FFFFFF;
+      border-radius: 12px;
+      padding: 24px 28px;
+      border: 1px solid #E2E8F0;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+      display: inline-block;
+      width: max-content;
+    }
+    svg {
+      max-width: none !important;
+    }
+    .mermaid {
+      background: #FFFFFF;
+    }
+    .edgeLabel {
+      background-color: #FFFFFF !important;
+      border: 1px solid #CBD5E1 !important;
+      border-radius: 4px !important;
+      padding: 3px 6px !important;
+      font-size: 11px !important;
+      font-weight: 500 !important;
+      color: #334155 !important;
+    }
+    .cluster rect {
+      fill: #F8FAFC !important;
+      stroke: #94A3B8 !important;
+      stroke-width: 1.5px !important;
+      rx: 8px !important;
+      ry: 8px !important;
+    }
+    .cluster text {
+      font-weight: 700 !important;
+      fill: #1E293B !important;
+      font-size: 13px !important;
+    }
+    .node rect, .node circle, .node ellipse, .node polygon, .node path {
+      rx: 6px !important;
+      ry: 6px !important;
+    }
+  </style>
+</head>
+<body>
+  <div id="wrapper">
+    <div class="mermaid" id="chart">
+erDiagram
+    USERS ||--o{ PREDICTIONS : submits
+    USERS ||--o{ SCORES : earns
+    USERS ||--o{ ACHIEVEMENTS : unlocks
+    USERS ||--o{ QUIZ_ATTEMPTS : completes
+    USERS ||--o{ QUIZ_ACHIEVEMENTS : earns
+    USERS ||--o{ NOTIFICATION_QUEUE : receives
+
+    RACE_WEEKENDS ||--o{ SESSIONS : contains
+    RACE_WEEKENDS ||--o{ PREDICTION_ROUNDS : defines
+    RACE_WEEKENDS ||--o{ SYNC_LOGS : records
+
+    SESSIONS ||--o{ PREDICTION_ROUNDS : schedules
+    PREDICTION_ROUNDS ||--o{ PREDICTIONS : receives
+    PREDICTION_ROUNDS ||--o{ RESULTS : records
+    PREDICTION_ROUNDS ||--o{ SCORES : produces
+
+    QUIZ_CATEGORIES ||--o{ QUIZ_QUESTIONS : contains
+    NOTIFICATION_QUEUE ||--o{ NOTIFICATION_LOG : tracks
+    </div>
+  </div>
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'base',
+      themeVariables: {
+        primaryColor: '#DCFCE7',
+        primaryTextColor: '#14532D',
+        primaryBorderColor: '#16A34A',
+        lineColor: '#64748B',
+        secondaryColor: '#FEF3C7',
+        tertiaryColor: '#F3E8FF',
+        background: '#FFFFFF',
+        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif',
+        fontSize: '14px'
+      }
+    });
+  </script>
+</body>
+</html>

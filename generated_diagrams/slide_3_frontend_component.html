@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      margin: 0;
+      padding: 24px;
+      background: #FFFFFF;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      display: inline-block;
+    }
+    #wrapper {
+      background: #FFFFFF;
+      border-radius: 12px;
+      padding: 24px 28px;
+      border: 1px solid #E2E8F0;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+      display: inline-block;
+      width: max-content;
+    }
+    svg {
+      max-width: none !important;
+    }
+    .mermaid {
+      background: #FFFFFF;
+    }
+    .edgeLabel {
+      background-color: #FFFFFF !important;
+      border: 1px solid #CBD5E1 !important;
+      border-radius: 4px !important;
+      padding: 3px 6px !important;
+      font-size: 11px !important;
+      font-weight: 500 !important;
+      color: #334155 !important;
+    }
+    .cluster rect {
+      fill: #F8FAFC !important;
+      stroke: #94A3B8 !important;
+      stroke-width: 1.5px !important;
+      rx: 8px !important;
+      ry: 8px !important;
+    }
+    .cluster text {
+      font-weight: 700 !important;
+      fill: #1E293B !important;
+      font-size: 13px !important;
+    }
+    .node rect, .node circle, .node ellipse, .node polygon, .node path {
+      rx: 6px !important;
+      ry: 6px !important;
+    }
+  </style>
+</head>
+<body>
+  <div id="wrapper">
+    <div class="mermaid" id="chart">
+flowchart TB
+    App["App Root & React Router 7"]
+
+    subgraph State["Application State Layer"]
+        Auth["AuthContext (GIS Auth State)"]
+        Ctx["AppContext (Global Platform State)"]
+    end
+
+    subgraph UI["Feature UI Modules"]
+        Race["Race Weekend & Session Views"]
+        Pred["Prediction Form Engine"]
+        Board["Leaderboard & Results Views"]
+        Quiz["Quiz Engine & Learning"]
+        Search["Universal Search Module"]
+        Profile["Profiles & Achievements"]
+    end
+
+    subgraph Services["Client Services & Cache Layer"]
+        Client["API Client Facade"]
+        Norm["Motorsport Data Normalizers"]
+        Cache["Client Cache (TTL & LocalStorage)"]
+    end
+
+    API["Apps Script Backend API"]
+    Mock["Mock / Simulation Fallback"]
+
+    App --> State
+    App --> UI
+    UI --> Client
+    Auth --> Client
+    Ctx --> Client
+    Client --> Norm
+    Client --> Cache
+    Client -->|"Live HTTPS requests"| API
+    Client -.->|"Graceful fallback where configured"| Mock
+
+    classDef core fill:#DCFCE7,stroke:#16A34A,stroke-width:2px,color:#14532D,font-weight:600;
+    classDef external fill:#FEF3C7,stroke:#D97706,stroke-width:2px,color:#78350F,font-weight:600;
+    classDef client fill:#DBEAFE,stroke:#2563EB,stroke-width:2px,color:#1E3A8A,font-weight:600;
+    classDef store fill:#F3E8FF,stroke:#9333EA,stroke-width:2px,color:#581C87,font-weight:600;
+    classDef fallback fill:#F1F5F9,stroke:#94A3B8,stroke-width:2px,stroke-dasharray: 4 4,color:#475569,font-weight:600;
+
+    class App,Auth,Ctx,Race,Pred,Board,Quiz,Search,Profile,Client,Norm core;
+    class Cache store;
+    class API external;
+    class Mock fallback;
+    </div>
+  </div>
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'base',
+      themeVariables: {
+        primaryColor: '#DCFCE7',
+        primaryTextColor: '#14532D',
+        primaryBorderColor: '#16A34A',
+        lineColor: '#64748B',
+        secondaryColor: '#FEF3C7',
+        tertiaryColor: '#F3E8FF',
+        background: '#FFFFFF',
+        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif',
+        fontSize: '14px'
+      }
+    });
+  </script>
+</body>
+</html>

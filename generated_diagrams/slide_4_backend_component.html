@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      margin: 0;
+      padding: 24px;
+      background: #FFFFFF;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      display: inline-block;
+    }
+    #wrapper {
+      background: #FFFFFF;
+      border-radius: 12px;
+      padding: 24px 28px;
+      border: 1px solid #E2E8F0;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+      display: inline-block;
+      width: max-content;
+    }
+    svg {
+      max-width: none !important;
+    }
+    .mermaid {
+      background: #FFFFFF;
+    }
+    .edgeLabel {
+      background-color: #FFFFFF !important;
+      border: 1px solid #CBD5E1 !important;
+      border-radius: 4px !important;
+      padding: 3px 6px !important;
+      font-size: 11px !important;
+      font-weight: 500 !important;
+      color: #334155 !important;
+    }
+    .cluster rect {
+      fill: #F8FAFC !important;
+      stroke: #94A3B8 !important;
+      stroke-width: 1.5px !important;
+      rx: 8px !important;
+      ry: 8px !important;
+    }
+    .cluster text {
+      font-weight: 700 !important;
+      fill: #1E293B !important;
+      font-size: 13px !important;
+    }
+    .node rect, .node circle, .node ellipse, .node polygon, .node path {
+      rx: 6px !important;
+      ry: 6px !important;
+    }
+  </style>
+</head>
+<body>
+  <div id="wrapper">
+    <div class="mermaid" id="chart">
+flowchart TB
+    Client["Frontend API Client"]
+    Get["doGet(e)<br/>Queries & Public Reads"]
+    Post["doPost(e)<br/>Mutations & Admin Ops"]
+    Router["Action Dispatcher Router"]
+
+    subgraph Services["Application Domain Services"]
+        Identity["Authentication & Identity"]
+        Prediction["Prediction Service"]
+        Deadline["Deadline Validation"]
+        Scoring["Scoring Engine"]
+        Calendar["Calendar Synchronization"]
+        Quiz["Quiz Service"]
+        Admin["Admin Operations"]
+        Notify["Notification Queue Worker"]
+    end
+
+    Lock["LockService (Distributed Mutex)"]
+    Sheets[("SpreadsheetApp / Google Sheets DB")]
+    Cache["CacheService (Fast RAM Cache)"]
+    External["External APIs / MailApp"]
+
+    Client --> Get
+    Client --> Post
+    Get --> Router
+    Post --> Router
+    Router --> Identity
+    Router --> Prediction
+    Router --> Scoring
+    Router --> Calendar
+    Router --> Quiz
+    Router --> Admin
+    Router --> Notify
+
+    Prediction --> Deadline
+    Prediction --> Lock
+    Scoring --> Lock
+    Identity --> Sheets
+    Prediction --> Sheets
+    Scoring --> Sheets
+    Calendar --> Sheets
+    Quiz --> Sheets
+    Admin --> Sheets
+    Notify --> Sheets
+    Calendar <--> External
+    Notify --> External
+    Router <--> Cache
+
+    classDef core fill:#DCFCE7,stroke:#16A34A,stroke-width:2px,color:#14532D,font-weight:600;
+    classDef external fill:#FEF3C7,stroke:#D97706,stroke-width:2px,color:#78350F,font-weight:600;
+    classDef client fill:#DBEAFE,stroke:#2563EB,stroke-width:2px,color:#1E3A8A,font-weight:600;
+    classDef store fill:#F3E8FF,stroke:#9333EA,stroke-width:2px,color:#581C87,font-weight:600;
+    classDef lock fill:#FFFBEB,stroke:#F59E0B,stroke-width:2px,color:#B45309,font-weight:600;
+
+    class Client client;
+    class Get,Post,Router,Identity,Prediction,Deadline,Scoring,Calendar,Quiz,Admin,Notify core;
+    class Sheets,Cache store;
+    class Lock lock;
+    class External external;
+    </div>
+  </div>
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'base',
+      themeVariables: {
+        primaryColor: '#DCFCE7',
+        primaryTextColor: '#14532D',
+        primaryBorderColor: '#16A34A',
+        lineColor: '#64748B',
+        secondaryColor: '#FEF3C7',
+        tertiaryColor: '#F3E8FF',
+        background: '#FFFFFF',
+        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif',
+        fontSize: '14px'
+      }
+    });
+  </script>
+</body>
+</html>

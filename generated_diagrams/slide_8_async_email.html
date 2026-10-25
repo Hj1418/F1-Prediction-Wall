@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      margin: 0;
+      padding: 24px;
+      background: #FFFFFF;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      display: inline-block;
+    }
+    #wrapper {
+      background: #FFFFFF;
+      border-radius: 12px;
+      padding: 24px 28px;
+      border: 1px solid #E2E8F0;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+      display: inline-block;
+      width: max-content;
+    }
+    svg {
+      max-width: none !important;
+    }
+    .mermaid {
+      background: #FFFFFF;
+    }
+    .edgeLabel {
+      background-color: #FFFFFF !important;
+      border: 1px solid #CBD5E1 !important;
+      border-radius: 4px !important;
+      padding: 3px 6px !important;
+      font-size: 11px !important;
+      font-weight: 500 !important;
+      color: #334155 !important;
+    }
+    .cluster rect {
+      fill: #F8FAFC !important;
+      stroke: #94A3B8 !important;
+      stroke-width: 1.5px !important;
+      rx: 8px !important;
+      ry: 8px !important;
+    }
+    .cluster text {
+      font-weight: 700 !important;
+      fill: #1E293B !important;
+      font-size: 13px !important;
+    }
+    .node rect, .node circle, .node ellipse, .node polygon, .node path {
+      rx: 6px !important;
+      ry: 6px !important;
+    }
+  </style>
+</head>
+<body>
+  <div id="wrapper">
+    <div class="mermaid" id="chart">
+flowchart LR
+    subgraph Enqueue["1. Notification Task Enqueue"]
+        Event["Triggering Event<br/>(Registration, Prediction, Results)"] --> Queue["NotificationQueue Table<br/>(Status: PENDING)"]
+    end
+
+    subgraph Processing["2. Scheduled Worker & Locking"]
+        Queue --> Worker["Scheduled Queue Processor<br/>(Time-driven Apps Script Trigger)"]
+        Worker --> Lock["Acquire Processing Lock<br/>(LockService 10s Mutex)"]
+        Lock --> Check{"Already processed?<br/>(Idempotency Check)"}
+        Check -->|"Yes (Duplicate)"| Log["NotificationLog Table<br/>(Audit Trail)"]
+    end
+
+    subgraph Dispatch["3. MailApp Dispatch & Retry Policy"]
+        Check -->|"No (Fresh)"| Send["Google MailApp<br/>(HTML Email Delivery)"]
+        Send -->|"Success"| Success["Status: SENT & Timestamp"]
+        Send -->|"Failure"| Retry{"Attempts < 3?"}
+        Retry -->|"Attempts < 3"| Pending["Status: PENDING (Backoff)"]
+        Retry -->|"Attempts >= 3"| Failed["Status: FAILED & Error"]
+        Success --> Log
+        Pending --> Queue
+        Failed --> Log
+    end
+
+    classDef core fill:#DCFCE7,stroke:#16A34A,stroke-width:2px,color:#14532D,font-weight:600;
+    classDef decision fill:#FEF3C7,stroke:#D97706,stroke-width:2px,color:#78350F,font-weight:600;
+    classDef store fill:#F3E8FF,stroke:#9333EA,stroke-width:2px,color:#581C87,font-weight:600;
+    classDef fail fill:#FEE2E2,stroke:#DC2626,stroke-width:2px,color:#991B1B,font-weight:600;
+
+    class Event,Worker,Lock,Send,Success,Pending core;
+    class Queue,Log store;
+    class Check,Retry decision;
+    class Failed fail;
+    </div>
+  </div>
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'base',
+      themeVariables: {
+        primaryColor: '#DCFCE7',
+        primaryTextColor: '#14532D',
+        primaryBorderColor: '#16A34A',
+        lineColor: '#64748B',
+        secondaryColor: '#FEF3C7',
+        tertiaryColor: '#F3E8FF',
+        background: '#FFFFFF',
+        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif',
+        fontSize: '14px'
+      }
+    });
+  </script>
+</body>
+</html>
