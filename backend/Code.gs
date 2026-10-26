@@ -31,7 +31,14 @@ const SHEET_NAMES = {
   QUIZ_CATEGORIES: 'QuizCategories',
   QUIZ_QUESTIONS: 'QuizQuestions',
   QUIZ_ATTEMPTS: 'QuizAttempts',
-  QUIZ_ACHIEVEMENTS: 'QuizAchievements'
+  QUIZ_ACHIEVEMENTS: 'QuizAchievements',
+  STRATEGY_SCENARIOS: 'StrategyScenarios',
+  STRATEGY_ATTEMPTS: 'StrategyAttempts',
+  STRATEGY_DECISIONS: 'StrategyDecisions',
+  STRATEGY_LEADERBOARD: 'StrategyLeaderboard',
+  STRATEGY_ROUNDS: 'StrategyRounds',
+  STRATEGY_DISCUSSIONS: 'StrategyDiscussions',
+  STRATEGY_VOTES: 'StrategyVotes'
 };
 
 const JOLPICA_BASE_URLS = [
@@ -153,6 +160,30 @@ function doGet(e) {
         break;
       case 'getUserQuizAchievements':
         responseData = handleGetUserQuizAchievements(e.parameter.userId);
+        break;
+      case 'getStrategyScenarios':
+        responseData = handleGetStrategyScenarios(e.parameter.mode, e.parameter.category);
+        break;
+      case 'getStrategyAttempt':
+        responseData = handleGetStrategyAttempt(e.parameter.attemptId, e.parameter.userId);
+        break;
+      case 'getStrategyHistory':
+        responseData = handleGetStrategyHistory(e.parameter.userId);
+        break;
+      case 'getStrategyLeaderboard':
+        responseData = handleGetStrategyLeaderboard(e.parameter.periodKey || 'all_time');
+        break;
+      case 'getStrategyPerformance':
+        responseData = handleGetStrategyPerformance(e.parameter.userId);
+        break;
+      case 'getPreRaceRounds':
+        responseData = handleGetPreRaceRounds(e.parameter.scenarioId);
+        break;
+      case 'getPreRaceDiscussions':
+        responseData = handleGetPreRaceDiscussions(e.parameter.roundId);
+        break;
+      case 'getPreRaceVotes':
+        responseData = handleGetPreRaceVotes(e.parameter.roundId);
         break;
       default:
         return createJsonResponse({
@@ -291,6 +322,24 @@ function doPost(e) {
         break;
       case 'submitQuizAttempt':
         responseData = handleSubmitQuizAttempt(payload);
+        break;
+      case 'startStrategyAttempt':
+        responseData = handleStartStrategyAttempt(payload);
+        break;
+      case 'submitStrategyDecision':
+        responseData = handleSubmitStrategyDecision(payload);
+        break;
+      case 'completeStrategyAttempt':
+        responseData = handleCompleteStrategyAttempt(payload);
+        break;
+      case 'commitPreRaceStrategy':
+        responseData = handleCommitPreRaceStrategy(payload);
+        break;
+      case 'postPreRaceDiscussion':
+        responseData = handlePostPreRaceDiscussion(payload);
+        break;
+      case 'postPreRaceVote':
+        responseData = handlePostPreRaceVote(payload);
         break;
       default:
         return createJsonResponse({
@@ -5023,4 +5072,507 @@ function getBackendApprovedQuestions() {
     { questionId: 'f1-001', categoryId: 'formula-1', question: 'Under standard FIA Formula 1 Sporting Regulations, what is the minimum race distance for a Grand Prix (excluding the Monaco Grand Prix)?', options: [{ id: 'a', text: '260 kilometres' }, { id: 'b', text: '300 kilometres' }, { id: 'c', text: '305 kilometres' }, { id: 'd', text: '350 kilometres' }], correctOptionId: 'c', explanation: 'Article 5.4 of the FIA F1 Sporting Regulations stipulates that the scheduled race distance for all Grands Prix shall be the least number of complete laps exceeding 305 km, with the sole historical exception of Monaco (approx. 260 km).', difficulty: 'easy', topic: 'Sporting Regulations', contentVersion: 1, sourceUrl: 'https://www.fia.com/regulation/category/110', approvalStatus: 'approved' }
   ];
 }
+
+/**
+ * =========================================================================
+ * STRATEGY ROOM BACKEND HANDLERS
+ * =========================================================================
+ */
+
+function handleGetStrategyScenarios(mode, category) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(SHEET_NAMES.STRATEGY_SCENARIOS);
+  if (!sheet) return [];
+
+  const rows = sheet.getDataRange().getValues();
+  if (rows.length <= 1) return [];
+
+  const scenarios = [];
+  for (let r = 1; r < rows.length; r++) {
+    const sId = rows[r][0];
+    const sMode = rows[r][3];
+    const sCategory = rows[r][4];
+    const sStatus = rows[r][6];
+
+    if (sStatus !== 'approved') continue;
+    if (mode && sMode !== mode) continue;
+    if (category && sCategory !== category) continue;
+
+    scenarios.push({
+      id: sId,
+      version: Number(rows[r][1]) || 1,
+      title: rows[r][2],
+      mode: sMode,
+      category: sCategory,
+      difficulty: rows[r][5],
+      status: sStatus,
+      definition: rows[r][7] ? JSON.parse(rows[r][7]) : null
+    });
+  }
+
+  return scenarios;
+}
+
+function handleStartStrategyAttempt(payload) {
+  const attemptId = payload.attemptId || ('strat_att_' + new Date().getTime());
+  const userId = payload.userId;
+  if (!userId) throw new Error('userId is required');
+
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName(SHEET_NAMES.STRATEGY_ATTEMPTS);
+  if (!sheet) {
+    sheet = ss.insertSheet(SHEET_NAMES.STRATEGY_ATTEMPTS);
+    sheet.appendRow([
+      'attemptId', 'userId', 'scenarioId', 'scenarioVersion', 'simulationVersion',
+      'mode', 'status', 'startedAt', 'completedAt', 'score', 'maxScore', 'pointsAwarded'
+    ]);
+  }
+
+  sheet.appendRow([
+    attemptId,
+    userId,
+    payload.scenarioId,
+    payload.scenarioVersion || 1,
+    1,
+    payload.mode || 'challenge',
+    'in_progress',
+    payload.startedAt || new Date().toISOString(),
+    '',
+    0,
+    100,
+    0
+  ]);
+
+  return { success: true, attemptId: attemptId };
+}
+
+function handleSubmitStrategyDecision(payload) {
+  const attemptId = payload.attemptId;
+  if (!attemptId) throw new Error('attemptId is required');
+
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName(SHEET_NAMES.STRATEGY_DECISIONS);
+  if (!sheet) {
+    sheet = ss.insertSheet(SHEET_NAMES.STRATEGY_DECISIONS);
+    sheet.appendRow([
+      'decisionId', 'attemptId', 'stepIndex', 'actionId',
+      'timeDeltaSeconds', 'positionDelta', 'decisionScore', 'explanation', 'submittedAt'
+    ]);
+  }
+
+  const decisionId = 'dec_' + new Date().getTime();
+  sheet.appendRow([
+    decisionId,
+    attemptId,
+    payload.stepIndex || 0,
+    payload.actionId,
+    payload.timeDeltaSeconds || 0,
+    payload.positionDelta || 0,
+    payload.decisionScore || 0,
+    payload.explanation || '',
+    payload.submittedAt || new Date().toISOString()
+  ]);
+
+  return { success: true, decisionId: decisionId };
+}
+
+function handleCompleteStrategyAttempt(payload) {
+  const attemptId = payload.attemptId;
+  const userId = payload.userId;
+  if (!attemptId || !userId) throw new Error('attemptId and userId are required');
+
+  const lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(10000);
+  } catch (e) {
+    throw new Error('Server busy: could not acquire lock for attempt completion');
+  }
+
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    let sheet = ss.getSheetByName(SHEET_NAMES.STRATEGY_ATTEMPTS);
+    if (!sheet) {
+      sheet = ss.insertSheet(SHEET_NAMES.STRATEGY_ATTEMPTS);
+      sheet.appendRow([
+        'attemptId', 'userId', 'scenarioId', 'scenarioVersion', 'simulationVersion',
+        'mode', 'status', 'startedAt', 'completedAt', 'score', 'maxScore', 'pointsAwarded'
+      ]);
+    }
+
+    const rows = sheet.getDataRange().getValues();
+    let targetRow = -1;
+    let existingStatus = '';
+    let existingPoints = 0;
+
+    for (let r = 1; r < rows.length; r++) {
+      if (String(rows[r][0] || '').trim() === attemptId) {
+        targetRow = r + 1;
+        existingStatus = rows[r][6];
+        existingPoints = Number(rows[r][11]) || 0;
+        break;
+      }
+    }
+
+    // IDEMPOTENCY: If already completed, return existing without re-awarding points
+    if (existingStatus === 'completed') {
+      return {
+        success: true,
+        attemptId: attemptId,
+        alreadyCompleted: true,
+        pointsAwarded: existingPoints
+      };
+    }
+
+    const completedAt = payload.completedAt || new Date().toISOString();
+    const score = Number(payload.score) || 0;
+    const maxScore = Number(payload.maxScore) || 100;
+    const pointsAwarded = Number(payload.pointsAwarded) || score;
+
+    if (targetRow > 0) {
+      sheet.getRange(targetRow, 7).setValue('completed');
+      sheet.getRange(targetRow, 9).setValue(completedAt);
+      sheet.getRange(targetRow, 10).setValue(score);
+      sheet.getRange(targetRow, 11).setValue(maxScore);
+      sheet.getRange(targetRow, 12).setValue(pointsAwarded);
+    } else {
+      sheet.appendRow([
+        attemptId,
+        userId,
+        payload.scenarioId || 'unknown',
+        1,
+        1,
+        payload.mode || 'challenge',
+        'completed',
+        payload.startedAt || completedAt,
+        completedAt,
+        score,
+        maxScore,
+        pointsAwarded
+      ]);
+    }
+
+    return {
+      success: true,
+      attemptId: attemptId,
+      score: score,
+      pointsAwarded: pointsAwarded
+    };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function handleGetStrategyAttempt(attemptId, requestingUserId) {
+  if (!attemptId) return null;
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(SHEET_NAMES.STRATEGY_ATTEMPTS);
+  if (!sheet) return null;
+
+  const rows = sheet.getDataRange().getValues();
+  for (let r = 1; r < rows.length; r++) {
+    if (String(rows[r][0] || '').trim() === attemptId) {
+      const record = {
+        attemptId: rows[r][0],
+        userId: rows[r][1],
+        scenarioId: rows[r][2],
+        scenarioVersion: Number(rows[r][3]) || 1,
+        simulationVersion: Number(rows[r][4]) || 1,
+        mode: rows[r][5],
+        status: rows[r][6],
+        startedAt: rows[r][7],
+        completedAt: rows[r][8],
+        score: Number(rows[r][9]) || 0,
+        maxScore: Number(rows[r][10]) || 100,
+        pointsAwarded: Number(rows[r][11]) || 0
+      };
+
+      if (requestingUserId && record.userId !== requestingUserId) {
+        const u = getUserProfile(requestingUserId);
+        if (!u || u.role !== 'admin') {
+          throw new Error('Unauthorized: You do not have permission to view this strategy attempt.');
+        }
+      }
+
+      return record;
+    }
+  }
+  return null;
+}
+
+function handleGetStrategyHistory(userId) {
+  if (!userId) return [];
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(SHEET_NAMES.STRATEGY_ATTEMPTS);
+  if (!sheet) return [];
+
+  const rows = sheet.getDataRange().getValues();
+  const history = [];
+
+  for (let r = 1; r < rows.length; r++) {
+    if (String(rows[r][1] || '').trim() === userId) {
+      history.push({
+        attemptId: rows[r][0],
+        userId: rows[r][1],
+        scenarioId: rows[r][2],
+        scenarioVersion: Number(rows[r][3]) || 1,
+        mode: rows[r][5],
+        status: rows[r][6],
+        startedAt: rows[r][7],
+        completedAt: rows[r][8],
+        score: Number(rows[r][9]) || 0,
+        maxScore: Number(rows[r][10]) || 100,
+        pointsAwarded: Number(rows[r][11]) || 0
+      });
+    }
+  }
+
+  return history.sort(function(a, b) {
+    return new Date(b.completedAt || b.startedAt).getTime() - new Date(a.completedAt || a.startedAt).getTime();
+  });
+}
+
+function handleGetStrategyLeaderboard(periodKey) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(SHEET_NAMES.STRATEGY_LEADERBOARD);
+  if (!sheet) return [];
+
+  const rows = sheet.getDataRange().getValues();
+  const entries = [];
+  for (let r = 1; r < rows.length; r++) {
+    const rowPeriod = rows[r][1];
+    if (periodKey && periodKey !== 'all_time' && rowPeriod !== periodKey) continue;
+
+    entries.push({
+      userId: rows[r][0],
+      periodKey: rowPeriod,
+      totalPoints: Number(rows[r][2]) || 0,
+      completedAttempts: Number(rows[r][3]) || 0,
+      averageScore: Number(rows[r][4]) || 0,
+      updatedAt: rows[r][5]
+    });
+  }
+
+  return entries.sort(function(a, b) {
+    return b.totalPoints - a.totalPoints;
+  }).map(function(e, i) {
+    e.rank = i + 1;
+    return e;
+  });
+}
+
+function handleGetStrategyPerformance(userId) {
+  const history = handleGetStrategyHistory(userId);
+  const completed = history.filter(function(h) { return h.status === 'completed'; });
+  const scores = completed.map(function(h) { return h.score; });
+  const totalPoints = completed.reduce(function(sum, h) { return sum + (h.pointsAwarded || 0); }, 0);
+  const avgScore = scores.length > 0 ? (scores.reduce(function(a, b) { return a + b; }, 0) / scores.length) : 0;
+  const bestScore = scores.length > 0 ? Math.max.apply(null, scores) : 0;
+
+  return {
+    userId: userId,
+    totalPoints: totalPoints,
+    totalAttempts: history.length,
+    completedScenariosCount: completed.length,
+    averageScore: Math.round(avgScore * 10) / 10,
+    bestScore: bestScore,
+    recentAttempts: history.slice(0, 5)
+  };
+}
+
+/**
+ * =========================================================================
+ * PRE-RACE STRATEGY BACKEND HANDLERS
+ * =========================================================================
+ */
+
+function handleGetPreRaceRounds(scenarioId) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(SHEET_NAMES.STRATEGY_ROUNDS);
+  if (!sheet) return [];
+
+  const rows = sheet.getDataRange().getValues();
+  const list = [];
+  for (let r = 1; r < rows.length; r++) {
+    if (!scenarioId || rows[r][1] === scenarioId) {
+      list.push({
+        roundId: rows[r][0],
+        scenarioId: rows[r][1],
+        scenarioVersion: Number(rows[r][2]) || 1,
+        openingTime: rows[r][3],
+        deadlineTime: rows[r][4],
+        durationMinutes: Number(rows[r][5]) || 15,
+        status: rows[r][6]
+      });
+    }
+  }
+  return list;
+}
+
+function handleGetPreRaceDiscussions(roundId) {
+  if (!roundId) return [];
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(SHEET_NAMES.STRATEGY_DISCUSSIONS);
+  if (!sheet) return [];
+
+  const rows = sheet.getDataRange().getValues();
+  const comments = [];
+  for (let r = 1; r < rows.length; r++) {
+    if (rows[r][1] === roundId) {
+      comments.push({
+        commentId: rows[r][0],
+        roundId: rows[r][1],
+        userId: rows[r][2],
+        username: rows[r][3],
+        displayName: rows[r][4],
+        comment: rows[r][5],
+        timestamp: rows[r][6],
+        planPreference: rows[r][7] || 'custom'
+      });
+    }
+  }
+  return comments.sort(function(a, b) {
+    return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
+  });
+}
+
+function handleGetPreRaceVotes(roundId) {
+  if (!roundId) return [];
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(SHEET_NAMES.STRATEGY_VOTES);
+  if (!sheet) return [];
+
+  const rows = sheet.getDataRange().getValues();
+  const votes = [];
+  for (let r = 1; r < rows.length; r++) {
+    if (rows[r][1] === roundId) {
+      votes.push({
+        voteId: rows[r][0],
+        roundId: rows[r][1],
+        userId: rows[r][2],
+        planId: rows[r][3],
+        timestamp: rows[r][4]
+      });
+    }
+  }
+  return votes;
+}
+
+function handlePostPreRaceDiscussion(payload) {
+  if (!payload.roundId || !payload.comment) {
+    throw new Error('roundId and comment are required');
+  }
+
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName(SHEET_NAMES.STRATEGY_DISCUSSIONS);
+  if (!sheet) {
+    sheet = ss.insertSheet(SHEET_NAMES.STRATEGY_DISCUSSIONS);
+    sheet.appendRow([
+      'commentId', 'roundId', 'userId', 'username', 'displayName', 'comment', 'timestamp', 'planPreference'
+    ]);
+  }
+
+  const commentId = 'comm_' + new Date().getTime();
+  const timestamp = new Date().toISOString();
+
+  sheet.appendRow([
+    commentId,
+    payload.roundId,
+    payload.userId || 'anonymous',
+    payload.username || 'Strategist',
+    payload.displayName || 'Strategist',
+    payload.comment.trim(),
+    timestamp,
+    payload.planPreference || 'custom'
+  ]);
+
+  return { success: true, commentId: commentId, timestamp: timestamp };
+}
+
+function handlePostPreRaceVote(payload) {
+  if (!payload.roundId || !payload.userId || !payload.planId) {
+    throw new Error('roundId, userId, and planId are required');
+  }
+
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName(SHEET_NAMES.STRATEGY_VOTES);
+  if (!sheet) {
+    sheet = ss.insertSheet(SHEET_NAMES.STRATEGY_VOTES);
+    sheet.appendRow(['voteId', 'roundId', 'userId', 'planId', 'timestamp']);
+  }
+
+  const voteId = 'vote_' + new Date().getTime() + '_' + payload.userId;
+  const timestamp = new Date().toISOString();
+
+  sheet.appendRow([voteId, payload.roundId, payload.userId, payload.planId, timestamp]);
+  return { success: true, voteId: voteId };
+}
+
+function handleCommitPreRaceStrategy(payload) {
+  const attemptId = payload.attemptId;
+  const userId = payload.userId;
+  const scenarioId = payload.scenarioId;
+  if (!attemptId || !userId || !scenarioId) {
+    throw new Error('attemptId, userId, and scenarioId are required');
+  }
+
+  const lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(10000);
+  } catch (e) {
+    throw new Error('Server busy: could not acquire lock for pre-race strategy commit');
+  }
+
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    let sheet = ss.getSheetByName(SHEET_NAMES.STRATEGY_ATTEMPTS);
+    if (!sheet) {
+      sheet = ss.insertSheet(SHEET_NAMES.STRATEGY_ATTEMPTS);
+      sheet.appendRow([
+        'attemptId', 'userId', 'scenarioId', 'scenarioVersion', 'simulationVersion',
+        'mode', 'status', 'startedAt', 'completedAt', 'score', 'maxScore', 'pointsAwarded'
+      ]);
+    }
+
+    // IDEMPOTENCY CHECK
+    const rows = sheet.getDataRange().getValues();
+    for (let r = 1; r < rows.length; r++) {
+      if (String(rows[r][0] || '').trim() === attemptId) {
+        return {
+          success: true,
+          attemptId: attemptId,
+          alreadyCommitted: true,
+          score: Number(rows[r][9]) || 0
+        };
+      }
+    }
+
+    const timestamp = new Date().toISOString();
+    const score = Number(payload.score) || 0;
+
+    sheet.appendRow([
+      attemptId,
+      userId,
+      scenarioId,
+      1,
+      1,
+      'pre_race_strategy',
+      'completed',
+      timestamp,
+      timestamp,
+      score,
+      100,
+      score
+    ]);
+
+    return {
+      success: true,
+      attemptId: attemptId,
+      score: score
+    };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+
 

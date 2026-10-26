@@ -85,6 +85,41 @@ function initializeDatabase() {
       name: 'QuizAchievements',
       headers: ['userAchievementId', 'userId', 'achievementId', 'title', 'description', 'badgeIcon', 'badgeColor', 'earnedAt', 'ruleVersion'],
       headerColor: '#10b981'
+    },
+    {
+      name: 'StrategyScenarios',
+      headers: ['scenarioId', 'version', 'title', 'mode', 'category', 'difficulty', 'status', 'definitionJson'],
+      headerColor: '#FF5500'
+    },
+    {
+      name: 'StrategyAttempts',
+      headers: ['attemptId', 'userId', 'scenarioId', 'scenarioVersion', 'simulationVersion', 'mode', 'status', 'startedAt', 'completedAt', 'score', 'maxScore', 'pointsAwarded'],
+      headerColor: '#FF7A00'
+    },
+    {
+      name: 'StrategyDecisions',
+      headers: ['decisionId', 'attemptId', 'stepIndex', 'actionId', 'timeDeltaSeconds', 'positionDelta', 'decisionScore', 'explanation', 'submittedAt'],
+      headerColor: '#FFA500'
+    },
+    {
+      name: 'StrategyLeaderboard',
+      headers: ['userId', 'periodKey', 'totalPoints', 'completedAttempts', 'averageScore', 'updatedAt'],
+      headerColor: '#FFD700'
+    },
+    {
+      name: 'StrategyRounds',
+      headers: ['roundId', 'scenarioId', 'scenarioVersion', 'openingTime', 'deadlineTime', 'durationMinutes', 'status'],
+      headerColor: '#00e676'
+    },
+    {
+      name: 'StrategyDiscussions',
+      headers: ['commentId', 'roundId', 'userId', 'username', 'displayName', 'comment', 'timestamp', 'planPreference'],
+      headerColor: '#00e5ff'
+    },
+    {
+      name: 'StrategyVotes',
+      headers: ['voteId', 'roundId', 'userId', 'planId', 'timestamp'],
+      headerColor: '#8b5cf6'
     }
   ];
 

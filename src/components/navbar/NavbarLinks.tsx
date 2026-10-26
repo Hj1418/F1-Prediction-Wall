@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Compass, Calendar, CircleDot, Trophy, ChevronDown, Brain } from 'lucide-react';
+import { Home, Compass, Calendar, CircleDot, Trophy, ChevronDown, Brain, Sliders } from 'lucide-react';
 import { ExploreMegaMenu } from './ExploreMegaMenu';
 
 interface NavItem {
@@ -32,6 +32,16 @@ const COMPETE_ITEMS: CompeteSubItem[] = [
     pillText: 'PREDICT & SCORE',
     colorType: 'flame',
     matchPrefixes: ['/predictions', '/predict'],
+  },
+  {
+    label: 'STRATEGY ROOM',
+    path: '/strategy',
+    icon: Sliders,
+    title: 'STRATEGY ROOM',
+    description: 'Make pit window, undercut & safety car calls in live race simulations.',
+    pillText: 'RACE STRATEGIST',
+    colorType: 'cyan',
+    matchPrefixes: ['/strategy'],
   },
   {
     label: 'LEADERBOARD',

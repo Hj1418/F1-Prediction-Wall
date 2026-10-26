@@ -21,8 +21,7 @@ assert(!homeContent.includes('INDIA 🇮🇳</span>\n          </div>'), 'India 
 assert(homeContent.includes('home-hero-brand-title'), 'HomePage uses dedicated brand title class');
 assert(homeContent.includes('THE <span className="home-hero-grid-accent">GRID</span>'), 'HomePage uses dynamic editorial emphasis on GRID');
 assert(homeContent.includes('YOUR MOTORSPORT <span className="home-hero-tagline-accent">STARTING POINT</span>') || homeContent.includes('YOUR MOTORSPORT STARTING POINT'), 'HomePage presents YOUR MOTORSPORT STARTING POINT tagline');
-assert(homeContent.includes('home-pillar-grid'), 'HomePage renders compact 4-pillar product grid');
-assert(homeContent.includes('Understand the sport') && homeContent.includes('Stay updated') && homeContent.includes('Dive deeper') && homeContent.includes('Test your knowledge'), '4 Product pillars contain concise supporting explanations');
+assert(!homeContent.includes('home-pillar-grid'), 'HomePage removed the learn, follow, explore, and compete pillar cards for clean presentation');
 assert(homeContent.includes('home-hero-primary-cta') && homeContent.includes('to="/explore"') && homeContent.includes('Explore Motorsport'), 'Primary CTA is Explore Motorsport linking to /explore');
 assert(homeContent.includes('home-hero-secondary-cta') && homeContent.includes('to="/calendar"') && homeContent.includes('Global Calendar'), 'Secondary CTA is Global Calendar linking to /calendar');
 

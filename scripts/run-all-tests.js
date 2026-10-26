@@ -49,8 +49,11 @@ try {
   execSync('npx tsx scripts/audit-quiz-questions-deep.ts', { stdio: 'inherit' });
   execSync('npx tsx scripts/verify-racing-tag-enhancement.ts', { stdio: 'inherit' });
   execSync('npx tsx scripts/verify-notifications-and-profile-sync.ts', { stdio: 'inherit' });
+  execSync('npx tsx scripts/verify-strategy-engine.ts', { stdio: 'inherit' });
+  execSync('npx tsx scripts/verify-strategy-e2e.ts', { stdio: 'inherit' });
+  execSync('npx tsx scripts/verify-strategy-prerace.ts', { stdio: 'inherit' });
   execSync('npx tsx scripts/benchmark-scoring.ts', { stdio: 'inherit' });
-  console.log('🏆 ALL UNIT, INTEGRATION, AUTH, ADMIN, BETA, RACING IDENTITY, AVATAR, FOUNDATION, PHASE 8A-8F, 9.1-9.3, PHASE 10, PHASE 11, MASTER UI/UX, QUIZ & P0 PLATFORM INTEGRITY TESTS PASSED PERFECTLY!\n');
+  console.log('🏆 ALL UNIT, INTEGRATION, AUTH, ADMIN, BETA, RACING IDENTITY, AVATAR, FOUNDATION, PHASE 8A-8F, 9.1-9.3, PHASE 10, PHASE 11, MASTER UI/UX, QUIZ, STRATEGY ROOM & P0 PLATFORM INTEGRITY TESTS PASSED PERFECTLY!\n');
 } catch (err) {
   console.error('Test execution failed');
   process.exit(1);

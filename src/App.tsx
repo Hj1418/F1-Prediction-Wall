@@ -29,6 +29,10 @@ const ChampionshipDetailPage = lazy(() => import('./pages/ChampionshipDetailPage
 const IndianMotorsportPage = lazy(() => import('./pages/IndianMotorsportPage').then(m => ({ default: m.IndianMotorsportPage })));
 const CalendarPage = lazy(() => import('./pages/CalendarPage').then(m => ({ default: m.CalendarPage })));
 const QuizPage = lazy(() => import('./pages/QuizPage').then(m => ({ default: m.QuizPage })));
+const StrategyRoomPage = lazy(() => import('./pages/StrategyRoomPage').then(m => ({ default: m.StrategyRoomPage })));
+const StrategyScenarioPage = lazy(() => import('./pages/StrategyScenarioPage').then(m => ({ default: m.StrategyScenarioPage })));
+const StrategyLeaderboardPage = lazy(() => import('./pages/StrategyLeaderboardPage').then(m => ({ default: m.StrategyLeaderboardPage })));
+const StrategyPerformancePage = lazy(() => import('./pages/StrategyPerformancePage').then(m => ({ default: m.StrategyPerformancePage })));
 const UniversalSearchModal = lazy(() => import('./components/search/UniversalSearchModal').then(m => ({ default: m.UniversalSearchModal })));
 
 const AppLayout: React.FC = () => {
@@ -77,6 +81,10 @@ const AppLayout: React.FC = () => {
             <Route path="/indian-motorsport" element={<IndianMotorsportPage />} />
             <Route path="/quiz" element={<QuizPage />} />
             <Route path="/quiz/:attemptId" element={<QuizPage />} />
+            <Route path="/strategy" element={<StrategyRoomPage />} />
+            <Route path="/strategy/scenario/:scenarioId" element={<StrategyScenarioPage />} />
+            <Route path="/strategy/leaderboard" element={<StrategyLeaderboardPage />} />
+            <Route path="/strategy/performance" element={<StrategyPerformancePage />} />
             <Route path="/predictions" element={<PredictionsHubPage />} />
             <Route path="/predict/:roundId" element={<PredictionPage />} />
             <Route path="/leaderboard" element={<LeaderboardPage />} />

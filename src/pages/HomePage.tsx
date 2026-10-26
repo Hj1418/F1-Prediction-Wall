@@ -266,43 +266,6 @@ export const HomePage: React.FC = () => {
               </Link>
             </div>
           </div>
-
-          {/* 1.2 Bottom Hero Glass Strip (4-Column Value Pillars) */}
-          <div style={{ marginTop: '44px', width: '100%' }}>
-            <div className="home-pillar-grid">
-              <div className="home-pillar-item">
-                <div className="home-pillar-header">
-                  <BookOpen size={16} style={{ color: 'var(--grdx-flame-orange, #FF7A00)' }} />
-                  <span>LEARN</span>
-                </div>
-                <p className="home-pillar-desc">Understand the sport</p>
-              </div>
-
-              <div className="home-pillar-item">
-                <div className="home-pillar-header">
-                  <Calendar size={16} style={{ color: 'var(--grdx-flame-orange, #FF7A00)' }} />
-                  <span>FOLLOW</span>
-                </div>
-                <p className="home-pillar-desc">Stay updated</p>
-              </div>
-
-              <div className="home-pillar-item">
-                <div className="home-pillar-header">
-                  <Compass size={16} style={{ color: 'var(--grdx-flame-orange, #FF7A00)' }} />
-                  <span>EXPLORE</span>
-                </div>
-                <p className="home-pillar-desc">Dive deeper</p>
-              </div>
-
-              <div className="home-pillar-item">
-                <div className="home-pillar-header">
-                  <Zap size={16} style={{ color: 'var(--grdx-flame-orange, #FF7A00)' }} />
-                  <span>COMPETE</span>
-                </div>
-                <p className="home-pillar-desc">Test your knowledge</p>
-              </div>
-            </div>
-          </div>
         </div>
       </section>
 
