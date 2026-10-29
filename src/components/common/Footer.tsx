@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Mail, MessageCircle, HelpCircle, Home, Calendar, Trophy, Target, BookOpen, MapPin, Compass, Flag, Brain } from 'lucide-react';
+import { Mail, MessageCircle, HelpCircle, Home, Calendar, Trophy, Target, BookOpen, MapPin, Compass, Flag, Brain, Users } from 'lucide-react';
 
 export const Footer: React.FC = () => {
   const linkStyle: React.CSSProperties = {
@@ -111,6 +111,12 @@ export const Footer: React.FC = () => {
               <Link to="/leaderboard" style={linkStyle} onMouseEnter={e => (e.currentTarget.style.color = '#fff')} onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-secondary)')}>
                 <Trophy size={13} /> Leaderboard
               </Link>
+              <Link to="/community-stats" style={linkStyle} onMouseEnter={e => (e.currentTarget.style.color = '#fff')} onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-secondary)')}>
+                <Users size={13} /> Community Report
+              </Link>
+              <Link to="/about" style={linkStyle} onMouseEnter={e => (e.currentTarget.style.color = '#fff')} onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-secondary)')}>
+                <Compass size={13} /> About Us
+              </Link>
             </div>
           </div>
 
@@ -139,7 +145,7 @@ export const Footer: React.FC = () => {
                 <Mail size={13} /> thepaddockprediction14@gmail.com
               </a>
               <a
-                href="mailto:thepaddockprediction14@gmail.com?subject=The%20Grid%20Feedback"
+                href="mailto:thepaddockprediction14@gmail.com?subject=The%20GRDX%20Feedback"
                 style={linkStyle}
                 onMouseEnter={e => (e.currentTarget.style.color = '#fff')}
                 onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-secondary)')}
@@ -147,7 +153,7 @@ export const Footer: React.FC = () => {
                 <MessageCircle size={13} /> Send Feedback
               </a>
               <a
-                href="mailto:thepaddockprediction14@gmail.com?subject=The%20Grid%20Support%20Request"
+                href="mailto:thepaddockprediction14@gmail.com?subject=The%20GRDX%20Support%20Request"
                 style={linkStyle}
                 onMouseEnter={e => (e.currentTarget.style.color = '#fff')}
                 onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-secondary)')}
@@ -173,6 +179,8 @@ export const Footer: React.FC = () => {
         >
           <div>© {new Date().getFullYear()} GRDX. An open motorsport platform. Not affiliated with Formula 1, the FIA, or any motorsport governing body.</div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            <Link to="/about" style={{ color: 'inherit', textDecoration: 'none' }}>About Us</Link>
+            <Link to="/community-stats" style={{ color: 'inherit', textDecoration: 'none' }}>Community Report</Link>
             <span>Privacy Policy</span>
             <span>Terms of Use</span>
             <span>2026 Season</span>

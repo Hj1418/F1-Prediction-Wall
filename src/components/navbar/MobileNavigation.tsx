@@ -16,6 +16,7 @@ import {
   ChevronDown,
   ChevronRight,
   Brain,
+  Users,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { UserInitialsAvatar } from '../common/UserInitialsAvatar';
@@ -279,6 +280,28 @@ export const MobileNavigation: React.FC<MobileNavigationProps> = ({
         >
           <Trophy size={18} style={{ color: isItemActive('/leaderboard') ? 'var(--f1-red)' : 'var(--text-secondary)' }} />
           <span>Leaderboard</span>
+        </Link>
+
+        {/* COMMUNITY REPORT */}
+        <Link
+          to="/community-stats"
+          onClick={onClose}
+          className={`mobile-nav-drawer__link ${isItemActive('/community-stats') ? 'mobile-nav-drawer__link--active' : ''}`}
+          style={{ minHeight: '44px' }}
+        >
+          <Users size={18} style={{ color: isItemActive('/community-stats') ? 'var(--f1-red)' : 'var(--text-secondary)' }} />
+          <span>Community Report</span>
+        </Link>
+
+        {/* ABOUT US */}
+        <Link
+          to="/about"
+          onClick={onClose}
+          className={`mobile-nav-drawer__link ${isItemActive('/about') ? 'mobile-nav-drawer__link--active' : ''}`}
+          style={{ minHeight: '44px' }}
+        >
+          <Compass size={18} style={{ color: isItemActive('/about') ? 'var(--f1-red)' : 'var(--text-secondary)' }} />
+          <span>About Us</span>
         </Link>
       </div>
 

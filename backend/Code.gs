@@ -114,6 +114,22 @@ function doGet(e) {
       case 'getUsers':
         responseData = getAdminUsers(e.parameter.requesterId || e.parameter.userId, e.parameter.accessToken, e.parameter.authToken || e.parameter.token);
         break;
+      case 'getAdminCompetitionAnalytics':
+        responseData = getAdminCompetitionAnalytics(
+          e.parameter.requesterId || e.parameter.userId,
+          e.parameter.accessToken,
+          e.parameter.authToken || e.parameter.token,
+          e.parameter.timeRange
+        );
+        break;
+      case 'getAdminUserCompetitionProfile':
+        responseData = getAdminUserCompetitionProfile(
+          e.parameter.requesterId || e.parameter.userId,
+          e.parameter.targetUserId,
+          e.parameter.accessToken,
+          e.parameter.authToken || e.parameter.token
+        );
+        break;
       case 'getAdminPredictions':
       case 'getPredictions':
         responseData = getAdminPredictions(e.parameter.roundId);
@@ -184,6 +200,25 @@ function doGet(e) {
         break;
       case 'getPreRaceVotes':
         responseData = handleGetPreRaceVotes(e.parameter.roundId);
+        break;
+      case 'getAdminCompetitionAnalytics':
+        responseData = getAdminCompetitionAnalytics(
+          e.parameter.requesterId,
+          e.parameter.accessToken,
+          e.parameter.authToken,
+          e.parameter.timeRange
+        );
+        break;
+      case 'getAdminUserCompetitionProfile':
+        responseData = getAdminUserCompetitionProfile(
+          e.parameter.requesterId,
+          e.parameter.targetUserId,
+          e.parameter.accessToken,
+          e.parameter.authToken
+        );
+        break;
+      case 'getPublicCommunityReport':
+        responseData = getPublicCommunityReport(e.parameter.timeRange || 'all');
         break;
       default:
         return createJsonResponse({
@@ -5574,5 +5609,1095 @@ function handleCommitPreRaceStrategy(payload) {
   }
 }
 
+/**
+ * =========================================================================
+ * ADMIN COMPETITION ANALYTICS BACKEND HANDLERS
+ * =========================================================================
+ */
 
+function assertAdminPrivileges(requesterId, accessToken, authToken) {
+  if (!requesterId && !accessToken && !authToken) {
+    throw new Error('Unauthorized: Authentication identity required.');
+  }
+
+  // Cryptographically verified backend admin session token
+  if (authToken) {
+    var verifiedAdmin = verifyAdminCaller({ authToken: authToken });
+    if (verifiedAdmin && verifiedAdmin.role === 'admin') {
+      return true;
+    }
+  }
+
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName(SHEET_NAMES.USERS);
+  if (!sheet) throw new Error('Forbidden: Users table unavailable.');
+
+  var rows = sheet.getDataRange().getValues();
+  if (rows.length <= 1) throw new Error('Forbidden: No users registered.');
+
+  var headers = rows[0];
+  var colMap = {};
+  for (var c = 0; c < headers.length; c++) {
+    colMap[String(headers[c]).trim()] = c;
+  }
+
+  var cleanReq = String(requesterId || '').trim().toLowerCase();
+  if (accessToken) {
+    var verified = verifyGoogleAccessToken(accessToken);
+    if (!verified) {
+      throw new Error('Forbidden: Invalid or expired Google OAuth credential.');
+    }
+    cleanReq = verified.email.trim().toLowerCase();
+  }
+
+  var uidCol = colMap['userId'] !== undefined ? colMap['userId'] : 0;
+  var emailCol = colMap['email'] !== undefined ? colMap['email'] : 1;
+  var usernameCol = colMap['username'] !== undefined ? colMap['username'] : 3;
+  var roleCol = colMap['role'] !== undefined ? colMap['role'] : 12;
+
+  for (var i = 1; i < rows.length; i++) {
+    var uId = String(rows[i][uidCol] || '').trim().toLowerCase();
+    var uEmail = String(rows[i][emailCol] || '').trim().toLowerCase();
+    var uName = String(rows[i][usernameCol] || '').trim().toLowerCase();
+
+    if (uId === cleanReq || uEmail === cleanReq || uName === cleanReq) {
+      var roleVal = String(rows[i][roleCol] || '').trim().toLowerCase();
+      if (roleVal === 'admin') {
+        return true;
+      }
+      break;
+    }
+  }
+
+  throw new Error('Forbidden: Administrator privileges required to access competition analytics.');
+}
+
+function getAdminCompetitionAnalytics(requesterId, accessToken, authToken, timeRange) {
+  assertAdminPrivileges(requesterId, accessToken, authToken);
+
+  var selectedRange = timeRange === '7d' || timeRange === '30d' ? timeRange : 'all';
+  var nowMs = Date.now();
+  var cutoffMs = selectedRange === '7d' ? nowMs - 7 * 86400 * 1000 : (selectedRange === '30d' ? nowMs - 30 * 86400 * 1000 : 0);
+
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+
+  // 1. Users
+  var allUsers = getAllUsersInternal();
+  var userMap = {};
+  for (var u = 0; u < allUsers.length; u++) {
+    userMap[allUsers[u].userId] = allUsers[u];
+  }
+
+  // 2. Quiz Attempts (Racing Tag)
+  var quizSheet = ss.getSheetByName(SHEET_NAMES.QUIZ_ATTEMPTS);
+  var quizRows = quizSheet ? quizSheet.getDataRange().getValues() : [];
+  var quizAttempts = [];
+
+  for (var qr = 1; qr < quizRows.length; qr++) {
+    var qRow = quizRows[qr];
+    if (!qRow[0]) continue;
+    var qCompletedAt = qRow[11] || qRow[10] || '';
+    var qTimeMs = qCompletedAt ? new Date(qCompletedAt).getTime() : 0;
+    if (cutoffMs > 0 && qTimeMs > 0 && qTimeMs < cutoffMs) continue;
+
+    quizAttempts.push({
+      attemptId: String(qRow[0]),
+      userId: String(qRow[1]),
+      score: Number(qRow[5]) || 0,
+      totalQuestions: Number(qRow[6]) || 10,
+      percentage: Number(qRow[7]) || 0,
+      fanIdentityTier: String(qRow[8] || 'The Rookie'),
+      startedAt: String(qRow[10] || ''),
+      completedAt: String(qRow[11] || qRow[10] || ''),
+      status: String(qRow[12] || 'completed'),
+      difficultyLevel: String(qRow[13] || 'apex')
+    });
+  }
+
+  // 3. Strategy Attempts (Tactical Room & Pre-Race)
+  var stratSheet = ss.getSheetByName(SHEET_NAMES.STRATEGY_ATTEMPTS);
+  var stratRows = stratSheet ? stratSheet.getDataRange().getValues() : [];
+  var stratAttempts = [];
+
+  for (var sr = 1; sr < stratRows.length; sr++) {
+    var sRow = stratRows[sr];
+    if (!sRow[0]) continue;
+    var sCompletedAt = sRow[8] || sRow[7] || '';
+    var sTimeMs = sCompletedAt ? new Date(sCompletedAt).getTime() : 0;
+    if (cutoffMs > 0 && sTimeMs > 0 && sTimeMs < cutoffMs) continue;
+
+    stratAttempts.push({
+      attemptId: String(sRow[0]),
+      userId: String(sRow[1]),
+      scenarioId: String(sRow[2] || 'scenario'),
+      scenarioVersion: Number(sRow[3]) || 1,
+      simulationVersion: Number(sRow[4]) || 1,
+      mode: String(sRow[5] || 'challenge'),
+      status: String(sRow[6] || 'completed'),
+      startedAt: String(sRow[7] || ''),
+      completedAt: String(sRow[8] || sRow[7] || ''),
+      score: Number(sRow[9]) || 0,
+      maxScore: Number(sRow[10]) || 100,
+      pointsAwarded: Number(sRow[11]) || 0
+    });
+  }
+
+  // 4. Predictions & Scores
+  var predSheet = ss.getSheetByName(SHEET_NAMES.PREDICTIONS);
+  var predRows = predSheet ? predSheet.getDataRange().getValues() : [];
+  var scoreSheet = ss.getSheetByName(SHEET_NAMES.SCORES);
+  var scoreRows = scoreSheet ? scoreSheet.getDataRange().getValues() : [];
+
+  var userRoundScores = {};
+  for (var scr = 1; scr < scoreRows.length; scr++) {
+    var scRow = scoreRows[scr];
+    var scUid = String(scRow[1]);
+    var scRid = String(scRow[2]);
+    var scPts = Number(scRow[4]) || 0;
+    if (!userRoundScores[scUid]) userRoundScores[scUid] = {};
+    userRoundScores[scUid][scRid] = scPts;
+  }
+
+  var predictions = [];
+  for (var pr = 1; pr < predRows.length; pr++) {
+    var pRow = predRows[pr];
+    if (!pRow[0]) continue;
+    var pSubmittedAt = pRow[4] || '';
+    var pTimeMs = pSubmittedAt ? new Date(pSubmittedAt).getTime() : 0;
+    if (cutoffMs > 0 && pTimeMs > 0 && pTimeMs < cutoffMs) continue;
+
+    var pData = {};
+    try {
+      pData = JSON.parse(pRow[3] || '{}');
+    } catch (_e) {}
+
+    var pUid = String(pRow[1]);
+    var pRid = String(pRow[2]);
+    var isScored = Boolean(userRoundScores[pUid] && userRoundScores[pUid][pRid] !== undefined);
+    var pScore = isScored ? userRoundScores[pUid][pRid] : undefined;
+
+    // Check if prediction is complete (has core podium picks)
+    var isComplete = Boolean(pData.p1 && pData.p2 && pData.p3);
+
+    predictions.push({
+      predictionId: String(pRow[0]),
+      userId: pUid,
+      roundId: pRid,
+      submittedAt: String(pSubmittedAt),
+      isComplete: isComplete,
+      isScored: isScored,
+      score: pScore
+    });
+  }
+
+  // 5. Build Aggregations
+  var uniqueQuizUsers = {};
+  var uniqueStratUsers = {};
+  var uniquePredUsers = {};
+  var allCompetitorUsers = {};
+  var activePeriodUsers = {};
+
+  // Racing Tag Metrics
+  var quizCompleted = 0;
+  var quizIncomplete = 0;
+  var diffBreakdown = { rookie: 0, apex: 0, race_analyst: 0 };
+  var tierDistribution = {
+    'The Rookie': 0,
+    'The Enthusiast': 0,
+    'The Paddock Insider': 0,
+    'The Race Strategist': 0,
+    'The Motorsport Oracle': 0
+  };
+  var quizScoreDist = { '0-49%': 0, '50-69%': 0, '70-84%': 0, '85-100%': 0 };
+  var totalQuizScore = 0;
+  var totalQuizPercentage = 0;
+  var bestQuizScore = 0;
+  var bestQuizPercentage = 0;
+  var latestQuizDate = null;
+
+  for (var qi = 0; qi < quizAttempts.length; qi++) {
+    var qa = quizAttempts[qi];
+    uniqueQuizUsers[qa.userId] = true;
+    allCompetitorUsers[qa.userId] = true;
+    activePeriodUsers[qa.userId] = true;
+
+    if (qa.status === 'completed') {
+      quizCompleted++;
+      totalQuizScore += qa.score;
+      totalQuizPercentage += qa.percentage;
+      if (qa.percentage > bestQuizPercentage) bestQuizPercentage = qa.percentage;
+      if (qa.score > bestQuizScore) bestQuizScore = qa.score;
+
+      if (qa.percentage < 50) quizScoreDist['0-49%']++;
+      else if (qa.percentage < 70) quizScoreDist['50-69%']++;
+      else if (qa.percentage < 85) quizScoreDist['70-84%']++;
+      else quizScoreDist['85-100%']++;
+
+      var tierKey = qa.fanIdentityTier || 'The Rookie';
+      tierDistribution[tierKey] = (tierDistribution[tierKey] || 0) + 1;
+    } else {
+      quizIncomplete++;
+    }
+
+    var diffKey = qa.difficultyLevel === 'rookie' ? 'rookie' : (qa.difficultyLevel === 'race_analyst' ? 'race_analyst' : 'apex');
+    diffBreakdown[diffKey] = (diffBreakdown[diffKey] || 0) + 1;
+
+    if (qa.completedAt) {
+      if (!latestQuizDate || new Date(qa.completedAt).getTime() > new Date(latestQuizDate).getTime()) {
+        latestQuizDate = qa.completedAt;
+      }
+    }
+  }
+
+  // Strategy Room Metrics
+  var stratCompleted = 0;
+  var stratAbandoned = 0;
+  var stratInProgress = 0;
+  var roomTypeCounts = { tacticalChallenges: 0, multiStageSimulations: 0, preRaceStrategy: 0, liveRaceStrategy: 0 };
+  var stratScoreDist = { '0-49': 0, '50-69': 0, '70-84': 0, '85-100': 0 };
+  var scenarioStats = {};
+  var totalStratScore = 0;
+  var bestStratScore = 0;
+  var latestStratDate = null;
+
+  for (var si = 0; si < stratAttempts.length; si++) {
+    var sa = stratAttempts[si];
+    uniqueStratUsers[sa.userId] = true;
+    allCompetitorUsers[sa.userId] = true;
+    activePeriodUsers[sa.userId] = true;
+
+    if (sa.status === 'completed') {
+      stratCompleted++;
+      totalStratScore += sa.score;
+      if (sa.score > bestStratScore) bestStratScore = sa.score;
+
+      if (sa.score < 50) stratScoreDist['0-49']++;
+      else if (sa.score < 70) stratScoreDist['50-69']++;
+      else if (sa.score < 85) stratScoreDist['70-84']++;
+      else stratScoreDist['85-100']++;
+    } else if (sa.status === 'abandoned') {
+      stratAbandoned++;
+    } else {
+      stratInProgress++;
+    }
+
+    if (sa.mode === 'pre_race_strategy') {
+      roomTypeCounts.preRaceStrategy++;
+    } else if (sa.mode === 'race_simulation') {
+      roomTypeCounts.multiStageSimulations++;
+    } else {
+      roomTypeCounts.tacticalChallenges++;
+    }
+
+    if (!scenarioStats[sa.scenarioId]) {
+      scenarioStats[sa.scenarioId] = {
+        scenarioId: sa.scenarioId,
+        title: sa.scenarioId.replace(/[-_]/g, ' ').toUpperCase(),
+        mode: sa.mode,
+        attempts: 0,
+        completed: 0,
+        totalScore: 0,
+        bestScore: 0
+      };
+    }
+    scenarioStats[sa.scenarioId].attempts++;
+    if (sa.status === 'completed') {
+      scenarioStats[sa.scenarioId].completed++;
+      scenarioStats[sa.scenarioId].totalScore += sa.score;
+      if (sa.score > scenarioStats[sa.scenarioId].bestScore) {
+        scenarioStats[sa.scenarioId].bestScore = sa.score;
+      }
+    }
+
+    if (sa.completedAt) {
+      if (!latestStratDate || new Date(sa.completedAt).getTime() > new Date(latestStratDate).getTime()) {
+        latestStratDate = sa.completedAt;
+      }
+    }
+  }
+
+  var scenarioList = [];
+  for (var scId in scenarioStats) {
+    var item = scenarioStats[scId];
+    scenarioList.push({
+      scenarioId: item.scenarioId,
+      title: item.title,
+      mode: item.mode,
+      attempts: item.attempts,
+      completed: item.completed,
+      avgScore: item.completed > 0 ? Math.round(item.totalScore / item.completed) : 0,
+      bestScore: item.bestScore
+    });
+  }
+
+  // Prediction Metrics
+  var predCompleted = 0;
+  var predIncomplete = 0;
+  var predWeekendStats = {};
+  var totalPredScore = 0;
+  var scoredPredCount = 0;
+  var bestPredScore = 0;
+  var predScoreDist = { '0-15 pts': 0, '16-30 pts': 0, '31-45 pts': 0, '46-60 pts': 0 };
+  var latestPredDate = null;
+
+  for (var pi = 0; pi < predictions.length; pi++) {
+    var prRecord = predictions[pi];
+    uniquePredUsers[prRecord.userId] = true;
+    allCompetitorUsers[prRecord.userId] = true;
+    activePeriodUsers[prRecord.userId] = true;
+
+    if (prRecord.isComplete) predCompleted++;
+    else predIncomplete++;
+
+    if (!predWeekendStats[prRecord.roundId]) {
+      predWeekendStats[prRecord.roundId] = {
+        roundId: prRecord.roundId,
+        raceWeekendId: prRecord.roundId,
+        grandPrixName: prRecord.roundId.replace(/_/g, ' '),
+        submissionsCount: 0,
+        scoredCount: 0,
+        totalScore: 0,
+        highestScore: 0
+      };
+    }
+    predWeekendStats[prRecord.roundId].submissionsCount++;
+
+    if (prRecord.isScored && prRecord.score !== undefined) {
+      scoredPredCount++;
+      totalPredScore += prRecord.score;
+      predWeekendStats[prRecord.roundId].scoredCount++;
+      predWeekendStats[prRecord.roundId].totalScore += prRecord.score;
+      if (prRecord.score > predWeekendStats[prRecord.roundId].highestScore) {
+        predWeekendStats[prRecord.roundId].highestScore = prRecord.score;
+      }
+      if (prRecord.score > bestPredScore) bestPredScore = prRecord.score;
+
+      if (prRecord.score <= 15) predScoreDist['0-15 pts']++;
+      else if (prRecord.score <= 30) predScoreDist['16-30 pts']++;
+      else if (prRecord.score <= 45) predScoreDist['31-45 pts']++;
+      else predScoreDist['46-60 pts']++;
+    }
+
+    if (prRecord.submittedAt) {
+      if (!latestPredDate || new Date(prRecord.submittedAt).getTime() > new Date(latestPredDate).getTime()) {
+        latestPredDate = prRecord.submittedAt;
+      }
+    }
+  }
+
+  var predWeekendList = [];
+  for (var pwId in predWeekendStats) {
+    var pw = predWeekendStats[pwId];
+    predWeekendList.push({
+      raceWeekendId: pw.raceWeekendId,
+      grandPrixName: pw.grandPrixName,
+      submissionsCount: pw.submissionsCount,
+      scoredCount: pw.scoredCount,
+      averageScore: pw.scoredCount > 0 ? Math.round(pw.totalScore / pw.scoredCount) : 0,
+      highestScore: pw.highestScore
+    });
+  }
+
+  // User Summaries Table
+  var userSummaries = [];
+  for (var uIdx = 0; uIdx < allUsers.length; uIdx++) {
+    var usr = allUsers[uIdx];
+    var uid = usr.userId;
+
+    // Filter user's attempts
+    var uQuiz = quizAttempts.filter(function(a) { return a.userId === uid; });
+    var uStrat = stratAttempts.filter(function(a) { return a.userId === uid; });
+    var uPred = predictions.filter(function(p) { return p.userId === uid; });
+
+    var uQuizCompleted = uQuiz.filter(function(a) { return a.status === 'completed'; });
+    var uStratCompleted = uStrat.filter(function(a) { return a.status === 'completed'; });
+
+    var uQuizBestScore = 0;
+    var uQuizBestPct = 0;
+    var uQuizTier = null;
+    for (var uqi = 0; uqi < uQuizCompleted.length; uqi++) {
+      if (uQuizCompleted[uqi].percentage > uQuizBestPct) {
+        uQuizBestPct = uQuizCompleted[uqi].percentage;
+        uQuizBestScore = uQuizCompleted[uqi].score;
+        uQuizTier = uQuizCompleted[uqi].fanIdentityTier;
+      }
+    }
+
+    var uStratBestScore = 0;
+    var uStratTotalScore = 0;
+    for (var usi = 0; usi < uStratCompleted.length; usi++) {
+      uStratTotalScore += uStratCompleted[usi].score;
+      if (uStratCompleted[usi].score > uStratBestScore) {
+        uStratBestScore = uStratCompleted[usi].score;
+      }
+    }
+    var uStratAvgScore = uStratCompleted.length > 0 ? Math.round(uStratTotalScore / uStratCompleted.length) : 0;
+
+    var uPredPoints = 0;
+    var uPredBest = 0;
+    for (var upi = 0; upi < uPred.length; upi++) {
+      if (uPred[upi].isScored && uPred[upi].score !== undefined) {
+        uPredPoints += uPred[upi].score;
+        if (uPred[upi].score > uPredBest) uPredBest = uPred[upi].score;
+      }
+    }
+
+    var lastActivity = null;
+    var dates = [];
+    uQuiz.forEach(function(a) { if (a.completedAt) dates.push(a.completedAt); });
+    uStrat.forEach(function(s) { if (s.completedAt) dates.push(s.completedAt); });
+    uPred.forEach(function(p) { if (p.submittedAt) dates.push(p.submittedAt); });
+    if (dates.length > 0) {
+      dates.sort(function(a, b) { return new Date(b).getTime() - new Date(a).getTime(); });
+      lastActivity = dates[0];
+    }
+
+    var activeFeatures = (uQuiz.length > 0 ? 1 : 0) + (uStrat.length > 0 ? 1 : 0) + (uPred.length > 0 ? 1 : 0);
+    var totalUserCompleted = uQuizCompleted.length + uStratCompleted.length + uPred.length;
+
+    userSummaries.push({
+      userId: usr.userId,
+      username: usr.username,
+      displayName: usr.displayName || usr.username,
+      email: usr.email || '',
+      avatarUrl: usr.avatarUrl || '',
+      createdAt: usr.createdAt || '',
+      lastCompetitionActivity: lastActivity,
+      racingTagAttempts: uQuiz.length,
+      racingTagCompleted: uQuizCompleted.length,
+      racingTagBestScore: uQuizBestScore,
+      racingTagBestPercentage: uQuizBestPct,
+      racingTagTier: uQuizTier,
+      strategyAttempts: uStrat.length,
+      strategyCompleted: uStratCompleted.length,
+      strategyBestScore: uStratBestScore,
+      strategyAverageScore: uStratAvgScore,
+      predictionSubmissions: uPred.length,
+      predictionTotalPoints: uPredPoints,
+      predictionBestScore: uPredBest,
+      totalAttempts: uQuiz.length + uStrat.length + uPred.length,
+      totalCompletedActivities: totalUserCompleted,
+      activeFeaturesCount: activeFeatures
+    });
+  }
+
+  // Sort user summaries by total completed activities desc
+  userSummaries.sort(function(a, b) {
+    if (b.totalCompletedActivities !== a.totalCompletedActivities) {
+      return b.totalCompletedActivities - a.totalCompletedActivities;
+    }
+    return (b.predictionTotalPoints || 0) - (a.predictionTotalPoints || 0);
+  });
+
+  return {
+    globalStats: {
+      totalRegisteredUsers: allUsers.length,
+      uniqueCompetitors: Object.keys(allCompetitorUsers).length,
+      usersWithAnyParticipation: Object.keys(allCompetitorUsers).length,
+      racingTagParticipants: Object.keys(uniqueQuizUsers).length,
+      strategyRoomParticipants: Object.keys(uniqueStratUsers).length,
+      predictionParticipants: Object.keys(uniquePredUsers).length,
+      totalAttempts: quizAttempts.length + stratAttempts.length + predictions.length,
+      totalSubmissionsAndAttempts: quizAttempts.length + stratAttempts.length + predictions.length,
+      totalCompletedActivities: quizCompleted + stratCompleted + predCompleted,
+      activeInPeriod: Object.keys(activePeriodUsers).length,
+      activeParticipantsInPeriod: Object.keys(activePeriodUsers).length,
+      participationRate: allUsers.length > 0 ? Math.round((Object.keys(allCompetitorUsers).length / allUsers.length) * 100) : 0,
+      timeRange: selectedRange
+    },
+    racingTag: {
+      uniqueUsers: Object.keys(uniqueQuizUsers).length,
+      totalAttempts: quizAttempts.length,
+      completedAttempts: quizCompleted,
+      incompleteAttempts: quizIncomplete,
+      difficultyBreakdown: diffBreakdown,
+      byDifficulty: diffBreakdown,
+      tierDistribution: tierDistribution,
+      averageScore: quizCompleted > 0 ? Math.round(totalQuizScore / quizCompleted) : 0,
+      averagePercentage: quizCompleted > 0 ? Math.round(totalQuizPercentage / quizCompleted) : 0,
+      bestScore: bestQuizScore,
+      bestScorePercentage: bestQuizPercentage,
+      scoreDistribution: quizScoreDist,
+      latestAttemptDate: latestQuizDate,
+      recentAttempts: quizAttempts.slice(0, 15).map(function(qa) {
+        var u = userMap[qa.userId];
+        return {
+          attemptId: qa.attemptId,
+          userId: qa.userId,
+          username: u ? u.username : qa.userId,
+          displayName: u ? (u.displayName || u.username) : qa.userId,
+          score: qa.score,
+          totalQuestions: qa.totalQuestions,
+          percentage: qa.percentage,
+          fanIdentityTier: qa.fanIdentityTier,
+          difficultyLevel: qa.difficultyLevel,
+          status: qa.status,
+          completedAt: qa.completedAt
+        };
+      })
+    },
+    strategyRoom: {
+      uniqueUsers: Object.keys(uniqueStratUsers).length,
+      totalAttempts: stratAttempts.length,
+      completedAttempts: stratCompleted,
+      abandonedAttempts: stratAbandoned,
+      inProgressAttempts: stratInProgress,
+      byRoomType: roomTypeCounts,
+      scenariosAttempted: scenarioList,
+      averageScore: stratCompleted > 0 ? Math.round(totalStratScore / stratCompleted) : 0,
+      bestScore: bestStratScore,
+      scoreDistribution: stratScoreDist,
+      averageTimeDeltaSeconds: 0,
+      averagePositionDelta: 0,
+      planPreferences: { plan_a: 0, plan_b: 0, plan_c: 0, custom: 0 },
+      latestAttemptDate: latestStratDate,
+      recentAttempts: stratAttempts.slice(0, 15).map(function(sa) {
+        var u = userMap[sa.userId];
+        return {
+          attemptId: sa.attemptId,
+          userId: sa.userId,
+          username: u ? u.username : sa.userId,
+          displayName: u ? (u.displayName || u.username) : sa.userId,
+          scenarioId: sa.scenarioId,
+          scenarioTitle: sa.scenarioId.replace(/[-_]/g, ' ').toUpperCase(),
+          mode: sa.mode,
+          status: sa.status,
+          score: sa.score,
+          timeDeltaSeconds: 0,
+          positionDelta: 0,
+          completedAt: sa.completedAt,
+          isCompetitive: true
+        };
+      })
+    },
+    predictions: {
+      uniqueUsers: Object.keys(uniquePredUsers).length,
+      totalSubmissions: predictions.length,
+      completedSubmissions: predCompleted,
+      incompleteSubmissions: predIncomplete,
+      byWeekend: predWeekendList,
+      averageScore: scoredPredCount > 0 ? Math.round((totalPredScore / scoredPredCount) * 10) / 10 : 0,
+      bestScore: bestPredScore,
+      scoreDistribution: predScoreDist,
+      latestSubmissionDate: latestPredDate,
+      recentSubmissions: predictions.slice(0, 15).map(function(pr) {
+        var u = userMap[pr.userId];
+        return {
+          predictionId: pr.predictionId,
+          userId: pr.userId,
+          username: u ? u.username : pr.userId,
+          displayName: u ? (u.displayName || u.username) : pr.userId,
+          roundId: pr.roundId,
+          grandPrixName: pr.roundId.replace(/_/g, ' '),
+          submittedAt: pr.submittedAt,
+          isScored: pr.isScored,
+          score: pr.score
+        };
+      })
+    },
+    users: userSummaries
+  };
+}
+
+function getAdminUserCompetitionProfile(requesterId, targetUserId, accessToken, authToken) {
+  assertAdminPrivileges(requesterId, accessToken, authToken);
+  if (!targetUserId) throw new Error('targetUserId is required.');
+
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var allUsers = getAllUsersInternal();
+  var target = null;
+  for (var u = 0; u < allUsers.length; u++) {
+    if (allUsers[u].userId === targetUserId || allUsers[u].username === targetUserId) {
+      target = allUsers[u];
+      break;
+    }
+  }
+  if (!target) throw new Error('User not found: ' + targetUserId);
+
+  var uid = target.userId;
+
+  // 1. Quiz Attempts
+  var quizSheet = ss.getSheetByName(SHEET_NAMES.QUIZ_ATTEMPTS);
+  var quizRows = quizSheet ? quizSheet.getDataRange().getValues() : [];
+  var userQuiz = [];
+  var quizDiff = { rookie: 0, apex: 0, race_analyst: 0 };
+  var quizCompleted = 0;
+  var quizBestScore = 0;
+  var quizBestPct = 0;
+  var quizTotalPct = 0;
+  var quizTotalScore = 0;
+  var quizTier = null;
+
+  for (var qr = 1; qr < quizRows.length; qr++) {
+    if (String(quizRows[qr][1]) === uid) {
+      var qRow = quizRows[qr];
+      var score = Number(qRow[5]) || 0;
+      var totalQ = Number(qRow[6]) || 10;
+      var pct = Number(qRow[7]) || 0;
+      var tier = String(qRow[8] || 'The Rookie');
+      var compAt = String(qRow[11] || qRow[10] || '');
+      var status = String(qRow[12] || 'completed');
+      var diff = String(qRow[13] || 'apex');
+
+      if (status === 'completed') {
+        quizCompleted++;
+        quizTotalScore += score;
+        quizTotalPct += pct;
+        if (pct > quizBestPct) {
+          quizBestPct = pct;
+          quizBestScore = score;
+          quizTier = tier;
+        }
+      }
+      var dKey = diff === 'rookie' ? 'rookie' : (diff === 'race_analyst' ? 'race_analyst' : 'apex');
+      quizDiff[dKey] = (quizDiff[dKey] || 0) + 1;
+
+      userQuiz.push({
+        attemptId: String(qRow[0]),
+        score: score,
+        totalQuestions: totalQ,
+        percentage: pct,
+        fanIdentityTier: tier,
+        difficultyLevel: diff,
+        completedAt: compAt,
+        status: status
+      });
+    }
+  }
+
+  // 2. Strategy Attempts
+  var stratSheet = ss.getSheetByName(SHEET_NAMES.STRATEGY_ATTEMPTS);
+  var stratRows = stratSheet ? stratSheet.getDataRange().getValues() : [];
+  var userStrat = [];
+  var stratCompleted = 0;
+  var stratTotalScore = 0;
+  var stratBestScore = 0;
+  var tacticalCount = 0;
+  var multiCount = 0;
+  var preRaceCount = 0;
+  var scenarioPlayedSet = {};
+
+  for (var sr = 1; sr < stratRows.length; sr++) {
+    if (String(stratRows[sr][1]) === uid) {
+      var sRow = stratRows[sr];
+      var scId = String(sRow[2] || 'scenario');
+      var mode = String(sRow[5] || 'challenge');
+      var sStatus = String(sRow[6] || 'completed');
+      var sCompAt = String(sRow[8] || sRow[7] || '');
+      var sScore = Number(sRow[9]) || 0;
+
+      scenarioPlayedSet[scId] = true;
+      if (sStatus === 'completed') {
+        stratCompleted++;
+        stratTotalScore += sScore;
+        if (sScore > stratBestScore) stratBestScore = sScore;
+      }
+      if (mode === 'pre_race_strategy') preRaceCount++;
+      else if (mode === 'race_simulation') multiCount++;
+      else tacticalCount++;
+
+      userStrat.push({
+        attemptId: String(sRow[0]),
+        scenarioId: scId,
+        scenarioTitle: scId.replace(/[-_]/g, ' ').toUpperCase(),
+        mode: mode,
+        score: sScore,
+        positionDelta: 0,
+        timeDeltaSeconds: 0,
+        completedAt: sCompAt,
+        status: sStatus
+      });
+    }
+  }
+
+  // 3. Predictions
+  var predSheet = ss.getSheetByName(SHEET_NAMES.PREDICTIONS);
+  var predRows = predSheet ? predSheet.getDataRange().getValues() : [];
+  var scoreSheet = ss.getSheetByName(SHEET_NAMES.SCORES);
+  var scoreRows = scoreSheet ? scoreSheet.getDataRange().getValues() : [];
+
+  var myScores = {};
+  for (var scr = 1; scr < scoreRows.length; scr++) {
+    if (String(scoreRows[scr][1]) === uid) {
+      myScores[String(scoreRows[scr][2])] = Number(scoreRows[scr][4]) || 0;
+    }
+  }
+
+  var userPreds = [];
+  var predTotalPts = 0;
+  var predBestScore = 0;
+  var weekendsParticipated = {};
+
+  for (var pr = 1; pr < predRows.length; pr++) {
+    if (String(predRows[pr][1]) === uid) {
+      var pRow = predRows[pr];
+      var rId = String(pRow[2]);
+      var isScored = myScores[rId] !== undefined;
+      var scoreVal = isScored ? myScores[rId] : undefined;
+      var subAt = String(pRow[4] || '');
+
+      weekendsParticipated[rId] = true;
+      if (scoreVal !== undefined) {
+        predTotalPts += scoreVal;
+        if (scoreVal > predBestScore) predBestScore = scoreVal;
+      }
+
+      var parsedPData = {};
+      try { parsedPData = JSON.parse(pRow[3] || '{}'); } catch (_e) {}
+
+      userPreds.push({
+        predictionId: String(pRow[0]),
+        roundId: rId,
+        grandPrixName: rId.replace(/_/g, ' '),
+        submittedAt: subAt,
+        isScored: isScored,
+        score: scoreVal,
+        p1Driver: parsedPData.p1,
+        p2Driver: parsedPData.p2,
+        p3Driver: parsedPData.p3
+      });
+    }
+  }
+
+  // 4. Combined Activity Timeline
+  var timeline = [];
+
+  for (var q = 0; q < userQuiz.length; q++) {
+    timeline.push({
+      id: userQuiz[q].attemptId,
+      type: 'RACING_TAG',
+      title: 'Racing Tag — ' + (userQuiz[q].fanIdentityTier || 'Attempt'),
+      detail: 'Score: ' + userQuiz[q].score + '/' + userQuiz[q].totalQuestions + ' (' + userQuiz[q].percentage + '%) • Difficulty: ' + (userQuiz[q].difficultyLevel || 'apex'),
+      timestamp: userQuiz[q].completedAt,
+      score: userQuiz[q].score,
+      badgeText: userQuiz[q].percentage + '%',
+      statusText: userQuiz[q].status
+    });
+  }
+
+  for (var s = 0; s < userStrat.length; s++) {
+    timeline.push({
+      id: userStrat[s].attemptId,
+      type: 'STRATEGY_ROOM',
+      title: 'Strategy Room — ' + userStrat[s].scenarioTitle,
+      detail: 'Mode: ' + userStrat[s].mode + ' • Score: ' + userStrat[s].score + '/100',
+      timestamp: userStrat[s].completedAt,
+      score: userStrat[s].score,
+      badgeText: userStrat[s].score + ' pts',
+      statusText: userStrat[s].status
+    });
+  }
+
+  for (var p = 0; p < userPreds.length; p++) {
+    timeline.push({
+      id: userPreds[p].predictionId,
+      type: 'PREDICTION',
+      title: 'F1 Prediction — ' + userPreds[p].grandPrixName,
+      detail: userPreds[p].isScored ? ('Scored: ' + userPreds[p].score + ' pts • Picks: ' + [userPreds[p].p1Driver, userPreds[p].p2Driver, userPreds[p].p3Driver].filter(Boolean).join(', ')) : 'Prediction locked, pending official race scoring',
+      timestamp: userPreds[p].submittedAt,
+      score: userPreds[p].score,
+      badgeText: userPreds[p].isScored ? (userPreds[p].score + ' pts') : 'Locked',
+      statusText: userPreds[p].isScored ? 'Scored' : 'Submitted'
+    });
+  }
+
+  timeline.sort(function(a, b) {
+    return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
+  });
+
+  var lastQuiz = userQuiz.length > 0 ? userQuiz[0].completedAt : null;
+  var lastStrat = userStrat.length > 0 ? userStrat[0].completedAt : null;
+  var lastPred = userPreds.length > 0 ? userPreds[0].submittedAt : null;
+  var latestActivity = timeline.length > 0 ? timeline[0].timestamp : null;
+
+  return {
+    account: {
+      userId: target.userId,
+      username: target.username,
+      displayName: target.displayName || target.username,
+      email: target.email || '',
+      avatarUrl: target.avatarUrl || '',
+      bio: target.bio || '',
+      createdAt: target.createdAt || '',
+      lastLoginAt: target.lastLoginAt || '',
+      lastCompetitionActivity: latestActivity,
+      role: target.role || 'user'
+    },
+    combined: {
+      totalAttempts: userQuiz.length + userStrat.length + userPreds.length,
+      totalCompletedActivities: quizCompleted + stratCompleted + userPreds.length,
+      activeFeaturesCount: (userQuiz.length > 0 ? 1 : 0) + (userStrat.length > 0 ? 1 : 0) + (userPreds.length > 0 ? 1 : 0),
+      lastActivityPerFeature: {
+        racingTag: lastQuiz,
+        strategyRoom: lastStrat,
+        predictions: lastPred
+      },
+      activityTimeline: timeline
+    },
+    racingTag: {
+      attemptsCount: userQuiz.length,
+      completedCount: quizCompleted,
+      averageScore: quizCompleted > 0 ? Math.round(quizTotalScore / quizCompleted) : 0,
+      averagePercentage: quizCompleted > 0 ? Math.round(quizTotalPct / quizCompleted) : 0,
+      bestScore: quizBestScore,
+      bestPercentage: quizBestPct,
+      earnedTier: quizTier,
+      difficultyBreakdown: quizDiff,
+      achievementsCount: 0,
+      recentAttempts: userQuiz.slice(0, 10)
+    },
+    strategyRoom: {
+      attemptsCount: userStrat.length,
+      completedCount: stratCompleted,
+      scenariosPlayedCount: Object.keys(scenarioPlayedSet).length,
+      averageScore: stratCompleted > 0 ? Math.round(stratTotalScore / stratCompleted) : 0,
+      bestScore: stratBestScore,
+      tacticalChallengesCount: tacticalCount,
+      multiStageSimulationsCount: multiCount,
+      preRaceCount: preRaceCount,
+      averagePositionDelta: 0,
+      averageTimeDeltaSeconds: 0,
+      recentAttempts: userStrat.slice(0, 10)
+    },
+    predictions: {
+      submissionsCount: userPreds.length,
+      raceWeekendsCount: Object.keys(weekendsParticipated).length,
+      totalPoints: predTotalPts,
+      averageScore: userPreds.length > 0 ? Math.round((predTotalPts / userPreds.length) * 10) / 10 : 0,
+      bestScore: predBestScore,
+      recentPredictions: userPreds.slice(0, 10)
+    },
+    trackingGaps: {
+      liveRaceStrategy: 'Real-time telemetry and in-race tactical interventions are not currently tracked or scheduled.',
+      inDepthTelemetry: 'Per-corner sector deltas and tire slip angles are modeled analytically without persistent logging.'
+    }
+  };
+}
+
+function getPublicCommunityReport(timeRange) {
+  var selectedRange = timeRange === '7d' || timeRange === '30d' ? timeRange : 'all';
+  var nowMs = Date.now();
+  var cutoffMs = selectedRange === '7d' ? nowMs - 7 * 86400 * 1000 : (selectedRange === '30d' ? nowMs - 30 * 86400 * 1000 : 0);
+
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+
+  // 1. Users count (aggregates only, no PII)
+  var userSheet = ss.getSheetByName(SHEET_NAMES.USERS);
+  var totalRegistered = userSheet ? Math.max(0, userSheet.getLastRow() - 1) : 0;
+
+  // 2. Quiz Attempts (Racing Tag)
+  var quizSheet = ss.getSheetByName(SHEET_NAMES.QUIZ_ATTEMPTS);
+  var quizRows = quizSheet ? quizSheet.getDataRange().getValues() : [];
+  var quizUsers = {};
+  var allCompetitors = {};
+  var quizAttemptsCount = 0;
+  var quizCompleted = 0;
+  var quizTotalScore = 0;
+  var quizTotalPct = 0;
+  var diffBreakdown = { rookie: 0, apex: 0, race_analyst: 0 };
+  var tierDistribution = {
+    'The Rookie': 0,
+    'The Enthusiast': 0,
+    'The Paddock Insider': 0,
+    'The Race Strategist': 0,
+    'The Motorsport Oracle': 0
+  };
+
+  for (var qr = 1; qr < quizRows.length; qr++) {
+    var qRow = quizRows[qr];
+    if (!qRow[0]) continue;
+    var qCompletedAt = qRow[11] || qRow[10] || '';
+    var qTimeMs = qCompletedAt ? new Date(qCompletedAt).getTime() : 0;
+    if (cutoffMs > 0 && qTimeMs > 0 && qTimeMs < cutoffMs) continue;
+
+    quizAttemptsCount++;
+    var uId = String(qRow[1]);
+    quizUsers[uId] = true;
+    allCompetitors[uId] = true;
+
+    var status = String(qRow[12] || 'completed');
+    var score = Number(qRow[5]) || 0;
+    var pct = Number(qRow[7]) || 0;
+    var tier = String(qRow[8] || 'The Rookie');
+    var diff = String(qRow[13] || 'apex').toLowerCase();
+
+    if (status === 'completed') {
+      quizCompleted++;
+      quizTotalScore += score;
+      quizTotalPct += pct;
+      if (tierDistribution[tier] !== undefined) {
+        tierDistribution[tier]++;
+      }
+    }
+    var dKey = diff === 'rookie' ? 'rookie' : (diff === 'race_analyst' ? 'race_analyst' : 'apex');
+    diffBreakdown[dKey] = (diffBreakdown[dKey] || 0) + 1;
+  }
+
+  // 3. Strategy Attempts (Strategy Room)
+  var stratSheet = ss.getSheetByName(SHEET_NAMES.STRATEGY_ATTEMPTS);
+  var stratRows = stratSheet ? stratSheet.getDataRange().getValues() : [];
+  var stratUsers = {};
+  var stratAttemptsCount = 0;
+  var stratCompleted = 0;
+  var stratTotalScore = 0;
+  var roomTypeCounts = { tactical: 0, multiStage: 0, preRace: 0 };
+  var scenarioMap = {};
+
+  for (var sr = 1; sr < stratRows.length; sr++) {
+    var sRow = stratRows[sr];
+    if (!sRow[0]) continue;
+    var sCompletedAt = sRow[8] || sRow[7] || '';
+    var sTimeMs = sCompletedAt ? new Date(sCompletedAt).getTime() : 0;
+    if (cutoffMs > 0 && sTimeMs > 0 && sTimeMs < cutoffMs) continue;
+
+    stratAttemptsCount++;
+    var suId = String(sRow[1]);
+    stratUsers[suId] = true;
+    allCompetitors[suId] = true;
+
+    var scId = String(sRow[2] || 'scenario');
+    var mode = String(sRow[5] || 'challenge');
+    var sStatus = String(sRow[6] || 'completed');
+    var sScore = Number(sRow[9]) || 0;
+
+    if (mode === 'pre_race_strategy') roomTypeCounts.preRace++;
+    else if (mode === 'race_simulation') roomTypeCounts.multiStage++;
+    else roomTypeCounts.tactical++;
+
+    if (!scenarioMap[scId]) {
+      scenarioMap[scId] = {
+        scenarioId: scId,
+        title: scId.replace(/[-_]/g, ' ').toUpperCase(),
+        mode: mode,
+        attempts: 0,
+        completed: 0,
+        totalScore: 0
+      };
+    }
+    scenarioMap[scId].attempts++;
+    if (sStatus === 'completed') {
+      scenarioMap[scId].completed++;
+      scenarioMap[scId].totalScore += sScore;
+      stratCompleted++;
+      stratTotalScore += sScore;
+    }
+  }
+
+  // 4. Predictions
+  var predSheet = ss.getSheetByName(SHEET_NAMES.PREDICTIONS);
+  var predRows = predSheet ? predSheet.getDataRange().getValues() : [];
+  var scoreSheet = ss.getSheetByName(SHEET_NAMES.SCORES);
+  var scoreRows = scoreSheet ? scoreSheet.getDataRange().getValues() : [];
+
+  var allScoresMap = {};
+  for (var scIdx = 1; scIdx < scoreRows.length; scIdx++) {
+    var sKey = String(scoreRows[scIdx][1]) + '_' + String(scoreRows[scIdx][2]);
+    allScoresMap[sKey] = Number(scoreRows[scIdx][4]) || 0;
+  }
+
+  var predUsers = {};
+  var predSubmissionsCount = 0;
+  var predTotalScore = 0;
+  var scoredPredCount = 0;
+  var weekendMap = {};
+
+  for (var pr = 1; pr < predRows.length; pr++) {
+    var pRow = predRows[pr];
+    if (!pRow[0]) continue;
+    var pSubAt = pRow[4] || '';
+    var pTimeMs = pSubAt ? new Date(pSubAt).getTime() : 0;
+    if (cutoffMs > 0 && pTimeMs > 0 && pTimeMs < cutoffMs) continue;
+
+    predSubmissionsCount++;
+    var puId = String(pRow[1]);
+    predUsers[puId] = true;
+    allCompetitors[puId] = true;
+
+    var rId = String(pRow[2]);
+    if (!weekendMap[rId]) {
+      weekendMap[rId] = {
+        raceWeekendId: rId,
+        grandPrixName: rId.replace(/_/g, ' '),
+        submissionsCount: 0,
+        scoredCount: 0,
+        totalScore: 0
+      };
+    }
+    weekendMap[rId].submissionsCount++;
+
+    var scoreKey = puId + '_' + rId;
+    if (allScoresMap[scoreKey] !== undefined) {
+      scoredPredCount++;
+      predTotalScore += allScoresMap[scoreKey];
+      weekendMap[rId].scoredCount++;
+      weekendMap[rId].totalScore += allScoresMap[scoreKey];
+    }
+  }
+
+  var popularScenarios = [];
+  for (var k in scenarioMap) {
+    var item = scenarioMap[k];
+    popularScenarios.push({
+      scenarioId: item.scenarioId,
+      title: item.title,
+      mode: item.mode,
+      runs: item.attempts,
+      completionRate: item.attempts > 0 ? Math.round((item.completed / item.attempts) * 100) : 0,
+      avgScore: item.completed > 0 ? Math.round(item.totalScore / item.completed) : 0
+    });
+  }
+  popularScenarios.sort(function(a, b) { return b.runs - a.runs; });
+
+  var byWeekend = [];
+  for (var wk in weekendMap) {
+    var wItem = weekendMap[wk];
+    byWeekend.push({
+      raceWeekendId: wItem.raceWeekendId,
+      grandPrixName: wItem.grandPrixName,
+      submissionsCount: wItem.submissionsCount,
+      averageScore: wItem.scoredCount > 0 ? Math.round((wItem.totalScore / wItem.scoredCount) * 10) / 10 : 0
+    });
+  }
+
+  var totalActivity = quizCompleted + stratCompleted + predSubmissionsCount;
+  var activeCompCount = Object.keys(allCompetitors).length;
+  var participationRate = totalRegistered > 0 ? Math.round((activeCompCount / totalRegistered) * 100) : 0;
+
+  return {
+    period: selectedRange,
+    periodLabel: selectedRange === '7d' ? 'Last 7 Days' : (selectedRange === '30d' ? 'Last 30 Days' : 'All Time'),
+    lastUpdatedAt: new Date().toISOString(),
+    headlineStats: {
+      registeredMembers: totalRegistered,
+      activeCompetitors: activeCompCount,
+      participationRate: participationRate,
+      racingTagParticipants: Object.keys(quizUsers).length,
+      strategyRoomParticipants: Object.keys(stratUsers).length,
+      predictionParticipants: Object.keys(predUsers).length,
+      totalCompetitionActivity: totalActivity,
+      activityDefinition: 'Total completed Racing Tag quizzes, finished Strategy Room simulations, and official F1 prediction submissions.'
+    },
+    racingTag: {
+      totalAttempts: quizAttemptsCount,
+      completedAttempts: quizCompleted,
+      averageScore: quizCompleted > 0 ? Math.round(quizTotalScore / quizCompleted) : 0,
+      averagePercentage: quizCompleted > 0 ? Math.round(quizTotalPct / quizCompleted) : 0,
+      difficultyBreakdown: diffBreakdown,
+      tierDistribution: tierDistribution
+    },
+    strategyRoom: {
+      totalRuns: stratAttemptsCount,
+      completedRuns: stratCompleted,
+      averageScore: stratCompleted > 0 ? Math.round(stratTotalScore / stratCompleted) : 0,
+      roomTypeBreakdown: roomTypeCounts,
+      popularScenarios: popularScenarios
+    },
+    predictions: {
+      totalSubmissions: predSubmissionsCount,
+      activeWeekendsCount: Object.keys(weekendMap).length,
+      averageScore: scoredPredCount > 0 ? Math.round((predTotalScore / scoredPredCount) * 10) / 10 : 0,
+      byWeekend: byWeekend
+    }
+  };
+}
 

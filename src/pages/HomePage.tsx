@@ -284,7 +284,16 @@ export const HomePage: React.FC = () => {
                 ? 'USA'
                 : (nextRace.country && nextRace.country.toLowerCase() !== 'us' ? nextRace.country : 'USA');
               const locationText = displayCity ? `${displayCity}, ${displayCountry}` : displayCountry;
-              const countdownTarget = (predictionHighlight as any).lockTime || (nextRace as any).startTimeUtc || '2026-10-24T18:00:00Z';
+              const countdownTarget = predictionHighlight?.closesAt || (predictionHighlight as any)?.lockTime || nextRace?.startTimeUtc || (nextRace as any)?.startDate || '';
+              const nowMs = Date.now();
+              const closesAtMs = countdownTarget ? new Date(countdownTarget).getTime() : 0;
+              const isPastDeadline = closesAtMs > 0 ? nowMs >= closesAtMs : false;
+
+              let effectivePredictionStatus: 'OPEN' | 'LOCKED' | 'SCORED' | 'UPCOMING' = predictionHighlight.status;
+              if (effectivePredictionStatus === 'OPEN' && isPastDeadline) {
+                effectivePredictionStatus = 'LOCKED';
+              }
+              const isPredictionsOpen = effectivePredictionStatus === 'OPEN';
 
               const displaySessions = (nextRace.sessions && nextRace.sessions.length > 0)
                 ? nextRace.sessions
@@ -358,12 +367,30 @@ export const HomePage: React.FC = () => {
                                 borderRadius: '4px',
                                 fontFamily: 'var(--font-mono)',
                                 textTransform: 'uppercase',
-                                background: predictionHighlight.status === 'OPEN' ? 'rgba(0, 230, 118, 0.15)' : 'rgba(244, 43, 22, 0.18)',
-                                color: predictionHighlight.status === 'OPEN' ? 'var(--telemetry-green)' : '#F42B16',
-                                border: predictionHighlight.status === 'OPEN' ? '1px solid rgba(0, 230, 118, 0.4)' : '1px solid rgba(244, 43, 22, 0.4)',
+                                background: isPredictionsOpen
+                                  ? 'rgba(0, 230, 118, 0.15)'
+                                  : userPrediction
+                                  ? 'rgba(59, 130, 246, 0.18)'
+                                  : 'rgba(244, 43, 22, 0.18)',
+                                color: isPredictionsOpen
+                                  ? 'var(--telemetry-green)'
+                                  : userPrediction
+                                  ? '#60a5fa'
+                                  : '#F42B16',
+                                border: isPredictionsOpen
+                                  ? '1px solid rgba(0, 230, 118, 0.4)'
+                                  : userPrediction
+                                  ? '1px solid rgba(59, 130, 246, 0.4)'
+                                  : '1px solid rgba(244, 43, 22, 0.4)',
                               }}
                             >
-                              {predictionHighlight.status === 'OPEN' ? '● PREDICTION OPEN' : userPrediction ? '🔒 PREDICTION LOCKED' : 'PREDICTION CLOSED'}
+                              {isPredictionsOpen
+                                ? '● PREDICTION OPEN'
+                                : userPrediction
+                                ? '🔒 PREDICTION LOCKED'
+                                : effectivePredictionStatus === 'SCORED'
+                                ? '🏆 RESULTS PUBLISHED'
+                                : 'PREDICTION CLOSED'}
                             </span>
                           </div>
                         </div>
@@ -426,7 +453,7 @@ export const HomePage: React.FC = () => {
                             <ArrowRight size={13} style={{ color: 'var(--color-accent)' }} />
                           </Link>
 
-                          {predictionHighlight.status === 'OPEN' && (
+                          {isPredictionsOpen && (
                             <Link
                               to={`/predict/${predictionHighlight.roundId}`}
                               className="btn-primary-conversion"
@@ -447,6 +474,27 @@ export const HomePage: React.FC = () => {
                               <span>MAKE A PREDICTION</span>
                             </Link>
                           )}
+                          {!isPredictionsOpen && (
+                            <Link
+                              to="/predictions"
+                              className="btn-secondary"
+                              style={{
+                                height: '38px',
+                                minHeight: '38px',
+                                padding: '0 14px',
+                                fontSize: '12px',
+                                fontWeight: 700,
+                                letterSpacing: '0.04em',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                borderRadius: '8px',
+                              }}
+                            >
+                              <Lock size={12} />
+                              <span>{userPrediction ? 'VIEW MY PREDICTION' : 'PREDICTION HUB'}</span>
+                            </Link>
+                          )}
                         </div>
                       </div>
 
@@ -462,7 +510,7 @@ export const HomePage: React.FC = () => {
                           gap: '10px',
                         }}
                       >
-                        {/* Top Row inside Zone 2: Sessions Label + Live Countdown */}
+                        {/* Top Row inside Zone 2: Sessions Label + Authoritative Status */}
                         <div
                           style={{
                             display: 'flex',
@@ -489,18 +537,49 @@ export const HomePage: React.FC = () => {
                           </div>
 
                           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <span
-                              style={{
-                                fontFamily: 'var(--font-mono)',
-                                fontSize: '10px',
-                                fontWeight: 800,
-                                color: '#FFB000',
-                                letterSpacing: '0.04em',
-                              }}
-                            >
-                              LOCK IN:
-                            </span>
-                            <CountdownTimer targetDate={countdownTarget} size="mini" />
+                            {isPredictionsOpen ? (
+                              <>
+                                <span
+                                  style={{
+                                    fontFamily: 'var(--font-mono)',
+                                    fontSize: '10px',
+                                    fontWeight: 800,
+                                    color: '#FFB000',
+                                    letterSpacing: '0.04em',
+                                  }}
+                                >
+                                  LOCK IN:
+                                </span>
+                                <CountdownTimer
+                                  targetDate={countdownTarget}
+                                  size="mini"
+                                  onExpire={() => {
+                                    setSnapshot(prev => ({
+                                      ...prev,
+                                      predictionHighlight: {
+                                        ...prev.predictionHighlight,
+                                        status: 'LOCKED',
+                                      },
+                                    }));
+                                  }}
+                                />
+                              </>
+                            ) : userPrediction ? (
+                              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', color: '#60a5fa', fontFamily: 'var(--font-mono)', fontSize: '0.72rem', fontWeight: 800 }}>
+                                <Lock size={12} />
+                                <span>YOUR PREDICTION LOCKED</span>
+                              </div>
+                            ) : effectivePredictionStatus === 'UPCOMING' ? (
+                              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', color: '#FFB000', fontFamily: 'var(--font-mono)', fontSize: '0.72rem', fontWeight: 800 }}>
+                                <Clock size={12} />
+                                <span>OPENS SOON • UPCOMING</span>
+                              </div>
+                            ) : (
+                              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', color: '#f87171', fontFamily: 'var(--font-mono)', fontSize: '0.72rem', fontWeight: 800 }}>
+                                <Lock size={12} />
+                                <span>DEADLINE PASSED • LOCKED</span>
+                              </div>
+                            )}
                           </div>
                         </div>
 

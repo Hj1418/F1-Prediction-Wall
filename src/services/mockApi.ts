@@ -12,6 +12,16 @@ import {
   UserRole,
 } from '../types';
 import {
+  AnalyticsTimeRange,
+  CompetitionAnalyticsPayload,
+  UnifiedUserCompetitionProfile,
+  CompetitionActivityEvent,
+  CompetitionUserSummary,
+  PublicCommunityReport,
+} from '../types/competitionAnalytics';
+import { FanIdentityTier } from '../types/quiz';
+import { StrategyMode } from '../types/strategy';
+import {
   F1_DRIVERS_2026,
   F1_CONSTRUCTORS_2026,
   INITIAL_USERS,
@@ -600,6 +610,957 @@ export class MockApiService {
     }
     return [...this.users];
   }
+
+  private assertAdminRequester(requesterId: string): User {
+    const cleanId = (requesterId || '').trim().toLowerCase();
+    const requester = this.users.find(
+      u =>
+        u.userId.toLowerCase() === cleanId ||
+        u.email.toLowerCase() === cleanId ||
+        u.username.toLowerCase() === cleanId
+    );
+    if (!requester || requester.role !== 'admin') {
+      throw new Error('Forbidden: Administrator privileges required to access competition analytics.');
+    }
+    return requester;
+  }
+
+  private getAggregatedQuizAttempts(): any[] {
+    let list: any[] = [];
+    if (typeof localStorage !== 'undefined') {
+      try {
+        const raw = localStorage.getItem('thegrid_quiz_attempts_v1');
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed)) list = parsed;
+        }
+      } catch {}
+    }
+    if (list.length < 5) {
+      const seedQuiz = [
+        { attemptId: 'seed_quiz_1', userId: 'usr_wickando1418', score: 18, totalQuestions: 20, percentage: 90, fanIdentityTier: 'The Motorsport Oracle', difficultyLevel: 'race_analyst', status: 'completed', completedAt: '2026-10-22T14:30:00.000Z' },
+        { attemptId: 'seed_quiz_2', userId: 'usr_wickando1418', score: 14, totalQuestions: 15, percentage: 93, fanIdentityTier: 'The Race Strategist', difficultyLevel: 'apex', status: 'completed', completedAt: '2026-10-18T10:15:00.000Z' },
+        { attemptId: 'seed_quiz_3', userId: 'usr_sharmavishnur0_6cf234bf', score: 8, totalQuestions: 10, percentage: 80, fanIdentityTier: 'The Paddock Insider', difficultyLevel: 'apex', status: 'completed', completedAt: '2026-10-25T16:45:00.000Z' },
+        { attemptId: 'seed_quiz_4', userId: 'usr_yewalebhagyesh18_440d7204', score: 12, totalQuestions: 15, percentage: 80, fanIdentityTier: 'The Paddock Insider', difficultyLevel: 'apex', status: 'completed', completedAt: '2026-10-20T12:00:00.000Z' },
+        { attemptId: 'seed_quiz_5', userId: 'usr_jigisha11bagdekar_19638a24', score: 6, totalQuestions: 10, percentage: 60, fanIdentityTier: 'The Enthusiast', difficultyLevel: 'rookie', status: 'completed', completedAt: '2026-10-15T09:20:00.000Z' },
+        { attemptId: 'seed_quiz_6', userId: 'usr_amolshindeat_39db0f7f', score: 9, totalQuestions: 10, percentage: 90, fanIdentityTier: 'The Motorsport Oracle', difficultyLevel: 'race_analyst', status: 'completed', completedAt: '2026-10-27T11:10:00.000Z' },
+        { attemptId: 'seed_quiz_7', userId: 'usr_jalnekarharsh14_acaab661', score: 19, totalQuestions: 20, percentage: 95, fanIdentityTier: 'The Motorsport Oracle', difficultyLevel: 'race_analyst', status: 'completed', completedAt: '2026-10-26T18:00:00.000Z' },
+        { attemptId: 'seed_quiz_8', userId: 'usr_sharmavishnur0_6cf234bf', score: 4, totalQuestions: 10, percentage: 40, fanIdentityTier: 'The Rookie', difficultyLevel: 'rookie', status: 'completed', completedAt: '2026-10-10T08:00:00.000Z' },
+        { attemptId: 'seed_quiz_9', userId: 'user_harsh', score: 10, totalQuestions: 10, percentage: 100, fanIdentityTier: 'The Motorsport Oracle', difficultyLevel: 'race_analyst', status: 'completed', completedAt: '2026-10-28T19:30:00.000Z' },
+      ];
+      const existingIds = new Set(list.map(a => a.attemptId));
+      list = [...list, ...seedQuiz.filter(s => !existingIds.has(s.attemptId))];
+    }
+    return list;
+  }
+
+  private getAggregatedStrategyAttempts(): any[] {
+    let list: any[] = [];
+    if (typeof localStorage !== 'undefined') {
+      try {
+        for (const k of Object.keys(localStorage)) {
+          if (k.startsWith('thegrid_strategy_attempts_') || k.startsWith('thegrid_prerace_attempts_')) {
+            const item = JSON.parse(localStorage.getItem(k) || '[]');
+            if (Array.isArray(item)) list.push(...item);
+          }
+        }
+      } catch {}
+    }
+    if (list.length < 5) {
+      const seedStrat = [
+        { attemptId: 'seed_strat_1', userId: 'usr_wickando1418', scenarioId: 'undercut-defense', scenarioTitle: 'Undercut Defense at Suzuka', mode: 'challenge', status: 'completed', score: 95, maxScore: 100, pointsAwarded: 95, timeDeltaSeconds: -3.2, positionDelta: 1, completedAt: '2026-10-24T15:20:00.000Z', isCompetitive: true },
+        { attemptId: 'seed_strat_2', userId: 'usr_wickando1418', scenarioId: 'monaco-overcut', scenarioTitle: 'Monaco Wet Overcut', mode: 'race_simulation', status: 'completed', score: 88, maxScore: 100, pointsAwarded: 88, timeDeltaSeconds: -4.5, positionDelta: 2, completedAt: '2026-10-21T11:45:00.000Z', isCompetitive: true },
+        { attemptId: 'seed_strat_3', userId: 'usr_sharmavishnur0_6cf234bf', scenarioId: 'silverstone-high-deg', scenarioTitle: 'Silverstone High Deg Dilemma', mode: 'challenge', status: 'completed', score: 80, maxScore: 100, pointsAwarded: 80, timeDeltaSeconds: -1.8, positionDelta: 0, completedAt: '2026-10-26T14:10:00.000Z', isCompetitive: true },
+        { attemptId: 'seed_strat_4', userId: 'usr_yewalebhagyesh18_440d7204', scenarioId: 'spa-weather-roulette', scenarioTitle: 'Spa Weather Roulette', mode: 'challenge', status: 'completed', score: 72, maxScore: 100, pointsAwarded: 72, timeDeltaSeconds: 2.1, positionDelta: -1, completedAt: '2026-10-19T09:30:00.000Z', isCompetitive: true },
+        { attemptId: 'seed_strat_5', userId: 'usr_amolshindeat_39db0f7f', scenarioId: 'undercut-defense', scenarioTitle: 'Undercut Defense at Suzuka', mode: 'challenge', status: 'completed', score: 90, maxScore: 100, pointsAwarded: 90, timeDeltaSeconds: -2.5, positionDelta: 1, completedAt: '2026-10-27T16:00:00.000Z', isCompetitive: true },
+        { attemptId: 'seed_strat_6', userId: 'usr_jalnekarharsh14_acaab661', scenarioId: 'prerace_cota_2026', scenarioTitle: 'United States GP Pre-Race Strategy', mode: 'pre_race_strategy', status: 'completed', score: 92, maxScore: 100, pointsAwarded: 92, timeDeltaSeconds: -3.8, positionDelta: 1, completedAt: '2026-10-25T18:30:00.000Z', isCompetitive: true, planId: 'plan_a' },
+        { attemptId: 'seed_strat_7', userId: 'user_harsh', scenarioId: 'monza-slipstream', scenarioTitle: 'Monza DRS Slipstream Train', mode: 'challenge', status: 'completed', score: 100, maxScore: 100, pointsAwarded: 100, timeDeltaSeconds: -5.0, positionDelta: 2, completedAt: '2026-10-28T20:15:00.000Z', isCompetitive: true },
+      ];
+      const existingIds = new Set(list.map(a => a.attemptId));
+      list = [...list, ...seedStrat.filter(s => !existingIds.has(s.attemptId))];
+    }
+    return list;
+  }
+
+  public async getAdminCompetitionAnalytics(
+    requesterId: string,
+    timeRange: AnalyticsTimeRange = 'all',
+    _authToken?: string
+  ): Promise<CompetitionAnalyticsPayload> {
+    this.assertAdminRequester(requesterId);
+
+    const nowMs = Date.now();
+    const cutoffMs = timeRange === '7d' ? nowMs - 7 * 86400 * 1000 : (timeRange === '30d' ? nowMs - 30 * 86400 * 1000 : 0);
+
+    const allUsers = [...this.users];
+    const userMap = new Map<string, User>();
+    allUsers.forEach(u => userMap.set(u.userId, u));
+
+    // 1. Racing Tag
+    const rawQuiz = this.getAggregatedQuizAttempts();
+    const quizAttempts = rawQuiz.filter(qa => {
+      if (cutoffMs <= 0) return true;
+      const t = qa.completedAt ? new Date(qa.completedAt).getTime() : 0;
+      return t >= cutoffMs;
+    });
+
+    // 2. Strategy Room
+    const rawStrat = this.getAggregatedStrategyAttempts();
+    const stratAttempts = rawStrat.filter(sa => {
+      if (cutoffMs <= 0) return true;
+      const t = sa.completedAt ? new Date(sa.completedAt).getTime() : 0;
+      return t >= cutoffMs;
+    });
+
+    // 3. Predictions
+    const scoreMap = new Map<string, number>();
+    this.scores.forEach(s => scoreMap.set(`${s.userId}_${s.roundId}`, s.totalScore));
+
+    const predictions = this.predictions.filter(p => {
+      if (cutoffMs <= 0) return true;
+      const t = p.submittedAt ? new Date(p.submittedAt).getTime() : 0;
+      return t >= cutoffMs;
+    });
+
+    // Compute unique participants
+    const uniqueQuizUsers = new Set<string>();
+    const uniqueStratUsers = new Set<string>();
+    const uniquePredUsers = new Set<string>();
+    const allCompetitors = new Set<string>();
+    const activeInPeriod = new Set<string>();
+
+    // Racing Tag aggregations
+    let quizCompleted = 0;
+    let quizIncomplete = 0;
+    let totalQuizScore = 0;
+    let totalQuizPct = 0;
+    let bestQuizScore = 0;
+    let bestQuizPct = 0;
+    let latestQuizDate: string | null = null;
+    const diffBreakdown = { rookie: 0, apex: 0, race_analyst: 0 };
+    const tierDistribution: Record<FanIdentityTier, number> = {
+      'The Rookie': 0,
+      'The Enthusiast': 0,
+      'The Paddock Insider': 0,
+      'The Race Strategist': 0,
+      'The Motorsport Oracle': 0,
+    };
+    const quizScoreDist = { '0-49%': 0, '50-69%': 0, '70-84%': 0, '85-100%': 0 };
+
+    quizAttempts.forEach(qa => {
+      uniqueQuizUsers.add(qa.userId);
+      allCompetitors.add(qa.userId);
+      activeInPeriod.add(qa.userId);
+
+      if (qa.status === 'completed') {
+        quizCompleted++;
+        totalQuizScore += qa.score || 0;
+        totalQuizPct += qa.percentage || 0;
+        if ((qa.percentage || 0) > bestQuizPct) bestQuizPct = qa.percentage;
+        if ((qa.score || 0) > bestQuizScore) bestQuizScore = qa.score;
+
+        const pct = qa.percentage || 0;
+        if (pct < 50) quizScoreDist['0-49%']++;
+        else if (pct < 70) quizScoreDist['50-69%']++;
+        else if (pct < 85) quizScoreDist['70-84%']++;
+        else quizScoreDist['85-100%']++;
+
+        const tier = (qa.fanIdentityTier as FanIdentityTier) || 'The Rookie';
+        tierDistribution[tier] = (tierDistribution[tier] || 0) + 1;
+      } else {
+        quizIncomplete++;
+      }
+
+      const diff = qa.difficultyLevel === 'rookie' ? 'rookie' : (qa.difficultyLevel === 'race_analyst' ? 'race_analyst' : 'apex');
+      diffBreakdown[diff]++;
+
+      if (qa.completedAt) {
+        if (!latestQuizDate || new Date(qa.completedAt).getTime() > new Date(latestQuizDate).getTime()) {
+          latestQuizDate = qa.completedAt;
+        }
+      }
+    });
+
+    // Strategy Room aggregations
+    let stratCompleted = 0;
+    let stratAbandoned = 0;
+    let stratInProgress = 0;
+    let totalStratScore = 0;
+    let bestStratScore = 0;
+    let totalTimeDelta = 0;
+    let totalPosDelta = 0;
+    let latestStratDate: string | null = null;
+    const roomTypeCounts = { tacticalChallenges: 0, multiStageSimulations: 0, preRaceStrategy: 0, liveRaceStrategy: 0 };
+    const stratScoreDist = { '0-49': 0, '50-69': 0, '70-84': 0, '85-100': 0 };
+    const scenarioMap = new Map<string, { scenarioId: string; title: string; mode: string; attempts: number; completed: number; totalScore: number; bestScore: number }>();
+    const planPrefs: Record<string, number> = { plan_a: 0, plan_b: 0, plan_c: 0, custom: 0 };
+
+    stratAttempts.forEach(sa => {
+      uniqueStratUsers.add(sa.userId);
+      allCompetitors.add(sa.userId);
+      activeInPeriod.add(sa.userId);
+
+      if (sa.status === 'completed') {
+        stratCompleted++;
+        totalStratScore += sa.score || 0;
+        if ((sa.score || 0) > bestStratScore) bestStratScore = sa.score;
+
+        totalTimeDelta += sa.timeDeltaSeconds || 0;
+        totalPosDelta += sa.positionDelta || 0;
+
+        const sc = sa.score || 0;
+        if (sc < 50) stratScoreDist['0-49']++;
+        else if (sc < 70) stratScoreDist['50-69']++;
+        else if (sc < 85) stratScoreDist['70-84']++;
+        else stratScoreDist['85-100']++;
+      } else if (sa.status === 'abandoned') {
+        stratAbandoned++;
+      } else {
+        stratInProgress++;
+      }
+
+      if (sa.mode === 'pre_race_strategy') {
+        roomTypeCounts.preRaceStrategy++;
+        if (sa.planId) {
+          planPrefs[sa.planId] = (planPrefs[sa.planId] || 0) + 1;
+        }
+      } else if (sa.mode === 'race_simulation') {
+        roomTypeCounts.multiStageSimulations++;
+      } else {
+        roomTypeCounts.tacticalChallenges++;
+      }
+
+      const sId = sa.scenarioId || 'unknown';
+      if (!scenarioMap.has(sId)) {
+        scenarioMap.set(sId, {
+          scenarioId: sId,
+          title: sa.scenarioTitle || sId.replace(/[-_]/g, ' ').toUpperCase(),
+          mode: sa.mode || 'challenge',
+          attempts: 0,
+          completed: 0,
+          totalScore: 0,
+          bestScore: 0
+        });
+      }
+      const sItem = scenarioMap.get(sId)!;
+      sItem.attempts++;
+      if (sa.status === 'completed') {
+        sItem.completed++;
+        sItem.totalScore += sa.score || 0;
+        if ((sa.score || 0) > sItem.bestScore) sItem.bestScore = sa.score;
+      }
+
+      if (sa.completedAt) {
+        if (!latestStratDate || new Date(sa.completedAt).getTime() > new Date(latestStratDate).getTime()) {
+          latestStratDate = sa.completedAt;
+        }
+      }
+    });
+
+    // Prediction aggregations
+    let predCompleted = 0;
+    let predIncomplete = 0;
+    let totalPredScore = 0;
+    let scoredPredCount = 0;
+    let bestPredScore = 0;
+    let latestPredDate: string | null = null;
+    const predWeekendMap = new Map<string, { raceWeekendId: string; grandPrixName: string; submissionsCount: number; scoredCount: number; totalScore: number; highestScore: number }>();
+    const predScoreDist = { '0-15 pts': 0, '16-30 pts': 0, '31-45 pts': 0, '46-60 pts': 0 };
+
+    predictions.forEach(p => {
+      uniquePredUsers.add(p.userId);
+      allCompetitors.add(p.userId);
+      activeInPeriod.add(p.userId);
+
+      const hasRequiredPicks = Boolean(p.predictionData?.p1 && p.predictionData?.p2 && p.predictionData?.p3);
+      if (hasRequiredPicks) predCompleted++;
+      else predIncomplete++;
+
+      const rId = p.roundId;
+      if (!predWeekendMap.has(rId)) {
+        const foundWeekend = this.weekends.find(w => w.raceWeekendId === rId || rId.includes(w.raceWeekendId));
+        predWeekendMap.set(rId, {
+          raceWeekendId: rId,
+          grandPrixName: foundWeekend?.raceName || rId.replace(/_/g, ' '),
+          submissionsCount: 0,
+          scoredCount: 0,
+          totalScore: 0,
+          highestScore: 0
+        });
+      }
+      const pw = predWeekendMap.get(rId)!;
+      pw.submissionsCount++;
+
+      const key = `${p.userId}_${p.roundId}`;
+      const pts = scoreMap.get(key);
+      if (pts !== undefined) {
+        scoredPredCount++;
+        totalPredScore += pts;
+        pw.scoredCount++;
+        pw.totalScore += pts;
+        if (pts > pw.highestScore) pw.highestScore = pts;
+        if (pts > bestPredScore) bestPredScore = pts;
+
+        if (pts <= 15) predScoreDist['0-15 pts']++;
+        else if (pts <= 30) predScoreDist['16-30 pts']++;
+        else if (pts <= 45) predScoreDist['31-45 pts']++;
+        else predScoreDist['46-60 pts']++;
+      }
+
+      if (p.submittedAt) {
+        if (!latestPredDate || new Date(p.submittedAt).getTime() > new Date(latestPredDate).getTime()) {
+          latestPredDate = p.submittedAt;
+        }
+      }
+    });
+
+    // Build user summaries for Competition Leaderboard table
+    const userSummaries: CompetitionUserSummary[] = allUsers.map(u => {
+      const uQuiz = quizAttempts.filter(a => a.userId === u.userId);
+      const uStrat = stratAttempts.filter(s => s.userId === u.userId);
+      const uPred = predictions.filter(p => p.userId === u.userId);
+
+      const uQuizCompleted = uQuiz.filter(a => a.status === 'completed');
+      const uStratCompleted = uStrat.filter(s => s.status === 'completed');
+
+      let uQuizBestScore = 0;
+      let uQuizBestPct = 0;
+      let uQuizTier: FanIdentityTier | null = null;
+      uQuizCompleted.forEach(a => {
+        if ((a.percentage || 0) > uQuizBestPct) {
+          uQuizBestPct = a.percentage || 0;
+          uQuizBestScore = a.score || 0;
+          uQuizTier = a.fanIdentityTier as FanIdentityTier;
+        }
+      });
+
+      let uStratBestScore = 0;
+      let uStratTotalScore = 0;
+      uStratCompleted.forEach(s => {
+        const sc = s.score || 0;
+        uStratTotalScore += sc;
+        if (sc > uStratBestScore) uStratBestScore = sc;
+      });
+      const uStratAvgScore = uStratCompleted.length > 0 ? Math.round(uStratTotalScore / uStratCompleted.length) : 0;
+
+      let uPredPoints = 0;
+      let uPredBest = 0;
+      uPred.forEach(p => {
+        const pts = scoreMap.get(`${u.userId}_${p.roundId}`);
+        if (pts !== undefined) {
+          uPredPoints += pts;
+          if (pts > uPredBest) uPredBest = pts;
+        }
+      });
+
+      const dates: string[] = [];
+      uQuiz.forEach(a => { if (a.completedAt) dates.push(a.completedAt); });
+      uStrat.forEach(s => { if (s.completedAt) dates.push(s.completedAt); });
+      uPred.forEach(p => { if (p.submittedAt) dates.push(p.submittedAt); });
+      dates.sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
+
+      const activeFeatures = (uQuiz.length > 0 ? 1 : 0) + (uStrat.length > 0 ? 1 : 0) + (uPred.length > 0 ? 1 : 0);
+      const completedTotal = uQuizCompleted.length + uStratCompleted.length + uPred.length;
+
+      return {
+        userId: u.userId,
+        username: u.username,
+        displayName: u.displayName || u.username,
+        email: u.email,
+        avatarUrl: u.avatarUrl,
+        createdAt: u.createdAt || '',
+        lastCompetitionActivity: dates.length > 0 ? dates[0] : null,
+        racingTagAttempts: uQuiz.length,
+        racingTagCompleted: uQuizCompleted.length,
+        racingTagBestScore: uQuizBestScore,
+        racingTagBestPercentage: uQuizBestPct,
+        racingTagTier: uQuizTier,
+        strategyAttempts: uStrat.length,
+        strategyCompleted: uStratCompleted.length,
+        strategyBestScore: uStratBestScore,
+        strategyAverageScore: uStratAvgScore,
+        predictionSubmissions: uPred.length,
+        predictionTotalPoints: uPredPoints,
+        predictionBestScore: uPredBest,
+        totalAttempts: uQuiz.length + uStrat.length + uPred.length,
+        totalCompletedActivities: completedTotal,
+        activeFeaturesCount: activeFeatures,
+      };
+    });
+
+    userSummaries.sort((a, b) => {
+      if (b.totalCompletedActivities !== a.totalCompletedActivities) {
+        return b.totalCompletedActivities - a.totalCompletedActivities;
+      }
+      return b.predictionTotalPoints - a.predictionTotalPoints;
+    });
+
+    return {
+      globalStats: {
+        totalRegisteredUsers: allUsers.length,
+        uniqueCompetitors: allCompetitors.size,
+        usersWithAnyParticipation: allCompetitors.size,
+        racingTagParticipants: uniqueQuizUsers.size,
+        strategyRoomParticipants: uniqueStratUsers.size,
+        predictionParticipants: uniquePredUsers.size,
+        totalAttempts: quizAttempts.length + stratAttempts.length + predictions.length,
+        totalSubmissionsAndAttempts: quizAttempts.length + stratAttempts.length + predictions.length,
+        totalCompletedActivities: quizCompleted + stratCompleted + predCompleted,
+        activeInPeriod: activeInPeriod.size,
+        activeParticipantsInPeriod: activeInPeriod.size,
+        participationRate: allUsers.length > 0 ? Math.round((allCompetitors.size / allUsers.length) * 100) : 0,
+        timeRange,
+      },
+      racingTag: {
+        uniqueUsers: uniqueQuizUsers.size,
+        totalAttempts: quizAttempts.length,
+        completedAttempts: quizCompleted,
+        incompleteAttempts: quizIncomplete,
+        difficultyBreakdown: diffBreakdown,
+        byDifficulty: diffBreakdown,
+        tierDistribution: tierDistribution,
+        averageScore: quizCompleted > 0 ? Math.round(totalQuizScore / quizCompleted) : 0,
+        averagePercentage: quizCompleted > 0 ? Math.round(totalQuizPct / quizCompleted) : 0,
+        bestScore: bestQuizScore,
+        bestScorePercentage: bestQuizPct,
+        scoreDistribution: quizScoreDist,
+        latestAttemptDate: latestQuizDate,
+        recentAttempts: quizAttempts.slice(0, 15).map(qa => {
+          const u = userMap.get(qa.userId);
+          return {
+            attemptId: qa.attemptId,
+            userId: qa.userId,
+            username: u?.username || qa.userId,
+            displayName: u?.displayName || u?.username || qa.userId,
+            score: qa.score,
+            totalQuestions: qa.totalQuestions,
+            percentage: qa.percentage,
+            fanIdentityTier: qa.fanIdentityTier as FanIdentityTier,
+            difficultyLevel: qa.difficultyLevel,
+            status: qa.status,
+            completedAt: qa.completedAt,
+          };
+        }),
+      },
+      strategyRoom: {
+        uniqueUsers: uniqueStratUsers.size,
+        totalAttempts: stratAttempts.length,
+        completedAttempts: stratCompleted,
+        abandonedAttempts: stratAbandoned,
+        inProgressAttempts: stratInProgress,
+        byRoomType: roomTypeCounts,
+        scenariosAttempted: Array.from(scenarioMap.values()).map(s => ({
+          scenarioId: s.scenarioId,
+          title: s.title,
+          mode: s.mode as StrategyMode,
+          attempts: s.attempts,
+          completed: s.completed,
+          avgScore: s.completed > 0 ? Math.round(s.totalScore / s.completed) : 0,
+          bestScore: s.bestScore,
+        })),
+        averageScore: stratCompleted > 0 ? Math.round(totalStratScore / stratCompleted) : 0,
+        bestScore: bestStratScore,
+        scoreDistribution: stratScoreDist,
+        averageTimeDeltaSeconds: stratCompleted > 0 ? Math.round((totalTimeDelta / stratCompleted) * 10) / 10 : 0,
+        averagePositionDelta: stratCompleted > 0 ? Math.round((totalPosDelta / stratCompleted) * 10) / 10 : 0,
+        planPreferences: planPrefs,
+        latestAttemptDate: latestStratDate,
+        recentAttempts: stratAttempts.slice(0, 15).map(sa => {
+          const u = userMap.get(sa.userId);
+          return {
+            attemptId: sa.attemptId,
+            userId: sa.userId,
+            username: u?.username || sa.userId,
+            displayName: u?.displayName || u?.username || sa.userId,
+            scenarioId: sa.scenarioId,
+            scenarioTitle: sa.scenarioTitle || sa.scenarioId.replace(/[-_]/g, ' ').toUpperCase(),
+            mode: sa.mode,
+            status: sa.status,
+            score: sa.score || 0,
+            timeDeltaSeconds: sa.timeDeltaSeconds || 0,
+            positionDelta: sa.positionDelta || 0,
+            completedAt: sa.completedAt,
+            isCompetitive: sa.isCompetitive !== false,
+          };
+        }),
+      },
+      predictions: {
+        uniqueUsers: uniquePredUsers.size,
+        totalSubmissions: predictions.length,
+        completedSubmissions: predCompleted,
+        incompleteSubmissions: predIncomplete,
+        byWeekend: Array.from(predWeekendMap.values()).map(pw => ({
+          raceWeekendId: pw.raceWeekendId,
+          grandPrixName: pw.grandPrixName,
+          submissionsCount: pw.submissionsCount,
+          scoredCount: pw.scoredCount,
+          averageScore: pw.scoredCount > 0 ? Math.round(pw.totalScore / pw.scoredCount) : 0,
+          highestScore: pw.highestScore,
+        })),
+        averageScore: scoredPredCount > 0 ? Math.round((totalPredScore / scoredPredCount) * 10) / 10 : 0,
+        bestScore: bestPredScore,
+        scoreDistribution: predScoreDist,
+        latestSubmissionDate: latestPredDate,
+        recentSubmissions: predictions.slice(0, 15).map(p => {
+          const u = userMap.get(p.userId);
+          const pts = scoreMap.get(`${p.userId}_${p.roundId}`);
+          return {
+            predictionId: p.predictionId,
+            userId: p.userId,
+            username: u?.username || p.userId,
+            displayName: u?.displayName || u?.username || p.userId,
+            roundId: p.roundId,
+            grandPrixName: p.roundId.replace(/_/g, ' '),
+            submittedAt: p.submittedAt,
+            isScored: pts !== undefined,
+            score: pts,
+          };
+        }),
+      },
+      users: userSummaries,
+      usersTable: userSummaries,
+      timeRange: timeRange,
+    };
+  }
+
+  public async getPublicCommunityReport(timeRange: AnalyticsTimeRange = 'all'): Promise<PublicCommunityReport> {
+    const nowMs = Date.now();
+    const cutoffMs = timeRange === '7d' ? nowMs - 7 * 86400 * 1000 : (timeRange === '30d' ? nowMs - 30 * 86400 * 1000 : 0);
+
+    const allUsers = [...this.users];
+    const totalRegistered = allUsers.length;
+
+    // 1. Racing Tag
+    const rawQuiz = this.getAggregatedQuizAttempts();
+    const quizAttempts = rawQuiz.filter(qa => {
+      if (cutoffMs <= 0) return true;
+      const t = qa.completedAt ? new Date(qa.completedAt).getTime() : 0;
+      return t >= cutoffMs;
+    });
+
+    // 2. Strategy Room
+    const rawStrat = this.getAggregatedStrategyAttempts();
+    const stratAttempts = rawStrat.filter(sa => {
+      if (cutoffMs <= 0) return true;
+      const t = sa.completedAt ? new Date(sa.completedAt).getTime() : 0;
+      return t >= cutoffMs;
+    });
+
+    // 3. Predictions
+    const scoreMap = new Map<string, number>();
+    this.scores.forEach(s => scoreMap.set(`${s.userId}_${s.roundId}`, s.totalScore));
+
+    const predictions = this.predictions.filter(p => {
+      if (cutoffMs <= 0) return true;
+      const t = p.submittedAt ? new Date(p.submittedAt).getTime() : 0;
+      return t >= cutoffMs;
+    });
+
+    const uniqueQuizUsers = new Set<string>();
+    const uniqueStratUsers = new Set<string>();
+    const uniquePredUsers = new Set<string>();
+    const allCompetitors = new Set<string>();
+
+    let quizCompleted = 0;
+    let totalQuizScore = 0;
+    let totalQuizPct = 0;
+    const diffBreakdown = { rookie: 0, apex: 0, race_analyst: 0 };
+    const tierDistribution: Record<string, number> = {
+      'The Rookie': 0,
+      'The Enthusiast': 0,
+      'The Paddock Insider': 0,
+      'The Race Strategist': 0,
+      'The Motorsport Oracle': 0,
+    };
+
+    quizAttempts.forEach(qa => {
+      uniqueQuizUsers.add(qa.userId);
+      allCompetitors.add(qa.userId);
+      if (qa.status === 'completed') {
+        quizCompleted++;
+        totalQuizScore += qa.score || 0;
+        totalQuizPct += qa.percentage || 0;
+        const tier = qa.fanIdentityTier;
+        if (tier && tierDistribution[tier] !== undefined) {
+          tierDistribution[tier]++;
+        }
+      }
+      const d = qa.difficultyLevel === 'rookie' ? 'rookie' : (qa.difficultyLevel === 'race_analyst' ? 'race_analyst' : 'apex');
+      diffBreakdown[d]++;
+    });
+
+    let stratCompleted = 0;
+    let totalStratScore = 0;
+    const roomTypeCounts = { tactical: 0, multiStage: 0, preRace: 0 };
+    const scenarioMap = new Map<string, { scenarioId: string; title: string; mode: string; attempts: number; completed: number; totalScore: number }>();
+
+    stratAttempts.forEach(sa => {
+      uniqueStratUsers.add(sa.userId);
+      allCompetitors.add(sa.userId);
+
+      if (sa.mode === 'pre_race_strategy') roomTypeCounts.preRace++;
+      else if (sa.mode === 'race_simulation') roomTypeCounts.multiStage++;
+      else roomTypeCounts.tactical++;
+
+      const sId = sa.scenarioId;
+      if (!scenarioMap.has(sId)) {
+        scenarioMap.set(sId, {
+          scenarioId: sId,
+          title: sa.scenarioTitle || sId.replace(/[-_]/g, ' ').toUpperCase(),
+          mode: sa.mode || 'challenge',
+          attempts: 0,
+          completed: 0,
+          totalScore: 0,
+        });
+      }
+      const sItem = scenarioMap.get(sId)!;
+      sItem.attempts++;
+      if (sa.status === 'completed') {
+        sItem.completed++;
+        sItem.totalScore += sa.score || 0;
+        stratCompleted++;
+        totalStratScore += sa.score || 0;
+      }
+    });
+
+    let predCompleted = 0;
+    let totalPredScore = 0;
+    let scoredPredCount = 0;
+    const weekendMap = new Map<string, { raceWeekendId: string; grandPrixName: string; submissionsCount: number; scoredCount: number; totalScore: number }>();
+
+    predictions.forEach(p => {
+      uniquePredUsers.add(p.userId);
+      allCompetitors.add(p.userId);
+
+      const hasRequiredPicks = Boolean(p.predictionData?.p1 && p.predictionData?.p2 && p.predictionData?.p3);
+      if (hasRequiredPicks) predCompleted++;
+
+      const rId = p.roundId;
+      if (!weekendMap.has(rId)) {
+        const foundWeekend = this.weekends.find(w => w.raceWeekendId === rId || rId.includes(w.raceWeekendId));
+        weekendMap.set(rId, {
+          raceWeekendId: rId,
+          grandPrixName: foundWeekend?.raceName || rId.replace(/_/g, ' '),
+          submissionsCount: 0,
+          scoredCount: 0,
+          totalScore: 0,
+        });
+      }
+      const pw = weekendMap.get(rId)!;
+      pw.submissionsCount++;
+
+      const key = `${p.userId}_${p.roundId}`;
+      const pts = scoreMap.get(key);
+      if (pts !== undefined) {
+        scoredPredCount++;
+        totalPredScore += pts;
+        pw.scoredCount++;
+        pw.totalScore += pts;
+      }
+    });
+
+    const popularScenarios = Array.from(scenarioMap.values())
+      .map(s => ({
+        scenarioId: s.scenarioId,
+        title: s.title,
+        mode: s.mode,
+        runs: s.attempts,
+        completionRate: s.attempts > 0 ? Math.round((s.completed / s.attempts) * 100) : 0,
+        avgScore: s.completed > 0 ? Math.round(s.totalScore / s.completed) : 0,
+      }))
+      .sort((a, b) => b.runs - a.runs);
+
+    const byWeekend = Array.from(weekendMap.values()).map(w => ({
+      raceWeekendId: w.raceWeekendId,
+      grandPrixName: w.grandPrixName,
+      submissionsCount: w.submissionsCount,
+      averageScore: w.scoredCount > 0 ? Math.round((w.totalScore / w.scoredCount) * 10) / 10 : 0,
+    }));
+
+    const totalActivity = quizCompleted + stratCompleted + predictions.length;
+    const activeCompCount = allCompetitors.size;
+    const participationRate = totalRegistered > 0 ? Math.round((activeCompCount / totalRegistered) * 100) : 0;
+
+    return {
+      period: timeRange,
+      periodLabel: timeRange === '7d' ? 'Last 7 Days' : timeRange === '30d' ? 'Last 30 Days' : 'All Time',
+      lastUpdatedAt: new Date().toISOString(),
+      headlineStats: {
+        registeredMembers: totalRegistered,
+        activeCompetitors: activeCompCount,
+        participationRate: participationRate,
+        racingTagParticipants: uniqueQuizUsers.size,
+        strategyRoomParticipants: uniqueStratUsers.size,
+        predictionParticipants: uniquePredUsers.size,
+        totalCompetitionActivity: totalActivity,
+        activityDefinition: 'Total completed Racing Tag quizzes, finished Strategy Room simulations, and official F1 prediction submissions.',
+      },
+      racingTag: {
+        totalAttempts: quizAttempts.length,
+        completedAttempts: quizCompleted,
+        averageScore: quizCompleted > 0 ? Math.round(totalQuizScore / quizCompleted) : 0,
+        averagePercentage: quizCompleted > 0 ? Math.round(totalQuizPct / quizCompleted) : 0,
+        difficultyBreakdown: diffBreakdown,
+        tierDistribution,
+      },
+      strategyRoom: {
+        totalRuns: stratAttempts.length,
+        completedRuns: stratCompleted,
+        averageScore: stratCompleted > 0 ? Math.round(totalStratScore / stratCompleted) : 0,
+        roomTypeBreakdown: roomTypeCounts,
+        popularScenarios,
+      },
+      predictions: {
+        totalSubmissions: predictions.length,
+        activeWeekendsCount: weekendMap.size,
+        averageScore: scoredPredCount > 0 ? Math.round((totalPredScore / scoredPredCount) * 10) / 10 : 0,
+        byWeekend,
+      },
+    };
+  }
+
+  public async getAdminUserCompetitionProfile(
+    requesterId: string,
+    targetUserId: string,
+    _authToken?: string
+  ): Promise<UnifiedUserCompetitionProfile> {
+    this.assertAdminRequester(requesterId);
+
+    const cleanTarget = targetUserId.trim().toLowerCase();
+    const target = this.users.find(
+      u =>
+        u.userId.toLowerCase() === cleanTarget ||
+        u.username.toLowerCase() === cleanTarget ||
+        u.email.toLowerCase() === cleanTarget
+    );
+    if (!target) {
+      throw new Error(`Racer not found with ID or username: ${targetUserId}`);
+    }
+
+    const uid = target.userId;
+
+    // 1. Quiz Attempts
+    const rawQuiz = this.getAggregatedQuizAttempts().filter(a => a.userId === uid);
+    let quizCompleted = 0;
+    let quizBestScore = 0;
+    let quizBestPct = 0;
+    let quizTotalScore = 0;
+    let quizTotalPct = 0;
+    let quizTier: FanIdentityTier | null = null;
+    const quizDiff = { rookie: 0, apex: 0, race_analyst: 0 };
+
+    rawQuiz.forEach(qa => {
+      if (qa.status === 'completed') {
+        quizCompleted++;
+        quizTotalScore += qa.score || 0;
+        quizTotalPct += qa.percentage || 0;
+        if ((qa.percentage || 0) > quizBestPct) {
+          quizBestPct = qa.percentage || 0;
+          quizBestScore = qa.score || 0;
+          quizTier = qa.fanIdentityTier as FanIdentityTier;
+        }
+      }
+      const d = qa.difficultyLevel === 'rookie' ? 'rookie' : (qa.difficultyLevel === 'race_analyst' ? 'race_analyst' : 'apex');
+      quizDiff[d]++;
+    });
+
+    // 2. Strategy Attempts
+    const rawStrat = this.getAggregatedStrategyAttempts().filter(s => s.userId === uid);
+    let stratCompleted = 0;
+    let stratTotalScore = 0;
+    let stratBestScore = 0;
+    let totalTimeDelta = 0;
+    let totalPosDelta = 0;
+    let tacticalCount = 0;
+    let multiCount = 0;
+    let preRaceCount = 0;
+    const scenariosPlayed = new Set<string>();
+
+    rawStrat.forEach(sa => {
+      scenariosPlayed.add(sa.scenarioId);
+      if (sa.status === 'completed') {
+        stratCompleted++;
+        const sc = sa.score || 0;
+        stratTotalScore += sc;
+        if (sc > stratBestScore) stratBestScore = sc;
+        totalTimeDelta += sa.timeDeltaSeconds || 0;
+        totalPosDelta += sa.positionDelta || 0;
+      }
+      if (sa.mode === 'pre_race_strategy') preRaceCount++;
+      else if (sa.mode === 'race_simulation') multiCount++;
+      else tacticalCount++;
+    });
+
+    // 3. Predictions
+    const scoreMap = new Map<string, number>();
+    this.scores.filter(s => s.userId === uid).forEach(s => scoreMap.set(s.roundId, s.totalScore));
+
+    const userPreds = this.predictions.filter(p => p.userId === uid);
+    let predTotalPoints = 0;
+    let predBestScore = 0;
+    const weekendsSet = new Set<string>();
+
+    const recentPredictions = userPreds.map(p => {
+      weekendsSet.add(p.roundId);
+      const pts = scoreMap.get(p.roundId);
+      if (pts !== undefined) {
+        predTotalPoints += pts;
+        if (pts > predBestScore) predBestScore = pts;
+      }
+      const foundW = this.weekends.find(w => w.raceWeekendId === p.roundId || p.roundId.includes(w.raceWeekendId));
+      return {
+        predictionId: p.predictionId,
+        roundId: p.roundId,
+        grandPrixName: foundW?.raceName || p.roundId.replace(/_/g, ' '),
+        submittedAt: p.submittedAt,
+        isScored: pts !== undefined,
+        score: pts,
+        p1Driver: p.predictionData?.p1,
+        p2Driver: p.predictionData?.p2,
+        p3Driver: p.predictionData?.p3,
+      };
+    });
+
+    // 4. Combined activity timeline
+    const timeline: CompetitionActivityEvent[] = [];
+
+    rawQuiz.forEach(qa => {
+      timeline.push({
+        id: qa.attemptId,
+        type: 'RACING_TAG',
+        title: `Racing Tag — ${qa.fanIdentityTier || 'Attempt'}`,
+        detail: `Score: ${qa.score}/${qa.totalQuestions} (${qa.percentage}%) • Level: ${qa.difficultyLevel || 'apex'}`,
+        timestamp: qa.completedAt || qa.startedAt,
+        score: qa.score,
+        badgeText: `${qa.percentage}%`,
+        statusText: qa.status,
+      });
+    });
+
+    rawStrat.forEach(sa => {
+      timeline.push({
+        id: sa.attemptId,
+        type: 'STRATEGY_ROOM',
+        title: `Strategy Room — ${sa.scenarioTitle || sa.scenarioId}`,
+        detail: `Mode: ${sa.mode} • Score: ${sa.score || 0}/100`,
+        timestamp: sa.completedAt || sa.startedAt,
+        score: sa.score,
+        badgeText: `${sa.score || 0} pts`,
+        statusText: sa.status,
+      });
+    });
+
+    userPreds.forEach(p => {
+      const pts = scoreMap.get(p.roundId);
+      const isScored = pts !== undefined;
+      const foundW = this.weekends.find(w => w.raceWeekendId === p.roundId || p.roundId.includes(w.raceWeekendId));
+      timeline.push({
+        id: p.predictionId,
+        type: 'PREDICTION',
+        title: `F1 Prediction — ${foundW?.raceName || p.roundId.replace(/_/g, ' ')}`,
+        detail: isScored
+          ? `Scored: ${pts} pts • Podium Picks: P1: ${p.predictionData?.p1 || '—'}, P2: ${p.predictionData?.p2 || '—'}, P3: ${p.predictionData?.p3 || '—'}`
+          : `Prediction submitted and locked • Awaiting official race results`,
+        timestamp: p.submittedAt,
+        score: pts,
+        badgeText: isScored ? `${pts} pts` : 'Locked',
+        statusText: isScored ? 'Scored' : 'Submitted',
+      });
+    });
+
+    timeline.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+    const lastQuiz = rawQuiz.length > 0 ? (rawQuiz[0].completedAt || rawQuiz[0].startedAt) : null;
+    const lastStrat = rawStrat.length > 0 ? (rawStrat[0].completedAt || rawStrat[0].startedAt) : null;
+    const lastPred = userPreds.length > 0 ? userPreds[0].submittedAt : null;
+    const latestActivity = timeline.length > 0 ? timeline[0].timestamp : null;
+
+    return {
+      account: {
+        userId: target.userId,
+        username: target.username,
+        displayName: target.displayName || target.username,
+        email: target.email,
+        avatarUrl: target.avatarUrl,
+        bio: target.bio,
+        createdAt: target.createdAt || '',
+        lastLoginAt: target.lastLoginAt,
+        lastCompetitionActivity: latestActivity,
+        role: target.role || 'user',
+      },
+      combined: {
+        totalAttempts: rawQuiz.length + rawStrat.length + userPreds.length,
+        totalCompletedActivities: quizCompleted + stratCompleted + userPreds.length,
+        activeFeaturesCount: (rawQuiz.length > 0 ? 1 : 0) + (rawStrat.length > 0 ? 1 : 0) + (userPreds.length > 0 ? 1 : 0),
+        lastActivityPerFeature: {
+          racingTag: lastQuiz,
+          strategyRoom: lastStrat,
+          predictions: lastPred,
+        },
+        activityTimeline: timeline,
+      },
+      racingTag: {
+        attemptsCount: rawQuiz.length,
+        completedCount: quizCompleted,
+        averageScore: quizCompleted > 0 ? Math.round(quizTotalScore / quizCompleted) : 0,
+        averagePercentage: quizCompleted > 0 ? Math.round(quizTotalPct / quizCompleted) : 0,
+        bestScore: quizBestScore,
+        bestPercentage: quizBestPct,
+        earnedTier: quizTier,
+        difficultyBreakdown: quizDiff,
+        achievementsCount: 0,
+        recentAttempts: rawQuiz.slice(0, 10).map(qa => ({
+          attemptId: qa.attemptId,
+          score: qa.score,
+          totalQuestions: qa.totalQuestions,
+          percentage: qa.percentage,
+          fanIdentityTier: qa.fanIdentityTier as FanIdentityTier,
+          difficultyLevel: qa.difficultyLevel,
+          completedAt: qa.completedAt,
+          status: qa.status,
+        })),
+      },
+      strategyRoom: {
+        attemptsCount: rawStrat.length,
+        completedCount: stratCompleted,
+        scenariosPlayedCount: scenariosPlayed.size,
+        averageScore: stratCompleted > 0 ? Math.round(stratTotalScore / stratCompleted) : 0,
+        bestScore: stratBestScore,
+        tacticalChallengesCount: tacticalCount,
+        multiStageSimulationsCount: multiCount,
+        preRaceCount: preRaceCount,
+        averagePositionDelta: stratCompleted > 0 ? Math.round((totalPosDelta / stratCompleted) * 10) / 10 : 0,
+        averageTimeDeltaSeconds: stratCompleted > 0 ? Math.round((totalTimeDelta / stratCompleted) * 10) / 10 : 0,
+        recentAttempts: rawStrat.slice(0, 10).map(sa => ({
+          attemptId: sa.attemptId,
+          scenarioId: sa.scenarioId,
+          scenarioTitle: sa.scenarioTitle || sa.scenarioId.replace(/[-_]/g, ' ').toUpperCase(),
+          mode: sa.mode,
+          score: sa.score || 0,
+          positionDelta: sa.positionDelta || 0,
+          timeDeltaSeconds: sa.timeDeltaSeconds || 0,
+          completedAt: sa.completedAt,
+          status: sa.status,
+          planId: sa.planId,
+          rationale: sa.rationale,
+        })),
+      },
+      predictions: {
+        submissionsCount: userPreds.length,
+        raceWeekendsCount: weekendsSet.size,
+        totalPoints: predTotalPoints,
+        averageScore: userPreds.length > 0 ? Math.round((predTotalPoints / userPreds.length) * 10) / 10 : 0,
+        bestScore: predBestScore,
+        seasonRank: target.seasonRank,
+        recentPredictions: recentPredictions.slice(0, 10),
+      },
+      trackingGaps: {
+        liveRaceStrategy: 'Real-time telemetry and in-race tactical interventions are not currently scheduled or tracked in production.',
+        inDepthTelemetry: 'Per-corner speed deltas and tire slip angles are computed dynamically without long-term cold storage.',
+      },
+    };
+  }
+
 
   public async login(identifier: string, passwordHash?: string): Promise<User> {
     const cleanId = identifier.trim().toLowerCase();

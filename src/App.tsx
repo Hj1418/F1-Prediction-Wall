@@ -33,6 +33,8 @@ const StrategyRoomPage = lazy(() => import('./pages/StrategyRoomPage').then(m =>
 const StrategyScenarioPage = lazy(() => import('./pages/StrategyScenarioPage').then(m => ({ default: m.StrategyScenarioPage })));
 const StrategyLeaderboardPage = lazy(() => import('./pages/StrategyLeaderboardPage').then(m => ({ default: m.StrategyLeaderboardPage })));
 const StrategyPerformancePage = lazy(() => import('./pages/StrategyPerformancePage').then(m => ({ default: m.StrategyPerformancePage })));
+const CommunityStatsPage = lazy(() => import('./pages/CommunityStatsPage').then(m => ({ default: m.CommunityStatsPage })));
+const AboutUsPage = lazy(() => import('./pages/AboutUsPage').then(m => ({ default: m.AboutUsPage })));
 const UniversalSearchModal = lazy(() => import('./components/search/UniversalSearchModal').then(m => ({ default: m.UniversalSearchModal })));
 
 const AppLayout: React.FC = () => {
@@ -90,6 +92,9 @@ const AppLayout: React.FC = () => {
             <Route path="/leaderboard" element={<LeaderboardPage />} />
             <Route path="/profile/:username" element={<ProfilePage />} />
             <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/community-stats" element={<CommunityStatsPage />} />
+            <Route path="/about" element={<AboutUsPage />} />
+            <Route path="/about-us" element={<Navigate to="/about" replace />} />
             <Route path="/admin" element={<AdminDashboardPage />} />
             <Route path="/admin/race-weekends" element={<AdminDashboardPage />} />
             <Route path="/admin/results" element={<AdminDashboardPage />} />

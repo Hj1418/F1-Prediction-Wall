@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
 import { api } from '../services/apiClient';
 import {
   RaceWeekend,
@@ -42,6 +41,7 @@ import {
   Share2,
   ShieldCheck,
   Database,
+  BarChart3,
 } from 'lucide-react';
 import { raceWeekendApi } from '../api/raceWeekendApi';
 import { testGrandPrixService, TEST_DRIVERS, TEST_GP_ID, TEST_ROUND_ID } from '../services/testGrandPrix/testGrandPrixService';
@@ -56,13 +56,14 @@ import {
 } from '../services/notifications/emailTemplateBuilder';
 import { clientCache } from '../services/cache/clientCache';
 import { PlatformAuditReport } from '../services/mockApi';
+import { CompetitionAnalyticsTab } from '../components/admin/CompetitionAnalyticsTab';
 
 export const AdminDashboardPage: React.FC = () => {
   const { currentUser, isAdmin, isAuthenticated, openLoginModal } = useAuth();
   const { showToast, triggerDataRefresh } = useApp();
 
-  // Active section tab: 6 sections including Platform Integrity Audit
-  const [activeTab, setActiveTab] = useState<'sync' | 'users' | 'predictions' | 'leaderboard' | 'testgp' | 'audit'>('sync');
+  // Active section tab: 7 sections including Competition Analytics and Platform Integrity Audit
+  const [activeTab, setActiveTab] = useState<'sync' | 'users' | 'predictions' | 'leaderboard' | 'testgp' | 'audit' | 'analytics'>('sync');
 
   // Common metadata
   const [weekends, setWeekends] = useState<RaceWeekend[]>([]);
@@ -932,6 +933,20 @@ export const AdminDashboardPage: React.FC = () => {
           }}
         >
           <ShieldCheck size={14} /> 6. PLATFORM INTEGRITY AUDIT
+        </button>
+
+        <button
+          onClick={() => setActiveTab('analytics')}
+          className="btn btn-sm"
+          style={{
+            background: activeTab === 'analytics' ? 'var(--f1-red)' : 'transparent',
+            color: activeTab === 'analytics' ? '#fff' : 'var(--text-secondary)',
+            border: 'none',
+            fontWeight: 800,
+            letterSpacing: '0.04em',
+          }}
+        >
+          <BarChart3 size={14} /> 7. COMPETITION ANALYTICS
         </button>
       </div>
 
@@ -2566,6 +2581,14 @@ export const AdminDashboardPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* ===================================================================
+          TAB 7: COMPETITION ANALYTICS
+          =================================================================== */}
+      {activeTab === 'analytics' && (
+        <CompetitionAnalyticsTab />
+      )}
+
       {/* Phase 11 Result Entry / Verification Modal */}
       {showResultEntryModal && (
         <div

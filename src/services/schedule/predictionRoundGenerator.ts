@@ -166,6 +166,9 @@ export function getPredictionRoundStatus(
   if (predictionRound.status === 'SCORED' || predictionRound.status === 'COMPLETED') {
     return predictionRound.status;
   }
+  if ((predictionRound as any).isLocked) {
+    return 'LOCKED';
+  }
 
   const nowMs = currentServerTime.getTime();
   const opensAtMs = predictionRound.opensAt ? new Date(predictionRound.opensAt).getTime() : 0;

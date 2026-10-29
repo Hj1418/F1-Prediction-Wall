@@ -68,14 +68,34 @@ export const ExploreMegaMenu: React.FC<ExploreMegaMenuProps> = ({
               <h2 className="explore-mega-menu__title">EXPLORE MOTORSPORT</h2>
             </div>
           </div>
-          <Link
-            to="/explore"
-            onClick={onClose}
-            className="explore-mega-menu__view-all-link"
-          >
-            <span>VIEW ALL MOTORSPORTS</span>
-            <ArrowRight size={14} />
-          </Link>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', flexWrap: 'wrap' }}>
+            <Link
+              to="/community-stats"
+              onClick={onClose}
+              className="explore-mega-menu__view-all-link"
+              style={{ fontSize: '0.75rem', opacity: 0.9 }}
+            >
+              <span>COMMUNITY REPORT</span>
+              <ArrowRight size={13} />
+            </Link>
+            <Link
+              to="/about"
+              onClick={onClose}
+              className="explore-mega-menu__view-all-link"
+              style={{ fontSize: '0.75rem', opacity: 0.9 }}
+            >
+              <span>ABOUT US</span>
+              <ArrowRight size={13} />
+            </Link>
+            <Link
+              to="/explore"
+              onClick={onClose}
+              className="explore-mega-menu__view-all-link"
+            >
+              <span>VIEW ALL MOTORSPORTS</span>
+              <ArrowRight size={14} />
+            </Link>
+          </div>
         </div>
 
         {/* 4 Column Compact Motorsport Grid */}

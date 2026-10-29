@@ -10,6 +10,8 @@
 import { clientCache } from '../cache/clientCache';
 import { PredictionRound } from '../../types';
 import { getResultsTimeline } from '../../utils/predictionTimeline';
+import { getIstDateParts, formatIstTime } from '../../utils/istTimeUtils';
+import { getPredictionRoundStatus } from '../schedule/predictionRoundGenerator';
 
 export interface NextRaceSessionSummary {
   name: string;
@@ -33,6 +35,9 @@ export interface NextRaceSummary {
   raceWeekendId: string;
   circuitId: string;
   sessions: NextRaceSessionSummary[];
+  startDate?: string;
+  endDate?: string;
+  startTimeUtc?: string;
 }
 
 export interface SeriesChipSummary {
@@ -119,6 +124,9 @@ export interface PredictionBenchHighlight {
   resultsExpectedNotice?: string;
   totalPointsAvailable: number;
   url: string;
+  opensAt?: string;
+  closesAt?: string;
+  lockTime?: string;
 }
 
 export interface HomeSnapshot {
@@ -261,6 +269,9 @@ export const DEFAULT_HOME_SNAPSHOT: HomeSnapshot = {
     weekendType: 'STANDARD',
     raceWeekendId: '2026_17',
     circuitId: 'sepang',
+    startDate: '2026-10-02T04:30:00Z',
+    endDate: '2026-10-04T09:00:00Z',
+    startTimeUtc: '2026-10-04T07:00:00Z',
     sessions: [
       { name: 'Practice 1 & 2', day: 'FRI', time: '10:00 IST' },
       { name: 'Practice 3 & Qualifying', day: 'SAT', time: '13:30 IST', isKeySession: true },
@@ -391,9 +402,12 @@ export const DEFAULT_HOME_SNAPSHOT: HomeSnapshot = {
     roundName: 'Bahrain Grand Prix Race Prediction',
     grandPrix: 'Bahrain International Circuit',
     status: 'OPEN',
-    deadlineNotice: 'Predictions lock before Grand Prix start',
+    deadlineNotice: 'Predictions lock before start',
     totalPointsAvailable: 60,
     url: '/predict/2026_16_RACE_PREDICTION',
+    opensAt: '2026-09-25T04:30:00Z',
+    closesAt: '2026-10-04T06:00:00Z',
+    lockTime: '2026-10-04T06:00:00Z',
   },
 };
 
@@ -413,6 +427,9 @@ export async function getHomeSnapshot(referenceDate?: Date): Promise<HomeSnapsho
         ? `${new Date(w.startDate).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}–${new Date(w.endDate).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}`
         : 'Sep 18–20';
 
+      const raceSession = (w.sessions || []).find(s => s.type === 'RACE' || s.sessionType === 'RACE' || (s.name && /grand prix|race/i.test(s.name) && !/sprint/i.test(s.name)));
+      const raceStartTime = raceSession ? raceSession.startTime : w.startDate;
+
       snapshot.nextRace = {
         roundNumber: w.roundNumber || w.round || 17,
         officialTitle: w.name || w.raceName || 'Formula 1 Grand Prix',
@@ -427,20 +444,56 @@ export async function getHomeSnapshot(referenceDate?: Date): Promise<HomeSnapsho
         weekendType: w.weekendType === 'SPRINT' ? 'SPRINT' : 'STANDARD',
         raceWeekendId: w.raceWeekendId,
         circuitId: circuitKey,
-        sessions: (w.sessions || []).slice(0, 3).map(s => ({
-          name: s.name,
-          day: s.startTime ? new Date(s.startTime).toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase() : 'FRI',
-          time: s.startTime ? new Date(s.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '14:00',
-          isKeySession: s.type === 'RACE' || s.type === 'QUALIFYING',
-        })),
+        startDate: w.startDate,
+        endDate: w.endDate,
+        startTimeUtc: raceStartTime,
+        sessions: (w.sessions || []).slice(0, 5).map(s => {
+          const istDate = s.startTime ? new Date(new Date(s.startTime).getTime() + 330 * 60 * 1000) : null;
+          const dayStr = istDate ? ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'][istDate.getUTCDay()] : 'FRI';
+          const timeStr = s.startTime ? formatIstTime(s.startTime) : '14:00 IST';
+          return {
+            name: s.name,
+            day: dayStr,
+            time: timeStr,
+            isKeySession: s.type === 'RACE' || s.type === 'GRAND_PRIX' || s.type === 'QUALIFYING',
+          };
+        }),
       };
 
       // Synchronize F1 category chip and radar event
       if (snapshot.championshipChips && snapshot.championshipChips[0]) {
         snapshot.championshipChips[0].nextEventBrief = `${w.raceName || 'Azerbaijan GP'} • ${w.country || 'Baku'}`;
       }
+
+      // Bind active prediction round
+      let activeRound = raceContext.activePredictionRound;
+      if (!activeRound && w) {
+        const { generatePredictionRounds } = await import('../schedule/predictionRoundGenerator');
+        const generated = generatePredictionRounds(w);
+        activeRound = generated[0];
+      }
+
+      if (activeRound) {
+        const timeline = getResultsTimeline(activeRound);
+        const dynamicStatus = getPredictionRoundStatus(activeRound, referenceDate || new Date());
+        const normalizedStatus: 'OPEN' | 'UPCOMING' | 'LOCKED' | 'SCORED' = dynamicStatus === 'COMPLETED' ? 'LOCKED' : dynamicStatus;
+        snapshot.predictionHighlight = {
+          roundId: activeRound.roundId,
+          roundName: activeRound.title || `${w.raceName || 'Grand Prix'} Race Prediction`,
+          grandPrix: circuitName,
+          status: normalizedStatus,
+          opensAt: activeRound.opensAt,
+          closesAt: activeRound.closesAt,
+          lockTime: activeRound.closesAt,
+          deadlineNotice: activeRound.closesAt ? `Predictions lock: ${new Date(activeRound.closesAt).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}` : 'Predictions lock before start',
+          resultsExpectedNotice: dynamicStatus === 'SCORED' ? 'Results Published' : `Results: ~${timeline.formattedExpectedResultsTime} (${timeline.shortEta})`,
+          totalPointsAvailable: 60,
+          url: dynamicStatus === 'OPEN' ? `/predict/${activeRound.roundId}` : '/predictions',
+        };
+      }
+
       const isLive = raceContext.status === 'ACTIVE';
-      const isPredOpen = raceContext.activePredictionRound?.status === 'OPEN';
+      const isPredOpen = snapshot.predictionHighlight.status === 'OPEN';
       snapshot.racingNowOrNext[0] = {
         championshipId: 'f1',
         championshipName: 'Formula 1',
@@ -453,28 +506,6 @@ export async function getHomeSnapshot(referenceDate?: Date): Promise<HomeSnapsho
         statusTag: isLive ? 'RACE WEEKEND LIVE' : isPredOpen ? 'PREDICTIONS OPEN' : 'NEXT UP',
         url: `/weekends/${w.raceWeekendId}`,
       };
-
-      // Bind active prediction round
-      let activeRound = raceContext.activePredictionRound;
-      if (!activeRound && w) {
-        const { generatePredictionRounds } = await import('../schedule/predictionRoundGenerator');
-        const generated = generatePredictionRounds(w);
-        activeRound = generated[0];
-      }
-
-      if (activeRound) {
-        const timeline = getResultsTimeline(activeRound);
-        snapshot.predictionHighlight = {
-          roundId: activeRound.roundId,
-          roundName: activeRound.title || `${w.raceName || 'Grand Prix'} Race Prediction`,
-          grandPrix: circuitName,
-          status: activeRound.status === 'OPEN' ? 'OPEN' : activeRound.status === 'LOCKED' ? 'LOCKED' : activeRound.status === 'SCORED' ? 'SCORED' : 'UPCOMING',
-          deadlineNotice: activeRound.closesAt ? `Predictions lock: ${new Date(activeRound.closesAt).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}` : 'Predictions lock before start',
-          resultsExpectedNotice: activeRound.status === 'SCORED' ? 'Results Published' : `Results: ~${timeline.formattedExpectedResultsTime} (${timeline.shortEta})`,
-          totalPointsAvailable: 60,
-          url: activeRound.status === 'OPEN' ? `/predict/${activeRound.roundId}` : '/predictions',
-        };
-      }
     }
 
     // Check clientCache for active prediction round override (e.g. testing or explicit client cache)
@@ -486,15 +517,20 @@ export async function getHomeSnapshot(referenceDate?: Date): Promise<HomeSnapsho
       const activeRound = candidateList.find(r => r.status === 'OPEN') || candidateList[0];
       if (activeRound) {
         const timeline = getResultsTimeline(activeRound);
+        const dynamicStatus = activeRound.status === 'LOCKED' ? 'LOCKED' : getPredictionRoundStatus(activeRound, referenceDate || new Date());
+        const normalizedStatus: 'OPEN' | 'UPCOMING' | 'LOCKED' | 'SCORED' = dynamicStatus === 'COMPLETED' ? 'LOCKED' : dynamicStatus;
         snapshot.predictionHighlight = {
           roundId: activeRound.roundId,
           roundName: activeRound.title || 'Prediction Round',
           grandPrix: activeRound.description || 'Grand Prix',
-          status: activeRound.status === 'OPEN' ? 'OPEN' : activeRound.status === 'LOCKED' ? 'LOCKED' : activeRound.status === 'SCORED' ? 'SCORED' : 'UPCOMING',
-          deadlineNotice: activeRound.status === 'OPEN' ? 'Predictions lock before Grand Prix' : 'Predictions are locked for this session',
-          resultsExpectedNotice: activeRound.status === 'SCORED' ? 'Results Published' : `Results: ~${timeline.formattedExpectedResultsTime}`,
+          status: normalizedStatus,
+          opensAt: activeRound.opensAt,
+          closesAt: activeRound.closesAt,
+          lockTime: activeRound.closesAt,
+          deadlineNotice: dynamicStatus === 'OPEN' ? 'Predictions lock before Grand Prix' : 'Predictions are locked for this session',
+          resultsExpectedNotice: dynamicStatus === 'SCORED' ? 'Results Published' : `Results: ~${timeline.formattedExpectedResultsTime}`,
           totalPointsAvailable: 60,
-          url: activeRound.status === 'OPEN' ? `/predict/${activeRound.roundId}` : '/predictions',
+          url: dynamicStatus === 'OPEN' ? `/predict/${activeRound.roundId}` : '/predictions',
         };
       }
     }

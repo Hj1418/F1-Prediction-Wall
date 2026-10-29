@@ -32,6 +32,12 @@ import {
   ConcessionRules,
   MotoGpPointsScale,
 } from '../types';
+import {
+  CompetitionAnalyticsPayload,
+  UnifiedUserCompetitionProfile,
+  AnalyticsTimeRange,
+  PublicCommunityReport,
+} from '../types/competitionAnalytics';
 import { mockApi, PlatformAuditReport } from './mockApi';
 import { F1Normalizer } from './dataArchitecture/normalizers/f1Normalizer';
 import { FeederNormalizer, SUPER_LICENCE_POINTS_TABLE } from './dataArchitecture/normalizers/feederNormalizer';
@@ -1532,6 +1538,69 @@ export const api = {
   async getQuizPerformanceSummary(userId: string) {
     const { quizService } = await import('./quiz/quizService');
     return quizService.getQuizPerformanceSummary(userId);
+  },
+
+  async getAdminCompetitionAnalytics(requesterId: string, authToken?: string, timeRange: AnalyticsTimeRange = 'all'): Promise<CompetitionAnalyticsPayload> {
+    if (isLiveBackend) {
+      try {
+        const tokenParam = authToken ? `&authToken=${encodeURIComponent(authToken)}` : '';
+        const res = await fetchWithTimeout(
+          `${API_BASE_URL}?action=getAdminCompetitionAnalytics&requesterId=${encodeURIComponent(requesterId)}&timeRange=${encodeURIComponent(timeRange)}${tokenParam}`
+        );
+        const json = await res.json();
+        if (json.success && json.data) {
+          return json.data;
+        }
+        if (json.error) {
+          throw new Error(json.error);
+        }
+      } catch (e: any) {
+        if (e?.message && (e.message.includes('Forbidden') || e.message.includes('privilege'))) {
+          throw e;
+        }
+      }
+    }
+    return mockApi.getAdminCompetitionAnalytics(requesterId, timeRange, authToken);
+  },
+
+  async getAdminUserCompetitionProfile(requesterId: string, targetUserId: string, authToken?: string): Promise<UnifiedUserCompetitionProfile> {
+    if (isLiveBackend) {
+      try {
+        const tokenParam = authToken ? `&authToken=${encodeURIComponent(authToken)}` : '';
+        const res = await fetchWithTimeout(
+          `${API_BASE_URL}?action=getAdminUserCompetitionProfile&requesterId=${encodeURIComponent(requesterId)}&targetUserId=${encodeURIComponent(targetUserId)}${tokenParam}`
+        );
+        const json = await res.json();
+        if (json.success && json.data) {
+          return json.data;
+        }
+        if (json.error) {
+          throw new Error(json.error);
+        }
+      } catch (e: any) {
+        if (e?.message && (e.message.includes('Forbidden') || e.message.includes('privilege'))) {
+          throw e;
+        }
+      }
+    }
+    return mockApi.getAdminUserCompetitionProfile(requesterId, targetUserId, authToken);
+  },
+
+  async getPublicCommunityReport(timeRange: AnalyticsTimeRange = 'all'): Promise<PublicCommunityReport> {
+    if (isLiveBackend) {
+      try {
+        const res = await fetchWithTimeout(
+          `${API_BASE_URL}?action=getPublicCommunityReport&timeRange=${encodeURIComponent(timeRange)}`
+        );
+        const json = await res.json();
+        if (json.success && json.data) {
+          return json.data;
+        }
+      } catch (e: any) {
+        console.warn('Live getPublicCommunityReport failed, falling back to local aggregate:', e);
+      }
+    }
+    return mockApi.getPublicCommunityReport(timeRange);
   },
 
   resetDemoData() {

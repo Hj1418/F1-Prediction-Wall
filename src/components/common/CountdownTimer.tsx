@@ -7,6 +7,7 @@ interface CountdownTimerProps {
   onExpire?: () => void;
   compact?: boolean;
   size?: 'standard' | 'mini';
+  expiredText?: string;
 }
 
 export const CountdownTimer: React.FC<CountdownTimerProps> = ({
@@ -15,6 +16,7 @@ export const CountdownTimer: React.FC<CountdownTimerProps> = ({
   onExpire,
   compact = false,
   size = 'standard',
+  expiredText = 'DEADLINE PASSED',
 }) => {
   const calculateTimeLeft = () => {
     const diff = new Date(targetDate).getTime() - Date.now();
@@ -33,6 +35,11 @@ export const CountdownTimer: React.FC<CountdownTimerProps> = ({
   const [timeLeft, setTimeLeft] = useState(calculateTimeLeft());
 
   useEffect(() => {
+    const initial = calculateTimeLeft();
+    if (initial.isExpired) {
+      onExpire?.();
+      return;
+    }
     const timer = setInterval(() => {
       const updated = calculateTimeLeft();
       setTimeLeft(updated);
@@ -43,13 +50,13 @@ export const CountdownTimer: React.FC<CountdownTimerProps> = ({
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [targetDate]);
+  }, [targetDate, onExpire]);
 
   if (timeLeft.isExpired) {
     return (
       <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', color: '#f87171', fontFamily: 'var(--font-mono)', fontSize: size === 'mini' ? '0.75rem' : '0.85rem' }}>
         <Clock size={size === 'mini' ? 12 : 14} />
-        <span>DEADLINE PASSED</span>
+        <span>{expiredText}</span>
       </div>
     );
   }
