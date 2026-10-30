@@ -180,7 +180,7 @@ export const Footer: React.FC = () => {
           <div>© {new Date().getFullYear()} GRDX. An open motorsport platform. Not affiliated with Formula 1, the FIA, or any motorsport governing body.</div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
             <Link to="/about" style={{ color: 'inherit', textDecoration: 'none' }}>About Us</Link>
-            <Link to="/community-stats" style={{ color: 'inherit', textDecoration: 'none' }}>Community Report</Link>
+            <Link to="/circuits" style={{ color: 'inherit', textDecoration: 'none' }}>Circuits</Link>
             <span>Privacy Policy</span>
             <span>Terms of Use</span>
             <span>2026 Season</span>

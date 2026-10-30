@@ -1124,6 +1124,20 @@ export class MockApiService {
   }
 
   public async getPublicCommunityReport(timeRange: AnalyticsTimeRange = 'all'): Promise<PublicCommunityReport> {
+    if (typeof window !== 'undefined') {
+      const rawUser = localStorage.getItem('thegrid_current_user');
+      let userRole = 'guest';
+      if (rawUser) {
+        try {
+          const parsed = JSON.parse(rawUser);
+          userRole = parsed.role || 'user';
+        } catch {}
+      }
+      if (userRole !== 'admin') {
+        throw new Error('Forbidden: Administrator privileges required to access the community report.');
+      }
+    }
+
     const nowMs = Date.now();
     const cutoffMs = timeRange === '7d' ? nowMs - 7 * 86400 * 1000 : (timeRange === '30d' ? nowMs - 30 * 86400 * 1000 : 0);
 

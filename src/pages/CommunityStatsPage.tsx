@@ -18,13 +18,16 @@ import {
   Info,
   Clock,
   Sparkles,
+  Lock,
 } from 'lucide-react';
 import { api } from '../services/apiClient';
 import { AnalyticsTimeRange, PublicCommunityReport } from '../types/competitionAnalytics';
 import { useApp } from '../context/AppContext';
+import { useAuth } from '../context/AuthContext';
 
 export const CommunityStatsPage: React.FC = () => {
   const { showToast } = useApp();
+  const { currentUser, isAdmin, isAuthenticated, openLoginModal } = useAuth();
   const [timeRange, setTimeRange] = useState<AnalyticsTimeRange>('all');
   const [report, setReport] = useState<PublicCommunityReport | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
@@ -36,10 +39,11 @@ export const CommunityStatsPage: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   const fetchReport = async (range: AnalyticsTimeRange) => {
+    if (!isAdmin) return;
     setLoading(true);
     setError(null);
     try {
-      const data = await api.getPublicCommunityReport(range);
+      const data = await api.getPublicCommunityReport(range, currentUser?.userId, currentUser?.authToken);
       setReport(data);
     } catch (err: any) {
       console.error('Failed to load community competition report:', err);
@@ -50,8 +54,70 @@ export const CommunityStatsPage: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchReport(timeRange);
-  }, [timeRange]);
+    if (isAdmin) {
+      fetchReport(timeRange);
+    }
+  }, [timeRange, isAdmin]);
+
+  if (!isAdmin) {
+    return (
+      <div className="container" style={{ padding: '6rem 1.5rem', textAlign: 'center', maxWidth: '640px', margin: '0 auto' }}>
+        <div
+          style={{
+            width: '64px',
+            height: '64px',
+            borderRadius: '50%',
+            backgroundColor: 'rgba(239, 68, 68, 0.12)',
+            border: '1px solid rgba(239, 68, 68, 0.3)',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: 'var(--f1-red)',
+            marginBottom: '1.5rem',
+          }}
+        >
+          <ShieldCheck size={32} />
+        </div>
+        <div style={{ fontSize: '0.78rem', fontFamily: 'var(--font-mono)', fontWeight: 800, color: 'var(--f1-red)', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: '0.5rem' }}>
+          ADMINISTRATOR PRIVILEGES REQUIRED
+        </div>
+        <h1 style={{ fontSize: '2rem', fontWeight: 900, color: '#ffffff', margin: '0 0 1rem 0' }}>
+          Restricted Community Report
+        </h1>
+        <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', lineHeight: 1.6, marginBottom: '2rem' }}>
+          This detailed competition report and community analytics dashboard is restricted to authorized platform administrators. Please sign in with administrator credentials or navigate back to the motorsport hub.
+        </p>
+        <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+          {!isAuthenticated ? (
+            <button
+              onClick={() => openLoginModal('/community-stats')}
+              className="btn btn-primary"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
+            >
+              <Lock size={15} />
+              <span>Sign In as Admin</span>
+            </button>
+          ) : (
+            <Link
+              to="/admin"
+              className="btn btn-primary"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
+            >
+              <ShieldCheck size={15} />
+              <span>Open Admin Dashboard</span>
+            </Link>
+          )}
+          <Link
+            to="/explore"
+            className="btn btn-secondary"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
+          >
+            <span>Return to Motorsport Discovery</span>
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   const generateTextSummary = (rep: PublicCommunityReport): string => {
     const periodStr = rep.periodLabel;

@@ -19,6 +19,7 @@ export interface CacheOptions {
 export const TTL = {
   SHORT: 30 * 1000,        // 30 seconds (e.g. live session status)
   MEDIUM: 5 * 60 * 1000,    // 5 minutes (e.g. leaderboard, weekend summaries)
+  STANDINGS: 10 * 60 * 1000, // 10 minutes (official standings)
   LONG: 30 * 60 * 1000,     // 30 minutes (e.g. circuits, drivers, constructors)
   STATIC: 24 * 60 * 60 * 1000, // 24 hours (e.g. championship static profiles, educational taxonomy)
 } as const;

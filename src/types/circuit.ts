@@ -49,11 +49,13 @@ export interface CircuitLayout {
   isPrimary?: boolean;
 }
 
+export type CircuitVerificationStatus = 'VERIFIED' | 'PENDING_VERIFICATION' | 'MISSING_ASSETS' | 'NEEDS_CORRECTION';
+
 export interface CircuitCharacteristics {
-  speed: 'Very Low' | 'Low' | 'Medium' | 'High' | 'Very High';
+  speed: 'Very Low' | 'Low' | 'Medium' | 'Medium-High' | 'High' | 'Very High';
   braking: 'Light' | 'Medium' | 'Heavy' | 'Very Heavy';
-  overtaking: 'Very Low' | 'Low' | 'Medium' | 'High' | 'Very High';
-  tyreWear: 'Low' | 'Medium' | 'High' | 'Very High';
+  overtaking: 'Very Low' | 'Low' | 'Medium' | 'Medium-High' | 'High' | 'Very High';
+  tyreWear: 'Low' | 'Medium' | 'Medium-High' | 'High' | 'Very High';
   downforce?: 'Low' | 'Medium' | 'Medium-High' | 'High' | 'Maximum';
   elevationChangeMeters?: number;
   longestStraightMeters?: number;
@@ -123,6 +125,7 @@ export interface CircuitEntity {
   shortDescription: string;
   officialWebsite?: string;
   sourceAttribution?: CircuitSourceAttribution;
+  verificationStatus?: 'VERIFIED' | 'PENDING_VERIFICATION' | 'MISSING_ASSETS' | 'NEEDS_CORRECTION';
   eventRound?: number;
   eventDates?: string;
   eventTitle?: string;

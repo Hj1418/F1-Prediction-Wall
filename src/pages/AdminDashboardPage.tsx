@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { api } from '../services/apiClient';
 import {
   RaceWeekend,
@@ -42,6 +43,7 @@ import {
   ShieldCheck,
   Database,
   BarChart3,
+  Compass,
 } from 'lucide-react';
 import { raceWeekendApi } from '../api/raceWeekendApi';
 import { testGrandPrixService, TEST_DRIVERS, TEST_GP_ID, TEST_ROUND_ID } from '../services/testGrandPrix/testGrandPrixService';
@@ -57,13 +59,14 @@ import {
 import { clientCache } from '../services/cache/clientCache';
 import { PlatformAuditReport } from '../services/mockApi';
 import { CompetitionAnalyticsTab } from '../components/admin/CompetitionAnalyticsTab';
+import { CircuitVerificationAdminTab } from '../components/admin/CircuitVerificationAdminTab';
 
 export const AdminDashboardPage: React.FC = () => {
   const { currentUser, isAdmin, isAuthenticated, openLoginModal } = useAuth();
   const { showToast, triggerDataRefresh } = useApp();
 
-  // Active section tab: 7 sections including Competition Analytics and Platform Integrity Audit
-  const [activeTab, setActiveTab] = useState<'sync' | 'users' | 'predictions' | 'leaderboard' | 'testgp' | 'audit' | 'analytics'>('sync');
+  // Active section tab: 8 sections including Circuits Verification, Competition Analytics and Platform Integrity Audit
+  const [activeTab, setActiveTab] = useState<'sync' | 'users' | 'predictions' | 'leaderboard' | 'testgp' | 'audit' | 'analytics' | 'circuits'>('sync');
 
   // Common metadata
   const [weekends, setWeekends] = useState<RaceWeekend[]>([]);
@@ -824,8 +827,29 @@ export const AdminDashboardPage: React.FC = () => {
         {/* Authorization status pill */}
         <div>
           {isAdmin ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--telemetry-green)', fontSize: '0.85rem', fontWeight: 700, fontFamily: 'var(--font-mono)' }}>
-              <CheckCircle2 size={16} /> ADMIN PRIVILEGES VERIFIED ({currentUser?.displayName})
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--telemetry-green)', fontSize: '0.85rem', fontWeight: 700, fontFamily: 'var(--font-mono)' }}>
+                <CheckCircle2 size={16} /> ADMIN PRIVILEGES VERIFIED ({currentUser?.displayName})
+              </div>
+              <Link
+                to="/community-stats"
+                className="btn btn-sm"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.45rem',
+                  backgroundColor: 'rgba(255, 75, 51, 0.15)',
+                  color: 'var(--color-accent, #FF4B33)',
+                  border: '1px solid var(--color-accent, #FF4B33)',
+                  fontWeight: 800,
+                  fontSize: '0.78rem',
+                  fontFamily: 'var(--font-mono)',
+                  textDecoration: 'none',
+                }}
+              >
+                <BarChart3 size={14} />
+                <span>COMMUNITY REPORT</span>
+              </Link>
             </div>
           ) : (
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
@@ -947,6 +971,20 @@ export const AdminDashboardPage: React.FC = () => {
           }}
         >
           <BarChart3 size={14} /> 7. COMPETITION ANALYTICS
+        </button>
+
+        <button
+          onClick={() => setActiveTab('circuits')}
+          className="btn btn-sm"
+          style={{
+            background: activeTab === 'circuits' ? '#00e676' : 'transparent',
+            color: activeTab === 'circuits' ? '#000' : 'var(--text-secondary)',
+            border: 'none',
+            fontWeight: 800,
+            letterSpacing: '0.04em',
+          }}
+        >
+          <Compass size={14} /> 8. CIRCUITS VERIFICATION
         </button>
       </div>
 
@@ -2587,6 +2625,13 @@ export const AdminDashboardPage: React.FC = () => {
           =================================================================== */}
       {activeTab === 'analytics' && (
         <CompetitionAnalyticsTab />
+      )}
+
+      {/* ===================================================================
+          TAB 8: CIRCUIT VERIFICATION & AUDIT
+          =================================================================== */}
+      {activeTab === 'circuits' && (
+        <CircuitVerificationAdminTab />
       )}
 
       {/* Phase 11 Result Entry / Verification Modal */}

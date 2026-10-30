@@ -1,92 +1,193 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Compass,
-  Zap,
-  Clock,
-  Flag,
-  Shield,
-  Layers,
-  ExternalLink,
+  Search,
   ChevronRight,
   Info,
-  Award,
+  Flag,
+  Gauge,
+  Zap,
+  ArrowRight,
+  Shield,
+  Layers,
   Sparkles,
-  Search,
 } from 'lucide-react';
-import {
-  MOTORSPORT_CATEGORIES,
-  CHAMPIONSHIPS_REGISTRY,
-  FORMAT_COMPARISONS,
-} from '../services/motorsport/motorsportRegistry';
-import { Championship, MotorsportCategoryId } from '../types/motorsport';
-import { isChampionshipDataReady } from '../services/motorsport/championshipDataService';
+import { CHAMPIONSHIPS_REGISTRY } from '../services/motorsport/motorsportRegistry';
+import { Championship } from '../types/motorsport';
+import { SUPPORTED_MOTORSPORT_GROUPS, SupportedCategoryGroup } from '../services/motorsport/motorsportData';
 import { useApp } from '../context/AppContext';
 
 export const ChampionshipsPage: React.FC = () => {
   const { openSearch } = useApp();
-  const [selectedCategory, setSelectedCategory] = useState<MotorsportCategoryId>('all');
+  const [selectedDiscipline, setSelectedDiscipline] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeChampionship, setActiveChampionship] = useState<Championship | null>(null);
+  const [activeModalChampionship, setActiveModalChampionship] = useState<Championship | null>(null);
 
-  // Filter championships purely client-side from static lightweight registry
-  const filteredChampionships = useMemo(() => {
-    return CHAMPIONSHIPS_REGISTRY.filter(champ => {
-      const matchesCategory =
-        selectedCategory === 'all' || champ.category === selectedCategory;
-      const matchesSearch =
-        searchQuery.trim() === '' ||
-        champ.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        champ.shortName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        champ.tagline.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        champ.vehicleType.toLowerCase().includes(searchQuery.toLowerCase());
-      return matchesCategory && matchesSearch;
+  useEffect(() => {
+    document.title = 'Explore Motorsport • THE GRDX';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
+
+  // Filter groups and championships based on selected pill & search query
+  const filteredGroups = useMemo(() => {
+    return SUPPORTED_MOTORSPORT_GROUPS.map(group => {
+      const championships = CHAMPIONSHIPS_REGISTRY.filter(champ => {
+        const inGroup = group.championshipIds.includes(champ.id);
+        if (!inGroup) return false;
+        if (!searchQuery.trim()) return true;
+
+        const q = searchQuery.toLowerCase().trim();
+        const gov = (champ as any)['governingBody'] || '';
+        return (
+          champ.name.toLowerCase().includes(q) ||
+          champ.shortName.toLowerCase().includes(q) ||
+          champ.tagline.toLowerCase().includes(q) ||
+          champ.vehicleType.toLowerCase().includes(q) ||
+          gov.toLowerCase().includes(q)
+        );
+      });
+
+      return {
+        ...group,
+        championships,
+      };
+    }).filter(group => {
+      const matchesPill = selectedDiscipline === 'all' || group.id === selectedDiscipline;
+      return matchesPill && group.championships.length > 0;
     });
-  }, [selectedCategory, searchQuery]);
+  }, [selectedDiscipline, searchQuery]);
+
+  const totalMatchingChampionships = useMemo(() => {
+    return filteredGroups.reduce((acc, g) => acc + g.championships.length, 0);
+  }, [filteredGroups]);
 
   return (
-    <div className="championships-page" style={{ paddingBottom: '5rem' }}>
-      {/* 1. HERO HEADER */}
-      <section className="explore-hero-section">
-        <div className="container" style={{ textAlign: 'center' }}>
-          <h1 className="explore-hero-title">
+    <div className="explore-landing-hub" style={{ minHeight: '100vh', paddingBottom: '6rem' }}>
+      {/* 1. MOTORSPORT DISCOVERY HERO */}
+      <section
+        style={{
+          padding: '4.5rem 1.5rem 3.5rem',
+          textAlign: 'center',
+          position: 'relative',
+          overflow: 'hidden',
+          background: 'radial-gradient(ellipse 80% 50% at 50% -20%, rgba(225, 6, 0, 0.12), transparent)',
+          borderBottom: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.08))',
+        }}
+      >
+        <div style={{ maxWidth: '860px', margin: '0 auto' }}>
+          {/* Tagline Badge */}
+          <div
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.45rem',
+              fontSize: '0.72rem',
+              fontFamily: 'var(--font-mono, monospace)',
+              fontWeight: 800,
+              letterSpacing: '0.12em',
+              color: 'var(--f1-red, #e10600)',
+              backgroundColor: 'rgba(225, 6, 0, 0.08)',
+              border: '1px solid rgba(225, 6, 0, 0.25)',
+              padding: '0.3rem 0.75rem',
+              borderRadius: '999px',
+              textTransform: 'uppercase',
+              marginBottom: '1.25rem',
+            }}
+          >
+            <Compass size={13} />
+            <span>DISCOVERY & KNOWLEDGE PLATFORM</span>
+          </div>
+
+          <h1
+            style={{
+              fontSize: 'clamp(2.2rem, 5vw, 3.4rem)',
+              fontWeight: 900,
+              letterSpacing: '-0.03em',
+              color: '#ffffff',
+              margin: '0 0 1rem 0',
+              lineHeight: 1.1,
+            }}
+          >
             THE WORLD OF <span className="explore-hero-title-accent">MOTORSPORT</span>
           </h1>
 
-          <p className="explore-hero-description">
-            From open-wheel to endurance, from two wheels to rally — discover championships, teams, circuits and stories from across motorsport.
+          <p
+            style={{
+              fontSize: 'clamp(1rem, 2vw, 1.15rem)',
+              color: 'var(--text-secondary, #94a3b8)',
+              maxWidth: '680px',
+              margin: '0 auto 2.25rem auto',
+              lineHeight: 1.6,
+            }}
+          >
+            From open-wheel racing to endurance and two-wheel championships, discover the series,
+            teams, drivers, and circuits that shape motorsport.
           </p>
 
-          {/* Universal Search CTA */}
-          <div className="explore-hero-search-wrapper">
+          {/* Quick Universal Search Trigger */}
+          <div style={{ maxWidth: '460px', margin: '0 auto' }}>
             <button
               type="button"
               onClick={openSearch}
-              className="explore-search-trigger"
+              style={{
+                width: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.75rem',
+                padding: '0.65rem 1rem',
+                backgroundColor: 'var(--bg-surface, #131722)',
+                border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.12))',
+                borderRadius: '10px',
+                color: 'var(--text-secondary, #94a3b8)',
+                cursor: 'pointer',
+                fontSize: '0.86rem',
+                boxShadow: '0 4px 16px rgba(0, 0, 0, 0.3)',
+                transition: 'border-color 0.15s ease, box-shadow 0.15s ease',
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.25)';
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.borderColor = 'var(--border-subtle, rgba(255, 255, 255, 0.12))';
+              }}
             >
-              <Search size={16} style={{ color: 'var(--color-accent, #FF4B33)', flexShrink: 0 }} />
+              <Search size={16} style={{ color: 'var(--f1-red, #e10600)', flexShrink: 0 }} />
               <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, textAlign: 'left' }}>
                 Search drivers, teams, circuits, championships...
               </span>
-              <kbd className="hero-search-kbd" style={{ fontSize: '0.65rem', padding: '0.15rem 0.45rem', borderRadius: '4px', background: 'rgba(255, 255, 255, 0.1)', border: '1px solid rgba(255, 255, 255, 0.15)', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', flexShrink: 0 }}>⌘K</kbd>
+              <kbd
+                style={{
+                  fontSize: '0.65rem',
+                  padding: '0.15rem 0.45rem',
+                  borderRadius: '4px',
+                  background: 'rgba(255, 255, 255, 0.08)',
+                  border: '1px solid rgba(255, 255, 255, 0.15)',
+                  color: 'var(--text-muted, #64748b)',
+                  fontFamily: 'var(--font-mono, monospace)',
+                  flexShrink: 0,
+                }}
+              >
+                ⌘K
+              </kbd>
             </button>
           </div>
         </div>
       </section>
 
-      {/* 2. CATEGORY PILL SELECTOR & SEARCH */}
+      {/* 2. DISCIPLINE SELECTOR & QUICK FILTER BAR */}
       <section
         style={{
-          borderBottom: '1px solid var(--border-subtle)',
-          backgroundColor: 'var(--bg-surface)',
-          padding: '1.25rem 0',
+          borderBottom: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.08))',
+          backgroundColor: 'var(--bg-surface, #131722)',
+          padding: '1rem 0',
           position: 'sticky',
           top: 0,
-          zIndex: 20,
-          backdropFilter: 'blur(8px)',
+          zIndex: 30,
+          backdropFilter: 'blur(12px)',
         }}
       >
-        <div className="container">
+        <div className="container" style={{ maxWidth: '1240px', margin: '0 auto', padding: '0 1.25rem' }}>
           <div
             style={{
               display: 'flex',
@@ -96,52 +197,75 @@ export const ChampionshipsPage: React.FC = () => {
               gap: '1rem',
             }}
           >
-            {/* Category Pills */}
+            {/* Discipline Navigation Pills */}
             <div
               style={{
                 display: 'flex',
                 alignItems: 'center',
                 gap: '0.45rem',
                 overflowX: 'auto',
-                paddingBottom: '0.25rem',
+                paddingBottom: '0.15rem',
                 maxWidth: '100%',
               }}
             >
-              {MOTORSPORT_CATEGORIES.map(cat => {
-                const isSelected = selectedCategory === cat.id;
+              <button
+                type="button"
+                onClick={() => setSelectedDiscipline('all')}
+                style={{
+                  padding: '0.45rem 0.9rem',
+                  borderRadius: '8px',
+                  fontSize: '0.78rem',
+                  fontFamily: 'var(--font-mono, monospace)',
+                  fontWeight: selectedDiscipline === 'all' ? 800 : 600,
+                  letterSpacing: '0.04em',
+                  border: selectedDiscipline === 'all' ? '1px solid var(--f1-red, #e10600)' : '1px solid var(--border-subtle, rgba(255, 255, 255, 0.08))',
+                  backgroundColor: selectedDiscipline === 'all' ? 'rgba(225, 6, 0, 0.15)' : 'var(--bg-surface-elevated, #1a202c)',
+                  color: selectedDiscipline === 'all' ? '#ffffff' : 'var(--text-secondary, #94a3b8)',
+                  boxShadow: selectedDiscipline === 'all' ? '0 0 12px rgba(225, 6, 0, 0.25)' : 'none',
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                All Disciplines ({CHAMPIONSHIPS_REGISTRY.length})
+              </button>
+
+              {SUPPORTED_MOTORSPORT_GROUPS.map(group => {
+                const isSelected = selectedDiscipline === group.id;
                 return (
                   <button
-                    key={cat.id}
-                    onClick={() => setSelectedCategory(cat.id)}
+                    key={group.id}
+                    type="button"
+                    onClick={() => setSelectedDiscipline(group.id)}
                     style={{
-                      padding: '0.45rem 0.85rem',
+                      padding: '0.45rem 0.9rem',
                       borderRadius: '8px',
                       fontSize: '0.78rem',
-                      fontFamily: 'var(--font-mono)',
+                      fontFamily: 'var(--font-mono, monospace)',
                       fontWeight: isSelected ? 800 : 600,
                       letterSpacing: '0.04em',
-                      border: isSelected ? '1px solid var(--color-accent, #FF4B33)' : '1px solid var(--border-subtle)',
-                      backgroundColor: isSelected ? 'rgba(255, 75, 51, 0.15)' : 'var(--bg-surface-elevated)',
-                      color: isSelected ? '#ffffff' : 'var(--text-secondary)',
-                      boxShadow: isSelected ? '0 0 12px rgba(255, 75, 51, 0.25)' : 'none',
+                      border: isSelected ? `1px solid ${group.badgeColor}` : '1px solid var(--border-subtle, rgba(255, 255, 255, 0.08))',
+                      backgroundColor: isSelected ? `${group.badgeColor}22` : 'var(--bg-surface-elevated, #1a202c)',
+                      color: isSelected ? '#ffffff' : 'var(--text-secondary, #94a3b8)',
+                      boxShadow: isSelected ? `0 0 12px ${group.badgeColor}33` : 'none',
                       cursor: 'pointer',
                       whiteSpace: 'nowrap',
                       transition: 'all 0.15s ease',
                     }}
                   >
-                    {cat.label}
+                    {group.title}
                   </button>
                 );
               })}
             </div>
 
-            {/* Quick Search */}
+            {/* In-page filter search */}
             <div
               style={{
                 position: 'relative',
-                minWidth: 'min(100%, 200px)',
+                minWidth: 'min(100%, 220px)',
                 flexGrow: 1,
-                maxWidth: '300px',
+                maxWidth: '320px',
               }}
             >
               <Search
@@ -151,7 +275,7 @@ export const ChampionshipsPage: React.FC = () => {
                   left: '0.75rem',
                   top: '50%',
                   transform: 'translateY(-50%)',
-                  color: 'var(--text-muted)',
+                  color: 'var(--text-muted, #64748b)',
                 }}
               />
               <input
@@ -164,8 +288,8 @@ export const ChampionshipsPage: React.FC = () => {
                   padding: '0.45rem 0.75rem 0.45rem 2.2rem',
                   fontSize: '0.8rem',
                   borderRadius: '6px',
-                  border: '1px solid var(--border-subtle)',
-                  backgroundColor: 'var(--bg-base)',
+                  border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.12))',
+                  backgroundColor: 'var(--bg-base, #0d0f14)',
                   color: '#ffffff',
                   outline: 'none',
                 }}
@@ -175,255 +299,491 @@ export const ChampionshipsPage: React.FC = () => {
         </div>
       </section>
 
-      {/* 3. CHAMPIONSHIPS GRID */}
-      <section style={{ padding: '2.5rem 0' }}>
-        <div className="container">
-          <div className="explore-section-header">
-            <h2 className="explore-section-title">BROWSE BY MOTORSPORT</h2>
-            <span className="explore-section-subtitle">Select a championship to enter its dedicated hub</span>
+      {/* 3. CLEAN SERIES-CARD GRID */}
+      <section style={{ padding: '3rem 0' }}>
+        <div className="container" style={{ maxWidth: '1240px', margin: '0 auto', padding: '0 1.25rem' }}>
+          {/* Header */}
+          <div style={{ marginBottom: '2.5rem' }}>
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.4rem',
+                fontSize: '0.72rem',
+                fontFamily: 'var(--font-mono, monospace)',
+                fontWeight: 800,
+                letterSpacing: '0.1em',
+                color: 'var(--telemetry-cyan, #00e5ff)',
+                textTransform: 'uppercase',
+                marginBottom: '0.35rem',
+              }}
+            >
+              <span>BROWSE BY MOTORSPORT</span>
+            </div>
+            <h2
+              style={{
+                fontSize: 'clamp(1.5rem, 3vw, 2rem)',
+                fontWeight: 900,
+                color: '#ffffff',
+                margin: '0 0 0.35rem 0',
+                letterSpacing: '-0.02em',
+              }}
+            >
+              SELECT A MOTORSPORT TO ENTER ITS HUB
+            </h2>
+            <p style={{ color: 'var(--text-secondary, #94a3b8)', fontSize: '0.9rem', margin: 0 }}>
+              Each championship contains dedicated rules, weekend formats, active teams, official drivers, and circuit profiles.
+            </p>
           </div>
 
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 310px), 1fr))',
-              gap: '1.25rem',
-            }}
-          >
-            {filteredChampionships.map(champ => {
-              const isF1 = champ.isF1StartingPoint;
-              const hasHub = isF1 || isChampionshipDataReady(champ.id);
-              const destinationUrl = isF1
-                ? '/explore/f1'
-                : hasHub
-                ? `/explore/${champ.id}`
-                : champ.officialUrl;
-
-              return (
+          {/* Discipline Groups */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '3.5rem' }}>
+            {filteredGroups.map(group => (
+              <div key={group.id} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                {/* Group Heading */}
                 <div
-                  key={champ.id}
-                  className="explore-card"
                   style={{
-                    '--card-accent': champ.badgeColor,
-                    '--card-glow': `${champ.badgeColor}33`,
-                  } as React.CSSProperties}
+                    display: 'flex',
+                    alignItems: 'baseline',
+                    justifyContent: 'space-between',
+                    flexWrap: 'wrap',
+                    gap: '0.75rem',
+                    borderBottom: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.08))',
+                    paddingBottom: '0.75rem',
+                  }}
                 >
-                  <div className="explore-card-body">
-                    {/* Top: Short identifier badge & vehicle/discipline */}
-                    <div className="explore-card-top">
-                      <span
-                        className="explore-card-badge"
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <span
+                      style={{
+                        width: '8px',
+                        height: '8px',
+                        borderRadius: '50%',
+                        backgroundColor: group.badgeColor,
+                        boxShadow: `0 0 8px ${group.badgeColor}`,
+                      }}
+                    />
+                    <h3
+                      style={{
+                        fontSize: '1.35rem',
+                        fontWeight: 900,
+                        color: '#ffffff',
+                        margin: 0,
+                        letterSpacing: '-0.01em',
+                      }}
+                    >
+                      {group.title}
+                    </h3>
+                    <span
+                      style={{
+                        fontSize: '0.7rem',
+                        fontFamily: 'var(--font-mono, monospace)',
+                        color: group.badgeColor,
+                        backgroundColor: `${group.badgeColor}15`,
+                        border: `1px solid ${group.badgeColor}33`,
+                        padding: '0.15rem 0.5rem',
+                        borderRadius: '4px',
+                        fontWeight: 700,
+                      }}
+                    >
+                      {group.badge}
+                    </span>
+                  </div>
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted, #64748b)' }}>
+                    {group.championships.length} Championship{group.championships.length > 1 ? 's' : ''}
+                  </span>
+                </div>
+
+                {/* Series Grid */}
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 360px), 1fr))',
+                    gap: '1.25rem',
+                  }}
+                >
+                  {group.championships.map(champ => {
+                    const destinationUrl = `/explore/${champ.id}`;
+
+                    return (
+                      <div
+                        key={champ.id}
+                        className="series-card explore-card"
                         style={{
-                          backgroundColor: `${champ.badgeColor}18`,
-                          color: champ.badgeColor,
-                          border: `1px solid ${champ.badgeColor}40`,
+                          backgroundColor: 'var(--bg-surface, #131722)',
+                          border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.08))',
+                          borderRadius: '14px',
+                          overflow: 'hidden',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          position: 'relative',
+                          transition: 'transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s ease, box-shadow 0.2s ease',
+                          boxShadow: '0 4px 16px rgba(0, 0, 0, 0.25)',
                         }}
                       >
-                        {champ.shortName}
-                      </span>
-                      <span className="explore-card-discipline">
-                        {champ.vehicleType.split('(')[0].trim()}
-                      </span>
-                    </div>
+                        {/* Top Category Accent Line */}
+                        <div
+                          style={{
+                            height: '3px',
+                            width: '100%',
+                            backgroundColor: champ.badgeColor,
+                          }}
+                        />
 
-                    {/* Motorsport Name */}
-                    <h3 className="explore-card-name" style={{ marginTop: '0.85rem' }}>
-                      {champ.name}
-                    </h3>
+                        {/* Card Content Body */}
+                        <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', flex: 1 }}>
+                          {/* Top Identity Meta */}
+                          <div
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              gap: '0.5rem',
+                              marginBottom: '0.85rem',
+                            }}
+                          >
+                            <span
+                              style={{
+                                fontSize: '0.72rem',
+                                fontFamily: 'var(--font-mono, monospace)',
+                                fontWeight: 800,
+                                color: champ.badgeColor,
+                                backgroundColor: `${champ.badgeColor}18`,
+                                border: `1px solid ${champ.badgeColor}35`,
+                                padding: '0.2rem 0.55rem',
+                                borderRadius: '4px',
+                                letterSpacing: '0.04em',
+                              }}
+                            >
+                              {champ.shortName}
+                            </span>
 
-                    {/* Tagline */}
-                    <p className="explore-card-tagline">
-                      {champ.tagline}
-                    </p>
-                  </div>
+                            <span
+                              style={{
+                                fontSize: '0.72rem',
+                                color: 'var(--text-muted, #64748b)',
+                                fontFamily: 'var(--font-mono, monospace)',
+                              }}
+                            >
+                              {champ.vehicleType}
+                            </span>
+                          </div>
 
-                  {/* Footer: Overview action & Enter Hub affordance */}
-                  <div className="explore-card-footer">
-                    <button
-                      type="button"
-                      onClick={() => setActiveChampionship(champ)}
-                      className="explore-card-info-btn"
-                    >
-                      <Info size={13} />
-                      <span>Overview</span>
-                    </button>
+                          {/* Official Championship Name */}
+                          <h4
+                            style={{
+                              fontSize: '1.2rem',
+                              fontWeight: 900,
+                              color: '#ffffff',
+                              margin: '0 0 0.5rem 0',
+                              letterSpacing: '-0.02em',
+                              lineHeight: 1.25,
+                            }}
+                          >
+                            {champ.name}
+                          </h4>
 
-                    {hasHub ? (
-                      <Link
-                        to={destinationUrl}
-                        className="explore-card-action"
-                      >
-                        <span>ENTER HUB</span>
-                        <ChevronRight size={13} />
-                      </Link>
-                    ) : (
-                      <a
-                        href={champ.officialUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="explore-card-action"
-                        style={{ background: 'transparent', borderColor: 'var(--border-subtle)' }}
-                      >
-                        <span>OFFICIAL SITE</span>
-                        <ExternalLink size={12} />
-                      </a>
-                    )}
-                  </div>
+                          {/* Tagline / Short Description */}
+                          <p
+                            style={{
+                              fontSize: '0.86rem',
+                              color: 'var(--text-secondary, #94a3b8)',
+                              margin: '0 0 1.25rem 0',
+                              lineHeight: 1.5,
+                              flex: 1,
+                            }}
+                          >
+                            {champ.tagline}
+                          </p>
+
+                          {/* Specification Highlights */}
+                          <div
+                            style={{
+                              display: 'grid',
+                              gridTemplateColumns: 'repeat(2, 1fr)',
+                              gap: '0.5rem',
+                              padding: '0.75rem',
+                              backgroundColor: 'rgba(0, 0, 0, 0.25)',
+                              borderRadius: '8px',
+                              border: '1px solid rgba(255, 255, 255, 0.04)',
+                              marginBottom: '1.25rem',
+                              fontSize: '0.75rem',
+                            }}
+                          >
+                            <div>
+                              <span style={{ color: 'var(--text-muted, #64748b)', display: 'block', fontSize: '0.68rem', fontFamily: 'var(--font-mono)' }}>
+                                TOP SPEED
+                              </span>
+                              <strong style={{ color: '#ffffff' }}>{champ.topSpeed}</strong>
+                            </div>
+                            <div>
+                              <span style={{ color: 'var(--text-muted, #64748b)', display: 'block', fontSize: '0.68rem', fontFamily: 'var(--font-mono)' }}>
+                                CATEGORY
+                              </span>
+                              <strong style={{ color: '#ffffff' }}>{champ.tier}</strong>
+                            </div>
+                          </div>
+
+                          {/* Footer Actions */}
+                          <div
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              gap: '0.75rem',
+                              borderTop: '1px solid rgba(255, 255, 255, 0.06)',
+                              paddingTop: '1rem',
+                              marginTop: 'auto',
+                            }}
+                          >
+                            <button
+                              type="button"
+                              onClick={() => setActiveModalChampionship(champ)}
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '0.35rem',
+                                background: 'transparent',
+                                border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.12))',
+                                borderRadius: '6px',
+                                padding: '0.45rem 0.75rem',
+                                color: 'var(--text-secondary, #94a3b8)',
+                                fontSize: '0.76rem',
+                                fontFamily: 'var(--font-mono, monospace)',
+                                cursor: 'pointer',
+                                transition: 'all 0.15s ease',
+                              }}
+                              onMouseEnter={e => {
+                                e.currentTarget.style.color = '#ffffff';
+                                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.3)';
+                              }}
+                              onMouseLeave={e => {
+                                e.currentTarget.style.color = 'var(--text-secondary, #94a3b8)';
+                                e.currentTarget.style.borderColor = 'var(--border-subtle, rgba(255, 255, 255, 0.12))';
+                              }}
+                            >
+                              <Info size={13} />
+                              <span>Overview</span>
+                            </button>
+
+                            <Link
+                              to={destinationUrl}
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '0.45rem',
+                                padding: '0.45rem 0.95rem',
+                                borderRadius: '6px',
+                                backgroundColor: `${champ.badgeColor}22`,
+                                border: `1px solid ${champ.badgeColor}55`,
+                                color: '#ffffff',
+                                fontSize: '0.78rem',
+                                fontWeight: 800,
+                                fontFamily: 'var(--font-mono, monospace)',
+                                letterSpacing: '0.04em',
+                                textDecoration: 'none',
+                                transition: 'all 0.15s ease',
+                              }}
+                              onMouseEnter={e => {
+                                e.currentTarget.style.backgroundColor = champ.badgeColor;
+                                e.currentTarget.style.boxShadow = `0 0 16px ${champ.badgeColor}55`;
+                              }}
+                              onMouseLeave={e => {
+                                e.currentTarget.style.backgroundColor = `${champ.badgeColor}22`;
+                                e.currentTarget.style.boxShadow = 'none';
+                              }}
+                            >
+                              <span>ENTER HUB</span>
+                              <ChevronRight size={14} />
+                            </Link>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
-              );
-            })}
+
+                {/* Discipline Drivers Gateway Bar */}
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    flexWrap: 'wrap',
+                    gap: '0.75rem',
+                    padding: '0.85rem 1.25rem',
+                    backgroundColor: 'rgba(255, 255, 255, 0.02)',
+                    borderRadius: '10px',
+                    border: '1px solid rgba(255, 255, 255, 0.05)',
+                  }}
+                >
+                  <span
+                    style={{
+                      fontSize: '0.72rem',
+                      fontFamily: 'var(--font-mono, monospace)',
+                      fontWeight: 800,
+                      letterSpacing: '0.08em',
+                      color: 'var(--text-muted, #64748b)',
+                    }}
+                  >
+                    {group.id === 'formula' && 'FORMULA RACING — DRIVERS HUB'}
+                    {group.id === 'motorcycle' && 'MOTORCYCLE RACING — RIDERS HUB'}
+                    {group.id === 'endurance' && 'ENDURANCE / GT — DRIVERS HUB'}
+                    {group.id === 'other' && 'OTHER DISCIPLINES — COMPETITORS HUB'}
+                  </span>
+
+                  {group.id === 'formula' && (
+                    <Link
+                      to="/explore/drivers?discipline=formula"
+                      style={{
+                        fontSize: '0.76rem',
+                        color: 'var(--telemetry-cyan, #00e5ff)',
+                        textDecoration: 'none',
+                        fontFamily: 'var(--font-mono, monospace)',
+                        fontWeight: 700,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.35rem',
+                      }}
+                    >
+                      View All Formula Racing Drivers <ChevronRight size={13} />
+                    </Link>
+                  )}
+                  {group.id === 'motorcycle' && (
+                    <Link
+                      to="/explore/drivers?discipline=motorcycle"
+                      style={{
+                        fontSize: '0.76rem',
+                        color: 'var(--telemetry-cyan, #00e5ff)',
+                        textDecoration: 'none',
+                        fontFamily: 'var(--font-mono, monospace)',
+                        fontWeight: 700,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.35rem',
+                      }}
+                    >
+                      View All Motorcycle Racing Riders <ChevronRight size={13} />
+                    </Link>
+                  )}
+                  {group.id === 'endurance' && (
+                    <Link
+                      to="/explore/drivers?discipline=endurance"
+                      style={{
+                        fontSize: '0.76rem',
+                        color: 'var(--telemetry-cyan, #00e5ff)',
+                        textDecoration: 'none',
+                        fontFamily: 'var(--font-mono, monospace)',
+                        fontWeight: 700,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.35rem',
+                      }}
+                    >
+                      View All Endurance / GT Drivers <ChevronRight size={13} />
+                    </Link>
+                  )}
+                  {group.id === 'other' && (
+                    <Link
+                      to="/explore/drivers?discipline=other"
+                      style={{
+                        fontSize: '0.76rem',
+                        color: 'var(--telemetry-cyan, #00e5ff)',
+                        textDecoration: 'none',
+                        fontFamily: 'var(--font-mono, monospace)',
+                        fontWeight: 700,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.35rem',
+                      }}
+                    >
+                      View All Other Disciplines Competitors <ChevronRight size={13} />
+                    </Link>
+                  )}
+                </div>
+              </div>
+            ))}
           </div>
 
-          {filteredChampionships.length === 0 && (
-            <div style={{ textAlign: 'center', padding: '4rem 1rem', color: 'var(--text-secondary)' }}>
-              No championships match your filter. Try selecting "All Motorsport".
+          {totalMatchingChampionships === 0 && (
+            <div
+              style={{
+                textAlign: 'center',
+                padding: '4rem 1.5rem',
+                color: 'var(--text-secondary, #94a3b8)',
+                backgroundColor: 'var(--bg-surface, #131722)',
+                borderRadius: '12px',
+                border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.08))',
+              }}
+            >
+              <p style={{ margin: '0 0 1rem 0', fontSize: '1rem' }}>
+                No motorsport championships matched &ldquo;{searchQuery}&rdquo;.
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchQuery('');
+                  setSelectedDiscipline('all');
+                }}
+                className="btn btn-secondary btn-sm"
+              >
+                Reset Search Filters
+              </button>
             </div>
           )}
         </div>
       </section>
 
-      {/* 4. FORMAT COMPARISON ARCHITECTURE SECTION */}
-      <section
-        style={{
-          borderTop: '1px solid var(--border-subtle)',
-          backgroundColor: 'var(--bg-surface)',
-          padding: '3.5rem 0',
-        }}
-      >
-        <div className="container">
-          <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
-            <div
-              style={{
-                fontSize: '0.74rem',
-                fontFamily: 'var(--font-mono)',
-                fontWeight: 800,
-                color: 'var(--telemetry-cyan, #00e5ff)',
-                letterSpacing: '0.1em',
-                textTransform: 'uppercase',
-                marginBottom: '0.5rem',
-              }}
-            >
-              MOTORSPORT ARCHITECTURE
-            </div>
-            <h2
-              style={{
-                fontSize: 'clamp(1.6rem, 3vw, 2.2rem)',
-                fontWeight: 900,
-                margin: '0 0 0.5rem 0',
-                color: '#ffffff',
-              }}
-            >
-              HOW DIFFERENT MOTORSPORTS WORK
-            </h2>
-            <p
-              style={{
-                fontSize: '0.9rem',
-                color: 'var(--text-secondary)',
-                maxWidth: '620px',
-                margin: '0 auto',
-                lineHeight: 1.5,
-              }}
-            >
-              Not every motorsport follows Formula 1's Grand Prix weekend format. Here is how
-              major event structures compare across disciplines.
-            </p>
-          </div>
-
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
-              gap: '1.25rem',
-            }}
-          >
-            {FORMAT_COMPARISONS.map(fmt => (
-              <div
-                key={fmt.formatType}
-                style={{
-                  backgroundColor: 'var(--bg-base)',
-                  border: '1px solid var(--border-subtle)',
-                  borderRadius: '10px',
-                  padding: '1.25rem',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '0.65rem',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <Layers size={16} style={{ color: 'var(--f1-red)' }} />
-                  <h3 style={{ fontSize: '1rem', fontWeight: 800, margin: 0, color: '#ffffff' }}>
-                    {fmt.title}
-                  </h3>
-                </div>
-
-                <div
-                  style={{
-                    fontSize: '0.72rem',
-                    fontFamily: 'var(--font-mono)',
-                    color: 'var(--telemetry-cyan, #00e5ff)',
-                    backgroundColor: 'rgba(0, 229, 255, 0.08)',
-                    padding: '0.35rem 0.6rem',
-                    borderRadius: '4px',
-                    lineHeight: 1.4,
-                  }}
-                >
-                  {fmt.structure}
-                </div>
-
-                <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.45 }}>
-                  {fmt.focus}
-                </p>
-
-                <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 'auto', paddingTop: '0.5rem' }}>
-                  <strong>Examples:</strong> {fmt.championshipExample}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* 5. MODAL FOR DETAILED CHAMPIONSHIP VIEW */}
-      {activeChampionship && (
+      {/* 4. QUICK OVERVIEW MODAL */}
+      {activeModalChampionship && (
         <div
           style={{
             position: 'fixed',
             inset: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.8)',
-            backdropFilter: 'blur(6px)',
+            backgroundColor: 'rgba(0, 0, 0, 0.85)',
+            backdropFilter: 'blur(8px)',
             zIndex: 100,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            padding: '1rem',
+            padding: '1.25rem',
           }}
-          onClick={() => setActiveChampionship(null)}
+          onClick={() => setActiveModalChampionship(null)}
         >
           <div
             style={{
-              backgroundColor: 'var(--bg-surface)',
-              border: '1px solid var(--border-subtle)',
-              borderRadius: '14px',
-              maxWidth: '600px',
+              backgroundColor: 'var(--bg-surface, #131722)',
+              border: `1px solid ${activeModalChampionship.badgeColor}40`,
+              borderRadius: '16px',
+              maxWidth: '620px',
               width: '100%',
               maxHeight: '90vh',
               overflowY: 'auto',
               padding: '2rem',
-              boxShadow: '0 20px 40px rgba(0, 0, 0, 0.6)',
+              boxShadow: `0 24px 48px rgba(0, 0, 0, 0.8), 0 0 32px ${activeModalChampionship.badgeColor}25`,
+              position: 'relative',
             }}
             onClick={e => e.stopPropagation()}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.25rem' }}>
               <div>
-                <span style={{ fontSize: '0.72rem', fontFamily: 'var(--font-mono)', fontWeight: 800, color: activeChampionship.badgeColor }}>
-                  {activeChampionship.tier}
+                <span
+                  style={{
+                    fontSize: '0.72rem',
+                    fontFamily: 'var(--font-mono)',
+                    fontWeight: 800,
+                    color: activeModalChampionship.badgeColor,
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  {activeModalChampionship.tier} • {activeModalChampionship.governingBody}
                 </span>
                 <h2 style={{ fontSize: '1.6rem', fontWeight: 900, margin: '0.25rem 0 0 0', color: '#fff' }}>
-                  {activeChampionship.name}
+                  {activeModalChampionship.name}
                 </h2>
               </div>
               <button
-                onClick={() => setActiveChampionship(null)}
+                type="button"
+                onClick={() => setActiveModalChampionship(null)}
                 style={{
                   background: 'transparent',
                   border: '1px solid var(--border-subtle)',
@@ -442,85 +802,57 @@ export const ChampionshipsPage: React.FC = () => {
               </button>
             </div>
 
-            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: '1.5rem' }}>
-              {activeChampionship.beginnerOverview}
+            <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: '1.5rem' }}>
+              {activeModalChampionship.beginnerOverview}
             </p>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1.5rem' }}>
-              <div style={{ backgroundColor: 'var(--bg-base)', padding: '0.75rem', borderRadius: '8px' }}>
-                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.2rem' }}>
-                  Format Architecture
-                </div>
-                <div style={{ fontSize: '0.8rem', color: '#fff' }}>
-                  {activeChampionship.formatDescription}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.75rem', marginBottom: '1.5rem' }}>
+              <div style={{ backgroundColor: 'var(--bg-base)', padding: '0.85rem', borderRadius: '8px' }}>
+                <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>POWERTRAIN</span>
+                <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#fff', marginTop: '0.2rem' }}>
+                  {activeModalChampionship.powertrain}
                 </div>
               </div>
-
-              <div style={{ backgroundColor: 'var(--bg-base)', padding: '0.75rem', borderRadius: '8px' }}>
-                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.2rem' }}>
-                  Vehicle & Powertrain
-                </div>
-                <div style={{ fontSize: '0.8rem', color: '#fff' }}>
-                  {activeChampionship.vehicleType} • {activeChampionship.powertrain}
-                </div>
-              </div>
-
-              <div style={{ backgroundColor: 'var(--bg-base)', padding: '0.75rem', borderRadius: '8px' }}>
-                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.2rem' }}>
-                  Key Regulations & Features
-                </div>
-                <ul style={{ margin: '0.4rem 0 0 1.2rem', padding: 0, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                  {activeChampionship.keyFeatures.map((feat, idx) => (
-                    <li key={idx} style={{ marginBottom: '0.3rem' }}>{feat}</li>
-                  ))}
-                </ul>
-              </div>
-
-              <div style={{ backgroundColor: 'var(--bg-base)', padding: '0.75rem', borderRadius: '8px' }}>
-                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.2rem' }}>
-                  Points & Scoring
-                </div>
-                <div style={{ fontSize: '0.8rem', color: '#fff' }}>
-                  {activeChampionship.scoringSummary}
+              <div style={{ backgroundColor: 'var(--bg-base)', padding: '0.85rem', borderRadius: '8px' }}>
+                <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>TOP SPEED</span>
+                <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#fff', marginTop: '0.2rem' }}>
+                  {activeModalChampionship.topSpeed}
                 </div>
               </div>
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
-              <button
-                onClick={() => setActiveChampionship(null)}
+            <div style={{ marginBottom: '1.5rem', backgroundColor: 'var(--bg-base)', padding: '0.85rem', borderRadius: '8px' }}>
+              <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase' }}>
+                WEEKEND FORMAT ARCHITECTURE
+              </span>
+              <p style={{ fontSize: '0.84rem', color: '#fff', margin: '0.35rem 0 0 0', lineHeight: 1.45 }}>
+                {activeModalChampionship.formatDescription}
+              </p>
+            </div>
+
+            <div style={{ display: 'flex', gap: '0.75rem', marginTop: '2rem' }}>
+              <Link
+                to={`/explore/${activeModalChampionship.id}`}
+                className="btn btn-primary"
                 style={{
-                  padding: '0.6rem 1.2rem',
-                  borderRadius: '6px',
-                  border: '1px solid var(--border-subtle)',
-                  background: 'transparent',
-                  color: '#fff',
-                  cursor: 'pointer',
-                  fontSize: '0.82rem',
+                  flex: 1,
+                  textAlign: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: activeModalChampionship.badgeColor,
+                  borderColor: activeModalChampionship.badgeColor,
+                  fontWeight: 800,
                 }}
+                onClick={() => setActiveModalChampionship(null)}
+              >
+                ENTER CHAMPIONSHIP HUB
+              </Link>
+              <button
+                type="button"
+                onClick={() => setActiveModalChampionship(null)}
+                className="btn btn-secondary"
               >
                 Close
               </button>
-
-              <a
-                href={activeChampionship.officialUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  padding: '0.6rem 1.2rem',
-                  borderRadius: '6px',
-                  backgroundColor: 'var(--f1-red)',
-                  color: '#fff',
-                  textDecoration: 'none',
-                  fontSize: '0.82rem',
-                  fontWeight: 700,
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '0.4rem',
-                }}
-              >
-                Visit Official Source <ExternalLink size={13} />
-              </a>
             </div>
           </div>
         </div>

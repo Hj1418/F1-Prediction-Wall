@@ -8,8 +8,9 @@
  * 4. Attribution: F1DB (CC BY 4.0 by ROY Jules) and official FIA/FIM/ACO citations.
  */
 
-import { CircuitEntity, CircuitLayout } from '../../types/circuit';
+import { CircuitEntity, CircuitLayout, CircuitVerificationStatus } from '../../types/circuit';
 import { CIRCUIT_SOURCE_MAPPING, F1_CIRCUITS_REGISTRY, getCircuitAssetUrl, normalizeCircuitId } from './circuitRegistry';
+import { ADDITIONAL_VERIFIED_CIRCUITS } from './verifiedGlobalCircuits';
 import { getCrossChampionshipHostings } from './crossChampionshipVenues';
 import { ChampionshipRound } from '../../types/motorsportDetail';
 import { f1Data } from '../motorsport/data/f1Data';
@@ -2155,15 +2156,198 @@ function metadataToCircuitEntity(meta: any): CircuitEntity {
 }
 
 /**
- * Retrieves all circuits in the global registry merged with F1 calendar circuits.
+ * Computes an authoritative verification status for a circuit entity.
+ */
+export function computeCircuitVerificationStatus(entity: CircuitEntity): CircuitVerificationStatus {
+  if (entity.verificationStatus) return entity.verificationStatus;
+  const primary = entity.layouts.find(l => l.isPrimary) || entity.layouts[0];
+  const mapSvg = primary?.mapSvg ? primary.mapSvg.replace(/^\/?(circuits\/)?/, '') : undefined;
+  if (mapSvg && VERIFIED_CIRCUIT_SVGS.has(mapSvg)) {
+    return 'VERIFIED';
+  }
+  if (primary && primary.lengthKm > 0 && primary.turns > 0) {
+    return 'MISSING_ASSETS';
+  }
+  return 'PENDING_VERIFICATION';
+}
+
+function enrichEntityStatus(entity: CircuitEntity): CircuitEntity {
+  const status = computeCircuitVerificationStatus(entity);
+  return {
+    ...entity,
+    verificationStatus: status,
+  };
+}
+
+/**
+ * Retrieves all circuits in the global registry merged across:
+ * 1. Dedicated primary GLOBAL_CIRCUITS
+ * 2. ADDITIONAL_VERIFIED_CIRCUITS (MotoGP, WEC, IMSA, IndyCar venues)
+ * 3. F1_CIRCUITS_REGISTRY
+ * 4. All active championship calendar rounds (ensuring no race venue falls through or is hidden)
+ * 5. Indian motorsport venues
  */
 export function getAllGlobalCircuits(): CircuitEntity[] {
-  const merged: Record<string, CircuitEntity> = { ...GLOBAL_CIRCUITS };
+  const merged: Record<string, CircuitEntity> = {};
 
-  // Dynamically adapt any F1 circuits not already explicitly defined
+  // 1. Primary Global Circuits
+  for (const [key, circuit] of Object.entries(GLOBAL_CIRCUITS)) {
+    merged[key] = enrichEntityStatus(circuit);
+  }
+
+  // 2. Additional Verified Circuits (Portimão, Valencia, Mugello, Sebring, Watkins Glen, Road America, etc.)
+  for (const [key, circuit] of Object.entries(ADDITIONAL_VERIFIED_CIRCUITS)) {
+    if (!merged[key]) {
+      merged[key] = enrichEntityStatus(circuit);
+    }
+  }
+
+  // 3. F1 Circuit Registry entries
   for (const [key, meta] of Object.entries(F1_CIRCUITS_REGISTRY)) {
     if (!merged[key]) {
-      merged[key] = metadataToCircuitEntity(meta);
+      merged[key] = enrichEntityStatus(metadataToCircuitEntity(meta));
+    }
+  }
+
+  // 4. Indian Motorsport Venues
+  for (const c of indianMotorsportData.circuits) {
+    const isBuddh = c.id === 'bic';
+    const key = isBuddh ? 'buddh' : c.id;
+    if (!merged[key]) {
+      merged[key] = enrichEntityStatus({
+        circuitId: key,
+        id: key,
+        name: c.name,
+        shortName: c.name,
+        location: {
+          city: c.location,
+          country: 'India',
+          countryCode: 'IN',
+          flag: '🇮🇳',
+          region: c.state,
+        },
+        primaryDiscipline: 'indian-motorsport',
+        disciplines: ['indian-motorsport'],
+        verificationStatus: 'PENDING_VERIFICATION',
+        layouts: [
+          {
+            layoutId: `${c.id}-layout`,
+            name: `${c.name} Layout`,
+            lengthKm: c.lengthKm,
+            turns: c.corners,
+            direction: c.direction || 'Clockwise',
+            type: (c.fiaGrade || '').toLowerCase().includes('street') ? 'Street' : 'Permanent',
+            isPrimary: true,
+            championshipsHosted: ['indian-motorsport'],
+          },
+        ],
+        characteristics: {
+          speed: 'High',
+          braking: 'Medium',
+          overtaking: 'Medium',
+          tyreWear: 'Medium',
+          summary: `${c.name} is a premier ${c.fiaGrade} facility in ${c.state}, India.`,
+        },
+        history: {
+          openedYear: c.openedYear,
+          historicalOverview: `${c.name} has played an instrumental role in Indian motorsport development since ${c.openedYear}.`,
+          notableMoments: (c.historicalHighlights || []).map(h => ({
+            year: c.openedYear,
+            title: 'Championship Milestone',
+            description: h,
+          })),
+        },
+        championships: [
+          {
+            championshipId: 'indian-motorsport',
+            championshipName: 'Indian Motorsport Ecosystem',
+            badge: 'INDIA',
+            badgeColor: '#ff9933',
+            eventName: `${c.name} Championship Fixture`,
+            url: `/explore/indian-motorsport/circuits/${key}`,
+            notes: `${c.fiaGrade} venue hosting Indian Racing League and F4 Indian Championship.`,
+          },
+        ],
+        didYouKnow: (c.historicalHighlights || []).map(h => ({
+          category: 'HISTORY',
+          title: 'Indian Racing Milestone',
+          fact: h,
+        })),
+        shortDescription: `${c.name} — ${c.fiaGrade} circuit in ${c.location}, ${c.state}.`,
+      });
+    }
+  }
+
+  // 5. Championship Static Calendar rounds to ensure every calendar round has a reachable profile
+  for (const [champId, champData] of Object.entries(CHAMPIONSHIP_STATIC_DATA_MAP)) {
+    if (!champData.rounds) continue;
+    for (const round of champData.rounds) {
+      const normKey = normalizeCircuitId({
+        id: round.circuitName,
+        name: round.circuitName,
+        locality: round.location,
+        country: round.country,
+      });
+
+      const stableId = normKey && normKey !== 'circuit'
+        ? normKey
+        : round.circuitName.toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '');
+
+      if (!merged[stableId] && !merged[normKey]) {
+        merged[stableId] = enrichEntityStatus({
+          circuitId: stableId,
+          id: stableId,
+          name: round.circuitName,
+          shortName: round.circuitName,
+          location: {
+            city: round.location,
+            country: round.country,
+            countryCode: round.countryCode,
+            flag: round.flag,
+          },
+          primaryDiscipline: champId,
+          disciplines: [champId],
+          verificationStatus: 'PENDING_VERIFICATION',
+          layouts: [
+            {
+              layoutId: `${stableId}-layout`,
+              name: 'Official Event Layout',
+              lengthKm: round.circuitLengthKm || 4.5,
+              turns: 0,
+              direction: 'Clockwise',
+              type: 'Permanent',
+              isPrimary: true,
+              championshipsHosted: [champId],
+            },
+          ],
+          characteristics: {
+            speed: 'High',
+            braking: 'Medium',
+            overtaking: 'Medium',
+            tyreWear: 'Medium',
+            summary: `Official championship venue hosting the ${round.officialTitle}.`,
+          },
+          history: {
+            openedYear: 2000,
+            historicalOverview: `${round.circuitName} is a premier racing facility in ${round.location}, ${round.country}.`,
+            notableMoments: [],
+          },
+          championships: [
+            {
+              championshipId: champId,
+              championshipName: champData.name,
+              badge: champData.shortName,
+              badgeColor: champData.heroBadgeColor,
+              eventName: round.officialTitle,
+              datesOrSeason: round.dates,
+              notes: `Round ${round.roundNumber} on the ${champData.name} calendar.`,
+              url: `/explore/${champId}/circuits/${stableId}`,
+            },
+          ],
+          didYouKnow: [],
+          shortDescription: `${round.circuitName} located in ${round.location}, ${round.country}.`,
+        });
+      }
     }
   }
 
@@ -2171,39 +2355,70 @@ export function getAllGlobalCircuits(): CircuitEntity[] {
 }
 
 /**
- * Retrieves a single circuit by its unique ID with fuzzy matching.
+ * Retrieves a single circuit by its unique ID with fuzzy matching across all registries.
  */
 export function getGlobalCircuitById(circuitId?: string): CircuitEntity | undefined {
   if (!circuitId) return undefined;
-  const clean = circuitId.toLowerCase().replace(/[^a-z0-9]/g, '_');
+  const raw = circuitId.toLowerCase().trim();
+  const clean = raw.replace(/[^a-z0-9]/g, '_');
   
-  if (GLOBAL_CIRCUITS[clean]) return GLOBAL_CIRCUITS[clean];
-  if (clean.includes('buddh') || clean.includes('noida')) return GLOBAL_CIRCUITS.buddh;
-  if (clean.includes('spa') || clean.includes('francorchamps')) return GLOBAL_CIRCUITS.spa;
-  if (clean.includes('lemans') || clean.includes('le_mans') || clean.includes('sarthe')) return GLOBAL_CIRCUITS.lemans;
-  if (clean.includes('monza')) return GLOBAL_CIRCUITS.monza;
-  if (clean.includes('silverstone')) return GLOBAL_CIRCUITS.silverstone;
-  if (clean.includes('losail') || clean.includes('lusail')) return GLOBAL_CIRCUITS.losail;
-  if (clean.includes('monaco')) return GLOBAL_CIRCUITS.monaco;
-  if (clean.includes('cota') || clean.includes('austin')) return GLOBAL_CIRCUITS.cota;
-  if (clean.includes('nurburgring') || clean.includes('nordschleife')) return GLOBAL_CIRCUITS.nurburgring;
-  if (clean.includes('mmrt') || clean.includes('madras')) return GLOBAL_CIRCUITS.mmrt;
-  if (clean.includes('kari')) return GLOBAL_CIRCUITS.kari;
-  if (clean.includes('bathurst') || clean.includes('panorama')) return GLOBAL_CIRCUITS.bathurst;
-  if (clean.includes('assen')) return GLOBAL_CIRCUITS.assen;
-  if (clean.includes('tempelhof') || clean.includes('berlin')) return GLOBAL_CIRCUITS.tempelhof;
-  if (clean.includes('turini') || clean.includes('monte_carlo_rally')) return GLOBAL_CIRCUITS.turini;
-  if (clean.includes('fuji')) return GLOBAL_CIRCUITS.fuji;
-  if (clean.includes('daytona')) return GLOBAL_CIRCUITS.daytona;
-  if (clean.includes('indianapolis') || clean.includes('brickyard')) return GLOBAL_CIRCUITS.indianapolis;
-  if (clean.includes('laguna')) return GLOBAL_CIRCUITS.laguna_seca;
+  if (GLOBAL_CIRCUITS[clean]) return enrichEntityStatus(GLOBAL_CIRCUITS[clean]);
+  if (GLOBAL_CIRCUITS[raw]) return enrichEntityStatus(GLOBAL_CIRCUITS[raw]);
+
+  if (ADDITIONAL_VERIFIED_CIRCUITS[clean]) return enrichEntityStatus(ADDITIONAL_VERIFIED_CIRCUITS[clean]);
+  if (ADDITIONAL_VERIFIED_CIRCUITS[raw]) return enrichEntityStatus(ADDITIONAL_VERIFIED_CIRCUITS[raw]);
+
+  if (clean.includes('buddh') || clean.includes('noida')) return enrichEntityStatus(GLOBAL_CIRCUITS.buddh);
+  if (clean.includes('spa') || clean.includes('francorchamps')) return enrichEntityStatus(GLOBAL_CIRCUITS.spa);
+  if (clean.includes('lemans') || clean.includes('le_mans') || clean.includes('sarthe')) return enrichEntityStatus(GLOBAL_CIRCUITS.lemans);
+  if (clean.includes('monza')) return enrichEntityStatus(GLOBAL_CIRCUITS.monza);
+  if (clean.includes('silverstone')) return enrichEntityStatus(GLOBAL_CIRCUITS.silverstone);
+  if (clean.includes('losail') || clean.includes('lusail')) return enrichEntityStatus(GLOBAL_CIRCUITS.losail);
+  if (clean.includes('monaco')) return enrichEntityStatus(GLOBAL_CIRCUITS.monaco);
+  if (clean.includes('cota') || clean.includes('austin')) return enrichEntityStatus(GLOBAL_CIRCUITS.cota);
+  if (clean.includes('nurburgring') || clean.includes('nordschleife')) return enrichEntityStatus(GLOBAL_CIRCUITS.nurburgring);
+  if (clean.includes('mmrt') || clean.includes('madras')) return enrichEntityStatus(GLOBAL_CIRCUITS.mmrt);
+  if (clean.includes('kari')) return enrichEntityStatus(GLOBAL_CIRCUITS.kari);
+  if (clean.includes('bathurst') || clean.includes('panorama')) return enrichEntityStatus(GLOBAL_CIRCUITS.bathurst);
+  if (clean.includes('assen')) return enrichEntityStatus(GLOBAL_CIRCUITS.assen);
+  if (clean.includes('tempelhof') || clean.includes('berlin')) return enrichEntityStatus(GLOBAL_CIRCUITS.tempelhof);
+  if (clean.includes('turini') || clean.includes('monte_carlo_rally')) return enrichEntityStatus(GLOBAL_CIRCUITS.turini);
+  if (clean.includes('fuji')) return enrichEntityStatus(GLOBAL_CIRCUITS.fuji);
+  if (clean.includes('daytona')) return enrichEntityStatus(GLOBAL_CIRCUITS.daytona);
+  if (clean.includes('indianapolis') || clean.includes('brickyard')) return enrichEntityStatus(GLOBAL_CIRCUITS.indianapolis);
+  if (clean.includes('laguna')) return enrichEntityStatus(GLOBAL_CIRCUITS.laguna_seca);
+
+  if (clean.includes('portimao') || clean.includes('algarve')) return enrichEntityStatus(ADDITIONAL_VERIFIED_CIRCUITS.algarve);
+  if (clean.includes('valencia') || clean.includes('ricardo_tormo') || clean.includes('cheste')) return enrichEntityStatus(ADDITIONAL_VERIFIED_CIRCUITS.valencia);
+  if (clean.includes('mugello') || clean.includes('scarperia')) return enrichEntityStatus(ADDITIONAL_VERIFIED_CIRCUITS.mugello);
+  if (clean.includes('misano') || clean.includes('simoncelli') || clean.includes('rimini')) return enrichEntityStatus(ADDITIONAL_VERIFIED_CIRCUITS.misano);
+  if (clean.includes('phillip') || clean.includes('island')) return enrichEntityStatus(ADDITIONAL_VERIFIED_CIRCUITS.phillip_island);
+  if (clean.includes('jerez') || clean.includes('nieto')) return enrichEntityStatus(ADDITIONAL_VERIFIED_CIRCUITS.jerez);
+  if (clean.includes('sebring')) return enrichEntityStatus(ADDITIONAL_VERIFIED_CIRCUITS.sebring);
+  if (clean.includes('watkins') || clean.includes('glen')) return enrichEntityStatus(ADDITIONAL_VERIFIED_CIRCUITS.watkins_glen);
+  if (clean.includes('road_america') || clean.includes('elkhart')) return enrichEntityStatus(ADDITIONAL_VERIFIED_CIRCUITS.road_america);
+  if (clean.includes('long_beach')) return enrichEntityStatus(ADDITIONAL_VERIFIED_CIRCUITS.long_beach);
 
   // Fallback to F1 registry if available
   if (F1_CIRCUITS_REGISTRY[clean]) {
-    return metadataToCircuitEntity(F1_CIRCUITS_REGISTRY[clean]);
+    return enrichEntityStatus(metadataToCircuitEntity(F1_CIRCUITS_REGISTRY[clean]));
+  }
+  if (F1_CIRCUITS_REGISTRY[raw]) {
+    return enrichEntityStatus(metadataToCircuitEntity(F1_CIRCUITS_REGISTRY[raw]));
   }
 
-  return undefined;
+  // Check all merged circuits dynamically
+  const all = getAllGlobalCircuits();
+  const found = all.find(c =>
+    c.circuitId === clean ||
+    c.circuitId === raw ||
+    c.id === clean ||
+    c.id === raw ||
+    c.name.toLowerCase().replace(/[^a-z0-9]/g, '_') === clean ||
+    c.shortName.toLowerCase().replace(/[^a-z0-9]/g, '_') === clean
+  );
+
+  return found ? enrichEntityStatus(found) : undefined;
 }
 
 /**
@@ -2446,12 +2661,13 @@ export function getCircuitsByChampionship(championshipId: string, rounds?: Champ
 }
 
 /**
- * Searches and filters circuits across motorsport disciplines.
+ * Searches and filters circuits across motorsport disciplines and verification states.
  */
 export function searchGlobalCircuits(
   query: string,
   disciplineFilter: string = 'all',
-  typeFilter: string = 'all'
+  typeFilter: string = 'all',
+  verificationFilter: string = 'all'
 ): CircuitEntity[] {
   const q = query.trim().toLowerCase();
   const all = getAllGlobalCircuits();
@@ -2482,6 +2698,75 @@ export function searchGlobalCircuits(
       matchesType = circuit.layouts.some(l => l.type.toLowerCase() === typeFilter.toLowerCase());
     }
 
-    return matchesQuery && matchesDiscipline && matchesType;
+    // 4. Verification Filter
+    let matchesVerification = true;
+    if (verificationFilter !== 'all') {
+      if (verificationFilter === 'verified') {
+        matchesVerification = circuit.verificationStatus === 'VERIFIED';
+      } else if (verificationFilter === 'pending') {
+        matchesVerification = circuit.verificationStatus === 'PENDING_VERIFICATION';
+      } else if (verificationFilter === 'missing_assets') {
+        matchesVerification = circuit.verificationStatus === 'MISSING_ASSETS';
+      }
+    }
+
+    return matchesQuery && matchesDiscipline && matchesType && matchesVerification;
   });
+}
+
+export interface CircuitVerificationAuditRecord {
+  circuitId: string;
+  name: string;
+  country: string;
+  flag?: string;
+  series: string[];
+  verificationStatus: CircuitVerificationStatus;
+  hasSvg: boolean;
+  lengthKm: number;
+  turns: number;
+  direction: string;
+  officialWebsite?: string;
+}
+
+export interface CircuitAuditStats {
+  totalRegistered: number;
+  totalVerified: number;
+  totalPendingVerification: number;
+  totalMissingAssets: number;
+  totalWithSvg: number;
+  records: CircuitVerificationAuditRecord[];
+}
+
+/**
+ * Returns comprehensive verification audit statistics for admin oversight and reporting.
+ */
+export function getCircuitVerificationAuditStats(): CircuitAuditStats {
+  const all = getAllGlobalCircuits();
+  const records: CircuitVerificationAuditRecord[] = all.map(c => {
+    const primary = c.layouts.find(l => l.isPrimary) || c.layouts[0];
+    const mapSvg = primary?.mapSvg ? primary.mapSvg.replace(/^\/?(circuits\/)?/, '') : undefined;
+    const hasSvg = Boolean(mapSvg && VERIFIED_CIRCUIT_SVGS.has(mapSvg));
+    return {
+      circuitId: c.circuitId,
+      name: c.name,
+      country: c.location.country,
+      flag: c.location.flag,
+      series: c.disciplines.length > 0 ? c.disciplines : [c.primaryDiscipline],
+      verificationStatus: c.verificationStatus || 'PENDING_VERIFICATION',
+      hasSvg,
+      lengthKm: primary?.lengthKm || 0,
+      turns: primary?.turns || 0,
+      direction: primary?.direction || 'Clockwise',
+      officialWebsite: c.officialWebsite,
+    };
+  });
+
+  return {
+    totalRegistered: all.length,
+    totalVerified: records.filter(r => r.verificationStatus === 'VERIFIED').length,
+    totalPendingVerification: records.filter(r => r.verificationStatus === 'PENDING_VERIFICATION').length,
+    totalMissingAssets: records.filter(r => r.verificationStatus === 'MISSING_ASSETS').length,
+    totalWithSvg: records.filter(r => r.hasSvg).length,
+    records,
+  };
 }

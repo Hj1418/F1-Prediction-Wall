@@ -218,6 +218,7 @@ function doGet(e) {
         );
         break;
       case 'getPublicCommunityReport':
+        assertAdminPrivileges(e.parameter.requesterId, e.parameter.accessToken, e.parameter.authToken);
         responseData = getPublicCommunityReport(e.parameter.timeRange || 'all');
         break;
       default:

@@ -17,6 +17,7 @@ import {
   ChevronRight,
   Brain,
   Users,
+  Sliders,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { UserInitialsAvatar } from '../common/UserInitialsAvatar';
@@ -48,9 +49,10 @@ export const MobileNavigation: React.FC<MobileNavigationProps> = ({
   onClose,
   activeRoundLink = '/predictions',
 }) => {
-  const { currentUser, isAuthenticated, isAdmin, logout } = useAuth();
+  const { currentUser, isAuthenticated, isAdmin, logout, openLoginModal } = useAuth();
   const location = useLocation();
   const [exploreExpanded, setExploreExpanded] = useState(false);
+  const [competeExpanded, setCompeteExpanded] = useState(true);
 
   if (!isOpen) return null;
 
@@ -249,49 +251,154 @@ export const MobileNavigation: React.FC<MobileNavigationProps> = ({
           <span>Calendar</span>
         </Link>
 
-        {/* RACING TAG */}
-        <Link
-          to="/quiz"
-          onClick={onClose}
-          className={`mobile-nav-drawer__link ${isItemActive('/quiz') ? 'mobile-nav-drawer__link--active' : ''}`}
-          style={{ minHeight: '44px' }}
-        >
-          <Brain size={18} style={{ color: isItemActive('/quiz') ? 'var(--f1-red)' : 'var(--text-secondary)' }} />
-          <span>Get Your Racing Tag</span>
-        </Link>
+        {/* COMPETE (Accordion) */}
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              paddingRight: '0.5rem',
+            }}
+          >
+            <div
+              className={`mobile-nav-drawer__link ${
+                isItemActive('/predictions') ||
+                isItemActive('/predict') ||
+                isItemActive('/strategy') ||
+                isItemActive('/quiz') ||
+                isItemActive('/leaderboard')
+                  ? 'mobile-nav-drawer__link--active'
+                  : ''
+              }`}
+              style={{ flex: 1, minHeight: '44px', cursor: 'pointer' }}
+              onClick={() => setCompeteExpanded(prev => !prev)}
+            >
+              <Trophy size={18} style={{ color: 'var(--grdx-flame-orange, #FF7A00)' }} />
+              <span>Compete</span>
+            </div>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setCompeteExpanded(prev => !prev);
+              }}
+              aria-label="Toggle competition sub-items"
+              aria-expanded={competeExpanded}
+              style={{
+                background: 'rgba(255, 255, 255, 0.05)',
+                border: '1px solid var(--border-subtle)',
+                borderRadius: '6px',
+                color: 'var(--text-secondary)',
+                width: '38px',
+                height: '38px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+              }}
+            >
+              <ChevronDown
+                size={16}
+                style={{
+                  transform: competeExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
+                  transition: 'transform 0.2s ease',
+                }}
+              />
+            </button>
+          </div>
 
-        {/* PREDICTIONS */}
-        <Link
-          to="/predictions"
-          onClick={onClose}
-          className={`mobile-nav-drawer__link ${isItemActive('/predictions') ? 'mobile-nav-drawer__link--active' : ''}`}
-          style={{ minHeight: '44px' }}
-        >
-          <CircleDot size={18} style={{ color: isItemActive('/predictions') ? 'var(--f1-red)' : 'var(--text-secondary)' }} />
-          <span>Predictions</span>
-        </Link>
+          {/* Expanded Compete Sub-list */}
+          {competeExpanded && (
+            <div
+              style={{
+                marginLeft: '1.25rem',
+                paddingLeft: '0.75rem',
+                borderLeft: '2px solid rgba(255, 122, 0, 0.4)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.2rem',
+                margin: '0.25rem 0 0.5rem 1.25rem',
+              }}
+            >
+              {/* Predictions */}
+              <Link
+                to="/predictions"
+                onClick={(e) => {
+                  onClose();
+                  if (!isAuthenticated) {
+                    e.preventDefault();
+                    openLoginModal('/predictions');
+                  }
+                }}
+                className={`mobile-nav-drawer__link ${isItemActive('/predictions') ? 'mobile-nav-drawer__link--active' : ''}`}
+                style={{ minHeight: '40px', fontSize: '0.86rem' }}
+              >
+                <CircleDot size={16} style={{ color: '#FF7A00' }} />
+                <span>Predictions &amp; Bench</span>
+              </Link>
 
-        {/* LEADERBOARD */}
-        <Link
-          to="/leaderboard"
-          onClick={onClose}
-          className={`mobile-nav-drawer__link ${isItemActive('/leaderboard') ? 'mobile-nav-drawer__link--active' : ''}`}
-          style={{ minHeight: '44px' }}
-        >
-          <Trophy size={18} style={{ color: isItemActive('/leaderboard') ? 'var(--f1-red)' : 'var(--text-secondary)' }} />
-          <span>Leaderboard</span>
-        </Link>
+              {/* Strategy Room */}
+              <Link
+                to="/strategy"
+                onClick={(e) => {
+                  onClose();
+                  if (!isAuthenticated) {
+                    e.preventDefault();
+                    openLoginModal('/strategy');
+                  }
+                }}
+                className={`mobile-nav-drawer__link ${isItemActive('/strategy') ? 'mobile-nav-drawer__link--active' : ''}`}
+                style={{ minHeight: '40px', fontSize: '0.86rem' }}
+              >
+                <Sliders size={16} style={{ color: 'var(--telemetry-cyan, #00e5ff)' }} />
+                <span>Strategy Room</span>
+              </Link>
 
-        {/* COMMUNITY REPORT */}
-        <Link
-          to="/community-stats"
-          onClick={onClose}
-          className={`mobile-nav-drawer__link ${isItemActive('/community-stats') ? 'mobile-nav-drawer__link--active' : ''}`}
-          style={{ minHeight: '44px' }}
-        >
-          <Users size={18} style={{ color: isItemActive('/community-stats') ? 'var(--f1-red)' : 'var(--text-secondary)' }} />
-          <span>Community Report</span>
-        </Link>
+              {/* Racing Tag & Quiz */}
+              <Link
+                to="/quiz"
+                onClick={(e) => {
+                  onClose();
+                  if (!isAuthenticated) {
+                    e.preventDefault();
+                    openLoginModal('/quiz');
+                  }
+                }}
+                className={`mobile-nav-drawer__link ${isItemActive('/quiz') ? 'mobile-nav-drawer__link--active' : ''}`}
+                style={{ minHeight: '40px', fontSize: '0.86rem' }}
+              >
+                <Brain size={16} style={{ color: '#FFB000' }} />
+                <span>Get Your Racing Tag</span>
+              </Link>
+
+              {/* Leaderboard (Public) */}
+              <Link
+                to="/leaderboard"
+                onClick={onClose}
+                className={`mobile-nav-drawer__link ${isItemActive('/leaderboard') ? 'mobile-nav-drawer__link--active' : ''}`}
+                style={{ minHeight: '40px', fontSize: '0.86rem' }}
+              >
+                <Trophy size={16} style={{ color: '#FFD700' }} />
+                <span>Standings &amp; Leaderboard</span>
+              </Link>
+            </div>
+          )}
+        </div>
+
+        {/* COMMUNITY REPORT (ADMIN ONLY) */}
+        {isAdmin && (
+          <Link
+            to="/community-stats"
+            onClick={onClose}
+            className={`mobile-nav-drawer__link ${isItemActive('/community-stats') ? 'mobile-nav-drawer__link--active' : ''}`}
+            style={{ minHeight: '44px' }}
+          >
+            <Users size={18} style={{ color: isItemActive('/community-stats') ? 'var(--f1-red)' : 'var(--text-secondary)' }} />
+            <span>Community Report</span>
+          </Link>
+        )}
 
         {/* ABOUT US */}
         <Link

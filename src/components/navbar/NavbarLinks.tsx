@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Home, Compass, Calendar, CircleDot, Trophy, ChevronDown, Brain, Sliders } from 'lucide-react';
 import { ExploreMegaMenu } from './ExploreMegaMenu';
+import { useAuth } from '../../context/AuthContext';
 
 interface NavItem {
   label: string;
@@ -20,6 +21,7 @@ interface CompeteSubItem {
   pillText: string;
   colorType: 'flame' | 'gold' | 'cyan';
   matchPrefixes: string[];
+  requiresAuth?: boolean;
 }
 
 const COMPETE_ITEMS: CompeteSubItem[] = [
@@ -32,6 +34,7 @@ const COMPETE_ITEMS: CompeteSubItem[] = [
     pillText: 'PREDICT & SCORE',
     colorType: 'flame',
     matchPrefixes: ['/predictions', '/predict'],
+    requiresAuth: true,
   },
   {
     label: 'STRATEGY ROOM',
@@ -42,16 +45,7 @@ const COMPETE_ITEMS: CompeteSubItem[] = [
     pillText: 'RACE STRATEGIST',
     colorType: 'cyan',
     matchPrefixes: ['/strategy'],
-  },
-  {
-    label: 'LEADERBOARD',
-    path: '/leaderboard',
-    icon: Trophy,
-    title: 'LEADERBOARD',
-    description: 'Global community standings, user tiers & season ranks.',
-    pillText: 'STANDINGS',
-    colorType: 'gold',
-    matchPrefixes: ['/leaderboard'],
+    requiresAuth: true,
   },
   {
     label: 'RACING TAG',
@@ -62,6 +56,18 @@ const COMPETE_ITEMS: CompeteSubItem[] = [
     pillText: 'QUIZ',
     colorType: 'cyan',
     matchPrefixes: ['/quiz'],
+    requiresAuth: true,
+  },
+  {
+    label: 'LEADERBOARD',
+    path: '/leaderboard',
+    icon: Trophy,
+    title: 'LEADERBOARD',
+    description: 'Global community standings, user tiers & season ranks.',
+    pillText: 'STANDINGS',
+    colorType: 'gold',
+    matchPrefixes: ['/leaderboard'],
+    requiresAuth: false,
   },
 ];
 
@@ -84,6 +90,7 @@ const PRIMARY_NAV_ITEMS: NavItem[] = [
 
 export const NavbarLinks: React.FC = () => {
   const location = useLocation();
+  const { isAuthenticated, openLoginModal } = useAuth();
   const [isExploreOpen, setIsExploreOpen] = useState(false);
   const [isCompeteOpen, setIsCompeteOpen] = useState(false);
   const exploreCloseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -326,7 +333,13 @@ export const NavbarLinks: React.FC = () => {
                     to={item.path}
                     className={`compete-dropdown__item ${itemActive ? 'compete-dropdown__item--active' : ''}`}
                     role="menuitem"
-                    onClick={handleCloseCompete}
+                    onClick={(e) => {
+                      handleCloseCompete();
+                      if (item.requiresAuth && !isAuthenticated) {
+                        e.preventDefault();
+                        openLoginModal(item.path);
+                      }
+                    }}
                   >
                     <div className={`compete-dropdown__icon-box compete-dropdown__icon-box--${item.colorType}`}>
                       <ItemIcon size={18} />

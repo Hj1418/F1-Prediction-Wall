@@ -1340,35 +1340,44 @@ export const api = {
     constructors: NormalizedConstructorStanding[];
   }> {
     return clientCache.getOrFetch(`f1_norm_standings_${season}`, async () => {
-      // Build standings from current season drivers & constructors points
+      const { f1ChampionshipService } = await import('./motorsport/f1ChampionshipService');
       const [drivers, constructors] = await Promise.all([
-        this.getNormalizedDrivers(),
-        this.getNormalizedTeams(),
+        f1ChampionshipService.getDriverStandings(season),
+        f1ChampionshipService.getConstructorStandings(season),
       ]);
 
-      const driverStandings: NormalizedDriverStanding[] = drivers.map((d, idx) => ({
-        position: idx + 1,
-        driverId: d.driverId,
-        driverName: d.fullName,
-        driverCode: d.code,
-        teamId: d.currentTeamId,
-        teamName: d.currentTeamId,
-        points: 0,
-        wins: 0,
-        podiums: 0,
+      const provenance = {
+        sourceId: 'jolpica-f1',
+        authorityLevel: 'PRIMARY_OPEN_DATA' as const,
+        license: 'CC-BY-4.0',
+        attribution: 'Jolpica / Ergast API & FIA Official Classifications',
+        sourceUrl: 'https://api.jolpi.ca/ergast/f1/',
+        retrievedAt: new Date().toISOString(),
+      };
+
+      const driverStandings: NormalizedDriverStanding[] = drivers.map(d => ({
+        position: d.rank,
+        driverId: d.driverCode.toLowerCase(),
+        driverName: d.driverName,
+        driverCode: d.driverCode,
+        teamId: d.teamName.toLowerCase().replace(/[^a-z0-9]/g, '_'),
+        teamName: d.teamName,
+        points: d.points,
+        wins: d.wins,
+        podiums: d.podiums,
         season,
-        provenance: d.provenance,
+        provenance,
       }));
 
-      const constructorStandings: NormalizedConstructorStanding[] = constructors.map((c, idx) => ({
-        position: idx + 1,
-        teamId: c.teamId,
-        teamName: c.name,
-        points: 0,
-        wins: 0,
-        podiums: 0,
+      const constructorStandings: NormalizedConstructorStanding[] = constructors.map(c => ({
+        position: c.rank,
+        teamId: c.teamName.toLowerCase().replace(/[^a-z0-9]/g, '_'),
+        teamName: c.teamName,
+        points: c.points,
+        wins: c.wins,
+        podiums: c.podiums,
         season,
-        provenance: c.provenance,
+        provenance,
       }));
 
       return { drivers: driverStandings, constructors: constructorStandings };
@@ -1586,17 +1595,25 @@ export const api = {
     return mockApi.getAdminUserCompetitionProfile(requesterId, targetUserId, authToken);
   },
 
-  async getPublicCommunityReport(timeRange: AnalyticsTimeRange = 'all'): Promise<PublicCommunityReport> {
+  async getPublicCommunityReport(timeRange: AnalyticsTimeRange = 'all', requesterId?: string, authToken?: string): Promise<PublicCommunityReport> {
     if (isLiveBackend) {
       try {
+        const reqParam = requesterId ? `&requesterId=${encodeURIComponent(requesterId)}` : '';
+        const tokenParam = authToken ? `&authToken=${encodeURIComponent(authToken)}` : '';
         const res = await fetchWithTimeout(
-          `${API_BASE_URL}?action=getPublicCommunityReport&timeRange=${encodeURIComponent(timeRange)}`
+          `${API_BASE_URL}?action=getPublicCommunityReport&timeRange=${encodeURIComponent(timeRange)}${reqParam}${tokenParam}`
         );
         const json = await res.json();
         if (json.success && json.data) {
           return json.data;
         }
+        if (json.error || json.message) {
+          throw new Error(json.error || json.message);
+        }
       } catch (e: any) {
+        if (e?.message && (e.message.includes('Forbidden') || e.message.includes('privilege'))) {
+          throw e;
+        }
         console.warn('Live getPublicCommunityReport failed, falling back to local aggregate:', e);
       }
     }

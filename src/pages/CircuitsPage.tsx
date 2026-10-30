@@ -20,6 +20,7 @@ import {
   CheckCircle2,
   ChevronRight,
   ShieldCheck,
+  AlertCircle,
 } from 'lucide-react';
 import {
   getAllGlobalCircuits,
@@ -57,6 +58,7 @@ export const CircuitsPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [championshipFilter, setChampionshipFilter] = useState<ChampionshipFilter>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
+  const [verificationFilter, setVerificationFilter] = useState<string>('all');
   const [selectedLayoutId, setSelectedLayoutId] = useState<string>('');
 
   // Resolve active circuit if circuitId param is present
@@ -95,11 +97,67 @@ export const CircuitsPage: React.FC = () => {
 
   // Filtered circuits list for library browse view
   const filteredCircuits = useMemo(() => {
-    return searchGlobalCircuits(searchTerm, championshipFilter, typeFilter);
-  }, [searchTerm, championshipFilter, typeFilter]);
+    return searchGlobalCircuits(searchTerm, championshipFilter, typeFilter, verificationFilter);
+  }, [searchTerm, championshipFilter, typeFilter, verificationFilter]);
 
   // All circuits for quick carousel/switcher
   const allCircuits = useMemo(() => getAllGlobalCircuits(), []);
+
+  // Dedicated Not-Found state when circuitId was provided but could not be resolved
+  if (circuitId && (!activeCircuit || !currentLayout)) {
+    return (
+      <div style={{ maxWidth: '800px', margin: '4rem auto', padding: '2rem 1rem', textAlign: 'center' }}>
+        <div
+          style={{
+            width: '64px',
+            height: '64px',
+            borderRadius: '50%',
+            backgroundColor: 'rgba(239, 68, 68, 0.1)',
+            border: '1px solid rgba(239, 68, 68, 0.25)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            margin: '0 auto 1.5rem',
+            color: 'var(--f1-red, #e10600)',
+          }}
+        >
+          <AlertCircle size={32} />
+        </div>
+        <h1 style={{ fontSize: '2rem', fontWeight: 900, color: '#fff', marginBottom: '0.75rem' }}>
+          Circuit Not Found
+        </h1>
+        <p style={{ color: 'var(--text-secondary, #cbd5e1)', fontSize: '1rem', lineHeight: 1.6, maxWidth: '520px', margin: '0 auto 2rem' }}>
+          We could not resolve a registered motorsport circuit matching identifier{' '}
+          <code style={{ fontFamily: 'var(--font-mono, monospace)', color: 'var(--f1-red, #e10600)', backgroundColor: 'rgba(255,255,255,0.06)', padding: '0.2rem 0.4rem', borderRadius: '4px' }}>
+            {circuitId}
+          </code>.
+          The circuit may be under technical verification or using an alternate naming convention.
+        </p>
+        <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            onClick={() => navigate('/circuits')}
+            style={{
+              padding: '0.75rem 1.5rem',
+              backgroundColor: 'var(--f1-red, #e10600)',
+              color: '#ffffff',
+              border: 'none',
+              borderRadius: '8px',
+              fontWeight: 800,
+              fontSize: '0.88rem',
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+            }}
+          >
+            <Compass size={16} />
+            <span>Browse All Circuits</span>
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   // =========================================================================
   // VIEW 1: DEDICATED CIRCUIT DETAIL EXPERIENCE
@@ -249,18 +307,85 @@ export const CircuitsPage: React.FC = () => {
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '0.5rem',
-                  color: 'var(--f1-red, #e10600)',
-                  fontSize: '0.76rem',
-                  fontWeight: 800,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.08em',
+                  gap: '0.6rem',
+                  flexWrap: 'wrap',
                   marginBottom: '0.5rem',
-                  fontFamily: 'var(--font-mono, monospace)',
                 }}
               >
-                <span>{activeCircuit.location.flag}</span>
-                <span>{activeCircuit.location.city}, {activeCircuit.location.country}</span>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.4rem',
+                    color: 'var(--f1-red, #e10600)',
+                    fontSize: '0.76rem',
+                    fontWeight: 800,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.08em',
+                    fontFamily: 'var(--font-mono, monospace)',
+                  }}
+                >
+                  <span>{activeCircuit.location.flag}</span>
+                  <span>{activeCircuit.location.city}, {activeCircuit.location.country}</span>
+                </div>
+                {activeCircuit.verificationStatus === 'VERIFIED' ? (
+                  <span
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.3rem',
+                      fontSize: '0.68rem',
+                      fontFamily: 'var(--font-mono, monospace)',
+                      fontWeight: 800,
+                      padding: '0.15rem 0.5rem',
+                      borderRadius: '4px',
+                      backgroundColor: 'rgba(0, 230, 118, 0.12)',
+                      border: '1px solid rgba(0, 230, 118, 0.3)',
+                      color: '#00e676',
+                    }}
+                  >
+                    <CheckCircle2 size={12} />
+                    <span>VERIFIED CIRCUIT GEOMETRY</span>
+                  </span>
+                ) : activeCircuit.verificationStatus === 'MISSING_ASSETS' ? (
+                  <span
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.3rem',
+                      fontSize: '0.68rem',
+                      fontFamily: 'var(--font-mono, monospace)',
+                      fontWeight: 800,
+                      padding: '0.15rem 0.5rem',
+                      borderRadius: '4px',
+                      backgroundColor: 'rgba(245, 158, 11, 0.12)',
+                      border: '1px solid rgba(245, 158, 11, 0.3)',
+                      color: '#f59e0b',
+                    }}
+                  >
+                    <AlertCircle size={12} />
+                    <span>SPECS VERIFIED • SVG IN AUDIT</span>
+                  </span>
+                ) : (
+                  <span
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.3rem',
+                      fontSize: '0.68rem',
+                      fontFamily: 'var(--font-mono, monospace)',
+                      fontWeight: 800,
+                      padding: '0.15rem 0.5rem',
+                      borderRadius: '4px',
+                      backgroundColor: 'rgba(148, 163, 184, 0.12)',
+                      border: '1px solid rgba(148, 163, 184, 0.3)',
+                      color: '#94a3b8',
+                    }}
+                  >
+                    <Clock size={12} />
+                    <span>VERIFICATION PENDING</span>
+                  </span>
+                )}
               </div>
               <h1
                 style={{
@@ -889,6 +1014,53 @@ export const CircuitsPage: React.FC = () => {
                 }}
               >
                 {t === 'all' ? 'All Types' : t}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Verification Status Filter */}
+        <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', flexWrap: 'wrap' }}>
+          <span style={{ fontSize: '0.72rem', fontFamily: 'var(--font-mono, monospace)', color: 'var(--text-muted, #94a3b8)', textTransform: 'uppercase' }}>
+            Verification:
+          </span>
+          {[
+            { id: 'all', label: 'All Circuits' },
+            { id: 'verified', label: 'Verified Geometry' },
+            { id: 'missing_assets', label: 'Specs Verified' },
+            { id: 'pending', label: 'Pending Audit' },
+          ].map(v => {
+            const active = verificationFilter === v.id;
+            return (
+              <button
+                key={v.id}
+                type="button"
+                onClick={() => setVerificationFilter(v.id)}
+                style={{
+                  padding: '0.25rem 0.6rem',
+                  borderRadius: '6px',
+                  border: active
+                    ? v.id === 'verified'
+                      ? '1px solid #00e676'
+                      : v.id === 'missing_assets'
+                      ? '1px solid #f59e0b'
+                      : '1px solid var(--f1-red, #e10600)'
+                    : '1px solid rgba(255, 255, 255, 0.06)',
+                  backgroundColor: active
+                    ? v.id === 'verified'
+                      ? 'rgba(0, 230, 118, 0.15)'
+                      : v.id === 'missing_assets'
+                      ? 'rgba(245, 158, 11, 0.15)'
+                      : 'rgba(225, 6, 0, 0.15)'
+                    : 'transparent',
+                  color: active ? '#ffffff' : 'var(--text-secondary, #cbd5e1)',
+                  fontSize: '0.72rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  fontFamily: 'var(--font-mono, monospace)',
+                }}
+              >
+                {v.label}
               </button>
             );
           })}

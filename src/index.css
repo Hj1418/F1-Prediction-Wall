@@ -707,11 +707,21 @@ select.input-field option, select.form-select option {
 }
 
 /* Responsive Grid helpers */
-.container {
+/* Standardized Centered Page Container (max-width: 1320px) */
+.container,
+.page-container {
   width: 100%;
   max-width: 1320px;
   margin: 0 auto;
   padding: 0 24px;
+  box-sizing: border-box;
+}
+
+@media (max-width: 768px) {
+  .container,
+  .page-container {
+    padding: 0 16px;
+  }
 }
 
 /* Responsive Table Wrapper */

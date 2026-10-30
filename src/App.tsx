@@ -10,6 +10,8 @@ import { OnboardingModal } from './components/auth/OnboardingModal';
 import { NotificationCoordinator } from './components/notifications/NotificationCoordinator';
 import { PageLoadingFallback } from './components/common/PageLoadingFallback';
 import { AnalyticsTracker } from './analytics/AnalyticsTracker';
+import { CompetitionAuthGuard } from './components/auth/CompetitionAuthGuard';
+import { AdminAuthGuard } from './components/auth/AdminAuthGuard';
 
 // Route-level code splitting: pages load on-demand rather than bloating initial bundle
 const HomePage = lazy(() => import('./pages/HomePage').then(m => ({ default: m.HomePage })));
@@ -26,6 +28,8 @@ const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage').then(
 const CircuitsPage = lazy(() => import('./pages/CircuitsPage').then(m => ({ default: m.CircuitsPage })));
 const ChampionshipsPage = lazy(() => import('./pages/ChampionshipsPage').then(m => ({ default: m.ChampionshipsPage })));
 const ChampionshipDetailPage = lazy(() => import('./pages/ChampionshipDetailPage').then(m => ({ default: m.ChampionshipDetailPage })));
+const DriverProfilePage = lazy(() => import('./pages/DriverProfilePage').then(m => ({ default: m.DriverProfilePage })));
+const DriversHubPage = lazy(() => import('./pages/DriversHubPage').then(m => ({ default: m.DriversHubPage })));
 const IndianMotorsportPage = lazy(() => import('./pages/IndianMotorsportPage').then(m => ({ default: m.IndianMotorsportPage })));
 const CalendarPage = lazy(() => import('./pages/CalendarPage').then(m => ({ default: m.CalendarPage })));
 const QuizPage = lazy(() => import('./pages/QuizPage').then(m => ({ default: m.QuizPage })));
@@ -71,6 +75,10 @@ const AppLayout: React.FC = () => {
             <Route path="/weekends/:raceWeekendId" element={<WeekendDashboardPage />} />
             <Route path="/learn" element={<Navigate to="/explore" replace />} />
             <Route path="/explore" element={<ChampionshipsPage />} />
+            <Route path="/explore/drivers" element={<DriversHubPage />} />
+            <Route path="/explore/drivers/:driverSlug" element={<DriverProfilePage />} />
+            <Route path="/drivers" element={<DriversHubPage />} />
+            <Route path="/drivers/:driverSlug" element={<DriverProfilePage />} />
             <Route path="/explore/indian-motorsport" element={<IndianMotorsportPage />} />
             <Route path="/explore/:championshipId" element={<ChampionshipDetailPage />} />
             <Route path="/explore/:championshipId/circuits/:circuitId" element={<CircuitsPage />} />
@@ -81,18 +89,89 @@ const AppLayout: React.FC = () => {
             <Route path="/circuits" element={<CircuitsPage />} />
             <Route path="/circuits/:circuitId" element={<CircuitsPage />} />
             <Route path="/indian-motorsport" element={<IndianMotorsportPage />} />
-            <Route path="/quiz" element={<QuizPage />} />
-            <Route path="/quiz/:attemptId" element={<QuizPage />} />
-            <Route path="/strategy" element={<StrategyRoomPage />} />
-            <Route path="/strategy/scenario/:scenarioId" element={<StrategyScenarioPage />} />
+            <Route
+              path="/quiz"
+              element={
+                <CompetitionAuthGuard featureName="Racing Tag">
+                  <QuizPage />
+                </CompetitionAuthGuard>
+              }
+            />
+            <Route
+              path="/quiz/:attemptId"
+              element={
+                <CompetitionAuthGuard featureName="Racing Tag">
+                  <QuizPage />
+                </CompetitionAuthGuard>
+              }
+            />
+            <Route
+              path="/strategy"
+              element={
+                <CompetitionAuthGuard featureName="Strategy Room">
+                  <StrategyRoomPage />
+                </CompetitionAuthGuard>
+              }
+            />
+            <Route
+              path="/strategy/scenario/:scenarioId"
+              element={
+                <CompetitionAuthGuard featureName="Strategy Room">
+                  <StrategyScenarioPage />
+                </CompetitionAuthGuard>
+              }
+            />
             <Route path="/strategy/leaderboard" element={<StrategyLeaderboardPage />} />
-            <Route path="/strategy/performance" element={<StrategyPerformancePage />} />
-            <Route path="/predictions" element={<PredictionsHubPage />} />
-            <Route path="/predict/:roundId" element={<PredictionPage />} />
+            <Route
+              path="/strategy/performance"
+              element={
+                <CompetitionAuthGuard featureName="Strategy Performance">
+                  <StrategyPerformancePage />
+                </CompetitionAuthGuard>
+              }
+            />
+            <Route
+              path="/predictions"
+              element={
+                <CompetitionAuthGuard featureName="Prediction Bench">
+                  <PredictionsHubPage />
+                </CompetitionAuthGuard>
+              }
+            />
+            <Route
+              path="/predict/:roundId"
+              element={
+                <CompetitionAuthGuard featureName="Prediction Bench">
+                  <PredictionPage />
+                </CompetitionAuthGuard>
+              }
+            />
             <Route path="/leaderboard" element={<LeaderboardPage />} />
             <Route path="/profile/:username" element={<ProfilePage />} />
-            <Route path="/profile" element={<ProfilePage />} />
-            <Route path="/community-stats" element={<CommunityStatsPage />} />
+            <Route
+              path="/profile"
+              element={
+                <CompetitionAuthGuard featureName="Racer Profile">
+                  <ProfilePage />
+                </CompetitionAuthGuard>
+              }
+            />
+            <Route
+              path="/community-stats"
+              element={
+                <AdminAuthGuard featureName="Community Report">
+                  <CommunityStatsPage />
+                </AdminAuthGuard>
+              }
+            />
+            <Route
+              path="/admin/community-stats"
+              element={
+                <AdminAuthGuard featureName="Community Report">
+                  <CommunityStatsPage />
+                </AdminAuthGuard>
+              }
+            />
             <Route path="/about" element={<AboutUsPage />} />
             <Route path="/about-us" element={<Navigate to="/about" replace />} />
             <Route path="/admin" element={<AdminDashboardPage />} />

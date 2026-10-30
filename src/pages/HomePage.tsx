@@ -237,11 +237,11 @@ export const HomePage: React.FC = () => {
               </span>
             </h1>
 
-            <div className="home-hero-tagline sr-only" aria-label="Your motorsport starting point">
+            <div className="home-hero-tagline" aria-label="Your motorsport starting point">
               YOUR MOTORSPORT <span className="home-hero-tagline-accent">STARTING POINT</span>
             </div>
 
-            <p className="home-hero-description" style={{ maxWidth: '520px' }}>
+            <p className="home-hero-description" style={{ maxWidth: '580px', marginTop: '0.5rem', marginBottom: '1.75rem', fontSize: '0.96rem', color: '#CBD5E1', lineHeight: 1.55 }}>
               Discover, follow, learn and predict across the world of motorsport.
             </p>
 

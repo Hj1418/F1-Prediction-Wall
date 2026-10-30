@@ -94,6 +94,67 @@ export const CircuitCard: React.FC<CircuitCardProps> = ({
               {circuit.layouts.length} LAYOUTS
             </span>
           )}
+          {circuit.verificationStatus === 'VERIFIED' ? (
+            <span
+              title="Verified Circuit Geometry"
+              style={{
+                fontSize: '0.62rem',
+                fontFamily: 'var(--font-mono, monospace)',
+                fontWeight: 800,
+                color: '#00e676',
+                backgroundColor: 'rgba(0, 230, 118, 0.1)',
+                border: '1px solid rgba(0, 230, 118, 0.25)',
+                borderRadius: '4px',
+                padding: '0.12rem 0.35rem',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.25rem',
+              }}
+            >
+              <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#00e676' }} />
+              <span>VERIFIED</span>
+            </span>
+          ) : circuit.verificationStatus === 'MISSING_ASSETS' ? (
+            <span
+              title="Authoritative Specs Verified • SVG Pending Ingestion"
+              style={{
+                fontSize: '0.62rem',
+                fontFamily: 'var(--font-mono, monospace)',
+                fontWeight: 800,
+                color: '#f59e0b',
+                backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                border: '1px solid rgba(245, 158, 11, 0.25)',
+                borderRadius: '4px',
+                padding: '0.12rem 0.35rem',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.25rem',
+              }}
+            >
+              <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#f59e0b' }} />
+              <span>SPECS OK</span>
+            </span>
+          ) : (
+            <span
+              title="Circuit Under Verification"
+              style={{
+                fontSize: '0.62rem',
+                fontFamily: 'var(--font-mono, monospace)',
+                fontWeight: 700,
+                color: '#94a3b8',
+                backgroundColor: 'rgba(148, 163, 184, 0.1)',
+                border: '1px solid rgba(148, 163, 184, 0.2)',
+                borderRadius: '4px',
+                padding: '0.12rem 0.35rem',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.25rem',
+              }}
+            >
+              <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#94a3b8' }} />
+              <span>AUDIT</span>
+            </span>
+          )}
         </div>
 
         <span
