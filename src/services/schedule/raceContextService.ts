@@ -97,6 +97,44 @@ export async function getSharedRaceContext(
           state = 'COMPLETED';
         }
 
+        // Ensure selectedWeekend has complete sessions populated
+        const weekendKey = selectedWeekend.raceWeekendId || selectedWeekend.id || '2026_default';
+        if (!selectedWeekend.sessions || selectedWeekend.sessions.length === 0) {
+          try {
+            const detailed = await api.getWeekendById(weekendKey);
+            if (detailed && detailed.sessions && detailed.sessions.length > 0) {
+              selectedWeekend = { ...selectedWeekend, ...detailed };
+            }
+          } catch (e) {
+            console.warn('Could not populate sessions for selected weekend:', e);
+          }
+        }
+
+        // If sessions still absent, dynamically synthesize sessions adhering strictly to weekendType
+        if (!selectedWeekend.sessions || selectedWeekend.sessions.length === 0) {
+          const isSprint = selectedWeekend.weekendType === 'SPRINT';
+          const startMs = new Date(selectedWeekend.startDate || Date.now()).getTime();
+          const endMs = new Date(selectedWeekend.endDate || new Date(startMs + 48 * 3600 * 1000)).getTime();
+
+          if (isSprint) {
+            selectedWeekend.sessions = [
+              { sessionId: `${weekendKey}_FP1`, raceWeekendId: weekendKey, sessionType: 'FP1', type: 'FP1', name: 'Practice 1', startTime: new Date(startMs).toISOString(), status: 'UPCOMING' },
+              { sessionId: `${weekendKey}_SQ`, raceWeekendId: weekendKey, sessionType: 'SPRINT_QUALIFYING', type: 'SPRINT_QUALIFYING', name: 'Sprint Qualifying', startTime: new Date(startMs + 4 * 3600 * 1000).toISOString(), status: 'UPCOMING' },
+              { sessionId: `${weekendKey}_SPRINT`, raceWeekendId: weekendKey, sessionType: 'SPRINT', type: 'SPRINT', name: 'Sprint Race', startTime: new Date(startMs + 24 * 3600 * 1000).toISOString(), status: 'UPCOMING' },
+              { sessionId: `${weekendKey}_QUALIFYING`, raceWeekendId: weekendKey, sessionType: 'QUALIFYING', type: 'QUALIFYING', name: 'Grand Prix Qualifying', startTime: new Date(startMs + 28 * 3600 * 1000).toISOString(), status: 'UPCOMING' },
+              { sessionId: `${weekendKey}_RACE`, raceWeekendId: weekendKey, sessionType: 'RACE', type: 'RACE', name: selectedWeekend.raceName || selectedWeekend.name || 'Grand Prix', startTime: new Date(endMs).toISOString(), status: 'UPCOMING' },
+            ];
+          } else {
+            selectedWeekend.sessions = [
+              { sessionId: `${weekendKey}_FP1`, raceWeekendId: weekendKey, sessionType: 'FP1', type: 'FP1', name: 'Practice 1', startTime: new Date(startMs).toISOString(), status: 'UPCOMING' },
+              { sessionId: `${weekendKey}_FP2`, raceWeekendId: weekendKey, sessionType: 'FP2', type: 'FP2', name: 'Practice 2', startTime: new Date(startMs + 3.5 * 3600 * 1000).toISOString(), status: 'UPCOMING' },
+              { sessionId: `${weekendKey}_FP3`, raceWeekendId: weekendKey, sessionType: 'FP3', type: 'FP3', name: 'Practice 3', startTime: new Date(startMs + 23 * 3600 * 1000).toISOString(), status: 'UPCOMING' },
+              { sessionId: `${weekendKey}_QUALIFYING`, raceWeekendId: weekendKey, sessionType: 'QUALIFYING', type: 'QUALIFYING', name: 'Qualifying', startTime: new Date(startMs + 26.5 * 3600 * 1000).toISOString(), status: 'UPCOMING' },
+              { sessionId: `${weekendKey}_RACE`, raceWeekendId: weekendKey, sessionType: 'RACE', type: 'RACE', name: selectedWeekend.raceName || selectedWeekend.name || 'Grand Prix', startTime: new Date(endMs).toISOString(), status: 'UPCOMING' },
+            ];
+          }
+        }
+
         // Find associated active race prediction round (RACE_PREDICTION)
         let activePredRound = racePredictionRounds.find(
           r => (r.raceWeekendId === selectedWeekend.raceWeekendId || r.raceWeekendId === selectedWeekend.id) && !isQualificationPredictionRound(r)

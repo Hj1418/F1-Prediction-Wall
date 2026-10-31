@@ -266,11 +266,11 @@ export const api = {
       }
     } catch (_e) {}
 
-    // 1. Check if season weekends are already in memory cache
+    // 1. Check if season weekends are already in memory cache with sessions
     const cachedSeason = clientCache.get<RaceWeekend[]>('f1_weekends_2026');
     if (cachedSeason) {
       const match = cachedSeason.find(w => w.raceWeekendId === id || w.id === id);
-      if (match) return match;
+      if (match && match.sessions && match.sessions.length > 0) return match;
     }
 
     // 2. Check if season weekends are currently in flight
@@ -279,7 +279,7 @@ export const api = {
       try {
         const seasonList = await inFlightSeason;
         const match = seasonList.find(w => w.raceWeekendId === id || w.id === id);
-        if (match) return match;
+        if (match && match.sessions && match.sessions.length > 0) return match;
       } catch {
         // Fallback to direct query
       }
@@ -297,6 +297,22 @@ export const api = {
         }
       }
       return isProd ? null : mockApi.getWeekendById(id);
+    }, { ttlMs: TTL.MEDIUM });
+  },
+
+  async getSessionSchedule(raceWeekendId: string): Promise<any[]> {
+    return clientCache.getOrFetch(`f1_sessions_${raceWeekendId}`, async () => {
+      if (isLiveBackend) {
+        try {
+          const res = await fetchWithTimeout(`${API_BASE_URL}?action=getSessionSchedule&raceWeekendId=${encodeURIComponent(raceWeekendId)}`);
+          const json: ApiResponse<any[]> = await res.json();
+          if (json.success && json.data && json.data.length > 0) return json.data;
+        } catch (e) {
+          console.warn('Live API getSessionSchedule failed:', e);
+        }
+      }
+      const w = await this.getWeekendById(raceWeekendId);
+      return w?.sessions || [];
     }, { ttlMs: TTL.MEDIUM });
   },
 

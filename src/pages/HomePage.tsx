@@ -100,8 +100,8 @@ function getCircuitSvgForRace(circuitId?: string, circuitName?: string, grandPri
   if (normCircuit.includes('hungaroring') || normGp.includes('hungarian')) return 'hungaroring.svg';
   if (normCircuit.includes('montreal') || normCircuit.includes('villeneuve') || normGp.includes('canadian')) return 'montreal.svg';
   if (normCircuit.includes('spielberg') || normCircuit.includes('red bull ring') || normGp.includes('austrian')) return 'red-bull-ring.svg';
-  if (normCircuit.includes('shanghai') || normGp.includes('chinese')) return 'shanghai.svg';
   if (normCircuit.includes('singapore') || normCircuit.includes('marina bay')) return 'singapore.svg';
+  if (normCircuit.includes('mexico') || normCircuit.includes('rodriguez') || normCircuit.includes('hermanos') || normGp.includes('mexican') || normGp.includes('mexico')) return 'mexico.svg';
 
   return 'albert-park.svg';
 }
@@ -277,12 +277,15 @@ export const HomePage: React.FC = () => {
               const circuitSvgFile = getCircuitSvgForRace(nextRace.circuitId, nextRace.circuitName, nextRace.grandPrixName);
               const circuitAssetUrl = getCircuitAssetUrl(circuitSvgFile);
               const isAustinCota = (nextRace.circuitId || '').includes('cota') || (nextRace.circuitName || '').includes('Americas') || (nextRace.grandPrixName || '').includes('United States');
+              const isMexico = (nextRace.circuitId || '').includes('rodriguez') || (nextRace.circuitId || '').includes('mexico') || (nextRace.circuitName || '').includes('Hermanos') || (nextRace.grandPrixName || '').includes('Mexico');
               const displayCity = isAustinCota
                 ? 'Austin'
-                : (nextRace.city && nextRace.city.toLowerCase() !== 'us' && nextRace.city.toLowerCase() !== 'usa' ? nextRace.city : '');
+                : isMexico
+                  ? 'Mexico City'
+                  : (nextRace.city && nextRace.city.toLowerCase() !== 'us' && nextRace.city.toLowerCase() !== 'usa' && nextRace.city.toLowerCase() !== 'mexico' ? nextRace.city : '');
               const displayCountry = isAustinCota
                 ? 'USA'
-                : (nextRace.country && nextRace.country.toLowerCase() !== 'us' ? nextRace.country : 'USA');
+                : (nextRace.country && nextRace.country.toLowerCase() !== 'us' ? nextRace.country : isMexico ? 'Mexico' : 'USA');
               const locationText = displayCity ? `${displayCity}, ${displayCountry}` : displayCountry;
               const countdownTarget = predictionHighlight?.closesAt || (predictionHighlight as any)?.lockTime || nextRace?.startTimeUtc || (nextRace as any)?.startDate || '';
               const nowMs = Date.now();
@@ -295,15 +298,24 @@ export const HomePage: React.FC = () => {
               }
               const isPredictionsOpen = effectivePredictionStatus === 'OPEN';
 
+              const isSprintWeekend = nextRace.weekendType === 'SPRINT';
               const displaySessions = (nextRace.sessions && nextRace.sessions.length > 0)
                 ? nextRace.sessions
-                : [
-                    { name: 'Practice 1', day: 'Fri', time: '23:00 IST' },
-                    { name: 'Sprint Quali', day: 'Sat', time: '03:00 IST' },
-                    { name: 'Sprint', day: 'Sat', time: '23:30 IST' },
-                    { name: 'Qualifying', day: 'Sun', time: '03:30 IST' },
-                    { name: 'Main Race', day: 'Mon', time: '00:30 IST', isKeySession: true },
-                  ];
+                : isSprintWeekend
+                  ? [
+                      { name: 'Practice 1', day: 'Fri', time: '23:00 IST' },
+                      { name: 'Sprint Quali', day: 'Sat', time: '03:00 IST' },
+                      { name: 'Sprint', day: 'Sat', time: '23:30 IST' },
+                      { name: 'Qualifying', day: 'Sun', time: '03:30 IST' },
+                      { name: 'Main Race', day: 'Mon', time: '00:30 IST', isKeySession: true },
+                    ]
+                  : [
+                      { name: 'Practice 1', day: 'Fri', time: '00:00 IST' },
+                      { name: 'Practice 2', day: 'Sat', time: '03:30 IST' },
+                      { name: 'Practice 3', day: 'Sat', time: '23:00 IST' },
+                      { name: 'Qualifying', day: 'Sun', time: '02:30 IST', isKeySession: true },
+                      { name: 'Main Race', day: 'Mon', time: '01:30 IST', isKeySession: true },
+                    ];
 
               return (
                 <section

@@ -435,10 +435,14 @@ export async function getHomeSnapshot(referenceDate?: Date): Promise<HomeSnapsho
         officialTitle: w.name || w.raceName || 'Formula 1 Grand Prix',
         grandPrixName: w.raceName || w.name || 'Azerbaijan Grand Prix',
         circuitName,
-        city: (typeof w.circuit === 'object' && w.circuit && (w.circuit as any).locality) ? (w.circuit as any).locality : ((w.raceName || w.name || '').includes('Azerbaijan') ? 'Baku' : (w.country || 'Baku')),
+        city: (typeof w.circuit === 'object' && w.circuit && (w.circuit as any).locality)
+          ? (w.circuit as any).locality
+          : ((w.raceName || w.name || '').includes('Mexico') || (w.country || '').includes('Mexico'))
+            ? 'Mexico City'
+            : ((w.raceName || w.name || '').includes('Azerbaijan') ? 'Baku' : (w.country || 'Baku')),
         country: w.country || 'Azerbaijan',
-        countryCode: 'AZ',
-        flag: w.flag || '🇦🇿',
+        countryCode: (w.raceName || w.name || '').includes('Mexico') || w.country === 'Mexico' ? 'MX' : 'AZ',
+        flag: w.flag || ((w.raceName || w.name || '').includes('Mexico') || w.country === 'Mexico' ? '🇲🇽' : '🇦🇿'),
         dates: datesFormatted,
         status: raceContext.status,
         weekendType: w.weekendType === 'SPRINT' ? 'SPRINT' : 'STANDARD',
@@ -447,17 +451,34 @@ export async function getHomeSnapshot(referenceDate?: Date): Promise<HomeSnapsho
         startDate: w.startDate,
         endDate: w.endDate,
         startTimeUtc: raceStartTime,
-        sessions: (w.sessions || []).slice(0, 5).map(s => {
-          const istDate = s.startTime ? new Date(new Date(s.startTime).getTime() + 330 * 60 * 1000) : null;
-          const dayStr = istDate ? ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'][istDate.getUTCDay()] : 'FRI';
-          const timeStr = s.startTime ? formatIstTime(s.startTime) : '14:00 IST';
-          return {
-            name: s.name,
-            day: dayStr,
-            time: timeStr,
-            isKeySession: s.type === 'RACE' || s.type === 'GRAND_PRIX' || s.type === 'QUALIFYING',
-          };
-        }),
+        sessions: (w.sessions && w.sessions.length > 0)
+          ? w.sessions.slice(0, 5).map(s => {
+              const istDate = s.startTime ? new Date(new Date(s.startTime).getTime() + 330 * 60 * 1000) : null;
+              const dayStr = istDate ? ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'][istDate.getUTCDay()] : 'FRI';
+              const timeStr = s.startTime ? formatIstTime(s.startTime) : '14:00 IST';
+              return {
+                name: s.name,
+                day: dayStr,
+                time: timeStr,
+                isKeySession: s.type === 'RACE' || s.type === 'GRAND_PRIX' || s.type === 'QUALIFYING',
+              };
+            })
+          : (w.weekendType === 'SPRINT'
+              ? [
+                  { name: 'Practice 1', day: 'FRI', time: '23:00 IST' },
+                  { name: 'Sprint Quali', day: 'SAT', time: '03:00 IST' },
+                  { name: 'Sprint', day: 'SAT', time: '23:30 IST' },
+                  { name: 'Qualifying', day: 'SUN', time: '03:30 IST' },
+                  { name: 'Main Race', day: 'MON', time: '00:30 IST', isKeySession: true },
+                ]
+              : [
+                  { name: 'Practice 1', day: 'FRI', time: '00:00 IST' },
+                  { name: 'Practice 2', day: 'SAT', time: '03:30 IST' },
+                  { name: 'Practice 3', day: 'SAT', time: '23:00 IST' },
+                  { name: 'Qualifying', day: 'SUN', time: '02:30 IST', isKeySession: true },
+                  { name: 'Main Race', day: 'MON', time: '01:30 IST', isKeySession: true },
+                ]
+            ),
       };
 
       // Synchronize F1 category chip and radar event
